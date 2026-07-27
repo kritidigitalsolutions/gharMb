@@ -33,7 +33,7 @@ const signToken = (id, role) => {
 const otpStore = new Map();
 
 // @desc    Step 1 of Auth: Submit Basic Info & Send OTP (Screen 1: Basic Info)
-// @route   POST /api/app/auth/register
+// @route   POST /api/user/auth/register
 // @access  Public
 exports.registerUser = async (req, res, next) => {
   try {
@@ -115,7 +115,7 @@ exports.registerUser = async (req, res, next) => {
 };
 
 // @desc    Send OTP for existing user sign-in
-// @route   POST /api/app/auth/send-otp
+// @route   POST /api/user/auth/send-otp
 // @access  Public
 exports.sendOtp = async (req, res, next) => {
   try {
@@ -168,7 +168,7 @@ exports.sendOtp = async (req, res, next) => {
 };
 
 // @desc    Resend OTP to mobile number
-// @route   POST /api/app/auth/resend-otp
+// @route   POST /api/user/auth/resend-otp
 // @access  Public
 exports.resendOtp = async (req, res, next) => {
   try {
@@ -215,7 +215,7 @@ exports.resendOtp = async (req, res, next) => {
 };
 
 // @desc    Step 2 of Auth: Verify OTP & Create User / Session (Screen 2: Verify Your Number)
-// @route   POST /api/app/auth/verify-otp
+// @route   POST /api/user/auth/verify-otp
 // @access  Public
 exports.verifyOtp = async (req, res, next) => {
   try {
@@ -285,7 +285,7 @@ exports.verifyOtp = async (req, res, next) => {
 };
 
 // @desc    Progressive Profile Update (Screens 3, 4, 5: Role, Intents, Preferences)
-// @route   PATCH /api/app/auth/register OR /api/app/auth/update-profile
+// @route   PATCH /api/user/auth/register OR /api/user/auth/update-profile
 // @access  Private (Authenticated User)
 exports.updateProfile = async (req, res, next) => {
   try {

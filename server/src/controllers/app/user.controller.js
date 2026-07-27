@@ -30,7 +30,7 @@ const signToken = (id, role) => {
 };
 
 // @desc    Get current user profile
-// @route   GET /api/app/users/me
+// @route   GET /api/user/users/me
 // @access  Private
 exports.getMe = async (req, res, next) => {
   try {
@@ -46,7 +46,7 @@ exports.getMe = async (req, res, next) => {
 };
 
 // @desc    Update current user profile
-// @route   PATCH /api/app/users/update-me
+// @route   PATCH /api/user/users/update-me
 // @access  Private
 exports.updateMe = async (req, res, next) => {
   try {
@@ -99,7 +99,7 @@ exports.updateMe = async (req, res, next) => {
 };
 
 // @desc    Register as Real Estate Agent / Broker (Full Name, Mobile Number, RERA Registration & Docs Submission)
-// @route   POST /api/app/users/register-agent
+// @route   POST /api/user/users/register-agent
 // @access  Private
 exports.registerAgent = async (req, res, next) => {
   try {
@@ -198,7 +198,7 @@ exports.registerAgent = async (req, res, next) => {
 };
 
 // @desc    Register as Developer / Builder (Company Name, Full Name, Phone, RERA, PAN & Logo Submission)
-// @route   POST /api/app/users/register-developer
+// @route   POST /api/user/users/register-developer
 // @access  Private
 exports.registerDeveloper = async (req, res, next) => {
   try {

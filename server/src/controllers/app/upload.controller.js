@@ -11,7 +11,7 @@ const getFileUrl = (req, filename) => {
 };
 
 // @desc    Upload a single file (image / RERA certificate / Aadhaar / PAN card / PDF brochure)
-// @route   POST /api/app/upload/single
+// @route   POST /api/user/upload/single
 // @access  Public / Private
 exports.uploadSingleFile = async (req, res, next) => {
   try {
@@ -41,7 +41,7 @@ exports.uploadSingleFile = async (req, res, next) => {
 };
 
 // @desc    Upload multiple files (up to 12 property / project photos)
-// @route   POST /api/app/upload/multiple
+// @route   POST /api/user/upload/multiple
 // @access  Public / Private
 exports.uploadMultipleFiles = async (req, res, next) => {
   try {

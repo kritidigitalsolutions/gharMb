@@ -19,6 +19,8 @@ const adminUserRoutes = require('./routes/admin/user.routes');
 const adminPropertyRoutes = require('./routes/admin/property.routes');
 const adminProjectRoutes = require('./routes/admin/project.routes');
 const adminNotificationRoutes = require('./routes/admin/notification.routes');
+const adminLegalRoutes = require('./routes/admin/legal.routes');
+const adminPageRoutes = require('./routes/admin/page.routes');
 
 const appAuthRoutes = require('./routes/app/auth.routes');
 const appUserRoutes = require('./routes/app/user.routes');
@@ -28,6 +30,8 @@ const appUploadRoutes = require('./routes/app/upload.routes');
 const appEnquiryRoutes = require('./routes/app/enquiry.routes');
 const appFavoriteRoutes = require('./routes/app/favorite.routes');
 const appNotificationRoutes = require('./routes/app/notification.routes');
+const appLegalRoutes = require('./routes/app/legal.routes');
+const appPageRoutes = require('./routes/app/page.routes');
 
 const app = express();
 
@@ -81,16 +85,20 @@ app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin/properties', adminPropertyRoutes);
 app.use('/api/admin/projects', adminProjectRoutes);
 app.use('/api/admin/notifications', adminNotificationRoutes);
+app.use('/api/admin/legal', adminLegalRoutes);
+app.use('/api/admin/pages', adminPageRoutes);
 
 // 9. Mount App/Client API Routers
-app.use('/api/app/auth', appAuthRoutes);
-app.use('/api/app/users', appUserRoutes);
-app.use('/api/app/properties', appPropertyRoutes);
-app.use('/api/app/projects', appProjectRoutes);
-app.use('/api/app/upload', appUploadRoutes);
-app.use('/api/app/enquiries', appEnquiryRoutes);
-app.use('/api/app/favorites', appFavoriteRoutes);
-app.use('/api/app/notifications', appNotificationRoutes);
+app.use('/api/user/auth', appAuthRoutes);
+app.use('/api/user/users', appUserRoutes);
+app.use('/api/user/properties', appPropertyRoutes);
+app.use('/api/user/projects', appProjectRoutes);
+app.use('/api/user/upload', appUploadRoutes);
+app.use('/api/user/enquiries', appEnquiryRoutes);
+app.use('/api/user/favorites', appFavoriteRoutes);
+app.use('/api/user/notifications', appNotificationRoutes);
+app.use('/api/legal', appLegalRoutes);
+app.use('/api/pages', appPageRoutes);
 
 // 10. Fallback 404 Route handler
 app.use((req, res, next) => {

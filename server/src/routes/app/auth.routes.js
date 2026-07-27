@@ -15,7 +15,7 @@ router.post('/send-otp', authController.sendOtp);
 router.post('/resend-otp', authController.resendOtp);
 router.post('/verify-otp', authController.verifyOtp);
 
-// Protected Progressive Profile Setup (PATCH /api/app/auth/register)
+// Protected Progressive Profile Setup (PATCH /api/user/auth/register)
 router.patch('/register', protect, authController.updateProfile);
 
 module.exports = router;

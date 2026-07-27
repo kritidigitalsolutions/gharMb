@@ -6,7 +6,7 @@
 const Notification = require('../../models/notification.model');
 
 // @desc    Retrieve notifications for the current user
-// @route   GET /api/app/notifications
+// @route   GET /api/user/notifications
 // @access  Private
 exports.getMyNotifications = async (req, res, next) => {
   try {
@@ -27,7 +27,7 @@ exports.getMyNotifications = async (req, res, next) => {
 };
 
 // @desc    Mark notification as read
-// @route   PATCH /api/app/notifications/:id/read
+// @route   PATCH /api/user/notifications/:id/read
 // @access  Private
 exports.markAsRead = async (req, res, next) => {
   try {
@@ -56,7 +56,7 @@ exports.markAsRead = async (req, res, next) => {
 };
 
 // @desc    Mark all of current user's notifications as read
-// @route   POST /api/app/notifications/mark-all-read
+// @route   POST /api/user/notifications/mark-all-read
 // @access  Private
 exports.markAllAsRead = async (req, res, next) => {
   try {

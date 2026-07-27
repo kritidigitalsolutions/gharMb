@@ -6,7 +6,7 @@
 const Project = require('../../models/project.model');
 
 // @desc    Retrieve approved live developer projects (with city, status, type filters)
-// @route   GET /api/app/projects
+// @route   GET /api/user/projects
 // @access  Public
 exports.getAllProjects = async (req, res, next) => {
   try {
@@ -39,7 +39,7 @@ exports.getAllProjects = async (req, res, next) => {
 };
 
 // @desc    Get detailed project view (increments view count)
-// @route   GET /api/app/projects/:id
+// @route   GET /api/user/projects/:id
 // @access  Public
 exports.getProjectDetails = async (req, res, next) => {
   try {
@@ -68,7 +68,7 @@ exports.getProjectDetails = async (req, res, next) => {
 };
 
 // @desc    Submit a new 5-Step Developer Project for Admin Review
-// @route   POST /api/app/projects
+// @route   POST /api/user/projects
 // @access  Private (Builder/Developer)
 exports.createProject = async (req, res, next) => {
   try {
@@ -103,7 +103,7 @@ exports.createProject = async (req, res, next) => {
 };
 
 // @desc    Get all projects uploaded by logged-in developer
-// @route   GET /api/app/projects/my-projects
+// @route   GET /api/user/projects/my-projects
 // @access  Private
 exports.getMyProjects = async (req, res, next) => {
   try {
@@ -136,7 +136,7 @@ exports.getMyProjects = async (req, res, next) => {
 };
 
 // @desc    Update owned developer project
-// @route   PUT /api/app/projects/:id
+// @route   PUT /api/user/projects/:id
 // @access  Private (Developer who owns the project)
 exports.updateProject = async (req, res, next) => {
   try {
@@ -178,7 +178,7 @@ exports.updateProject = async (req, res, next) => {
 };
 
 // @desc    Delete owned developer project
-// @route   DELETE /api/app/projects/:id
+// @route   DELETE /api/user/projects/:id
 // @access  Private (Developer who owns the project)
 exports.deleteProject = async (req, res, next) => {
   try {

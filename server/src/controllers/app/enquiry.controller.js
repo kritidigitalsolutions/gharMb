@@ -8,7 +8,7 @@ const Property = require('../../models/property.model');
 const Notification = require('../../models/notification.model');
 
 // @desc    Submit an enquiry for a property listing
-// @route   POST /api/app/enquiries
+// @route   POST /api/user/enquiries
 // @access  Private (Buyer/Tenant only)
 exports.createEnquiry = async (req, res, next) => {
   try {
@@ -63,7 +63,7 @@ exports.createEnquiry = async (req, res, next) => {
 };
 
 // @desc    Get enquiries sent by current buyer/tenant
-// @route   GET /api/app/enquiries/my-enquiries
+// @route   GET /api/user/enquiries/my-enquiries
 // @access  Private (Buyer/Tenant only)
 exports.getMyEnquiries = async (req, res, next) => {
   try {
@@ -91,7 +91,7 @@ exports.getMyEnquiries = async (req, res, next) => {
 };
 
 // @desc    Get enquiries received for properties owned by current seller/agent/builder
-// @route   GET /api/app/enquiries/received
+// @route   GET /api/user/enquiries/received
 // @access  Private (Owner/Agent/Builder only)
 exports.getReceivedEnquiries = async (req, res, next) => {
   try {
@@ -118,7 +118,7 @@ exports.getReceivedEnquiries = async (req, res, next) => {
 };
 
 // @desc    Update status of an enquiry (contacted/resolved)
-// @route   PATCH /api/app/enquiries/:id
+// @route   PATCH /api/user/enquiries/:id
 // @access  Private (Owner/Agent/Builder who owns the referenced property)
 exports.updateEnquiryStatus = async (req, res, next) => {
   try {

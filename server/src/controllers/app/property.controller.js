@@ -6,7 +6,7 @@
 const Property = require('../../models/property.model');
 
 // @desc    Retrieve approved live properties for search feed
-// @route   GET /api/app/properties
+// @route   GET /api/user/properties
 // @access  Public
 exports.getAllProperties = async (req, res, next) => {
   try {
@@ -67,7 +67,7 @@ exports.getAllProperties = async (req, res, next) => {
 };
 
 // @desc    Retrieve detailed property listing (increments view count)
-// @route   GET /api/app/properties/:id
+// @route   GET /api/user/properties/:id
 // @access  Public
 exports.getPropertyDetails = async (req, res, next) => {
   try {
@@ -96,7 +96,7 @@ exports.getPropertyDetails = async (req, res, next) => {
 };
 
 // @desc    Submit a new 5-Step property listing for Admin review
-// @route   POST /api/app/properties
+// @route   POST /api/user/properties
 // @access  Private (Owner/Agent/Builder)
 exports.createProperty = async (req, res, next) => {
   try {
@@ -131,7 +131,7 @@ exports.createProperty = async (req, res, next) => {
 };
 
 // @desc    Retrieve My Dashboard stats, listings tabs (Live, Pending, Rejected) & performance metrics
-// @route   GET /api/app/properties/my-dashboard
+// @route   GET /api/user/properties/my-dashboard
 // @access  Private
 exports.getMyDashboard = async (req, res, next) => {
   try {
@@ -197,7 +197,7 @@ exports.getMyDashboard = async (req, res, next) => {
 };
 
 // @desc    Update owned property listing
-// @route   PUT /api/app/properties/:id
+// @route   PUT /api/user/properties/:id
 // @access  Private (Owner/Agent/Builder who owns the property)
 exports.updateProperty = async (req, res, next) => {
   try {
@@ -250,7 +250,7 @@ exports.updateProperty = async (req, res, next) => {
 };
 
 // @desc    Delete owned property listing
-// @route   DELETE /api/app/properties/:id
+// @route   DELETE /api/user/properties/:id
 // @access  Private (Owner/Agent/Builder who owns the property)
 exports.deleteProperty = async (req, res, next) => {
   try {
