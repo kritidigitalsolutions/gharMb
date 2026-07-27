@@ -17,11 +17,14 @@ const adminAuthRoutes = require('./routes/admin/auth.routes');
 const adminDashboardRoutes = require('./routes/admin/dashboard.routes');
 const adminUserRoutes = require('./routes/admin/user.routes');
 const adminPropertyRoutes = require('./routes/admin/property.routes');
+const adminProjectRoutes = require('./routes/admin/project.routes');
 const adminNotificationRoutes = require('./routes/admin/notification.routes');
 
 const appAuthRoutes = require('./routes/app/auth.routes');
 const appUserRoutes = require('./routes/app/user.routes');
 const appPropertyRoutes = require('./routes/app/property.routes');
+const appProjectRoutes = require('./routes/app/project.routes');
+const appUploadRoutes = require('./routes/app/upload.routes');
 const appEnquiryRoutes = require('./routes/app/enquiry.routes');
 const appFavoriteRoutes = require('./routes/app/favorite.routes');
 const appNotificationRoutes = require('./routes/app/notification.routes');
@@ -45,7 +48,8 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
-// 5. Serve Static Assets (e.g. uploaded images locally)
+// 5. Serve Static Assets (Uploaded images & files locally)
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 6. Global API Rate Limiter
@@ -71,19 +75,22 @@ app.get('/health', (req, res) => {
 });
 
 // 8. Mount Admin API Routers
-app.use('/api/v1/admin/auth', adminAuthRoutes);
-app.use('/api/v1/admin/dashboard', adminDashboardRoutes);
-app.use('/api/v1/admin/users', adminUserRoutes);
-app.use('/api/v1/admin/properties', adminPropertyRoutes);
-app.use('/api/v1/admin/notifications', adminNotificationRoutes);
+app.use('/api/admin/auth', adminAuthRoutes);
+app.use('/api/admin/dashboard', adminDashboardRoutes);
+app.use('/api/admin/users', adminUserRoutes);
+app.use('/api/admin/properties', adminPropertyRoutes);
+app.use('/api/admin/projects', adminProjectRoutes);
+app.use('/api/admin/notifications', adminNotificationRoutes);
 
 // 9. Mount App/Client API Routers
-app.use('/api/v1/app/auth', appAuthRoutes);
-app.use('/api/v1/app/users', appUserRoutes);
-app.use('/api/v1/app/properties', appPropertyRoutes);
-app.use('/api/v1/app/enquiries', appEnquiryRoutes);
-app.use('/api/v1/app/favorites', appFavoriteRoutes);
-app.use('/api/v1/app/notifications', appNotificationRoutes);
+app.use('/api/app/auth', appAuthRoutes);
+app.use('/api/app/users', appUserRoutes);
+app.use('/api/app/properties', appPropertyRoutes);
+app.use('/api/app/projects', appProjectRoutes);
+app.use('/api/app/upload', appUploadRoutes);
+app.use('/api/app/enquiries', appEnquiryRoutes);
+app.use('/api/app/favorites', appFavoriteRoutes);
+app.use('/api/app/notifications', appNotificationRoutes);
 
 // 10. Fallback 404 Route handler
 app.use((req, res, next) => {

@@ -14,7 +14,7 @@ const signToken = (id, role = 'admin') => {
 };
 
 // @desc    Register a new system administrator
-// @route   POST /api/v1/admin/auth/register
+// @route   POST /api/admin/auth/register
 // @access  Private/Public (depending on setup, typically seed script)
 exports.registerAdmin = async (req, res, next) => {
   try {
@@ -56,7 +56,7 @@ exports.registerAdmin = async (req, res, next) => {
 };
 
 // @desc    Authenticate administrator and return token
-// @route   POST /api/v1/admin/auth/login
+// @route   POST /api/admin/auth/login
 // @access  Public
 exports.loginAdmin = async (req, res, next) => {
   try {
@@ -99,7 +99,7 @@ exports.loginAdmin = async (req, res, next) => {
 };
 
 // @desc    Get current logged in administrator profile
-// @route   GET /api/v1/admin/auth/me
+// @route   GET /api/admin/auth/me
 // @access  Private (Admin Role only)
 exports.getMe = async (req, res, next) => {
   try {

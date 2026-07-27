@@ -7,8 +7,6 @@ import {
   CheckSquare,
   MessageSquare,
   Plus,
-  Moon,
-  Sun,
   Mail,
   Zap,
   Download,
@@ -19,7 +17,6 @@ const Header = ({ toggleSidebar, title }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMessages, setShowMessages] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const mockNotifications = [
     { id: 1, title: 'RERA License Pending', desc: 'Tata Developers submitted a new license key.', time: '5m ago', color: 'bg-orange-50 text-brand' },
@@ -101,16 +98,6 @@ const Header = ({ toggleSidebar, title }) => {
             className="w-48 lg:w-64 pl-9 pr-4 py-1.5 text-[11px] bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:border-brand/40 focus:bg-white transition-all"
           />
         </div>
-
-        {/* Theme Switcher Toggle */}
-        <button
-          type="button"
-          onClick={() => setIsDarkMode(!isDarkMode)}
-          className="p-2 text-slate-400 rounded-xl hover:bg-slate-50 hover:text-slate-600 transition-colors cursor-pointer"
-          title="Toggle Theme"
-        >
-          {isDarkMode ? <Sun size={16} className="text-yellow-500" /> : <Moon size={16} />}
-        </button>
 
         {/* Messages inbox dropdown */}
         <div className="relative">

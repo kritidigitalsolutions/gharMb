@@ -6,17 +6,20 @@
 const express = require('express');
 const propertyController = require('../../controllers/app/property.controller');
 const protect = require('../../middlewares/auth.middleware');
-const restrictTo = require('../../middlewares/role.middleware');
 
 const router = express.Router();
 
 // Publicly accessible search and detail endpoints
 router.get('/', propertyController.getAllProperties);
+
+// Protected Dashboard route
+router.get('/my-dashboard', protect, propertyController.getMyDashboard);
+
+// Public detail endpoint
 router.get('/:id', propertyController.getPropertyDetails);
 
-// Protected write operations
+// Protected write operations (Creation & Edits)
 router.use(protect);
-router.use(restrictTo('owner', 'agent', 'builder'));
 
 router.post('/', propertyController.createProperty);
 router.route('/:id')

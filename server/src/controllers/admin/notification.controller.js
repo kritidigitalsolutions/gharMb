@@ -7,7 +7,7 @@ const Notification = require('../../models/notification.model');
 const User = require('../../models/user.model');
 
 // @desc    Broadcast a system-wide or targeted notification
-// @route   POST /api/v1/admin/notifications
+// @route   POST /api/admin/notifications
 // @access  Private (Admin only)
 exports.broadcastNotification = async (req, res, next) => {
   try {
@@ -60,7 +60,7 @@ exports.broadcastNotification = async (req, res, next) => {
 };
 
 // @desc    Get all notifications (historical log)
-// @route   GET /api/v1/admin/notifications
+// @route   GET /api/admin/notifications
 // @access  Private (Admin only)
 exports.getNotificationLogs = async (req, res, next) => {
   try {

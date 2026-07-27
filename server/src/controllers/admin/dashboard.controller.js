@@ -8,7 +8,7 @@ const Property = require('../../models/property.model');
 const PropertyEnquiry = require('../../models/property-enquiry.model');
 
 // @desc    Get aggregate platform metrics
-// @route   GET /api/v1/admin/dashboard/stats
+// @route   GET /api/admin/dashboard/stats
 // @access  Private (Admin only)
 exports.getDashboardStats = async (req, res, next) => {
   try {

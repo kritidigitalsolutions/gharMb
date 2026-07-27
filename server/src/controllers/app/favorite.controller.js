@@ -7,7 +7,7 @@ const Favorite = require('../../models/favorite.model');
 const Property = require('../../models/property.model');
 
 // @desc    Toggle property favorite bookmark (add or remove)
-// @route   POST /api/v1/app/favorites/toggle
+// @route   POST /api/app/favorites/toggle
 // @access  Private (Buyer/Tenant only)
 exports.toggleFavorite = async (req, res, next) => {
   try {
@@ -54,7 +54,7 @@ exports.toggleFavorite = async (req, res, next) => {
 };
 
 // @desc    Get bookmarked properties feed
-// @route   GET /api/v1/app/favorites
+// @route   GET /api/app/favorites
 // @access  Private (Buyer/Tenant only)
 exports.getMyFavorites = async (req, res, next) => {
   try {

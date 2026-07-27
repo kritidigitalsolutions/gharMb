@@ -1,12 +1,11 @@
 /**
  * App Client User Routes
- * Exposes endpoints for managing profile data and uploading credentials.
+ * Exposes endpoints for profile data, Agent Registration, and Developer Registration.
  */
 
 const express = require('express');
 const userController = require('../../controllers/app/user.controller');
 const protect = require('../../middlewares/auth.middleware');
-const restrictTo = require('../../middlewares/role.middleware');
 
 const router = express.Router();
 
@@ -15,12 +14,7 @@ router.use(protect);
 
 router.get('/me', userController.getMe);
 router.patch('/update-me', userController.updateMe);
-
-// Only sellers, builders, agents upload RERA/ID proofs
-router.post(
-  '/upload-documents',
-  restrictTo('owner', 'agent', 'builder'),
-  userController.uploadVerificationDocs
-);
+router.post('/register-agent', userController.registerAgent);
+router.post('/register-developer', userController.registerDeveloper);
 
 module.exports = router;

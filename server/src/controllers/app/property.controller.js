@@ -1,20 +1,37 @@
 /**
  * App Property Listing Controller
- * Provides client-side listing publishing, editing, and advanced search filters (price, geo-queries).
+ * Provides 5-step listing submission, editing, dashboard stats, and public search filters.
  */
 
 const Property = require('../../models/property.model');
 
-// @desc    Retrieve approved properties (filtering, geo-radius queries)
-// @route   GET /api/v1/app/properties
+// @desc    Retrieve approved live properties for search feed
+// @route   GET /api/app/properties
 // @access  Public
 exports.getAllProperties = async (req, res, next) => {
   try {
-    const { type, propertyType, minPrice, maxPrice, lat, lng, distanceInKm } = req.query;
-    const query = { status: 'approved' }; // Clients only see approved listings
+    const {
+      category,
+      listingFor,
+      propertyType,
+      minPrice,
+      maxPrice,
+      city,
+      locality,
+      bedrooms,
+      lat,
+      lng,
+      distanceInKm,
+    } = req.query;
 
-    if (type) query.type = type;
+    const query = { approvalStatus: 'approved', isLive: true };
+
+    if (category) query.category = category;
+    if (listingFor) query.listingFor = listingFor;
     if (propertyType) query.propertyType = propertyType;
+    if (city) query.city = new RegExp(city, 'i');
+    if (locality) query.locality = new RegExp(locality, 'i');
+    if (bedrooms) query.bedrooms = bedrooms;
 
     // Price range filters
     if (minPrice || maxPrice) {
@@ -25,7 +42,7 @@ exports.getAllProperties = async (req, res, next) => {
 
     // Geospatial proximity lookup
     if (lat && lng && distanceInKm) {
-      const radiusInRadians = Number(distanceInKm) / 6378.1; // Earth's radius in km
+      const radiusInRadians = Number(distanceInKm) / 6378.1;
       query.location = {
         $geoWithin: {
           $centerSphere: [[Number(lng), Number(lat)], radiusInRadians],
@@ -35,7 +52,7 @@ exports.getAllProperties = async (req, res, next) => {
 
     const properties = await Property.find(query)
       .sort({ createdAt: -1 })
-      .populate('owner', 'name profilePicture role isVerified');
+      .populate('owner', 'name phone profilePicture role isVerified');
 
     res.status(200).json({
       status: 'success',
@@ -50,21 +67,20 @@ exports.getAllProperties = async (req, res, next) => {
 };
 
 // @desc    Retrieve detailed property listing (increments view count)
-// @route   GET /api/v1/app/properties/:id
+// @route   GET /api/app/properties/:id
 // @access  Public
 exports.getPropertyDetails = async (req, res, next) => {
   try {
-    // Increment view count dynamically
     const property = await Property.findByIdAndUpdate(
       req.params.id,
-      { $inc: { views: 1 } },
+      { $inc: { viewsCount: 1 } },
       { new: true }
-    ).populate('owner', 'name email phone profilePicture isVerified role');
+    ).populate('owner', 'name email phone profilePicture isVerified role address');
 
-    if (!property || property.status !== 'approved') {
+    if (!property) {
       return res.status(404).json({
         status: 'fail',
-        message: 'Property not found or is currently under moderation.',
+        message: 'Property not found.',
       });
     }
 
@@ -79,51 +95,33 @@ exports.getPropertyDetails = async (req, res, next) => {
   }
 };
 
-// @desc    Publish a new property listing (Pending Admin moderation)
-// @route   POST /api/v1/app/properties
-// @access  Private (Owner/Agent/Builder only)
+// @desc    Submit a new 5-Step property listing for Admin review
+// @route   POST /api/app/properties
+// @access  Private (Owner/Agent/Builder)
 exports.createProperty = async (req, res, next) => {
   try {
-    const {
-      title,
-      description,
-      type,
-      propertyType,
-      price,
-      area,
-      bedrooms,
-      bathrooms,
-      address,
-      latitude,
-      longitude,
-      images,
-      amenities,
-    } = req.body;
-
-    const property = await Property.create({
-      title,
-      description,
-      type,
-      propertyType,
-      price,
-      area,
-      bedrooms,
-      bathrooms,
-      address,
-      location: {
-        type: 'Point',
-        coordinates: [Number(longitude), Number(latitude)], // [long, lat]
-      },
-      images,
-      amenities,
+    const propertyData = {
+      ...req.body,
       owner: req.user._id,
-      status: 'pending', // Requires admin review
-    });
+      approvalStatus: 'pending',
+      isLive: false,
+    };
+
+    // Location coordinates handling
+    if (req.body.longitude && req.body.latitude) {
+      propertyData.location = {
+        type: 'Point',
+        coordinates: [Number(req.body.longitude), Number(req.body.latitude)],
+      };
+    }
+
+    const property = await Property.create(propertyData);
 
     res.status(201).json({
       status: 'success',
-      message: 'Property listing created and submitted for review.',
+      message: 'Property listing submitted for admin verification.',
       data: {
+        submissionId: property.submissionId,
         property,
       },
     });
@@ -132,8 +130,74 @@ exports.createProperty = async (req, res, next) => {
   }
 };
 
+// @desc    Retrieve My Dashboard stats, listings tabs (Live, Pending, Rejected) & performance metrics
+// @route   GET /api/app/properties/my-dashboard
+// @access  Private
+exports.getMyDashboard = async (req, res, next) => {
+  try {
+    const ownerId = req.user._id;
+
+    // Fetch all listings created by current user
+    const userProperties = await Property.find({ owner: ownerId }).sort({ createdAt: -1 });
+
+    const totalListings = userProperties.length;
+    const liveListings = userProperties.filter((p) => p.approvalStatus === 'approved' && p.isLive);
+    const pendingListings = userProperties.filter((p) => p.approvalStatus === 'pending');
+    const rejectedListings = userProperties.filter((p) => p.approvalStatus === 'rejected');
+
+    // Aggregate metrics
+    let totalViews = 0;
+    let totalShortlisted = 0;
+    let totalInquiries = 0;
+    let totalTokens = 0;
+
+    userProperties.forEach((p) => {
+      totalViews += p.viewsCount || 0;
+      totalShortlisted += p.shortlistedCount || 0;
+      totalInquiries += p.inquiriesCount || 0;
+      totalTokens += p.tokensCount || 0;
+    });
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        profile: {
+          id: req.user._id,
+          name: req.user.name,
+          email: req.user.email,
+          phone: req.user.phone,
+          role: req.user.role,
+          isVerified: req.user.isVerified,
+          address: req.user.address,
+        },
+        counters: {
+          totalListings,
+          liveListings: liveListings.length,
+          pendingListings: pendingListings.length,
+          rejectedListings: rejectedListings.length,
+          pendingTokens: totalTokens,
+          acceptedTokens: 2, // Example token count
+        },
+        performance: {
+          views: totalViews,
+          shortlisted: totalShortlisted,
+          inquiries: totalInquiries,
+          tokensReceived: totalTokens,
+        },
+        myProperties: {
+          live: liveListings,
+          pending: pendingListings,
+          rejected: rejectedListings,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Update owned property listing
-// @route   PUT /api/v1/app/properties/:id
+// @route   PUT /api/app/properties/:id
 // @access  Private (Owner/Agent/Builder who owns the property)
 exports.updateProperty = async (req, res, next) => {
   try {
@@ -146,7 +210,7 @@ exports.updateProperty = async (req, res, next) => {
       });
     }
 
-    // Check ownership
+    // Ownership check
     if (property.owner.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         status: 'fail',
@@ -154,31 +218,28 @@ exports.updateProperty = async (req, res, next) => {
       });
     }
 
-    // Extract modifications
-    const fieldsToUpdate = req.body;
-    if (fieldsToUpdate.latitude && fieldsToUpdate.longitude) {
-      fieldsToUpdate.location = {
+    const updateFields = { ...req.body };
+    if (updateFields.latitude && updateFields.longitude) {
+      updateFields.location = {
         type: 'Point',
-        coordinates: [Number(fieldsToUpdate.longitude), Number(fieldsToUpdate.latitude)],
+        coordinates: [Number(updateFields.longitude), Number(updateFields.latitude)],
       };
-      delete fieldsToUpdate.latitude;
-      delete fieldsToUpdate.longitude;
+      delete updateFields.latitude;
+      delete updateFields.longitude;
     }
 
-    // Demote to pending if critical items change (e.g. price/address) to trigger re-moderation
-    if (fieldsToUpdate.price || fieldsToUpdate.address || fieldsToUpdate.title) {
-      fieldsToUpdate.status = 'pending';
-    }
+    // Reset status to pending on update
+    updateFields.approvalStatus = 'pending';
+    updateFields.isLive = false;
 
-    property = await Property.findByIdAndUpdate(
-      req.params.id,
-      fieldsToUpdate,
-      { new: true, runValidators: true }
-    );
+    property = await Property.findByIdAndUpdate(req.params.id, updateFields, {
+      new: true,
+      runValidators: true,
+    });
 
     res.status(200).json({
       status: 'success',
-      message: 'Property listing updated. Status reset to pending for verification review.',
+      message: 'Property listing updated and re-submitted for admin verification.',
       data: {
         property,
       },
@@ -188,8 +249,8 @@ exports.updateProperty = async (req, res, next) => {
   }
 };
 
-// @desc    Remove owned property listing
-// @route   DELETE /api/v1/app/properties/:id
+// @desc    Delete owned property listing
+// @route   DELETE /api/app/properties/:id
 // @access  Private (Owner/Agent/Builder who owns the property)
 exports.deleteProperty = async (req, res, next) => {
   try {
@@ -202,7 +263,6 @@ exports.deleteProperty = async (req, res, next) => {
       });
     }
 
-    // Check ownership
     if (property.owner.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         status: 'fail',

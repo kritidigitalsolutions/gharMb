@@ -43,17 +43,12 @@ const adminSchema = new mongoose.Schema(
 );
 
 // Hash password before saving to the database
-adminSchema.pre('save', async function (next) {
+adminSchema.pre('save', async function () {
   // Only hash password if it was modified (or is new)
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password')) return;
 
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 // Compare password helper method

@@ -5,17 +5,17 @@
 
 const Property = require('../../models/property.model');
 
-// @desc    Get all properties (with status, price, type filters)
-// @route   GET /api/v1/admin/properties
+// @desc    Get all properties (with category, status, approvalStatus, search filters)
+// @route   GET /api/admin/properties
 // @access  Private (Admin only)
 exports.getAllProperties = async (req, res, next) => {
   try {
-    const { status, type, propertyType, search } = req.query;
+    const { category, listingFor, approvalStatus, search } = req.query;
     const filter = {};
 
-    if (status) filter.status = status;
-    if (type) filter.type = type;
-    if (propertyType) filter.propertyType = propertyType;
+    if (category) filter.category = category;
+    if (listingFor) filter.listingFor = listingFor;
+    if (approvalStatus) filter.approvalStatus = approvalStatus;
 
     if (search) {
       filter.$text = { $search: search };
@@ -23,7 +23,7 @@ exports.getAllProperties = async (req, res, next) => {
 
     const properties = await Property.find(filter)
       .sort({ createdAt: -1 })
-      .populate('owner', 'name email phone role');
+      .populate('owner', 'name email phone role isVerified');
 
     res.status(200).json({
       status: 'success',
@@ -37,22 +37,35 @@ exports.getAllProperties = async (req, res, next) => {
   }
 };
 
-// @desc    Review and update property status (approve/reject)
-// @route   PATCH /api/v1/admin/properties/:id/status
+// @desc    Review and update property approval status (approve / reject)
+// @route   PATCH /api/admin/properties/:id/status
 // @access  Private (Admin only)
 exports.updatePropertyStatus = async (req, res, next) => {
   try {
-    const { status, verificationStatus } = req.body;
+    const { approvalStatus, rejectionReason } = req.body;
 
-    const updateData = {};
-    if (status) updateData.status = status;
-    if (verificationStatus) updateData.verificationStatus = verificationStatus;
+    if (!approvalStatus || !['approved', 'rejected', 'pending'].includes(approvalStatus)) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Valid approvalStatus (approved, rejected, pending) is required.',
+      });
+    }
 
-    const property = await Property.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    ).populate('owner', 'name email');
+    const updateData = {
+      approvalStatus,
+      isLive: approvalStatus === 'approved',
+    };
+
+    if (approvalStatus === 'rejected' && rejectionReason) {
+      updateData.rejectionReason = rejectionReason;
+    } else if (approvalStatus === 'approved') {
+      updateData.rejectionReason = undefined;
+    }
+
+    const property = await Property.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true,
+    }).populate('owner', 'name email phone');
 
     if (!property) {
       return res.status(404).json({
@@ -63,7 +76,7 @@ exports.updatePropertyStatus = async (req, res, next) => {
 
     res.status(200).json({
       status: 'success',
-      message: `Property status updated to ${status || property.status}.`,
+      message: `Property listing approval status updated to ${approvalStatus}.`,
       data: {
         property,
       },
@@ -73,16 +86,16 @@ exports.updatePropertyStatus = async (req, res, next) => {
   }
 };
 
-// @desc    Toggle property featured spotlight status
-// @route   PATCH /api/v1/admin/properties/:id/featured
+// @desc    Toggle property featured tier status
+// @route   PATCH /api/admin/properties/:id/featured
 // @access  Private (Admin only)
 exports.toggleFeatured = async (req, res, next) => {
   try {
-    const { isFeatured } = req.body;
+    const { listingTier } = req.body;
 
     const property = await Property.findByIdAndUpdate(
       req.params.id,
-      { isFeatured },
+      { listingTier: listingTier || 'Featured' },
       { new: true }
     );
 
@@ -95,7 +108,7 @@ exports.toggleFeatured = async (req, res, next) => {
 
     res.status(200).json({
       status: 'success',
-      message: `Property featured status set to ${isFeatured}.`,
+      message: `Property listing tier updated to ${property.listingTier}.`,
       data: {
         property,
       },
@@ -106,7 +119,7 @@ exports.toggleFeatured = async (req, res, next) => {
 };
 
 // @desc    Remove/delete property listing from platform
-// @route   DELETE /api/v1/admin/properties/:id
+// @route   DELETE /api/admin/properties/:id
 // @access  Private (Admin only)
 exports.deleteProperty = async (req, res, next) => {
   try {
