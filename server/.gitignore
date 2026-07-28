@@ -1,0 +1,14 @@
+# Local environment configurations
+.env
+.env.local
+
+# Dependency directories (handled by monorepo but good for redundancy)
+node_modules/
+
+# User uploads directory
+src/uploads/*
+!src/uploads/.gitkeep
+
+# Local logs
+logs/
+*.log
