@@ -5,6 +5,22 @@
 
 const User = require('../../models/user.model');
 
+// Helper to normalize phone numbers (+91XXXXXXXXXX)
+const normalizePhone = (phone) => {
+  if (!phone) return '';
+  let cleaned = phone.toString().replace(/[\s\-\(\)]/g, '');
+  if (!cleaned.startsWith('+')) {
+    if (cleaned.length === 10) {
+      cleaned = '+91' + cleaned;
+    } else if (cleaned.length === 12 && cleaned.startsWith('91')) {
+      cleaned = '+' + cleaned;
+    } else {
+      cleaned = '+' + cleaned;
+    }
+  }
+  return cleaned;
+};
+
 // @desc    Get all users (with filters & search)
 // @route   GET /api/admin/users
 // @access  Private (Admin only)
@@ -225,6 +241,107 @@ exports.deactivateUser = async (req, res, next) => {
     res.status(200).json({
       status: 'success',
       message: 'User account has been deleted successfully.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update user profile by administrator
+// @route   PATCH /api/admin/users/:id
+// @access  Private (Admin only)
+exports.updateUser = async (req, res, next) => {
+  try {
+    const {
+      name,
+      email,
+      phone,
+      role,
+      isVerified,
+      companyName,
+      gstNumber,
+      reraNumber,
+      experience,
+      cityOfOperation,
+      address,
+      latitude,
+      longitude,
+      intents,
+      preferences,
+    } = req.body;
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'No user found with that ID.',
+      });
+    }
+
+    const updateData = {};
+
+    if (name) updateData.name = name;
+    
+    // Email uniqueness check
+    if (email && email !== user.email) {
+      const existingEmail = await User.findOne({ email });
+      if (existingEmail) {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'An account with this email already exists.',
+        });
+      }
+      updateData.email = email.toLowerCase();
+    }
+
+    // Phone uniqueness check
+    if (phone) {
+      const normalizedPhone = normalizePhone(phone);
+      if (normalizedPhone !== user.phone) {
+        const existingPhone = await User.findOne({ phone: normalizedPhone });
+        if (existingPhone) {
+          return res.status(400).json({
+            status: 'fail',
+            message: 'An account with this phone number already exists.',
+          });
+        }
+        updateData.phone = normalizedPhone;
+      }
+    }
+
+    if (role) updateData.role = role;
+    if (isVerified !== undefined) updateData.isVerified = isVerified;
+    if (companyName) updateData.companyName = companyName;
+    if (gstNumber) updateData.gstNumber = gstNumber;
+    if (reraNumber) updateData.reraNumber = reraNumber;
+    if (experience) updateData.experience = experience;
+    if (cityOfOperation) updateData.cityOfOperation = cityOfOperation;
+
+    if (address) {
+      updateData.address = typeof address === 'string' ? { formattedAddress: address } : address;
+    }
+
+    if (latitude !== undefined && longitude !== undefined) {
+      updateData.location = {
+        type: 'Point',
+        coordinates: [Number(longitude), Number(latitude)],
+      };
+    }
+
+    if (intents) updateData.intents = intents;
+    if (preferences) updateData.preferences = preferences;
+
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true,
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'User profile updated successfully by administrator.',
+      data: {
+        user: updatedUser,
+      },
     });
   } catch (error) {
     next(error);

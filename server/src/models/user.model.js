@@ -115,6 +115,16 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    rating: {
+      type: Number,
+      default: 4.5,
+      min: [1, 'Rating must be at least 1.0'],
+      max: [5, 'Rating cannot be more than 5.0'],
+    },
+    reviewCount: {
+      type: Number,
+      default: 120,
+    },
 
     // User Onboarding Preferences
     intents: [

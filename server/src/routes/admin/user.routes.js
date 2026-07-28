@@ -20,6 +20,7 @@ router.get('/pending-developers', userController.getPendingDevelopers);
 
 router.route('/:id')
   .get(userController.getUserDetails)
+  .patch(userController.updateUser)
   .delete(userController.deactivateUser);
 
 router.patch('/:id/verify-agent', userController.verifyAgent);

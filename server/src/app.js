@@ -21,17 +21,19 @@ const adminProjectRoutes = require('./routes/admin/project.routes');
 const adminNotificationRoutes = require('./routes/admin/notification.routes');
 const adminLegalRoutes = require('./routes/admin/legal.routes');
 const adminPageRoutes = require('./routes/admin/page.routes');
+const adminNewsRoutes = require('./routes/admin/news.routes');
 
-const appAuthRoutes = require('./routes/app/auth.routes');
-const appUserRoutes = require('./routes/app/user.routes');
-const appPropertyRoutes = require('./routes/app/property.routes');
-const appProjectRoutes = require('./routes/app/project.routes');
-const appUploadRoutes = require('./routes/app/upload.routes');
-const appEnquiryRoutes = require('./routes/app/enquiry.routes');
-const appFavoriteRoutes = require('./routes/app/favorite.routes');
-const appNotificationRoutes = require('./routes/app/notification.routes');
-const appLegalRoutes = require('./routes/app/legal.routes');
-const appPageRoutes = require('./routes/app/page.routes');
+const appAuthRoutes = require('./routes/user/auth.routes');
+const appUserRoutes = require('./routes/user/user.routes');
+const appPropertyRoutes = require('./routes/user/property.routes');
+const appProjectRoutes = require('./routes/user/project.routes');
+const appUploadRoutes = require('./routes/user/upload.routes');
+const appEnquiryRoutes = require('./routes/user/enquiry.routes');
+const appFavoriteRoutes = require('./routes/user/favorite.routes');
+const appNotificationRoutes = require('./routes/user/notification.routes');
+const appLegalRoutes = require('./routes/user/legal.routes');
+const appPageRoutes = require('./routes/user/page.routes');
+const appNewsRoutes = require('./routes/user/news.routes');
 
 const app = express();
 
@@ -87,18 +89,28 @@ app.use('/api/admin/projects', adminProjectRoutes);
 app.use('/api/admin/notifications', adminNotificationRoutes);
 app.use('/api/admin/legal', adminLegalRoutes);
 app.use('/api/admin/pages', adminPageRoutes);
+app.use('/api/admin/news', adminNewsRoutes);
 
-// 9. Mount App/Client API Routers
+// 9. all USER API Routers
 app.use('/api/user/auth', appAuthRoutes);
-app.use('/api/user/users', appUserRoutes);
-app.use('/api/user/properties', appPropertyRoutes);
-app.use('/api/user/projects', appProjectRoutes);
-app.use('/api/user/upload', appUploadRoutes);
-app.use('/api/user/enquiries', appEnquiryRoutes);
-app.use('/api/user/favorites', appFavoriteRoutes);
-app.use('/api/user/notifications', appNotificationRoutes);
+
+app.use('/api/users', appUserRoutes);
+
+app.use('/api/properties', appPropertyRoutes);
+
+app.use('/api/projects', appProjectRoutes);
+
+app.use('/api/upload', appUploadRoutes);
+
+app.use('/api/enquiries', appEnquiryRoutes);
+
+app.use('/api/favorites', appFavoriteRoutes);
+
+app.use('/api/notifications', appNotificationRoutes);
+
 app.use('/api/legal', appLegalRoutes);
 app.use('/api/pages', appPageRoutes);
+app.use('/api/news', appNewsRoutes);
 
 // 10. Fallback 404 Route handler
 app.use((req, res, next) => {

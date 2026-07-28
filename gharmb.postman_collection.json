@@ -1,0 +1,1864 @@
+{
+  "info": {
+    "_postman_id": "b45f4d43-7f57-4ebe-b4f6-f247d05996e8",
+    "name": "gharmb",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "53567820",
+    "_collection_link": "https://go.postman.co/collection/53567820-b45f4d43-7f57-4ebe-b4f6-f247d05996e8?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Get Admin Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5001/api/admin/dashboard/stats",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "admin",
+                "dashboard",
+                "stats"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current Admin Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5001/api/admin/auth/me",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "admin",
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"admin@gharmb.com\",\r\n  \"password\": \"AdminPassword123!\"\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/admin/auth/login",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "admin",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "admin regsiter",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Super Admin\",\r\n  \"email\": \"admin@gharmb.com\",\r\n  \"password\": \"AdminPassword123!\"\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/admin/auth/register",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "admin",
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Property Verification",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"approvalStatus\": \"approved\"\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/admin/properties/:propertyId/status",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "admin",
+                "properties",
+                ":propertyId",
+                "status"
+              ],
+              "variable": [
+                {
+                  "key": "propertyId",
+                  "value": "6a64652eab6243a722642662"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Approves Agent Application",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"agentVerificationStatus\": \"approved\"\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/admin/users/:agentUserId/verify-agent",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "admin",
+                "users",
+                ":agentUserId",
+                "verify-agent"
+              ],
+              "variable": [
+                {
+                  "key": "agentUserId",
+                  "value": "6a63408f25d3f9fad4c1c539"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Approves Developer",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"builderVerificationStatus\": \"approved\"\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/admin/users/:builderUserId/verify-developer",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "admin",
+                "users",
+                ":builderUserId",
+                "verify-developer"
+              ],
+              "variable": [
+                {
+                  "key": "builderUserId",
+                  "value": "6a63408f25d3f9fad4c1c539"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "developer project approval",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"approvalStatus\": \"approved\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/admin/projects/6a64652eab6243a722642662/status",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "admin",
+                "projects",
+                "6a64652eab6243a722642662",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Updates User Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alok Mishra Updated\",\n  \"email\": \"alok.mishra.updated@gmail.com\",\n  \"phone\": \"+919876543210\",\n  \"role\": \"buyer\",\n  \"isVerified\": true,\n  \"address\": {\n    \"formattedAddress\": \"Mira Road East, Mumbai, Maharashtra\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"pincode\": \"401107\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/admin/users/:userId",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "admin",
+                "users",
+                ":userId"
+              ],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "6a63408f25d3f9fad4c1c539"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Admin Notification Logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5001/api/admin/notifications",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "admin",
+                "notifications"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Broadcast Notification",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"System Maintenance Update\",\n  \"message\": \"We will be performing a quick system upgrade tonight between 2 AM to 3 AM. App might be briefly unreachable.\",\n  \"targetRoles\": [\"buyer\", \"agent\", \"builder\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/admin/notifications",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "admin",
+                "notifications"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "news",
+          "item": [
+            {
+              "name": "Create News",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"RBI holds repo rate at 6.5%\",\n  \"shortDescription\": \"Home loan EMIs stay stable this quarter.\",\n  \"description\": \"The Reserve Bank of India announced its latest rates, keeping it at 6.5% for this quarter.\",\n  \"category\": \"rbi_rates\",\n  \"readTime\": 3,\n  \"isFeatured\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/news",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "news"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get All News (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/news?page=1&limit=10",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "news"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get News By Id (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/news/:id",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "news",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "6a688b25e112db1c3145a841"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update News",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Updated RBI repo rate is 6.5%\",\n  \"isFeatured\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/news/:id",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "news",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "6a688b25e112db1c3145a841"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Publish News",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/news/:id/publish",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "news",
+                    ":id",
+                    "publish"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "6a688b25e112db1c3145a841"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Unpublish News",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/news/:id/unpublish",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "news",
+                    ":id",
+                    "unpublish"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "6a688b25e112db1c3145a841"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete News",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/news/:id",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "news",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "6a688b25e112db1c3145a841"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{json_web_token_07j9}}",
+            "type": "string"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {},
+            "exec": [
+              ""
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {},
+            "exec": [
+              ""
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "user",
+      "item": [
+        {
+          "name": "auth",
+          "item": [
+            {
+              "name": "register",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"name\": \"Rishika Chaudhary\",\r\n  \"email\": \"rishika2@example.com\",\r\n  \"phone\": \"9876543200\",\r\n  \"address\": {\r\n    \"formattedAddress\": \"Mira Road East, Mira-Bhayandar, Maharashtra\",\r\n    \"city\": \"Mira-Bhayandar\",\r\n    \"state\": \"Maharashtra\",\r\n    \"pincode\": \"401107\"\r\n  },\r\n  \"latitude\": 19.2812,\r\n  \"longitude\": 72.8561\r\n}\r\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/user/auth/register",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "user",
+                    "auth",
+                    "register"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const response = pm.response.json();",
+                      "if (response.token) {",
+                      "    pm.collectionVariables.set(\"json_web_token_0qr7\", response.token);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "response": []
+            },
+            {
+              "name": "Send Mobile OTP",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"phone\": \"919876543215\"\r\n}\r\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/user/auth/send-otp",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "user",
+                    "auth",
+                    "send-otp"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "verify otp",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"phone\": \"+919876543215\",\r\n  \"otp\": \"578334\"\r\n}\r\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/user/auth/verify-otp",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "user",
+                    "auth",
+                    "verify-otp"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const response = pm.response.json();",
+                      "if (response.token) {",
+                      "    pm.collectionVariables.set(\"json_web_token_0qr7\", response.token);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "response": []
+            },
+            {
+              "name": "update profile",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"role\": \"buyer\",\r\n  \"intents\": [\"buy\", \"rent\"],\r\n  \"preferences\": {\r\n    \"propertyTypes\": [\"Apartment\", \"Villa\"],\r\n    \"minBudget\": 1000000,\r\n    \"maxBudget\": 50000000,\r\n    \"preferredCities\": [\"Mira-Bhayandar\", \"Agra\"],\r\n    \"bedrooms\": [\"2 BHK\", \"3 BHK\"]\r\n  }\r\n}\r\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/user/auth/register",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "user",
+                    "auth",
+                    "register"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "resend otp",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"phone\": \"+919876543210\"\r\n}\r\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/user/auth/resend-otp",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "user",
+                    "auth",
+                    "resend-otp"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get profile",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{url}}/api/user/users/me",
+                  "host": [
+                    "{{url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "user",
+                    "users",
+                    "me"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "property",
+          "item": [
+            {
+              "name": "My Dashboard",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/properties/my-dashboard",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "properties",
+                    "my-dashboard"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "owner Property Listing",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "listingAs\tText\tOwner\tListing role",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "category\tText\tResidential\tResidential / Commercial",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "listingFor\tText\tRent\tRent / Sale",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "propertyType\tText\tApartment\tApartment, Villa, Independent House...",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "title\tText\tSkyline Heights — 3 BHK Apartment\tListing Title",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "city\tText\tNoida\tCity",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "locality\tText\tSector 62\tLocality",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "fullAddress\tText\tA-304, Skyline Heights, Sector 62\tAddress",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "pincode\tText\t283501\tPincode",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "description\tText\tSpacious 3 BHK apartment with balcony...\tDescription",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "bedrooms\tText\t3\tBedrooms count",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "bathrooms\tText\t2\tBathrooms count",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "carpetArea\tText\t1450\tArea in sqft",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "builtUpArea\tText\t1680\tBuilt up area",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "floorNo\tText\t8\tFloor number",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "totalFloors\tText\t18\tTotal floors",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "ageOfProperty\tText\t0–3 yrs\tAge",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "furnishing\tText\tSemi-furnished\tFurnishing status",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "facingDirection\tText\tEast\tFacing direction",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "parking\tText\t1 covered\tParking",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "amenities\tText\t[\"Security\", \"Gym\", \"Lift\", \"Power backup\", \"Garden\"]\tAmenities JSON array",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "preferredTenants\tText\t[\"Family\", \"Working professionals\"]\tTenants JSON array",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "petsAllowed\tText\tfalse\tBoolean",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "smokingAllowed\tText\tfalse\tBoolean",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "noticePeriod\tText\t1 month\tNotice period",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "availableFrom\tText\tImmediate\tAvailability",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "price\tText\t18000\tPrice / Rent",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "securityDeposit\tText\t54000\tSecurity deposit",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "maintenanceCharges\tText\t2000\tMaintenance",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "listingTier\tText\tStandard\tStandard / Featured / Premium",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "images\tFile\tSelect photos from PC (Select multiple photos)\tProperty Photos File Upload",
+                      "value": "",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/properties",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "properties"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Agent Property Listing",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"listingAs\": \"Agent / Broker\",\r\n  \"category\": \"Residential\",\r\n  \"listingFor\": \"Rent\",\r\n  \"propertyType\": \"Apartment\",\r\n  \"title\": \"Skyline Heights — 3 BHK Apartment\",\r\n  \"city\": \"Noida\",\r\n  \"locality\": \"Sector 62\",\r\n  \"fullAddress\": \"A-304, Skyline Heights, Sector 62\",\r\n  \"pincode\": \"283501\",\r\n  \"description\": \"3 BHK apartment with balcony and modern amenities.\",\r\n  \"bedrooms\": \"3\",\r\n  \"bathrooms\": \"2\",\r\n  \"carpetArea\": 1450,\r\n  \"builtUpArea\": 1680,\r\n  \"floorNo\": \"2\",\r\n  \"totalFloors\": \"18\",\r\n  \"ageOfProperty\": \"0–3 yrs\",\r\n  \"furnishing\": \"Semi-furnished\",\r\n  \"facingDirection\": \"East\",\r\n  \"parking\": \"1 covered\",\r\n  \"amenities\": [\"Security\", \"Gym\", \"Lift\", \"Power backup\"],\r\n  \"images\": [\"https://example.com/photo1.jpg\"],\r\n  \"price\": 8500000,\r\n  \"listingTier\": \"Standard\"\r\n}\r\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/properties",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "properties"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Developer Uploads project",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"projectName\": \"Emerald Heights Phase 2\",\r\n  \"developerName\": \"Emerald Builders Pvt Ltd\",\r\n  \"reraProjectNumber\": \"UPREAREG24XXXXXXX\",\r\n  \"reraExpiryDate\": \"2030-12-31\",\r\n  \"launchDate\": \"2026-08-01\",\r\n  \"projectType\": \"Residential\",\r\n  \"projectStatus\": \"Under construction\",\r\n  \"city\": \"Meerut\",\r\n  \"locality\": \"Shastri Nagar\",\r\n  \"fullAddress\": \"Plot no 4, Sector 6, Shastri Nagar\",\r\n  \"pincode\": \"250002\",\r\n  \"possessionDate\": \"Dec 2026\",\r\n  \"projectWebsite\": \"https://emeraldheights.in\",\r\n  \"projectTagline\": \"Where luxury meets nature\",\r\n  \"shortDescription\": \"Premium gated project near NH-58 with 70% open space.\",\r\n  \"totalUnits\": 240,\r\n  \"openSpacePercentage\": 70,\r\n  \"floors\": \"G + 14\",\r\n  \"towers\": 3,\r\n  \"bhkConfigurations\": [\r\n    {\r\n      \"bhkType\": \"2 BHK\",\r\n      \"carpetArea\": 1100,\r\n      \"minPrice\": 4500000,\r\n      \"maxPrice\": 5500000,\r\n      \"priceRangeText\": \"₹45 L - ₹55 L\",\r\n      \"availableUnits\": 80\r\n    },\r\n    {\r\n      \"bhkType\": \"3 BHK\",\r\n      \"carpetArea\": 1650,\r\n      \"minPrice\": 7500000,\r\n      \"maxPrice\": 9500000,\r\n      \"priceRangeText\": \"₹75 L - ₹95 L\",\r\n      \"availableUnits\": 60\r\n    }\r\n  ],\r\n  \"amenities\": [\"RERA approved\", \"Gated society\", \"24/7 security\", \"Lift\", \"Clubhouse\", \"Swimming pool\", \"Gym\", \"Power backup\", \"EV charging\"],\r\n  \"nearbyLandmarks\": [\r\n    {\r\n      \"locationName\": \"NH-58\",\r\n      \"distance\": \"1.2 km\"\r\n    }\r\n  ],\r\n  \"vastuCompliant\": true,\r\n  \"projectPhotos\": [\"https://example.com/photo1.jpg\", \"https://example.com/photo2.jpg\"],\r\n  \"masterPlanUrl\": \"https://example.com/master_plan.jpg\",\r\n  \"floorPlanUrl\": \"https://example.com/floor_plan.pdf\",\r\n  \"brochureUrl\": \"https://example.com/brochure.pdf\"\r\n}\r\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/user/projects",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "user",
+                    "projects"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Developer Registration",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"companyName\": \"Emerald Builders Pvt Ltd\",\r\n  \"reraNumber\": \"UPREAREG24XXXXXXX\",\r\n  \"gstNumber\": \"07AAAAA0000A1Z5\",\r\n  \"yearsInBusiness\": \"5-10 yrs\",\r\n  \"cityOfOperation\": \"Noida\",\r\n  \"reraCertificate\": \"https://example.com/rera_cert.pdf\",\r\n  \"panCard\": \"https://example.com/company_pan.pdf\",\r\n  \"companyLogo\": \"https://example.com/logo.png\"\r\n}\r\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/user/users/register-developer",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "user",
+                    "users",
+                    "register-developer"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Agent Registration",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"name\": \"Rahul Sharma\",\r\n  \"phone\": \"+919876543210\",\r\n  \"reraNumber\": \"UPRERA24XXXXXXX\",\r\n  \"experience\": \"3-5 yrs\",\r\n  \"cityOfOperation\": \"Noida\",\r\n  \"reraCertificate\": \"http://localhost:5001/uploads/file-1721903974102.pdf\",\r\n  \"aadhaarCard\": \"http://localhost:5001/uploads/file-1721903974103.pdf\",\r\n  \"profilePhoto\": \"http://localhost:5001/uploads/file-1721903974104.jpg\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/user/users/register-agent",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "user",
+                    "users",
+                    "register-agent"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "single file upload",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "uuid": "73516065-61ad-4bd8-9eb9-ee17b41984cf",
+                      "src": "postman-cloud:///1f13a2b9-f00a-43a0-94c5-8027fdc785f9"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/user/upload/single",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "user",
+                    "upload",
+                    "single"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "multiple file upload",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "uuid": "0888b3d6-ac54-44b6-86ff-93a658f853c3",
+                      "src": [
+                        "postman-cloud:///1f13a2b9-f00a-43a0-94c5-8027fdc785f9",
+                        "postman-cloud:///1f13a2b8-f5eb-4770-a3ff-938f88dc973b"
+                      ]
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/user/upload/multiple",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "user",
+                    "upload",
+                    "multiple"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "notifications",
+          "item": [
+            {
+              "name": "Get My Notifications",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/notifications",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "notifications"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Mark Notification as Read",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/notifications/:id/read",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "notifications",
+                    ":id",
+                    "read"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "notification_id_here"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Mark All Notifications as Read",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/notifications/mark-all-read",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "notifications",
+                    "mark-all-read"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "news",
+          "item": [
+            {
+              "name": "Get News (Public)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/news?page=1&limit=10",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "news"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "category",
+                      "value": "rbi_rates",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Featured News (Public)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/news/featured?limit=5",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "news",
+                    "featured"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "5"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get News By Category (Public)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/news/category/:category",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "news",
+                    "category",
+                    ":category"
+                  ],
+                  "variable": [
+                    {
+                      "key": "category",
+                      "value": "rbi_rates"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Single News (Public)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/news/:id",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "news",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "6a688b25e112db1c3145a841"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{json_web_token_0qr7}}",
+            "type": "string"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {},
+            "exec": [
+              ""
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {},
+            "exec": [
+              ""
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "global app api",
+      "item": [
+        {
+          "name": "see all the properties",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{url}}/api/properties",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "api",
+                "properties"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "get verified developers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{url}}/api/users/developers?city=Noida",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "developers"
+              ],
+              "query": [
+                {
+                  "key": "city",
+                  "value": "Noida",
+                  "description": "Filter by city of operation (optional, e.g. Noida, Gurgaon, or 'All India')"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "get properties near me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{url}}/api/properties/near-me?city=Noida, UP&lat=19.2812&lng=72.8561&radius=50&radiusUnit=m",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                "near-me"
+              ],
+              "query": [
+                {
+                  "key": "city",
+                  "value": "Noida, UP",
+                  "description": "City name filter (fallback if coordinates not passed)"
+                },
+                {
+                  "key": "lat",
+                  "value": "19.2812",
+                  "description": "Latitude coordinate for proximity search"
+                },
+                {
+                  "key": "lng",
+                  "value": "72.8561",
+                  "description": "Longitude coordinate for proximity search"
+                },
+                {
+                  "key": "radius",
+                  "value": "50",
+                  "description": "Search radius distance (defaults to 50)"
+                },
+                {
+                  "key": "radiusUnit",
+                  "value": "m",
+                  "description": "Radius unit: m (meters), km (kilometers), miles (miles)"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "server check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5001/health",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5001",
+          "path": [
+            "health"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Legal Content Management",
+      "item": [
+        {
+          "name": "Public - Get Terms & Conditions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5001/api/legal/terms",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "legal",
+                "terms"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Public - Get Privacy Policy",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5001/api/legal/privacy-policy",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "legal",
+                "privacy-policy"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Get Terms & Conditions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5001/api/admin/legal/terms",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "admin",
+                "legal",
+                "terms"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Update Terms & Conditions",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Terms & Conditions\",\n  \"content\": \"This represents the official terms of use of the GHARMB platform.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/admin/legal/terms",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "admin",
+                "legal",
+                "terms"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Update Privacy Policy",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Privacy Policy\",\n  \"content\": \"Your privacy is extremely important to us. Here is how we safeguard it.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/admin/legal/privacy-policy",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "admin",
+                "legal",
+                "privacy-policy"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{json_web_token_07j9}}",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Page Content Management",
+      "item": [
+        {
+          "name": "Public - Get About Us",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5001/api/pages/about-us",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "pages",
+                "about-us"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Public - Get Help & Support",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5001/api/pages/help-support",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "pages",
+                "help-support"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Get About Us",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5001/api/admin/pages/about-us",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "admin",
+                "pages",
+                "about-us"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Update About Us",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"About Us\",\n  \"content\": \"GHARMB is a premium real estate platform.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/admin/pages/about-us",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "admin",
+                "pages",
+                "about-us"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Update Help & Support",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Help & Support\",\n  \"content\": \"For queries, please email support@gharmb.com.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/admin/pages/help-support",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5001",
+              "path": [
+                "api",
+                "admin",
+                "pages",
+                "help-support"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{json_web_token_07j9}}",
+            "type": "string"
+          }
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "auth_secret_1d3n",
+      "secret": true
+    },
+    {
+      "key": "json_web_token_00e7",
+      "secret": true
+    },
+    {
+      "key": "supabase_service_role_api_key_0z67",
+      "secret": true
+    },
+    {
+      "key": "json_web_token_07j9",
+      "secret": true
+    },
+    {
+      "key": "json_web_token_0qr7",
+      "secret": true
+    }
+  ]
+}
