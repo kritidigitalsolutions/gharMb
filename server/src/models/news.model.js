@@ -32,6 +32,8 @@ const newsSchema = new mongoose.Schema(
         "new_launches",
         "rbi_rates",
         "market",
+        "infrastructure",
+        "home_loans",
       ],
       required: true,
     },
