@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
@@ -15,6 +15,7 @@ import ReportsScreen from './pages/ReportsScreen';
 import Settings from './pages/Settings';
 import Legal from './pages/Legal/Legal';
 import About from './pages/About/About';
+import AdminNotifications from './pages/AdminNotifications';
 
 const LayoutWrapper = ({ children, onLogout }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -38,6 +39,7 @@ const LayoutWrapper = ({ children, onLogout }) => {
       case '/leads': return 'Leads & Enquiries Dashboard';
       case '/revenue': return 'Revenue & Escrow Tokens';
       case '/reports': return 'Reports & Analytics Center';
+      case '/notifications': return 'System Notifications & Broadcast';
       case '/settings': return 'System Configurations';
       case '/legal': return 'Legal & Compliance Policies';
       case '/about': return 'About Platform';
@@ -73,6 +75,7 @@ const LayoutWrapper = ({ children, onLogout }) => {
 };
 
 const App = () => {
+  // eslint-disable-next-line no-unused-vars
   const [adminUser, setAdminUser] = useState(() => {
     const saved = localStorage.getItem('adminUser');
     return saved ? JSON.parse(saved) : null;
@@ -98,6 +101,7 @@ const App = () => {
           <Route path="/leads" element={<LeadsDashboard />} />
           <Route path="/revenue" element={<RevenueDashboard />} />
           <Route path="/reports" element={<ReportsScreen />} />
+          <Route path="/notifications" element={<AdminNotifications />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/legal" element={<Legal />} />
           <Route path="/about" element={<About />} />

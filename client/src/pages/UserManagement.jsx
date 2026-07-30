@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   UserCheck,
@@ -25,32 +25,147 @@ import {
 } from 'lucide-react';
 
 const UserManagement = () => {
-  const [users, setUsers] = useState(() => {
-    const saved = localStorage.getItem('gharmb_users');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (err) {
-        console.error('Error parsing gharmb_users:', err);
-      }
-    }
-    return [
-      { id: 'USR-8902', name: 'Alok Mishra', email: 'alok.mishra@gmail.com', phone: '+91 98765 43210', role: 'Buyer', status: 'Active', isVerified: true, listings: 0, date: '10 Jun 2026' },
-      { id: 'USR-3120', name: 'Simran Jeet', email: 'simran.jeet@outlook.com', phone: '+91 99887 76655', role: 'Seller', status: 'Active', isVerified: false, listings: 3, date: '12 Jun 2026' },
-      { id: 'USR-4811', name: 'Vikram Developers', email: 'info@vikramdev.com', phone: '+91 88776 65544', role: 'Builder', status: 'Active', isVerified: true, listings: 14, date: '08 Jun 2026' },
-      { id: 'USR-0922', name: 'Deepak Estates', email: 'deepak.estates@gmail.com', phone: '+91 77665 54433', role: 'Agent', status: 'Blocked', isVerified: false, listings: 8, date: '05 Jun 2026' },
-      { id: 'USR-7731', name: 'Sanjay Aggarwal', email: 'sanjay.ag@gmail.com', phone: '+91 98112 23344', role: 'Buyer', status: 'Active', isVerified: true, listings: 0, date: '15 Jun 2026' }
-    ];
-  });
+  const [users, setUsers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    localStorage.setItem('gharmb_users', JSON.stringify(users));
-  }, [users]);
+  const [realProperties, setRealProperties] = useState([]);
+  const [realEnquiries, setRealEnquiries] = useState({ sent: { property: [], developer: [] }, received: { property: [], developer: [] } });
+  const [isDrawerLoading, setIsDrawerLoading] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRole, setSelectedRole] = useState('All');
   const [selectedUser, setSelectedUser] = useState(null);
   const [userDrawerTab, setUserDrawerTab] = useState('Overview');
+
+  const isMockMode = !localStorage.getItem('adminToken') || localStorage.getItem('adminToken') === 'mock_admin_token_2026';
+
+  const mapApiToUiRole = (apiRole) => {
+    switch (apiRole) {
+      case 'buyer': return 'Buyer';
+      case 'owner': return 'Seller';
+      case 'agent': return 'Agent';
+      case 'builder': return 'Builder';
+      case 'tenant': return 'Tenant';
+      default: return apiRole || 'Buyer';
+    }
+  };
+
+  const mapUiToApiRole = (uiRole) => {
+    switch (uiRole) {
+      case 'Buyer': return 'buyer';
+      case 'Seller': return 'owner';
+      case 'Agent': return 'agent';
+      case 'Builder': return 'builder';
+      case 'Tenant': return 'tenant';
+      default: return uiRole.toLowerCase();
+    }
+  };
+
+  const fetchUsers = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (isMockMode) {
+        loadMockData();
+        setIsLoading(false);
+        return;
+      }
+
+      const response = await fetch('http://localhost:5001/api/admin/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        const mappedUsers = (data.data.users || []).map(u => ({
+          ...u,
+          id: u._id,
+          role: mapApiToUiRole(u.role),
+          status: u.status || 'Active',
+          date: u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Unknown'
+        }));
+        setUsers(mappedUsers);
+      } else {
+        setError(data.message || 'Failed to fetch users.');
+      }
+    } catch (err) {
+      console.error('Error fetching users, falling back to mock:', err);
+      loadMockData();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadMockData = () => {
+    const saved = localStorage.getItem('gharmb_users');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.some(u => u.date && u.date.includes('Jun 2026'))) {
+          localStorage.removeItem('gharmb_users');
+        } else {
+          setUsers(parsed);
+          return;
+        }
+      } catch (err) {}
+    }
+    const defaultMock = [
+      { id: 'USR-8902', name: 'Alok Mishra', email: 'alok.mishra@gmail.com', phone: '+91 98765 43210', role: 'Buyer', status: 'Active', isVerified: true, listings: 0, date: '28 Jul 2026', createdAt: '2026-07-28T10:00:00Z' },
+      { id: 'USR-3120', name: 'Simran Jeet', email: 'simran.jeet@outlook.com', phone: '+91 99887 76655', role: 'Seller', status: 'Active', isVerified: false, listings: 3, date: '29 Jul 2026', createdAt: '2026-07-29T10:00:00Z' },
+      { id: 'USR-4811', name: 'Vikram Developers', email: 'info@vikramdev.com', phone: '+91 88776 65544', role: 'Builder', status: 'Active', isVerified: true, listings: 14, date: '20 Jul 2026', createdAt: '2026-07-20T10:00:00Z' },
+      { id: 'USR-0922', name: 'Deepak Estates', email: 'deepak.estates@gmail.com', phone: '+91 77665 54433', role: 'Agent', status: 'Blocked', isVerified: false, listings: 8, date: '15 Jul 2026', createdAt: '2026-07-15T10:00:00Z' },
+      { id: 'USR-7731', name: 'Sanjay Aggarwal', email: 'sanjay.ag@gmail.com', phone: '+91 98112 23344', role: 'Buyer', status: 'Active', isVerified: true, listings: 0, date: '25 Jul 2026', createdAt: '2026-07-25T10:00:00Z' }
+    ];
+    setUsers(defaultMock);
+    localStorage.setItem('gharmb_users', JSON.stringify(defaultMock));
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    if (isMockMode && users.length > 0) {
+      localStorage.setItem('gharmb_users', JSON.stringify(users));
+    }
+  }, [users, isMockMode]);
+
+  useEffect(() => {
+    if (!selectedUser || isMockMode) return;
+
+    const fetchDrawerData = async () => {
+      setIsDrawerLoading(true);
+      try {
+        const token = localStorage.getItem('adminToken');
+        if (userDrawerTab === 'Listings') {
+          const response = await fetch(`http://localhost:5001/api/admin/properties?owner=${selectedUser.id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await response.json();
+          if (response.ok && data.status === 'success') {
+            setRealProperties(data.data.properties || []);
+          }
+        } else if (userDrawerTab === 'Enquiries') {
+          const response = await fetch(`http://localhost:5001/api/admin/users/${selectedUser.id}/enquiries`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await response.json();
+          if (response.ok && data.status === 'success') {
+            setRealEnquiries(data.data || { sent: { property: [], developer: [] }, received: { property: [], developer: [] } });
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching drawer details:', err);
+      } finally {
+        setIsDrawerLoading(false);
+      }
+    };
+
+    fetchDrawerData();
+  }, [selectedUser, userDrawerTab, isMockMode]);
 
   // Modals & form states
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
@@ -77,7 +192,7 @@ const UserManagement = () => {
   const [sortField, setSortField] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 4;
+  const itemsPerPage = 10;
 
   // Bulk Selection States
   const [selectedIds, setSelectedIds] = useState([]);
@@ -119,74 +234,236 @@ const UserManagement = () => {
   };
 
   // Bulk actions trigger
-  const triggerBulkBlock = () => {
-    setUsers(users.map(u => selectedIds.includes(u.id) ? { ...u, status: 'Blocked' } : u));
-    setSelectedIds([]);
-    alert('Selected accounts have been suspended successfully.');
+  const triggerBulkBlock = async () => {
+    if (isMockMode) {
+      const updatedUsers = users.map(u => selectedIds.includes(u.id) ? { ...u, status: 'Blocked' } : u);
+      setUsers(updatedUsers);
+      setSelectedIds([]);
+      alert('Selected accounts have been suspended successfully.');
+    } else {
+      try {
+        const token = localStorage.getItem('adminToken');
+        await Promise.all(selectedIds.map(async (id) => {
+          await fetch(`http://localhost:5001/api/admin/users/${id}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ status: 'Blocked' })
+          });
+        }));
+        setSelectedIds([]);
+        alert('Selected accounts suspended successfully.');
+        await fetchUsers();
+      } catch (err) {
+        console.error('Error in bulk block:', err);
+        alert('Some accounts could not be updated.');
+      }
+    }
   };
 
-  const triggerBulkDelete = () => {
-    setUsers(users.filter(u => !selectedIds.includes(u.id)));
-    setSelectedIds([]);
-    alert('Selected accounts deleted from the directory.');
+  const triggerBulkDelete = async () => {
+    const confirmDelete = window.confirm('Are you sure you want to delete the selected accounts?');
+    if (!confirmDelete) return;
+
+    if (isMockMode) {
+      const updatedUsers = users.filter(u => !selectedIds.includes(u.id));
+      setUsers(updatedUsers);
+      setSelectedIds([]);
+      alert('Selected accounts deleted from the directory.');
+    } else {
+      try {
+        const token = localStorage.getItem('adminToken');
+        await Promise.all(selectedIds.map(async (id) => {
+          await fetch(`http://localhost:5001/api/admin/users/${id}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+        }));
+        setSelectedIds([]);
+        alert('Selected accounts deleted successfully.');
+        await fetchUsers();
+      } catch (err) {
+        console.error('Error in bulk delete:', err);
+        alert('Some accounts could not be deleted.');
+      }
+    }
   };
 
   // Toggle user status (Block / Unblock)
-  const toggleUserStatus = (id) => {
-    setUsers(users.map(u => {
-      if (u.id === id) {
-        const newStatus = u.status === 'Active' ? 'Blocked' : 'Active';
-        const updated = { ...u, status: newStatus };
-        if (selectedUser && selectedUser.id === id) {
-          setSelectedUser(updated);
+  const toggleUserStatus = async (id) => {
+    const userToToggle = users.find(u => u.id === id);
+    if (!userToToggle) return;
+    const newStatus = userToToggle.status === 'Active' ? 'Blocked' : 'Active';
+
+    if (isMockMode) {
+      const updatedUsers = users.map(u => {
+        if (u.id === id) {
+          const updated = { ...u, status: newStatus };
+          if (selectedUser && selectedUser.id === id) {
+            setSelectedUser(updated);
+          }
+          return updated;
         }
-        return updated;
+        return u;
+      });
+      setUsers(updatedUsers);
+    } else {
+      try {
+        const token = localStorage.getItem('adminToken');
+        const response = await fetch(`http://localhost:5001/api/admin/users/${id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            status: newStatus
+          })
+        });
+        const data = await response.json();
+        if (response.ok && data.status === 'success') {
+          if (selectedUser && selectedUser.id === id) {
+            setSelectedUser({ ...selectedUser, status: newStatus });
+          }
+          await fetchUsers();
+        } else {
+          alert(data.message || 'Failed to toggle account status.');
+        }
+      } catch (err) {
+        console.error('Error toggling status:', err);
+        alert('Network connection error.');
       }
-      return u;
-    }));
+    }
   };
 
-  const handleAddUserSubmit = (e) => {
+  const handleAddUserSubmit = async (e) => {
     e.preventDefault();
     if (!newUser.name || !newUser.email || !newUser.phone) {
       alert('Please fill in Name, Email, and Phone fields.');
       return;
     }
-    const newId = `USR-${Math.floor(1000 + Math.random() * 9000)}`;
-    const userRecord = {
-      id: newId,
-      name: newUser.name,
-      email: newUser.email,
-      phone: newUser.phone,
-      role: newUser.role,
-      status: newUser.status,
-      isVerified: newUser.isVerified,
-      listings: 0,
-      date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-    };
-    setUsers([userRecord, ...users]);
-    setIsAddUserModalOpen(false);
-    setNewUser({
-      name: '',
-      email: '',
-      phone: '',
-      role: 'Buyer',
-      status: 'Active',
-      isVerified: false
-    });
+
+    if (isMockMode) {
+      const newId = `USR-${Math.floor(1000 + Math.random() * 9000)}`;
+      const userRecord = {
+        id: newId,
+        name: newUser.name,
+        email: newUser.email,
+        phone: newUser.phone,
+        role: newUser.role,
+        status: newUser.status,
+        isVerified: newUser.isVerified,
+        listings: 0,
+        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      };
+      setUsers([userRecord, ...users]);
+      setIsAddUserModalOpen(false);
+      setNewUser({
+        name: '',
+        email: '',
+        phone: '',
+        role: 'Buyer',
+        status: 'Active',
+        isVerified: false
+      });
+    } else {
+      try {
+        const token = localStorage.getItem('adminToken');
+        const response = await fetch('http://localhost:5001/api/admin/users', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: newUser.name,
+            email: newUser.email,
+            phone: newUser.phone,
+            role: newUser.role,
+            status: newUser.status,
+            isVerified: newUser.isVerified
+          })
+        });
+        const data = await response.json();
+        if (response.ok && data.status === 'success') {
+          setIsAddUserModalOpen(false);
+          setNewUser({
+            name: '',
+            email: '',
+            phone: '',
+            role: 'Buyer',
+            status: 'Active',
+            isVerified: false
+          });
+          await fetchUsers();
+        } else {
+          alert(data.message || 'Failed to create user profile.');
+        }
+      } catch (err) {
+        console.error('Error creating user:', err);
+        alert('Network connection error.');
+      }
+    }
   };
 
-  const handleEditUserSubmit = (e) => {
+  const handleEditUserSubmit = async (e) => {
     e.preventDefault();
     if (!editUserData.name || !editUserData.email || !editUserData.phone) {
       alert('Please fill in Name, Email, and Phone fields.');
       return;
     }
-    setUsers(users.map(u => u.id === editUserData.id ? { ...u, ...editUserData } : u));
-    if (selectedUser && selectedUser.id === editUserData.id) {
-      setSelectedUser({ ...selectedUser, ...editUserData });
+
+    if (isMockMode) {
+      setUsers(users.map(u => u.id === editUserData.id ? { ...u, ...editUserData } : u));
+      if (selectedUser && selectedUser.id === editUserData.id) {
+        setSelectedUser({ ...selectedUser, ...editUserData });
+      }
+      setIsEditUserModalOpen(false);
+    } else {
+      try {
+        const token = localStorage.getItem('adminToken');
+        const response = await fetch(`http://localhost:5001/api/admin/users/${editUserData.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: editUserData.name,
+            email: editUserData.email,
+            phone: editUserData.phone,
+            role: editUserData.role,
+            status: editUserData.status,
+            isVerified: editUserData.isVerified
+          })
+        });
+        const data = await response.json();
+        if (response.ok && data.status === 'success') {
+          setIsEditUserModalOpen(false);
+          if (selectedUser && selectedUser.id === editUserData.id) {
+            setSelectedUser({
+              ...selectedUser,
+              name: editUserData.name,
+              email: editUserData.email,
+              phone: editUserData.phone,
+              role: editUserData.role,
+              status: editUserData.status,
+              isVerified: editUserData.isVerified
+            });
+          }
+          await fetchUsers();
+        } else {
+          alert(data.message || 'Failed to update user.');
+        }
+      } catch (err) {
+        console.error('Error updating user:', err);
+        alert('Network connection error.');
+      }
     }
-    setIsEditUserModalOpen(false);
   };
 
   const openEditUserModal = (user) => {
@@ -202,9 +479,34 @@ const UserManagement = () => {
     setIsEditUserModalOpen(true);
   };
 
-  const deleteUser = (id) => {
-    setUsers(users.filter(u => u.id !== id));
-    setSelectedUser(null);
+  const deleteUser = async (id) => {
+    const confirmDelete = window.confirm('Are you sure you want to permanently delete this user account?');
+    if (!confirmDelete) return;
+
+    if (isMockMode) {
+      setUsers(users.filter(u => u.id !== id));
+      setSelectedUser(null);
+    } else {
+      try {
+        const token = localStorage.getItem('adminToken');
+        const response = await fetch(`http://localhost:5001/api/admin/users/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await response.json();
+        if (response.ok && data.status === 'success') {
+          setSelectedUser(null);
+          await fetchUsers();
+        } else {
+          alert(data.message || 'Failed to delete user.');
+        }
+      } catch (err) {
+        console.error('Error deleting user:', err);
+        alert('Network connection error.');
+      }
+    }
   };
 
   // Filters
@@ -259,15 +561,82 @@ const UserManagement = () => {
     ].slice(0, selectedUser.role === 'Buyer' ? 2 : 1);
   })();
 
+  const listingsList = isMockMode ? userProperties : realProperties.map(p => ({
+    id: p._id,
+    title: p.title,
+    location: `${p.locality}, ${p.city}`,
+    price: p.price ? `₹${p.price.toLocaleString('en-IN')}` : 'N/A',
+    photoUrl: p.images && p.images[0] ? p.images[0] : 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=100&q=80',
+    status: p.approvalStatus ? p.approvalStatus.charAt(0).toUpperCase() + p.approvalStatus.slice(1) : 'Pending'
+  }));
+
+  const enquiriesList = (() => {
+    if (isMockMode) return userLeads;
+    const list = [];
+    if (realEnquiries.sent && realEnquiries.sent.property) {
+      realEnquiries.sent.property.forEach(enq => {
+        list.push({
+          id: enq._id,
+          property: enq.property ? enq.property.title : 'Deleted Property',
+          type: 'Property Enquiry',
+          date: enq.createdAt ? new Date(enq.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+          status: enq.status ? enq.status.charAt(0).toUpperCase() + enq.status.slice(1) : 'Pending'
+        });
+      });
+    }
+    if (realEnquiries.sent && realEnquiries.sent.developer) {
+      realEnquiries.sent.developer.forEach(enq => {
+        list.push({
+          id: enq._id,
+          property: enq.developer ? (enq.developer.companyName || enq.developer.name) : 'Developer Contact',
+          type: 'Developer Enquiry',
+          date: enq.createdAt ? new Date(enq.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+          status: enq.status ? enq.status.charAt(0).toUpperCase() + enq.status.slice(1) : 'Pending'
+        });
+      });
+    }
+    if (realEnquiries.received && realEnquiries.received.property) {
+      realEnquiries.received.property.forEach(enq => {
+        list.push({
+          id: enq._id,
+          property: enq.property ? enq.property.title : 'Deleted Property',
+          type: `Received (From: ${enq.client ? enq.client.name : 'Unknown'})`,
+          date: enq.createdAt ? new Date(enq.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+          status: enq.status ? enq.status.charAt(0).toUpperCase() + enq.status.slice(1) : 'Pending'
+        });
+      });
+    }
+    if (realEnquiries.received && realEnquiries.received.developer) {
+      realEnquiries.received.developer.forEach(enq => {
+        list.push({
+          id: enq._id,
+          property: 'Developer Enquiry',
+          type: `Received (From: ${enq.client ? enq.client.name : 'Unknown'})`,
+          date: enq.createdAt ? new Date(enq.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+          status: enq.status ? enq.status.charAt(0).toUpperCase() + enq.status.slice(1) : 'Pending'
+        });
+      });
+    }
+    return list;
+  })();
+
+  const newRegistrationsCount = users.filter(u => {
+    const dateToCheck = u.createdAt ? new Date(u.createdAt) : (u.date ? new Date(u.date) : null);
+    if (!dateToCheck) return false;
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    return dateToCheck >= sevenDaysAgo;
+  }).length;
+
   return (
-    <div className="space-y-6 relative">
+    <div className="h-[calc(100vh-120px)] flex flex-col space-y-6 overflow-hidden relative">
       
       {/* Stats cards Banner */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
         <div className="p-4 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-[9px] font-semibold text-[var(--text-muted)] block uppercase">Total Users</span>
-            <h4 className="text-lg font-bold text-[var(--text-primary)]">{users.length + 840}</h4>
+            <h4 className="text-lg font-bold text-[var(--text-primary)]">{users.length}</h4>
           </div>
           <div className="w-9 h-9 rounded-xl bg-orange-50 text-brand flex items-center justify-center shrink-0">
             <Users size={18} />
@@ -276,7 +645,9 @@ const UserManagement = () => {
         <div className="p-4 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-[9px] font-semibold text-[var(--text-muted)] block uppercase">New Registrations</span>
-            <h4 className="text-lg font-bold text-[var(--text-primary)]">18 Users</h4>
+            <h4 className="text-lg font-bold text-[var(--text-primary)]">
+              {newRegistrationsCount} {newRegistrationsCount === 1 ? 'User' : 'Users'}
+            </h4>
           </div>
           <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
             <UserCheck size={18} />
@@ -286,7 +657,7 @@ const UserManagement = () => {
           <div className="space-y-1">
             <span className="text-[9px] font-semibold text-[var(--text-muted)] block uppercase">Suspended</span>
             <h4 className="text-lg font-bold text-[var(--text-primary)]">
-              {users.filter(u => u.status === 'Blocked').length + 12}
+              {users.filter(u => u.status === 'Blocked').length}
             </h4>
           </div>
           <div className="w-9 h-9 rounded-xl bg-red-500/10 text-red-600 flex items-center justify-center shrink-0">
@@ -297,7 +668,7 @@ const UserManagement = () => {
           <div className="space-y-1">
             <span className="text-[9px] font-semibold text-[var(--text-muted)] block uppercase">Verified Profiles</span>
             <h4 className="text-lg font-bold text-[var(--text-primary)]">
-              {users.filter(u => u.isVerified).length + 420}
+              {users.filter(u => u.isVerified).length}
             </h4>
           </div>
           <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
@@ -307,8 +678,8 @@ const UserManagement = () => {
       </div>
 
       {/* Main Datatable */}
-      <div className="p-6 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm space-y-5">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex-1 min-h-0 p-6 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm flex flex-col space-y-5">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 shrink-0">
           
           {/* Search bar */}
           <div className="relative max-w-sm w-full">
@@ -351,7 +722,16 @@ const UserManagement = () => {
         </div>
 
         {/* Responsive Table */}
-        {filteredUsers.length === 0 ? (
+        {isLoading ? (
+          <div className="py-16 text-center space-y-3">
+            <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="text-xs text-[var(--text-muted)] font-semibold">Loading platform users...</p>
+          </div>
+        ) : error ? (
+          <div className="py-16 text-center text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded-2xl p-4">
+            {error}
+          </div>
+        ) : filteredUsers.length === 0 ? (
           /* Custom Empty state illustration */
           <div className="py-16 text-center border border-dashed border-[var(--border)] rounded-2xl space-y-4">
             <div className="w-12 h-12 rounded-full bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)] mx-auto">
@@ -363,10 +743,10 @@ const UserManagement = () => {
             </div>
           </div>
         ) : (
-          <div className="overflow-x-auto relative min-h-[250px]">
+          <div className="flex-1 overflow-auto relative border border-[var(--border)]/40 rounded-xl min-h-[200px]">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-[9px] font-bold uppercase tracking-wider bg-[var(--bg-muted)]">
+                <tr className="sticky top-0 z-10 bg-[var(--bg-surface)] border-b border-[var(--border)] text-[var(--text-muted)] text-[9px] font-bold uppercase tracking-wider">
                   <th className="py-3 px-4 w-12">
                     <input
                       type="checkbox"
@@ -476,7 +856,7 @@ const UserManagement = () => {
 
         {/* Pagination Footer controls */}
         {filteredUsers.length > 0 && (
-          <div className="flex justify-between items-center pt-4 border-t border-[var(--border)] text-xs">
+          <div className="flex justify-between items-center pt-4 border-t border-[var(--border)] text-xs shrink-0">
             <span className="text-[var(--text-subtle)] font-semibold">
               Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredUsers.length)} of {filteredUsers.length} profiles
             </span>
@@ -539,7 +919,7 @@ const UserManagement = () => {
       {selectedUser && (
         <>
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-[var(--border)] p-6 space-y-6 relative">
+            <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-3xl max-w-md w-full shadow-2xl border border-[var(--border)] p-6 space-y-6 relative">
               <button
                 type="button"
                 onClick={() => setSelectedUser(null)}
@@ -549,7 +929,7 @@ const UserManagement = () => {
               </button>
 
               <div className="flex flex-col items-center text-center space-y-2">
-                <div className="w-14 h-14 rounded-full bg-brand-light flex items-center justify-center font-bold text-lg text-brand">
+                <div className="w-14 h-14 rounded-full bg-brand-light dark:bg-brand/10 flex items-center justify-center font-bold text-lg text-brand">
                   {selectedUser.name.charAt(0)}
                 </div>
                 <div>
@@ -560,7 +940,7 @@ const UserManagement = () => {
                   <span className="text-[9px] font-bold bg-[var(--bg-muted)] text-[var(--text-subtle)] px-2 py-0.5 rounded-md">
                     ID: {selectedUser.id}
                   </span>
-                  <span className="text-[9px] font-bold bg-orange-50 text-brand px-2 py-0.5 rounded-md">
+                  <span className="text-[9px] font-bold bg-orange-50 dark:bg-orange-500/10 text-brand dark:text-brand-light px-2 py-0.5 rounded-md">
                     {selectedUser.role}
                   </span>
                 </div>
@@ -586,79 +966,88 @@ const UserManagement = () => {
               </div>
 
               {/* Conditional Panels */}
-              {userDrawerTab === 'Overview' && (
-                <div className="space-y-3 p-4 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl">
-                  <div className="flex justify-between text-xs border-b border-[var(--border)]/50 pb-2">
-                    <span className="text-[var(--text-muted)] font-medium">Registered Date</span>
-                    <span className="font-semibold text-[var(--text-subtle)]">{selectedUser.date}</span>
-                  </div>
-                  <div className="flex justify-between text-xs border-b border-[var(--border)]/50 pb-2">
-                    <span className="text-[var(--text-muted)] font-medium">Phone number</span>
-                    <span className="font-semibold text-[var(--text-subtle)]">{selectedUser.phone}</span>
-                  </div>
-                  <div className="flex justify-between text-xs border-b border-[var(--border)]/50 pb-2">
-                    <span className="text-[var(--text-muted)] font-medium">Verified KYC license</span>
-                    <span className="font-semibold text-[var(--text-subtle)]">{selectedUser.isVerified ? 'Yes' : 'No'}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[var(--text-muted)] font-medium">Active Listings</span>
-                    <span className="font-bold text-[var(--text-subtle)]">{selectedUser.listings} listings</span>
-                  </div>
+              {isDrawerLoading ? (
+                <div className="py-12 text-center text-xs text-[var(--text-muted)] flex flex-col items-center justify-center gap-2">
+                  <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin"></div>
+                  <span className="font-semibold">Loading details...</span>
                 </div>
-              )}
-
-              {userDrawerTab === 'Listings' && (
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {userProperties.length === 0 ? (
-                    <div className="text-center py-6 text-[var(--text-muted)] font-semibold text-[10px] bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl">
-                      {selectedUser.role === 'Buyer' ? 'Buyers cannot upload listings.' : 'No listings uploaded yet.'}
-                    </div>
-                  ) : (
-                    userProperties.map((p) => (
-                      <div key={p.id} className="p-3 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl flex gap-3 items-center hover:border-[var(--border)] transition-colors">
-                        <img src={p.photoUrl} alt="" className="w-10 h-10 object-cover rounded-xl shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-[var(--text-primary)] text-[10px] truncate">{p.title}</p>
-                          <p className="text-[9px] text-[var(--text-muted)] truncate">{p.location} • {p.price}</p>
-                        </div>
-                        <span className={`px-1.5 py-0.5 text-[8px] font-extrabold rounded-md uppercase shrink-0 ${
-                          p.status === 'Approved' ? 'bg-green-500/10 text-green-700' :
-                          p.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-700' : 'bg-red-500/10 text-red-700'
-                        }`}>
-                          {p.status}
-                        </span>
+              ) : (
+                <>
+                  {userDrawerTab === 'Overview' && (
+                    <div className="space-y-3 p-4 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl">
+                      <div className="flex justify-between text-xs border-b border-[var(--border)]/50 pb-2">
+                        <span className="text-[var(--text-muted)] font-medium">Registered Date</span>
+                        <span className="font-semibold text-[var(--text-subtle)]">{selectedUser.date}</span>
                       </div>
-                    ))
-                  )}
-                </div>
-              )}
-
-              {userDrawerTab === 'Enquiries' && (
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {userLeads.length === 0 ? (
-                    <div className="text-center py-6 text-[var(--text-muted)] font-semibold text-[10px] bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl">
-                      No callback requests logged for this account.
-                    </div>
-                  ) : (
-                    userLeads.map((l) => (
-                      <div key={l.id} className="p-3 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl space-y-1.5 hover:border-[var(--border)] transition-colors">
-                        <div className="flex justify-between items-start gap-2">
-                          <span className="font-bold text-[var(--text-primary)] text-[10px] truncate">{l.property}</span>
-                          <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-700 text-[8px] font-extrabold rounded-md uppercase shrink-0">
-                            {l.type}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-[9px] text-[var(--text-muted)] font-semibold">
-                          <span>Logged: {l.date}</span>
-                          <span className={`${
-                            l.status === 'Resolved' || l.status === 'Approved' ? 'text-green-600' :
-                            l.status === 'Contacted' ? 'text-blue-600' : 'text-yellow-600'
-                          } font-extrabold`}>{l.status}</span>
-                        </div>
+                      <div className="flex justify-between text-xs border-b border-[var(--border)]/50 pb-2">
+                        <span className="text-[var(--text-muted)] font-medium">Phone number</span>
+                        <span className="font-semibold text-[var(--text-subtle)]">{selectedUser.phone}</span>
                       </div>
-                    ))
+                      <div className="flex justify-between text-xs border-b border-[var(--border)]/50 pb-2">
+                        <span className="text-[var(--text-muted)] font-medium">Verified KYC license</span>
+                        <span className="font-semibold text-[var(--text-subtle)]">{selectedUser.isVerified ? 'Yes' : 'No'}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[var(--text-muted)] font-medium">Active Listings</span>
+                        <span className="font-bold text-[var(--text-subtle)]">{selectedUser.listings} listings</span>
+                      </div>
+                    </div>
                   )}
-                </div>
+
+                  {userDrawerTab === 'Listings' && (
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {listingsList.length === 0 ? (
+                        <div className="text-center py-6 text-[var(--text-muted)] font-semibold text-[10px] bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl">
+                          {selectedUser.role === 'Buyer' ? 'Buyers cannot upload listings.' : 'No listings uploaded yet.'}
+                        </div>
+                      ) : (
+                        listingsList.map((p) => (
+                          <div key={p.id} className="p-3 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl flex gap-3 items-center hover:border-[var(--border)] transition-colors">
+                            <img src={p.photoUrl} alt="" className="w-10 h-10 object-cover rounded-xl shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-[var(--text-primary)] text-[10px] truncate">{p.title}</p>
+                              <p className="text-[9px] text-[var(--text-muted)] truncate">{p.location} • {p.price}</p>
+                            </div>
+                            <span className={`px-1.5 py-0.5 text-[8px] font-extrabold rounded-md uppercase shrink-0 ${
+                              p.status === 'Approved' ? 'bg-green-500/10 text-green-700' :
+                              p.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-700' : 'bg-red-500/10 text-red-700'
+                            }`}>
+                              {p.status}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+
+                  {userDrawerTab === 'Enquiries' && (
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {enquiriesList.length === 0 ? (
+                        <div className="text-center py-6 text-[var(--text-muted)] font-semibold text-[10px] bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl">
+                          No callback requests logged for this account.
+                        </div>
+                      ) : (
+                        enquiriesList.map((l) => (
+                          <div key={l.id} className="p-3 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl space-y-1.5 hover:border-[var(--border)] transition-colors">
+                            <div className="flex justify-between items-start gap-2">
+                              <span className="font-bold text-[var(--text-primary)] text-[10px] truncate">{l.property}</span>
+                              <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-700 text-[8px] font-extrabold rounded-md uppercase shrink-0">
+                                {l.type}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-[9px] text-[var(--text-muted)] font-semibold">
+                              <span>Logged: {l.date}</span>
+                              <span className={`${
+                                l.status === 'Resolved' || l.status === 'Approved' || l.status === 'Closed' ? 'text-green-600' :
+                                l.status === 'Contacted' ? 'text-blue-600' : 'text-yellow-600'
+                              } font-extrabold`}>{l.status}</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Drawer actions */}
@@ -679,7 +1068,7 @@ const UserManagement = () => {
                     onClick={() => { toggleUserStatus(selectedUser.id); }}
                     className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                       selectedUser.status === 'Active'
-                        ? 'border border-red-500/25 hover:bg-red-500/100/10 text-red-600'
+                        ? 'border border-red-500/25 hover:bg-red-500/10 text-red-600 dark:text-red-400'
                         : 'bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/10'
                     }`}
                   >
@@ -697,7 +1086,7 @@ const UserManagement = () => {
                   <button
                     type="button"
                     onClick={() => { deleteUser(selectedUser.id); }}
-                    className="py-2.5 px-3 bg-red-500/10 hover:bg-red-500/100/20 text-red-600 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="py-2.5 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <Trash2 size={14} /> Delete Profile
                   </button>
@@ -711,7 +1100,7 @@ const UserManagement = () => {
       {/* Add User Modal */}
       {isAddUserModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-[var(--border)] p-6 space-y-4 relative animate-scale-in">
+          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-3xl max-w-md w-full shadow-2xl border border-[var(--border)] p-6 space-y-4 relative animate-scale-in">
             <button
               type="button"
               onClick={() => setIsAddUserModalOpen(false)}
@@ -734,7 +1123,7 @@ const UserManagement = () => {
                   value={newUser.name}
                   onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
                   placeholder="e.g. Rahul Sharma"
-                  className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
+                  className="w-full p-2.5 border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
                 />
               </div>
 
@@ -746,7 +1135,7 @@ const UserManagement = () => {
                   value={newUser.email}
                   onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                   placeholder="e.g. rahul@example.com"
-                  className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
+                  className="w-full p-2.5 border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
                 />
               </div>
 
@@ -758,7 +1147,7 @@ const UserManagement = () => {
                   value={newUser.phone}
                   onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
                   placeholder="e.g. +91 99887 76655"
-                  className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
+                  className="w-full p-2.5 border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
                 />
               </div>
 
@@ -768,7 +1157,7 @@ const UserManagement = () => {
                   <select
                     value={newUser.role}
                     onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                    className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40 bg-[var(--bg-surface)]"
+                    className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40 bg-[var(--bg-muted)] text-[var(--text-primary)]"
                   >
                     <option value="Buyer">Buyer</option>
                     <option value="Seller">Seller</option>
@@ -782,7 +1171,7 @@ const UserManagement = () => {
                   <select
                     value={newUser.status}
                     onChange={(e) => setNewUser({ ...newUser, status: e.target.value })}
-                    className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40 bg-[var(--bg-surface)]"
+                    className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40 bg-[var(--bg-muted)] text-[var(--text-primary)]"
                   >
                     <option value="Active">Active</option>
                     <option value="Blocked">Blocked</option>
@@ -796,7 +1185,7 @@ const UserManagement = () => {
                   id="add-verify"
                   checked={newUser.isVerified}
                   onChange={(e) => setNewUser({ ...newUser, isVerified: e.target.checked })}
-                  className="rounded border-slate-300 text-brand focus:ring-brand"
+                  className="rounded border-slate-300 dark:border-slate-700 bg-transparent text-brand focus:ring-brand"
                 />
                 <label htmlFor="add-verify" className="text-xs font-semibold text-[var(--text-subtle)] select-none">
                   Mark profile as KYC verified (RERA/Identity check)
@@ -826,7 +1215,7 @@ const UserManagement = () => {
       {/* Edit User Modal */}
       {isEditUserModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-[var(--border)] p-6 space-y-4 relative animate-scale-in">
+          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-3xl max-w-md w-full shadow-2xl border border-[var(--border)] p-6 space-y-4 relative animate-scale-in">
             <button
               type="button"
               onClick={() => setIsEditUserModalOpen(false)}
@@ -849,7 +1238,7 @@ const UserManagement = () => {
                   value={editUserData.name}
                   onChange={(e) => setEditUserData({ ...editUserData, name: e.target.value })}
                   placeholder="e.g. Rahul Sharma"
-                  className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
+                  className="w-full p-2.5 border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
                 />
               </div>
 
@@ -861,7 +1250,7 @@ const UserManagement = () => {
                   value={editUserData.email}
                   onChange={(e) => setEditUserData({ ...editUserData, email: e.target.value })}
                   placeholder="e.g. rahul@example.com"
-                  className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
+                  className="w-full p-2.5 border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
                 />
               </div>
 
@@ -873,7 +1262,7 @@ const UserManagement = () => {
                   value={editUserData.phone}
                   onChange={(e) => setEditUserData({ ...editUserData, phone: e.target.value })}
                   placeholder="e.g. +91 99887 76655"
-                  className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
+                  className="w-full p-2.5 border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
                 />
               </div>
 
@@ -883,7 +1272,7 @@ const UserManagement = () => {
                   <select
                     value={editUserData.role}
                     onChange={(e) => setEditUserData({ ...editUserData, role: e.target.value })}
-                    className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40 bg-[var(--bg-surface)]"
+                    className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40 bg-[var(--bg-muted)] text-[var(--text-primary)]"
                   >
                     <option value="Buyer">Buyer</option>
                     <option value="Seller">Seller</option>
@@ -897,7 +1286,7 @@ const UserManagement = () => {
                   <select
                     value={editUserData.status}
                     onChange={(e) => setEditUserData({ ...editUserData, status: e.target.value })}
-                    className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40 bg-[var(--bg-surface)]"
+                    className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40 bg-[var(--bg-muted)] text-[var(--text-primary)]"
                   >
                     <option value="Active">Active</option>
                     <option value="Blocked">Blocked</option>
@@ -911,7 +1300,7 @@ const UserManagement = () => {
                   id="edit-verify"
                   checked={editUserData.isVerified}
                   onChange={(e) => setEditUserData({ ...editUserData, isVerified: e.target.checked })}
-                  className="rounded border-slate-300 text-brand focus:ring-brand"
+                  className="rounded border-slate-300 dark:border-slate-700 bg-transparent text-brand focus:ring-brand"
                 />
                 <label htmlFor="edit-verify" className="text-xs font-semibold text-[var(--text-subtle)] select-none">
                   Mark profile as KYC verified (RERA/Identity check)

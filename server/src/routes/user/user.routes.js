@@ -205,7 +205,7 @@ router.post('/register-agent', userController.registerAgent);
  * @swagger
  * /api/users/register-developer:
  *   post:
- *     summary: Register the current user as a Developer/Builder
+ *     summary: Register or save onboarding draft as a Developer/Builder (Supports 3-step progressive flow)
  *     tags: [User Profile]
  *     security:
  *       - bearerAuth: []
@@ -215,24 +215,69 @@ router.post('/register-agent', userController.registerAgent);
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - companyName
- *               - registrationNumber
  *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Optional user display name update
+ *                 example: "Vikram Singh"
+ *               phone:
+ *                 type: string
+ *                 description: Optional phone/mobile update
+ *                 example: "+919876543210"
  *               companyName:
  *                 type: string
+ *                 description: Step 1 - Company / firm name (Required if submitForVerification is true)
  *                 example: "Kriti Digital Solutions"
- *               registrationNumber:
+ *               reraNumber:
  *                 type: string
- *                 example: "CIN-U72900DL2026PTC123456"
- *               website:
+ *                 description: Step 1 - RERA registration number (Required if submitForVerification is true)
+ *                 example: "UPRERAPRM123456"
+ *               gstNumber:
  *                 type: string
- *                 example: "https://kritidigital.com"
+ *                 description: Step 1 - GST registration number (optional)
+ *                 example: "09AAAAA1111A1Z1"
+ *               yearsInBusiness:
+ *                 type: string
+ *                 description: Step 1 - Years in business
+ *                 enum: ["< 2 yrs", "2-5 yrs", "5-10 yrs", "10+ yrs"]
+ *                 example: "2-5 yrs"
+ *               cityOfOperation:
+ *                 type: string
+ *                 description: Step 1 - Base operating city (Required if submitForVerification is true)
+ *                 example: "Noida"
+ *               reraCertificate:
+ *                 type: string
+ *                 description: Step 2 - Uploaded RERA certificate file path/URL (Required if submitForVerification is true)
+ *                 example: "uploads/rera_cert_12345.pdf"
+ *               panCard:
+ *                 type: string
+ *                 description: Step 2 - Uploaded PAN card file path/URL (Required if submitForVerification is true)
+ *                 example: "uploads/pan_card_12345.jpg"
+ *               companyLogo:
+ *                 type: string
+ *                 description: Step 2 - Uploaded company logo file path/URL (optional)
+ *                 example: "uploads/logo_12345.png"
+ *               bio:
+ *                 type: string
+ *                 description: Step 3 - Company bio/profile summary (optional)
+ *                 example: "Leading construction group since 2018."
+ *               unitsDelivered:
+ *                 type: string
+ *                 description: Step 3 - Total projects/units delivered (optional)
+ *                 example: "12"
+ *               isIsoCertified:
+ *                 type: boolean
+ *                 description: Step 3 - ISO certification status (optional)
+ *                 example: true
+ *               submitForVerification:
+ *                 type: boolean
+ *                 description: Flag to submit registration for admin verification. Enforces mandatory fields when true.
+ *                 example: false
  *     responses:
  *       200:
- *         description: Developer registration request submitted successfully
+ *         description: Developer profile updated (saved draft or submitted for verification successfully)
  *       400:
- *         description: Missing fields or already registered as developer
+ *         description: Validation failed (duplicate RERA/phone, or missing mandatory fields on final submission)
  *       401:
  *         description: Unauthorized
  */

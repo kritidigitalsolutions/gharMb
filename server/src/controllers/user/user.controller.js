@@ -198,7 +198,7 @@ exports.registerAgent = async (req, res, next) => {
 };
 
 // @desc    Register as Developer / Builder (Company Name, Full Name, Phone, RERA, PAN & Logo Submission)
-// @route   POST /api/user/users/register-developer
+// @route   POST /api/users/register-developer
 // @access  Private
 exports.registerDeveloper = async (req, res, next) => {
   try {
@@ -214,59 +214,108 @@ exports.registerDeveloper = async (req, res, next) => {
       reraCertificate,
       panCard,
       companyLogo,
+      bio,
+      unitsDelivered,
+      isIsoCertified,
+      submitForVerification,
     } = req.body;
 
-    if (!companyName || !reraNumber || !cityOfOperation) {
-      return res.status(400).json({
+    const currentUser = await User.findById(req.user._id);
+    if (!currentUser) {
+      return res.status(404).json({
         status: 'fail',
-        message: 'Please provide company name, RERA registration number, and city of operation.',
-      });
-    }
-
-    // 1. Strict RERA Number Uniqueness Check
-    const existingRera = await User.findOne({
-      reraNumber,
-      _id: { $ne: req.user._id },
-    });
-    if (existingRera) {
-      return res.status(400).json({
-        status: 'fail',
-        message: 'A developer or agent with this RERA registration number is already registered.',
+        message: 'User not found.',
       });
     }
 
     const updateData = {
       role: 'builder',
-      companyName,
-      reraNumber,
-      gstNumber: gstNumber || '',
-      yearsInBusiness: yearsInBusiness || '2-5 yrs',
-      cityOfOperation,
-      builderDocs: {
-        reraCertificate: reraCertificate || '',
-        panCard: panCard || '',
-        companyLogo: companyLogo || '',
-      },
-      builderVerificationStatus: 'pending',
     };
 
+    // Update name if provided
     if (name) updateData.name = name;
 
-    // 2. Strict Mobile Number Uniqueness Check
+    // Strict Mobile Number Uniqueness Check (only if different phone provided)
     const phoneInput = phone || mobileNumber;
     if (phoneInput) {
       const normalizedPhone = normalizePhone(phoneInput);
-      const existingPhoneUser = await User.findOne({
-        phone: normalizedPhone,
-        _id: { $ne: req.user._id },
-      });
-      if (existingPhoneUser) {
+      if (normalizedPhone !== currentUser.phone) {
+        const existingPhoneUser = await User.findOne({
+          phone: normalizedPhone,
+          _id: { $ne: req.user._id },
+        });
+        if (existingPhoneUser) {
+          return res.status(400).json({
+            status: 'fail',
+            message: 'This mobile number is already registered with another account.',
+          });
+        }
+        updateData.phone = normalizedPhone;
+      }
+    }
+
+    // Update Step 1 details
+    if (companyName !== undefined) updateData.companyName = companyName;
+    
+    // Strict RERA Number Uniqueness Check (only if different RERA provided)
+    if (reraNumber !== undefined) {
+      if (reraNumber && reraNumber !== currentUser.reraNumber) {
+        const existingRera = await User.findOne({
+          reraNumber,
+          _id: { $ne: req.user._id },
+        });
+        if (existingRera) {
+          return res.status(400).json({
+            status: 'fail',
+            message: 'A developer or agent with this RERA registration number is already registered.',
+          });
+        }
+      }
+      updateData.reraNumber = reraNumber;
+    }
+    if (gstNumber !== undefined) updateData.gstNumber = gstNumber;
+    if (yearsInBusiness !== undefined) updateData.yearsInBusiness = yearsInBusiness;
+    if (cityOfOperation !== undefined) updateData.cityOfOperation = cityOfOperation;
+
+    // Update Step 2 details (documents)
+    const existingDocs = currentUser.builderDocs || {};
+    updateData.builderDocs = {
+      reraCertificate: reraCertificate !== undefined ? reraCertificate : (existingDocs.reraCertificate || ''),
+      panCard: panCard !== undefined ? panCard : (existingDocs.panCard || ''),
+      companyLogo: companyLogo !== undefined ? companyLogo : (existingDocs.companyLogo || ''),
+    };
+
+    // Update Step 3 details (business profile)
+    if (bio !== undefined) updateData.bio = bio;
+    if (unitsDelivered !== undefined) updateData.unitsDelivered = unitsDelivered;
+    if (isIsoCertified !== undefined) updateData.isIsoCertified = isIsoCertified;
+
+    // If submitForVerification is true, run complete validation
+    if (submitForVerification) {
+      const finalCompanyName = companyName !== undefined ? companyName : currentUser.companyName;
+      const finalReraNumber = reraNumber !== undefined ? reraNumber : currentUser.reraNumber;
+      const finalCityOfOperation = cityOfOperation !== undefined ? cityOfOperation : currentUser.cityOfOperation;
+      const finalReraCert = reraCertificate !== undefined ? reraCertificate : existingDocs.reraCertificate;
+      const finalPanCard = panCard !== undefined ? panCard : existingDocs.panCard;
+
+      if (!finalCompanyName || !finalReraNumber || !finalCityOfOperation) {
         return res.status(400).json({
           status: 'fail',
-          message: 'This mobile number is already registered with another account.',
+          message: 'Please provide company name, RERA registration number, and city of operation.',
         });
       }
-      updateData.phone = normalizedPhone;
+
+      if (!finalReraCert || !finalPanCard) {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'Please upload all required verification documents: RERA certificate and PAN card.',
+        });
+      }
+
+      updateData.builderVerificationStatus = 'pending';
+    } else {
+      // Just saving a draft, retain current status or set to 'unverified'
+      updateData.builderVerificationStatus = currentUser.builderVerificationStatus || 'unverified';
     }
 
     const user = await User.findByIdAndUpdate(req.user._id, updateData, {
@@ -279,7 +328,9 @@ exports.registerDeveloper = async (req, res, next) => {
 
     res.status(200).json({
       status: 'success',
-      message: 'Developer registration & company documents submitted successfully! Admin will review within 24-48 hours.',
+      message: submitForVerification
+        ? 'Developer registration & company documents submitted successfully! Admin will review within 24-48 hours.'
+        : 'Developer registration draft saved successfully.',
       token,
       data: {
         user: {
@@ -292,6 +343,9 @@ exports.registerDeveloper = async (req, res, next) => {
           gstNumber: user.gstNumber,
           yearsInBusiness: user.yearsInBusiness,
           cityOfOperation: user.cityOfOperation,
+          bio: user.bio,
+          unitsDelivered: user.unitsDelivered,
+          isIsoCertified: user.isIsoCertified,
           builderDocs: user.builderDocs,
           builderVerificationStatus: user.builderVerificationStatus,
         },

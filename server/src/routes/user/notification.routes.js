@@ -5,7 +5,7 @@
 
 const express = require('express');
 const notificationController = require('../../controllers/user/notification.controller');
-const userAuth = require('../../middlewares/userAuth.middleware');
+const protect = require('../../middlewares/auth.middleware');
 
 const router = express.Router();
 
@@ -16,7 +16,7 @@ const router = express.Router();
  *   description: Endpoints for user activity/in-app notifications
  */
 
-router.use(userAuth);
+router.use(protect);
 
 /**
  * @swagger

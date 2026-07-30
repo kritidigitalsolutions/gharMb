@@ -49,6 +49,13 @@ const protect = async (req, res, next) => {
         });
       }
 
+      if (user.status === 'Blocked') {
+        return res.status(403).json({
+          status: 'fail',
+          message: 'Your account has been suspended by administration.',
+        });
+      }
+
       req.user = user;
       return next();
 

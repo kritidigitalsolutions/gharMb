@@ -1,4 +1,3 @@
-import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -13,9 +12,11 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  Sparkles,
   FileText,
-  Info
+  Info,
+  Crown,
+  ShieldCheck,
+  Bell
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, onLogout }) => {
@@ -54,6 +55,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, onLogout 
     { name: 'Leads & Enquiries', path: '/leads', icon: Inbox, badge: 'New', badgeColor: 'bg-brand text-white' },
     { name: 'Revenue', path: '/revenue', icon: IndianRupee },
     { name: 'Reports & Export', path: '/reports', icon: BarChart3 },
+    { name: 'Notifications', path: '/notifications', icon: Bell },
     { name: 'Settings', path: '/settings', icon: Settings },
     { name: 'Legal Policies', path: '/legal', icon: FileText },
     { name: 'About Platform', path: '/about', icon: Info },
@@ -69,7 +71,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, onLogout 
       <button
         type="button"
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="hidden md:flex absolute top-5 -right-3 w-6 h-6 bg-[var(--bg-surface)] border border-[var(--border)] hover:border-slate-400 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-full items-center justify-center shadow-sm hover:shadow transition-all cursor-pointer z-50"
+        className="hidden md:flex absolute top-5 -right-3 w-6 h-6 bg-[var(--bg-surface)] border border-[var(--border)] hover:border-slate-400 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-full items-center justify-center shadow-sm hover:shadow transition-all hover:scale-110 active:scale-90 duration-200 cursor-pointer z-50"
       >
         {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
       </button>
@@ -80,7 +82,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, onLogout 
           isCollapsed ? 'md:justify-center md:px-2' : ''
         }`}>
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-brand text-white font-black text-sm shrink-0 shadow-md shadow-brand/20">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-brand text-white font-black text-sm shrink-0 shadow-md shadow-brand/20 hover:scale-105 transition-transform duration-300 cursor-pointer">
               G
             </div>
             <span className={`font-extrabold text-sm text-[var(--text-primary)] tracking-tight flex items-center gap-1 ${
@@ -93,7 +95,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, onLogout 
           <button
             type="button"
             onClick={toggleSidebar}
-            className="p-1.5 text-[var(--text-muted)] hover:bg-[var(--bg-muted)] md:hidden rounded-xl transition-colors cursor-pointer"
+            className="p-1.5 text-[var(--text-muted)] hover:bg-[var(--bg-muted)] md:hidden rounded-xl transition-all hover:scale-110 hover:rotate-90 active:scale-90 duration-200 cursor-pointer"
           >
             <X size={16} />
           </button>
@@ -112,7 +114,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, onLogout 
                 if (window.innerWidth < 768) toggleSidebar();
               }}
               className={({ isActive }) =>
-                `flex items-center rounded-xl text-xs font-bold transition-all group relative cursor-pointer ${
+                `flex items-center rounded-xl text-xs font-bold transition-all duration-200 hover:scale-[1.02] active:scale-95 group relative cursor-pointer ${
                   isCollapsed ? 'justify-start gap-3 px-3 py-2.5 md:justify-center md:p-3' : 'justify-start gap-3 px-3 py-2.5'
                 } ${
                   isActive
@@ -131,7 +133,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, onLogout 
 
                   <item.icon 
                     size={18} 
-                    className={`shrink-0 ${
+                    className={`shrink-0 transition-transform duration-250 group-hover:scale-110 group-hover:-rotate-3 ${
                       isActive 
                         ? isCollapsed 
                           ? 'text-white md:text-brand' 
@@ -155,7 +157,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, onLogout 
                   )}
 
                   {isCollapsed && (
-                    <div className="absolute left-16 hidden md:group-hover:block bg-slate-900 text-white text-[10px] font-extrabold py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap z-50 border border-slate-700">
+                    <div className="absolute left-16 hidden md:group-hover:block bg-slate-900 text-white text-[10px] font-extrabold py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap z-50 border border-slate-700 animate-tooltip-pop origin-left">
                       {item.name}
                     </div>
                   )}
@@ -173,17 +175,17 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, onLogout 
           <button
             type="button"
             onClick={handleLogout}
-            className={`w-full flex items-center rounded-xl text-xs font-bold transition-all group relative cursor-pointer text-[var(--text-subtle)] hover:bg-red-500/100/10 hover:text-red-600 ${
+            className={`w-full flex items-center rounded-xl text-xs font-bold transition-all duration-200 hover:scale-[1.02] active:scale-95 group relative cursor-pointer text-[var(--text-subtle)] hover:bg-red-500/10 hover:text-red-600 ${
               isCollapsed ? 'justify-start gap-3 px-3 py-2.5 md:justify-center md:p-3' : 'justify-start gap-3 px-3 py-2.5'
             }`}
           >
             <LogOut 
               size={18} 
-              className="shrink-0 text-slate-400 group-hover:text-red-500 transition-colors" 
+              className="shrink-0 text-slate-400 group-hover:text-red-500 transition-all duration-250 group-hover:translate-x-0.5" 
             />
             <span className={`flex-1 text-left truncate tracking-tight ${isCollapsed ? 'md:hidden' : ''}`}>Logout</span>
             {isCollapsed && (
-              <div className="absolute left-16 hidden md:group-hover:block bg-red-955 text-white text-[10px] font-extrabold py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap z-50 border border-red-800">
+              <div className="absolute left-16 hidden md:group-hover:block bg-red-600 text-white text-[10px] font-extrabold py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap z-50 animate-tooltip-pop origin-left">
                 Logout
               </div>
             )}
@@ -195,14 +197,31 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, onLogout 
           isCollapsed ? 'md:justify-center md:px-2' : ''
         }`}>
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="relative group/avatar shrink-0">
-              <div className="w-8 h-8 rounded-xl bg-brand-light flex items-center justify-center font-bold text-xs text-brand border border-brand/15 shadow-sm">
-                {getInitials(adminUser.name)}
+            <div className="relative group/avatar shrink-0 cursor-pointer">
+              {/* Profile Avatar Wrapper */}
+              <div className="relative w-9 h-9 rounded-full bg-gradient-to-tr from-brand-dark via-brand to-orange-400 p-[1.5px] shadow-sm transition-all duration-300 group-hover/avatar:scale-105 group-hover/avatar:shadow-md group-hover/avatar:shadow-brand/20">
+                <div className="w-full h-full rounded-full bg-[var(--bg-surface)] flex items-center justify-center font-black text-[10px] text-brand tracking-wider uppercase border border-brand/5">
+                  {getInitials(adminUser.name)}
+                </div>
               </div>
+              {/* Active status indicator */}
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-[var(--bg-surface)] shadow-sm animate-pulse"></span>
               {isCollapsed && (
-                <div className="absolute left-14 top-1/2 -translate-y-1/2 hidden md:group-hover/avatar:block bg-slate-955 text-white text-[10px] font-bold py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap z-50 border border-slate-800">
-                  <p className="font-extrabold">{adminUser.name}</p>
-                  <p className="text-[9px] text-slate-400 mt-0.5 font-semibold">{adminUser.role || 'SaaS Admin'}</p>
+                <div className="absolute left-14 top-1/2 -translate-y-1/2 hidden md:group-hover/avatar:flex items-center gap-3 bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-2xl shadow-xl z-50 border border-[var(--border)] p-2.5 animate-avatar-tooltip-pop origin-left min-w-[170px]">
+                  {(() => {
+                    const isAdmin = (adminUser.role || '').toLowerCase().includes('admin') || (adminUser.name || '').toLowerCase().includes('admin');
+                    return (
+                      <div className="w-8 h-8 rounded-xl bg-brand-light flex items-center justify-center text-brand shrink-0">
+                        {isAdmin ? <Crown size={15} /> : <ShieldCheck size={16} />}
+                      </div>
+                    );
+                  })()}
+                  <div className="flex flex-col min-w-0 text-left">
+                    <p className="text-[11px] font-extrabold text-[var(--text-primary)] leading-tight truncate">{adminUser.name}</p>
+                    <span className="inline-flex items-center text-[8px] font-extrabold text-brand bg-brand-light px-1.5 py-0.5 rounded-md mt-1 w-max">
+                      {adminUser.role || 'SaaS Admin'}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>

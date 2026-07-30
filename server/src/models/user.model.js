@@ -175,6 +175,12 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    status: {
+      type: String,
+      enum: ['Active', 'Blocked'],
+      default: 'Active',
+      index: true,
+    },
     authProvider: {
       type: String,
       enum: ['local', 'google', 'facebook', 'mobile'],

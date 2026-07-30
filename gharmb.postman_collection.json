@@ -11,344 +11,209 @@
       "name": "Admin",
       "item": [
         {
-          "name": "Get Admin Dashboard Stats",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:5001/api/admin/dashboard/stats",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5001",
-              "path": [
-                "api",
-                "admin",
-                "dashboard",
-                "stats"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Get Current Admin Profile",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:5001/api/admin/auth/me",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5001",
-              "path": [
-                "api",
-                "admin",
-                "auth",
-                "me"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "login",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n  \"email\": \"admin@gharmb.com\",\r\n  \"password\": \"AdminPassword123!\"\r\n}\r\n",
-              "options": {
-                "raw": {
-                  "language": "json"
+          "name": "auth",
+          "item": [
+            {
+              "name": "admin register",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"name\": \"Super Admin\",\r\n  \"email\": \"admin@gharmb.com\",\r\n  \"password\": \"AdminPassword123!\"\r\n}\r\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/auth/register",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "auth",
+                    "register"
+                  ]
                 }
-              }
+              },
+              "response": []
             },
-            "url": {
-              "raw": "http://localhost:5001/api/admin/auth/login",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5001",
-              "path": [
-                "api",
-                "admin",
-                "auth",
-                "login"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "admin regsiter",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n  \"name\": \"Super Admin\",\r\n  \"email\": \"admin@gharmb.com\",\r\n  \"password\": \"AdminPassword123!\"\r\n}\r\n",
-              "options": {
-                "raw": {
-                  "language": "json"
+            {
+              "name": "Get Current Admin Profile",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/auth/me",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "auth",
+                    "me"
+                  ]
                 }
-              }
+              },
+              "response": []
             },
-            "url": {
-              "raw": "http://localhost:5001/api/admin/auth/register",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5001",
-              "path": [
-                "api",
-                "admin",
-                "auth",
-                "register"
-              ]
+            {
+              "name": "login",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"email\": \"admin@gharmb.com\",\r\n  \"password\": \"AdminPassword123!\"\r\n}\r\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/auth/login",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "response": []
             }
-          },
-          "response": []
+          ]
         },
         {
-          "name": "Property Verification",
-          "request": {
-            "method": "PATCH",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n  \"approvalStatus\": \"approved\"\r\n}\r\n",
-              "options": {
-                "raw": {
-                  "language": "json"
+          "name": "dashboard",
+          "item": [
+            {
+              "name": "Get Admin Dashboard Stats",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/dashboard/stats",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "dashboard",
+                    "stats"
+                  ]
                 }
-              }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "legal",
+          "item": [
+            {
+              "name": "Admin - Get Terms & Conditions",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/legal/terms",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "legal",
+                    "terms"
+                  ]
+                }
+              },
+              "response": []
             },
-            "url": {
-              "raw": "http://localhost:5001/api/admin/properties/:propertyId/status",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5001",
-              "path": [
-                "api",
-                "admin",
-                "properties",
-                ":propertyId",
-                "status"
-              ],
-              "variable": [
-                {
-                  "key": "propertyId",
-                  "value": "6a64652eab6243a722642662"
+            {
+              "name": "Admin - Update Privacy Policy",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Privacy Policy\",\n  \"content\": \"Your privacy is extremely important to us. Here is how we safeguard it.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/legal/privacy-policy",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "legal",
+                    "privacy-policy"
+                  ]
                 }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Admin Approves Agent Application",
-          "request": {
-            "method": "PATCH",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n  \"agentVerificationStatus\": \"approved\"\r\n}\r\n",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              },
+              "response": []
             },
-            "url": {
-              "raw": "http://localhost:5001/api/admin/users/:agentUserId/verify-agent",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5001",
-              "path": [
-                "api",
-                "admin",
-                "users",
-                ":agentUserId",
-                "verify-agent"
-              ],
-              "variable": [
-                {
-                  "key": "agentUserId",
-                  "value": "6a63408f25d3f9fad4c1c539"
+            {
+              "name": "Admin - Update Terms & Conditions",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Terms & Conditions\",\n  \"content\": \"This represents the official terms of use of the GHARMB platform.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/legal/terms",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "legal",
+                    "terms"
+                  ]
                 }
-              ]
+              },
+              "response": []
             }
-          },
-          "response": []
-        },
-        {
-          "name": "Admin Approves Developer",
-          "request": {
-            "method": "PATCH",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n  \"builderVerificationStatus\": \"approved\"\r\n}\r\n",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5001/api/admin/users/:builderUserId/verify-developer",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5001",
-              "path": [
-                "api",
-                "admin",
-                "users",
-                ":builderUserId",
-                "verify-developer"
-              ],
-              "variable": [
-                {
-                  "key": "builderUserId",
-                  "value": "6a63408f25d3f9fad4c1c539"
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "developer project approval",
-          "request": {
-            "method": "PATCH",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n  \"approvalStatus\": \"approved\"\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5001/api/admin/projects/6a64652eab6243a722642662/status",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5001",
-              "path": [
-                "api",
-                "admin",
-                "projects",
-                "6a64652eab6243a722642662",
-                "status"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Admin Updates User Profile",
-          "request": {
-            "method": "PATCH",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Alok Mishra Updated\",\n  \"email\": \"alok.mishra.updated@gmail.com\",\n  \"phone\": \"+919876543210\",\n  \"role\": \"buyer\",\n  \"isVerified\": true,\n  \"address\": {\n    \"formattedAddress\": \"Mira Road East, Mumbai, Maharashtra\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"pincode\": \"401107\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5001/api/admin/users/:userId",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5001",
-              "path": [
-                "api",
-                "admin",
-                "users",
-                ":userId"
-              ],
-              "variable": [
-                {
-                  "key": "userId",
-                  "value": "6a63408f25d3f9fad4c1c539"
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Get Admin Notification Logs",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:5001/api/admin/notifications",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5001",
-              "path": [
-                "api",
-                "admin",
-                "notifications"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Broadcast Notification",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"System Maintenance Update\",\n  \"message\": \"We will be performing a quick system upgrade tonight between 2 AM to 3 AM. App might be briefly unreachable.\",\n  \"targetRoles\": [\"buyer\", \"agent\", \"builder\"]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5001/api/admin/notifications",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5001",
-              "path": [
-                "api",
-                "admin",
-                "notifications"
-              ]
-            }
-          },
-          "response": []
+          ]
         },
         {
           "name": "news",
@@ -378,6 +243,34 @@
                     "api",
                     "admin",
                     "news"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete News",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/news/:id",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "news",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "6a688b25e112db1c3145a841"
+                    }
                   ]
                 }
               },
@@ -419,43 +312,6 @@
               "request": {
                 "method": "GET",
                 "header": [],
-                "url": {
-                  "raw": "http://localhost:5001/api/admin/news/:id",
-                  "protocol": "http",
-                  "host": [
-                    "localhost"
-                  ],
-                  "port": "5001",
-                  "path": [
-                    "api",
-                    "admin",
-                    "news",
-                    ":id"
-                  ],
-                  "variable": [
-                    {
-                      "key": "id",
-                      "value": "6a688b25e112db1c3145a841"
-                    }
-                  ]
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "Update News",
-              "request": {
-                "method": "PUT",
-                "header": [],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"title\": \"Updated RBI repo rate is 6.5%\",\n  \"isFeatured\": false\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
                 "url": {
                   "raw": "http://localhost:5001/api/admin/news/:id",
                   "protocol": "http",
@@ -538,10 +394,19 @@
               "response": []
             },
             {
-              "name": "Delete News",
+              "name": "Update News",
               "request": {
-                "method": "DELETE",
+                "method": "PUT",
                 "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Updated RBI repo rate is 6.5%\",\n  \"isFeatured\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
                 "url": {
                   "raw": "http://localhost:5001/api/admin/news/:id",
                   "protocol": "http",
@@ -566,40 +431,379 @@
               "response": []
             }
           ]
-        }
-      ],
-      "auth": {
-        "type": "bearer",
-        "bearer": [
-          {
-            "key": "token",
-            "value": "{{json_web_token_07j9}}",
-            "type": "string"
-          }
-        ]
-      },
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "packages": {},
-            "requests": {},
-            "exec": [
-              ""
-            ]
-          }
         },
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "packages": {},
-            "requests": {},
-            "exec": [
-              ""
-            ]
-          }
+          "name": "notifications",
+          "item": [
+            {
+              "name": "Broadcast Notification",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"System Maintenance Update\",\n  \"message\": \"We will be performing a quick system upgrade tonight between 2 AM to 3 AM. App might be briefly unreachable.\",\n  \"targetRoles\": [\"buyer\", \"agent\", \"builder\"]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/notifications",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "notifications"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Send Targeted Notification",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"recipientId\": \"6a6b0b5e07aa67268b6b82b3\",\n  \"title\": \"Notification Title\",\n  \"message\": \"hi iam dhruv\",\n  \"type\": \"system\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/notifications",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "notifications"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Admin Notification Logs",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/notifications",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "notifications"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "pages",
+          "item": [
+            {
+              "name": "Admin - Get About Us",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/pages/about-us",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "pages",
+                    "about-us"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Admin - Update About Us",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"About Us\",\n  \"content\": \"GHARMB is a premium real estate platform.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/pages/about-us",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "pages",
+                    "about-us"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Admin - Update Help & Support",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Help & Support\",\n  \"content\": \"For queries, please email support@gharmb.com.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/pages/help-support",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "pages",
+                    "help-support"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "projects",
+          "item": [
+            {
+              "name": "developer project approval",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"approvalStatus\": \"approved\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/projects/6a64652eab6243a722642662/status",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "projects",
+                    "6a64652eab6243a722642662",
+                    "status"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "properties",
+          "item": [
+            {
+              "name": "Property Verification",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"approvalStatus\": \"approved\"\r\n}\r\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/properties/:propertyId/status",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "properties",
+                    ":propertyId",
+                    "status"
+                  ],
+                  "variable": [
+                    {
+                      "key": "propertyId",
+                      "value": "6a64652eab6243a722642662"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "users",
+          "item": [
+            {
+              "name": "Admin Approves Agent Application",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"agentVerificationStatus\": \"approved\"\r\n}\r\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/users/:agentUserId/verify-agent",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "users",
+                    ":agentUserId",
+                    "verify-agent"
+                  ],
+                  "variable": [
+                    {
+                      "key": "agentUserId",
+                      "value": "6a63408f25d3f9fad4c1c539"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Admin Approves Developer",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"builderVerificationStatus\": \"approved\"\r\n}\r\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/users/:builderUserId/verify-developer",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "users",
+                    ":builderUserId",
+                    "verify-developer"
+                  ],
+                  "variable": [
+                    {
+                      "key": "builderUserId",
+                      "value": "6a63408f25d3f9fad4c1c539"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Admin Updates User Profile",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Alok Mishra Updated\",\n  \"email\": \"alok.mishra.updated@gmail.com\",\n  \"phone\": \"+919876543210\",\n  \"role\": \"buyer\",\n  \"isVerified\": true,\n  \"address\": {\n    \"formattedAddress\": \"Mira Road East, Mumbai, Maharashtra\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"pincode\": \"401107\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5001/api/admin/users/:userId",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5001",
+                  "path": [
+                    "api",
+                    "admin",
+                    "users",
+                    ":userId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "userId",
+                      "value": "6a63408f25d3f9fad4c1c539"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
         }
       ]
     },
@@ -644,8 +848,11 @@
                   "script": {
                     "exec": [
                       "const response = pm.response.json();",
-                      "if (response.token) {",
-                      "    pm.collectionVariables.set(\"json_web_token_0qr7\", response.token);",
+                      "if (response.phone) {",
+                      "    pm.collectionVariables.set(\"user_phone\", response.phone);",
+                      "}",
+                      "if (response.otp) {",
+                      "    pm.collectionVariables.set(\"user_otp\", response.otp);",
                       "}"
                     ],
                     "type": "text/javascript"
@@ -655,13 +862,13 @@
               "response": []
             },
             {
-              "name": "Send Mobile OTP",
+              "name": "Login (Existing User - Send OTP)",
               "request": {
                 "method": "POST",
                 "header": [],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\r\n  \"phone\": \"919876543215\"\r\n}\r\n",
+                  "raw": "{\r\n  \"phone\": \"9876543210\"\r\n}\r\n",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -683,6 +890,23 @@
                   ]
                 }
               },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const response = pm.response.json();",
+                      "if (response.phone) {",
+                      "    pm.collectionVariables.set(\"user_phone\", response.phone);",
+                      "}",
+                      "if (response.otp) {",
+                      "    pm.collectionVariables.set(\"user_otp\", response.otp);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
               "response": []
             },
             {
@@ -692,7 +916,7 @@
                 "header": [],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\r\n  \"phone\": \"+919876543215\",\r\n  \"otp\": \"578334\"\r\n}\r\n",
+                  "raw": "{\r\n  \"phone\": \"{{user_phone}}\",\r\n  \"otp\": \"{{user_otp}}\"\r\n}\r\n",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1231,7 +1455,38 @@
                   ]
                 }
               },
-              "response": []
+              "response": [
+                {
+                  "name": "Success (New User Welcome)",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "http://localhost:5001/api/notifications",
+                      "protocol": "http",
+                      "host": [
+                        "localhost"
+                      ],
+                      "port": "5001",
+                      "path": [
+                        "api",
+                        "notifications"
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"status\": \"success\",\n  \"results\": 1,\n  \"data\": {\n    \"notifications\": [\n      {\n        \"_id\": \"6a6b0b5e07aa67268b6b82b3\",\n        \"recipient\": \"6a6b0b5e07aa67268b6b82b1\",\n        \"title\": \"Account Created Successfully 🎉\",\n        \"message\": \"Welcome to GharMB, Rishika Chaudhary! Your account has been registered. Explore verified listings, manage your properties, and connect directly with trusted agents & developers.\",\n        \"type\": \"system\",\n        \"isRead\": false,\n        \"createdAt\": \"2026-07-30T10:11:00.000Z\",\n        \"updatedAt\": \"2026-07-30T10:11:00.000Z\",\n        \"__v\": 0\n      }\n    ]\n  }\n}"
+                }
+              ]
             },
             {
               "name": "Mark Notification as Read",
@@ -1600,90 +1855,6 @@
             }
           },
           "response": []
-        },
-        {
-          "name": "Admin - Get Terms & Conditions",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:5001/api/admin/legal/terms",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5001",
-              "path": [
-                "api",
-                "admin",
-                "legal",
-                "terms"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Admin - Update Terms & Conditions",
-          "request": {
-            "method": "PUT",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"Terms & Conditions\",\n  \"content\": \"This represents the official terms of use of the GHARMB platform.\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5001/api/admin/legal/terms",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5001",
-              "path": [
-                "api",
-                "admin",
-                "legal",
-                "terms"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Admin - Update Privacy Policy",
-          "request": {
-            "method": "PUT",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"Privacy Policy\",\n  \"content\": \"Your privacy is extremely important to us. Here is how we safeguard it.\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5001/api/admin/legal/privacy-policy",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5001",
-              "path": [
-                "api",
-                "admin",
-                "legal",
-                "privacy-policy"
-              ]
-            }
-          },
-          "response": []
         }
       ],
       "auth": {
@@ -1735,90 +1906,6 @@
               "port": "5001",
               "path": [
                 "api",
-                "pages",
-                "help-support"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Admin - Get About Us",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:5001/api/admin/pages/about-us",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5001",
-              "path": [
-                "api",
-                "admin",
-                "pages",
-                "about-us"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Admin - Update About Us",
-          "request": {
-            "method": "PUT",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"About Us\",\n  \"content\": \"GHARMB is a premium real estate platform.\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5001/api/admin/pages/about-us",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5001",
-              "path": [
-                "api",
-                "admin",
-                "pages",
-                "about-us"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Admin - Update Help & Support",
-          "request": {
-            "method": "PUT",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"Help & Support\",\n  \"content\": \"For queries, please email support@gharmb.com.\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5001/api/admin/pages/help-support",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5001",
-              "path": [
-                "api",
-                "admin",
                 "pages",
                 "help-support"
               ]
