@@ -4,6 +4,8 @@
  */
 
 const User = require('../../models/user.model');
+const Admin = require('../../models/admin.model');
+const Notification = require('../../models/notification.model');
 const generateToken = require('../../utils/generateToken');
 
 // Helper to normalize phone numbers (+91XXXXXXXXXX, 9876543210, +91 98765 43210 -> +919876543210)
@@ -27,7 +29,7 @@ const normalizePhone = (phone) => {
 // In-memory temporary store for OTPs & pending registration drafts (phone -> { otp, registrationData, expiresAt })
 const otpStore = new Map();
 
-// @desc    Step 1 of Auth: Register and Create User Directly (No OTP required for sign up)
+// @desc    Step 1 of Auth: Submit Basic Info & Send OTP (Screen 1: Basic Info)
 // @route   POST /api/user/auth/register
 // @access  Public
 exports.registerUser = async (req, res, next) => {
@@ -72,40 +74,44 @@ exports.registerUser = async (req, res, next) => {
       };
     }
 
-    // Create the user directly in the database
-    const user = await User.create({
-      name,
-      email,
-      phone: normalizedPhone,
-      address: addressObj,
-      location: locationObj,
-      authProvider: 'mobile',
+    // Generate random 6-digit OTP
+    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Save registration draft & OTP in memory under normalized phone
+    otpStore.set(normalizedPhone, {
+      otp: generatedOtp,
+      registrationData: {
+        name,
+        email,
+        phone: normalizedPhone,
+        address: addressObj,
+        location: locationObj,
+        authProvider: 'mobile',
+      },
+      expiresAt: Date.now() + 10 * 60 * 1000,
     });
 
-    const token = generateToken(user._id, user.role);
+    // Log OTP prominently in backend terminal
+    console.log(`\n==================================================`);
+    console.log(`📱 [NEW USER REGISTRATION OTP]`);
+    console.log(`   Name          : ${name}`);
+    console.log(`   Input Phone   : ${phone}`);
+    console.log(`   Normalized    : ${normalizedPhone}`);
+    console.log(`   🔑 GENERATED OTP : ${generatedOtp}`);
+    console.log(`==================================================\n`);
 
-    res.status(201).json({
+    res.status(200).json({
       status: 'success',
-      token,
-      data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-          address: user.address,
-          location: user.location,
-          isOnboardingCompleted: user.isOnboardingCompleted || false,
-        },
-      },
+      message: `OTP sent successfully to ${normalizedPhone}. Check backend terminal for OTP log.`,
+      phone: normalizedPhone,
+      otp: generatedOtp, // Returned for dev testing
     });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Send OTP for existing user sign-in
+// @desc    Existing User Login — Direct login without OTP
 // @route   POST /api/user/auth/send-otp
 // @access  Public
 exports.sendOtp = async (req, res, next) => {
@@ -114,7 +120,7 @@ exports.sendOtp = async (req, res, next) => {
 
     if (!phone) {
       return res.status(400).json({
-        success: false,
+        status: 'fail',
         message: 'Please enter mobile number.',
       });
     }
@@ -125,7 +131,7 @@ exports.sendOtp = async (req, res, next) => {
 
     if (!existingUser) {
       return res.status(404).json({
-        success: false,
+        status: 'fail',
         newUser: true,
         message: 'User not registered. Please sign up first.',
       });
@@ -134,14 +140,15 @@ exports.sendOtp = async (req, res, next) => {
     // Generate random 6-digit OTP
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Store OTP in memory for verification
+    // Save login OTP in memory under normalized phone
     otpStore.set(normalizedPhone, {
       otp: generatedOtp,
       expiresAt: Date.now() + 10 * 60 * 1000,
     });
 
+    // Log OTP prominently in backend terminal
     console.log(`\n==================================================`);
-    console.log(`📱 [SIGN-IN MOBILE OTP SENT]`);
+    console.log(`🔐 [EXISTING USER LOGIN OTP]`);
     console.log(`   User Name     : ${existingUser.name}`);
     console.log(`   Input Phone   : ${phone}`);
     console.log(`   Normalized    : ${normalizedPhone}`);
@@ -150,10 +157,9 @@ exports.sendOtp = async (req, res, next) => {
 
     res.status(200).json({
       status: 'success',
-      isRegistered: true,
-      message: `OTP sent successfully to ${normalizedPhone} for Sign In.`,
+      message: `OTP sent successfully to ${normalizedPhone}. Check backend terminal for OTP log.`,
       phone: normalizedPhone,
-      otp: generatedOtp,
+      otp: generatedOtp, // Returned for dev testing
     });
   } catch (error) {
     next(error);
@@ -207,7 +213,7 @@ exports.resendOtp = async (req, res, next) => {
   }
 };
 
-// @desc    Step 2 of Auth: Verify OTP & Create Session (Screen 2: Verify Your Number)
+// @desc    Step 2 of Auth: Verify OTP & Create User / Session (Screen 2: Verify Your Number)
 // @route   POST /api/user/auth/verify-otp
 // @access  Public
 exports.verifyOtp = async (req, res, next) => {
@@ -239,13 +245,45 @@ exports.verifyOtp = async (req, res, next) => {
 
     let user = await User.findOne({ phone: normalizedPhone });
 
+    // If new user registration draft exists in memory, create user now!
+    if (!user && storedData && storedData.registrationData) {
+      user = await User.create(storedData.registrationData);
+
+      // Create welcome notification for the new user
+      await Notification.create({
+        recipient: user._id,
+        title: 'Account Created Successfully 🎉',
+        message: `Welcome to GharMB, ${user.name}! Your account has been registered. Explore verified listings, manage your properties, and connect directly with trusted agents & developers.`,
+        type: 'system',
+      });
+
+      // Find all system administrators to notify
+      const admins = await Admin.find({ isActive: true });
+      if (admins && admins.length > 0) {
+        const notificationsData = admins.map((admin) => ({
+          recipient: admin._id,
+          title: 'New User Registered',
+          message: `${user.name} (${user.phone}) has created a new account.`,
+          type: 'system',
+        }));
+        await Notification.insertMany(notificationsData);
+      }
+    }
+
     // Clean up stored OTP
     if (storedData) otpStore.delete(normalizedPhone);
 
     if (!user) {
       return res.status(404).json({
         status: 'fail',
-        message: 'User profile not found. Please register first.',
+        message: 'User profile not found. Please complete Basic Info registration first.',
+      });
+    }
+
+    if (user.status === 'Blocked') {
+      return res.status(403).json({
+        status: 'fail',
+        message: 'Your account has been suspended by administration.',
       });
     }
 

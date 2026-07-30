@@ -35,7 +35,9 @@ router.use(restrictTo('admin'));
  *       401:
  *         description: Unauthorized
  */
-router.get('/', userController.getAllUsers);
+router.route('/')
+  .get(userController.getAllUsers)
+  .post(userController.createUser);
 
 /**
  * @swagger
@@ -140,6 +142,8 @@ router.route('/:id')
   .get(userController.getUserDetails)
   .patch(userController.updateUser)
   .delete(userController.deactivateUser);
+
+router.get('/:id/enquiries', userController.getUserEnquiries);
 
 /**
  * @swagger

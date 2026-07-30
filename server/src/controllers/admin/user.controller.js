@@ -26,13 +26,20 @@ const normalizePhone = (phone) => {
 // @access  Private (Admin only)
 exports.getAllUsers = async (req, res, next) => {
   try {
-    const { role, isVerified, agentVerificationStatus, builderVerificationStatus, search } = req.query;
+    const { role, isVerified, agentVerificationStatus, builderVerificationStatus, search, status } = req.query;
     const filter = {};
 
-    if (role) filter.role = role;
+    if (role && role !== 'All') {
+      if (role === 'Buyer') filter.role = 'buyer';
+      else if (role === 'Seller') filter.role = 'owner';
+      else if (role === 'Agent') filter.role = 'agent';
+      else if (role === 'Builder') filter.role = 'builder';
+      else filter.role = role.toLowerCase();
+    }
     if (isVerified) filter.isVerified = isVerified === 'true';
     if (agentVerificationStatus) filter.agentVerificationStatus = agentVerificationStatus;
     if (builderVerificationStatus) filter.builderVerificationStatus = builderVerificationStatus;
+    if (status) filter.status = status;
 
     if (search) {
       filter.$or = [
@@ -45,11 +52,22 @@ exports.getAllUsers = async (req, res, next) => {
 
     const users = await User.find(filter).sort({ createdAt: -1 });
 
+    // Fetch dynamic listings counts for each user
+    const Property = require('../../models/property.model');
+    const usersWithListings = await Promise.all(
+      users.map(async (u) => {
+        const count = await Property.countDocuments({ owner: u._id });
+        const userObj = u.toObject();
+        userObj.listings = count;
+        return userObj;
+      })
+    );
+
     res.status(200).json({
       status: 'success',
-      results: users.length,
+      results: usersWithListings.length,
       data: {
-        users,
+        users: usersWithListings,
       },
     });
   } catch (error) {
@@ -257,6 +275,7 @@ exports.updateUser = async (req, res, next) => {
       email,
       phone,
       role,
+      status,
       isVerified,
       companyName,
       gstNumber,
@@ -309,8 +328,15 @@ exports.updateUser = async (req, res, next) => {
       }
     }
 
-    if (role) updateData.role = role;
+    if (role) {
+      if (role === 'Buyer') updateData.role = 'buyer';
+      else if (role === 'Seller') updateData.role = 'owner';
+      else if (role === 'Agent') updateData.role = 'agent';
+      else if (role === 'Builder') updateData.role = 'builder';
+      else updateData.role = role.toLowerCase();
+    }
     if (isVerified !== undefined) updateData.isVerified = isVerified;
+    if (status) updateData.status = status;
     if (companyName) updateData.companyName = companyName;
     if (gstNumber) updateData.gstNumber = gstNumber;
     if (reraNumber) updateData.reraNumber = reraNumber;
@@ -342,6 +368,122 @@ exports.updateUser = async (req, res, next) => {
       data: {
         user: updatedUser,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Create a new user profile by administrator
+// @route   POST /api/admin/users
+// @access  Private (Admin only)
+exports.createUser = async (req, res, next) => {
+  try {
+    const { name, email, phone, role, status, isVerified } = req.body;
+
+    if (!name || !phone || !role) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Name, Phone number, and Role are required.',
+      });
+    }
+
+    const normalizedPhone = normalizePhone(phone);
+
+    // Check if phone already registered
+    const existingPhone = await User.findOne({ phone: normalizedPhone });
+    if (existingPhone) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'An account with this phone number already exists.',
+      });
+    }
+
+    // Check if email already registered
+    if (email) {
+      const existingEmail = await User.findOne({ email: email.toLowerCase() });
+      if (existingEmail) {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'An account with this email address already exists.',
+        });
+      }
+    }
+
+    // Map UI role to DB lowercase role
+    let dbRole = 'buyer';
+    if (role === 'Buyer') dbRole = 'buyer';
+    else if (role === 'Seller') dbRole = 'owner';
+    else if (role === 'Agent') dbRole = 'agent';
+    else if (role === 'Builder') dbRole = 'builder';
+    else dbRole = role.toLowerCase();
+
+    const newUser = await User.create({
+      name,
+      email: email ? email.toLowerCase() : undefined,
+      phone: normalizedPhone,
+      role: dbRole,
+      status: status || 'Active',
+      isVerified: !!isVerified,
+      isOnboardingCompleted: true,
+    });
+
+    res.status(201).json({
+      status: 'success',
+      message: 'User profile created successfully.',
+      data: {
+        user: newUser,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get all enquiries sent or received by a specific user
+// @route   GET /api/admin/users/:id/enquiries
+// @access  Private (Admin only)
+exports.getUserEnquiries = async (req, res, next) => {
+  try {
+    const userId = req.params.id;
+    const PropertyEnquiry = require('../../models/property-enquiry.model');
+    const DeveloperEnquiry = require('../../models/developer-enquiry.model');
+
+    // Enquiries sent by this user (buyer/client)
+    const propertyEnquiriesSent = await PropertyEnquiry.find({ client: userId })
+      .populate('property', 'title city locality price')
+      .sort({ createdAt: -1 });
+
+    const developerEnquiriesSent = await DeveloperEnquiry.find({ client: userId })
+      .populate('developer', 'name companyName')
+      .sort({ createdAt: -1 });
+
+    // Enquiries received by this user (if they are a builder/seller/agent)
+    const Property = require('../../models/property.model');
+    const propertiesOwned = await Property.find({ owner: userId }).select('_id');
+    const propertyIdsOwned = propertiesOwned.map(p => p._id);
+
+    const propertyEnquiriesReceived = await PropertyEnquiry.find({ property: { $in: propertyIdsOwned } })
+      .populate('property', 'title city locality price')
+      .populate('client', 'name email phone')
+      .sort({ createdAt: -1 });
+
+    const developerEnquiriesReceived = await DeveloperEnquiry.find({ developer: userId })
+      .populate('client', 'name email phone')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        sent: {
+          property: propertyEnquiriesSent,
+          developer: developerEnquiriesSent,
+        },
+        received: {
+          property: propertyEnquiriesReceived,
+          developer: developerEnquiriesReceived,
+        }
+      }
     });
   } catch (error) {
     next(error);

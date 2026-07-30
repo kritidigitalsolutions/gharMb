@@ -22,7 +22,7 @@ router.use(userAuth);
 // Buyer/Tenant endpoints
 /**
  * @swagger
- * /api/enquiries:
+ * /api/users/enquiries:
  *   post:
  *     summary: Create a new enquiry/lead on a property or project (Buyer/Tenant)
  *     tags: [Enquiries & Leads]
@@ -60,7 +60,7 @@ router.post(
 
 /**
  * @swagger
- * /api/enquiries/developer:
+ * /api/users/enquiries/developer:
  *   post:
  *     summary: Create a new enquiry/lead directed to a builder/developer (Buyer/Tenant)
  *     tags: [Enquiries & Leads]
@@ -96,7 +96,7 @@ router.post(
 
 /**
  * @swagger
- * /api/enquiries/my-enquiries:
+ * /api/users/enquiries/my-enquiries:
  *   get:
  *     summary: Retrieve enquiries sent by the current buyer/tenant
  *     tags: [Enquiries & Leads]
@@ -117,7 +117,7 @@ router.get(
 // Seller/Agent/Builder endpoints
 /**
  * @swagger
- * /api/enquiries/received:
+ * /api/users/enquiries/received:
  *   get:
  *     summary: Retrieve enquiries received by the current owner/agent/builder
  *     tags: [Enquiries & Leads]
@@ -137,7 +137,7 @@ router.get(
 
 /**
  * @swagger
- * /api/enquiries/{id}:
+ * /api/users/enquiries/{id}:
  *   patch:
  *     summary: Update status of a received enquiry (e.g. read, contacted, closed)
  *     tags: [Enquiries & Leads]

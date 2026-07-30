@@ -117,6 +117,25 @@ exports.createProperty = async (req, res, next) => {
 
     const property = await Property.create(propertyData);
 
+    // Notify all admins about the new property submission
+    try {
+      const Admin = require('../../models/admin.model');
+      const Notification = require('../../models/notification.model');
+      const admins = await Admin.find().select('_id');
+      if (admins.length > 0) {
+        const notificationsData = admins.map(admin => ({
+          recipient: admin._id,
+          title: 'Property Verification Pending',
+          message: `A new property listing "${property.title}" has been submitted and requires verification.`,
+          type: 'verification',
+          isRead: false
+        }));
+        await Notification.insertMany(notificationsData);
+      }
+    } catch (notifErr) {
+      console.error('Error creating admin notification for property creation:', notifErr);
+    }
+
     res.status(201).json({
       status: 'success',
       message: 'Property listing submitted for admin verification.',

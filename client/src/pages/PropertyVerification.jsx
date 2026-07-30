@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Clock,
   CheckCircle2,
@@ -266,12 +266,12 @@ const PropertyVerification = () => {
       {selectedProperty && (
         <>
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col md:flex-row max-h-[85vh]">
+            <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-3xl max-w-4xl w-full shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col md:flex-row max-h-[85vh]">
               
               {/* Timeline list / verification checklist (Left Side) */}
               <div className="md:w-1/2 p-6 bg-[var(--bg-muted)] border-b md:border-b-0 md:border-r border-[var(--border)] overflow-y-auto space-y-6">
                 <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-extrabold text-brand bg-brand-light px-2.5 py-1 rounded-lg">
+                  <span className="text-[10px] font-extrabold text-brand bg-brand-light dark:bg-brand/10 px-2.5 py-1 rounded-lg">
                     {selectedProperty.id} REVIEW
                   </span>
                   <span className="text-xs font-bold text-[var(--text-primary)]">{selectedProperty.price}</span>
@@ -293,13 +293,13 @@ const PropertyVerification = () => {
                         className={`p-3 bg-[var(--bg-surface)] border rounded-xl flex items-start gap-3 cursor-pointer transition-all ${
                           selectedProperty.checklist[check.key]
                             ? 'border-green-500/25 shadow-sm'
-                            : 'border-[var(--border)]/80 hover:border-slate-300'
+                            : 'border-[var(--border)]/80 hover:border-[var(--text-muted)]'
                         }`}
                       >
                         <div className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 ${
                           selectedProperty.checklist[check.key]
                             ? 'bg-green-500/100 border-green-500 text-white'
-                            : 'border-slate-300 text-transparent'
+                            : 'border-[var(--border)] text-transparent'
                         }`}>
                           <Check size={12} strokeWidth={3} />
                         </div>
@@ -351,7 +351,7 @@ const PropertyVerification = () => {
                       value={remarksInput}
                       onChange={(e) => setRemarksInput(e.target.value)}
                       placeholder="Add specific comments regarding document checks, photo approvals, or coordinate corrections..."
-                      className="w-full p-3 border border-[var(--border)] rounded-2xl text-xs focus:outline-none focus:border-brand/40 resize-none"
+                      className="w-full p-3 border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-2xl text-xs focus:outline-none focus:border-brand/40 resize-none"
                     />
                   </div>
                 </div>
@@ -362,8 +362,8 @@ const PropertyVerification = () => {
                     <>
                       {/* Checklist Validation check */}
                       {!(selectedProperty.checklist.rera && selectedProperty.checklist.deed && selectedProperty.checklist.photos && selectedProperty.checklist.geotag) && (
-                        <div className="p-3 bg-yellow-500/10 border border-yellow-100 rounded-xl text-[10px] text-yellow-700 font-semibold mb-2 flex items-start gap-2">
-                          <AlertCircle size={14} className="shrink-0 text-yellow-600" />
+                        <div className="p-3 bg-yellow-500/10 border border-yellow-100 dark:border-yellow-500/20 rounded-xl text-[10px] text-yellow-700 dark:text-yellow-400 font-semibold mb-2 flex items-start gap-2">
+                          <AlertCircle size={14} className="shrink-0 text-yellow-600 dark:text-yellow-400" />
                           <span>Please verify all checklist items (ticked green) before approving this listing.</span>
                         </div>
                       )}
@@ -380,7 +380,7 @@ const PropertyVerification = () => {
                         <button
                           type="button"
                           onClick={() => rejectListing(selectedProperty.id)}
-                          className="flex-1 py-2.5 border border-red-500/25 hover:bg-red-500/100/10 text-red-600 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                          className="flex-1 py-2.5 border border-red-500/25 hover:bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                         >
                           <XCircle size={14} /> Reject listing
                         </button>

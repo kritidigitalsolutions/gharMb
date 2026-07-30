@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   IndianRupee,
   TrendingUp,
@@ -27,10 +27,10 @@ import {
 const RevenueDashboard = () => {
   // Mock Revenue segments
   const revenueStats = [
-    { title: 'Featured Showcase Rev', value: '₹4,20,000', change: '+18.2%', trend: 'up', color: 'text-amber-600 bg-amber-50' },
-    { title: 'Premium Subs Rev', value: '₹6,42,000', change: '+24.5%', trend: 'up', color: 'text-purple-600 bg-purple-50' },
-    { title: 'Boost Listings Rev', value: '₹1,80,000', change: '+8.1%', trend: 'up', color: 'text-orange-600 bg-orange-50' },
-    { title: 'Escrow Booking Rev', value: '₹2,50,000', change: '+32.4%', trend: 'up', color: 'text-blue-600 bg-blue-500/10' }
+    { title: 'Featured Showcase Rev', value: '₹4,20,000', change: '+18.2%', trend: 'up', color: 'text-amber-600 bg-amber-50 dark:bg-amber-500/10' },
+    { title: 'Premium Subs Rev', value: '₹6,42,000', change: '+24.5%', trend: 'up', color: 'text-purple-600 bg-purple-50 dark:bg-purple-500/10' },
+    { title: 'Boost Listings Rev', value: '₹1,80,000', change: '+8.1%', trend: 'up', color: 'text-orange-600 bg-orange-50 dark:bg-orange-500/10' },
+    { title: 'Escrow Booking Rev', value: '₹2,50,000', change: '+32.4%', trend: 'up', color: 'text-blue-600 bg-blue-500/10 dark:bg-blue-500/15' }
   ];
 
   // Revenue chart data
@@ -108,14 +108,14 @@ const RevenueDashboard = () => {
                   <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F8FAFC" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
               <XAxis dataKey="month" stroke="#94A3B8" fontSize={10} tickLine={false} />
               <YAxis stroke="#94A3B8" fontSize={10} tickLine={false} />
               <Tooltip 
                 cursor={false}
-                contentStyle={{ backgroundColor: '#ffffff', borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02)', padding: '8px 12px' }}
-                itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
-                labelStyle={{ color: '#94a3b8', fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '2px' }}
+                contentStyle={{ backgroundColor: 'var(--bg-surface)', borderRadius: '12px', border: 'none', boxShadow: 'var(--shadow)', padding: '8px 12px' }}
+                itemStyle={{ color: 'var(--text-primary)', fontSize: '11px', fontWeight: 'bold' }}
+                labelStyle={{ color: 'var(--text-muted)', fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '2px' }}
               />
               <Legend verticalAlign="top" height={36} />
               <Area type="monotone" dataKey="premium" stackId="1" stroke="#8B5CF6" fillOpacity={1} fill="url(#colorPremiumRev)" name="Premium Subs" activeDot={{ r: 4, strokeWidth: 0 }} />
@@ -199,7 +199,7 @@ const RevenueDashboard = () => {
                           <button
                             type="button"
                             onClick={() => refundToken(t.id)}
-                            className="p-1 px-2.5 border border-red-500/25 hover:bg-red-500/100/10 text-red-600 rounded-lg font-bold text-[10px] transition-colors flex items-center gap-0.5 cursor-pointer"
+                            className="p-1 px-2.5 border border-red-500/25 hover:bg-red-500/10 text-red-600 dark:text-red-400 rounded-lg font-bold text-[10px] transition-colors flex items-center gap-0.5 cursor-pointer"
                           >
                             <RotateCcw size={12} /> Refund
                           </button>

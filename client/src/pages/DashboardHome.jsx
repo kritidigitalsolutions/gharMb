@@ -41,18 +41,18 @@ const DashboardHome = () => {
   };
 
   const metrics = [
-    { title: 'Total Users', value: '18,490', change: '+12.4%', trend: 'up', color: 'text-brand bg-brand-light', sparkline: 'M0,20 Q15,10 30,18 T60,5 T90,12 T100,2' },
+    { title: 'Total Users', value: '18,490', change: '+12.4%', trend: 'up', color: 'text-brand bg-brand-light dark:bg-brand/10', sparkline: 'M0,20 Q15,10 30,18 T60,5 T90,12 T100,2' },
     { title: 'Active Users', value: '4,102', change: '+8.2%', trend: 'up', color: 'text-green-600 bg-green-500/10', sparkline: 'M0,15 Q15,8 30,12 T60,10 T90,5 T100,3' },
     { title: 'Total Properties', value: '32,840', change: '+15.1%', trend: 'up', color: 'text-blue-600 bg-blue-500/10', sparkline: 'M0,25 Q15,18 30,22 T60,12 T90,8 T100,2' },
-    { title: 'Live Properties', value: '28,190', change: '+14.2%', trend: 'up', color: 'text-emerald-600 bg-emerald-50', sparkline: 'M0,25 Q15,15 30,20 T60,15 T90,5 T100,1' },
+    { title: 'Live Properties', value: '28,190', change: '+14.2%', trend: 'up', color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10', sparkline: 'M0,25 Q15,15 30,20 T60,15 T90,5 T100,1' },
     { title: 'Pending Verification', value: '184', change: '-4.3%', trend: 'down', color: 'text-yellow-600 bg-yellow-500/10', sparkline: 'M0,5 Q15,18 30,10 T60,22 T90,15 T100,25' },
     { title: 'Rejected Properties', value: '92', change: '+2.1%', trend: 'up', color: 'text-red-600 bg-red-500/10', sparkline: 'M0,20 Q15,22 30,15 T60,18 T90,10 T100,8' },
-    { title: 'Total Builders', value: '482', change: '+22.5%', trend: 'up', color: 'text-purple-600 bg-purple-50', sparkline: 'M0,22 Q15,15 30,18 T60,10 T90,5 T100,1' },
-    { title: 'Active Projects', value: '1,284', change: '+11.8%', trend: 'up', color: 'text-sky-600 bg-sky-50', sparkline: 'M0,20 Q15,12 30,15 T60,8 T90,5 T100,2' },
-    { title: 'Total Enquiries', value: '8,492', change: '+18.6%', trend: 'up', color: 'text-indigo-600 bg-indigo-50', sparkline: 'M0,25 Q15,18 30,20 T60,12 T90,5 T100,2' },
-    { title: 'Site Visits Scheduled', value: '1,840', change: '+5.7%', trend: 'up', color: 'text-teal-600 bg-teal-50', sparkline: 'M0,18 Q15,15 30,12 T60,10 T90,8 T100,5' },
-    { title: 'Token Requests', value: '382', change: '+34.2%', trend: 'up', color: 'text-pink-600 bg-pink-50', sparkline: 'M0,25 Q15,12 30,20 T60,8 T90,2 T100,1' },
-    { title: 'Revenue Generated', value: '₹14,92,000', change: '+26.8%', trend: 'up', color: 'text-brand bg-brand-light', sparkline: 'M0,22 Q15,18 30,20 T60,8 T90,2 T100,1' },
+    { title: 'Total Builders', value: '482', change: '+22.5%', trend: 'up', color: 'text-purple-600 bg-purple-50 dark:bg-purple-500/10', sparkline: 'M0,22 Q15,15 30,18 T60,10 T90,5 T100,1' },
+    { title: 'Active Projects', value: '1,284', change: '+11.8%', trend: 'up', color: 'text-sky-600 bg-sky-50 dark:bg-sky-500/10', sparkline: 'M0,20 Q15,12 30,15 T60,8 T90,5 T100,2' },
+    { title: 'Total Enquiries', value: '8,492', change: '+18.6%', trend: 'up', color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-500/10', sparkline: 'M0,25 Q15,18 30,20 T60,12 T90,5 T100,2' },
+    { title: 'Site Visits Scheduled', value: '1,840', change: '+5.7%', trend: 'up', color: 'text-teal-600 bg-teal-50 dark:bg-teal-500/10', sparkline: 'M0,18 Q15,15 30,12 T60,10 T90,8 T100,5' },
+    { title: 'Token Requests', value: '382', change: '+34.2%', trend: 'up', color: 'text-pink-600 bg-pink-50 dark:bg-pink-500/10', sparkline: 'M0,25 Q15,12 30,20 T60,8 T90,2 T100,1' },
+    { title: 'Revenue Generated', value: '₹14,92,000', change: '+26.8%', trend: 'up', color: 'text-brand bg-brand-light dark:bg-brand/10', sparkline: 'M0,22 Q15,18 30,20 T60,8 T90,2 T100,1' },
   ];
 
   const chartData = [
@@ -148,14 +148,14 @@ const DashboardHome = () => {
                     <stop offset="95%" stopColor="#FF5A3C" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F8FAFC" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="name" stroke="#94A3B8" fontSize={10} tickLine={false} />
                 <YAxis stroke="#94A3B8" fontSize={10} tickLine={false} />
                 <Tooltip 
                   cursor={false}
-                  contentStyle={{ backgroundColor: '#ffffff', borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02)', padding: '8px 12px' }}
-                  itemStyle={{ color: '#1e293b', fontSize: '11px', fontWeight: 'bold' }}
-                  labelStyle={{ color: '#94a3b8', fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '2px' }}
+                  contentStyle={{ backgroundColor: 'var(--bg-surface)', borderRadius: '12px', border: 'none', boxShadow: 'var(--shadow)', padding: '8px 12px' }}
+                  itemStyle={{ color: 'var(--text-primary)', fontSize: '11px', fontWeight: 'bold' }}
+                  labelStyle={{ color: 'var(--text-muted)', fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '2px' }}
                 />
                 <Area type="monotone" dataKey="revenue" stroke="#FF5A3C" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenueUpgrade)" name="Revenue (₹)" activeDot={{ r: 4, strokeWidth: 0, fill: '#FF5A3C' }} />
               </AreaChart>
@@ -172,16 +172,16 @@ const DashboardHome = () => {
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F8FAFC" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="name" stroke="#94A3B8" fontSize={10} tickLine={false} />
                 <YAxis stroke="#94A3B8" fontSize={10} tickLine={false} />
                 <Tooltip 
                   cursor={false}
-                  contentStyle={{ backgroundColor: '#ffffff', borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02)', padding: '8px 12px' }}
-                  itemStyle={{ color: '#1e293b', fontSize: '11px', fontWeight: 'bold' }}
-                  labelStyle={{ color: '#94a3b8', fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '2px' }}
+                  contentStyle={{ backgroundColor: 'var(--bg-surface)', borderRadius: '12px', border: 'none', boxShadow: 'var(--shadow)', padding: '8px 12px' }}
+                  itemStyle={{ color: 'var(--text-primary)', fontSize: '11px', fontWeight: 'bold' }}
+                  labelStyle={{ color: 'var(--text-muted)', fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '2px' }}
                 />
-                <Bar dataKey="enquiries" fill="#0F172A" radius={[4, 4, 0, 0]} name="Leads Count" activeBar={false} />
+                <Bar dataKey="enquiries" fill="var(--text-primary)" radius={[4, 4, 0, 0]} name="Leads Count" activeBar={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -194,7 +194,7 @@ const DashboardHome = () => {
         <div className="p-6 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm space-y-4 lg:col-span-1">
           <div className="flex justify-between items-center">
             <h3 className="text-xs font-bold text-[var(--text-primary)]">Verification Alerts</h3>
-            <span className="text-[9px] px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 font-extrabold">Require Review</span>
+            <span className="text-[9px] px-2 py-0.5 rounded bg-yellow-100 dark:bg-yellow-500/10 text-yellow-800 dark:text-yellow-400 font-extrabold">Require Review</span>
           </div>
           <div className="space-y-3">
             {isLoading ? (

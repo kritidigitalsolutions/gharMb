@@ -1,18 +1,18 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContexts';
 import {
   Menu,
   Bell,
   Search,
-  ChevronDown,
   CheckSquare,
   Plus,
   Zap,
   Download,
   ShieldCheck,
   Sun,
-  Moon
+  Moon,
+  ExternalLink
 } from 'lucide-react';
 
 const Header = ({ toggleSidebar, title }) => {
@@ -20,26 +20,127 @@ const Header = ({ toggleSidebar, title }) => {
   const { theme, toggleTheme } = useTheme();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(false);
+  const [notifications, setNotifications] = useState([]);
 
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'RERA License Pending', desc: 'Tata Developers submitted a new license key.', time: '5m ago', color: 'bg-orange-50 text-brand' },
-    { id: 2, title: 'Escrow Released', desc: '₹1,00,000 released for Project DLF Phase 2.', time: '1h ago', color: 'bg-green-500/10 text-green-600' },
-  ]);
+  const formatTime = (dateString) => {
+    const diffMs = new Date() - new Date(dateString);
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
+  };
 
-  const unreadNotificationsCount = notifications.length;
+  const fetchNotifications = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (!token) return;
 
-  const handleNotifClick = (notif) => {
+      const response = await fetch('http://localhost:5001/api/notifications', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        const mapped = data.data.notifications.map(n => ({
+          id: n._id,
+          title: n.title,
+          desc: n.message,
+          time: formatTime(n.createdAt),
+          isRead: n.isRead,
+          type: n.type
+        }));
+        setNotifications(mapped);
+      }
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    }
+  };
+
+  /* eslint-disable react-hooks/exhaustive-deps */
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
+  /* eslint-enable react-hooks/exhaustive-deps */
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
+
+  const handleNotifClick = async (notif) => {
     setShowNotifications(false);
-    if (notif.title.includes('RERA')) {
+
+    if (!notif.isRead) {
+      try {
+        const token = localStorage.getItem('adminToken');
+        const response = await fetch(`http://localhost:5001/api/notifications/${notif.id}/read`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isRead: true } : n));
+        }
+      } catch (err) {
+        console.error('Error marking notification as read:', err);
+      }
+    }
+
+    if (notif.title.includes('RERA') || notif.type === 'verification') {
       navigate('/builders');
-    } else if (notif.title.includes('Escrow')) {
+    } else if (notif.title.includes('Escrow') || notif.type === 'payment') {
       navigate('/revenue');
     }
   };
 
-  const handleClearNotifs = (e) => {
+  const handleClearNotifs = async (e) => {
     e.stopPropagation();
-    setNotifications([]);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch('http://localhost:5001/api/notifications/mark-all-read', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      }
+    } catch (err) {
+      console.error('Error marking all notifications as read:', err);
+    }
+  };
+
+  const getNotifColor = (type) => {
+    switch (type) {
+      case 'enquiry':
+      case 'visit_booking':
+        return 'bg-blue-500/10 text-blue-600 dark:text-blue-400';
+      case 'property_status':
+      case 'verification':
+        return 'bg-orange-500/10 text-orange-600 dark:text-orange-400';
+      case 'payment':
+        return 'bg-green-500/10 text-green-600 dark:text-green-400';
+      default:
+        return 'bg-slate-500/10 text-slate-500 dark:text-slate-400';
+    }
+  };
+
+  const getNotifIcon = (type) => {
+    switch (type) {
+      case 'enquiry':
+        return <Zap size={14} />;
+      case 'payment':
+        return <ShieldCheck size={14} />;
+      default:
+        return <CheckSquare size={14} />;
+    }
   };
 
   return (
@@ -48,7 +149,7 @@ const Header = ({ toggleSidebar, title }) => {
         <button
           type="button"
           onClick={toggleSidebar}
-          className="p-2 rounded-xl text-[var(--text-muted)] hover:bg-[var(--bg-muted)] md:hidden transition-colors shrink-0"
+          className="p-2 rounded-xl text-[var(--text-muted)] hover:bg-[var(--bg-muted)] md:hidden transition-all duration-200 active:scale-90 shrink-0"
         >
           <Menu size={18} />
         </button>
@@ -67,17 +168,17 @@ const Header = ({ toggleSidebar, title }) => {
               setShowQuickActions(!showQuickActions);
               setShowNotifications(false);
             }}
-            className="flex items-center justify-center w-8 h-8 md:w-auto md:h-auto md:px-3 md:py-1.5 bg-brand hover:bg-brand-dark text-white rounded-full md:rounded-xl text-[10px] font-extrabold shadow-md shadow-brand/10 transition-all cursor-pointer shrink-0"
+            className="group flex items-center justify-center w-8 h-8 md:w-auto md:h-auto md:px-3 md:py-1.5 bg-brand hover:bg-brand-dark text-white rounded-full md:rounded-xl text-[10px] font-extrabold shadow-md shadow-brand/10 transition-all hover:scale-105 active:scale-95 duration-150 cursor-pointer shrink-0"
             title="Quick Actions"
           >
-            <Plus size={12} />
+            <Plus size={12} className="transition-transform duration-300 group-hover:rotate-90" />
             <span className="hidden md:inline ml-1">Quick Actions</span>
           </button>
 
           {showQuickActions && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowQuickActions(false)}></div>
-              <div className="absolute right-0 mt-2 w-56 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xl z-20 overflow-hidden py-1">
+              <div className="absolute right-0 mt-2 w-56 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xl z-20 overflow-hidden py-1 animate-slide-down origin-top-right">
                 <button
                   type="button"
                   onClick={() => { navigate('/verification'); setShowQuickActions(false); }}
@@ -122,23 +223,35 @@ const Header = ({ toggleSidebar, title }) => {
               setShowNotifications(!showNotifications);
               setShowQuickActions(false);
             }}
-            className="relative p-2 text-[var(--text-muted)] rounded-xl hover:bg-[var(--bg-muted)] hover:text-[var(--text-subtle)] transition-colors cursor-pointer"
+            className="group relative p-2 text-[var(--text-muted)] rounded-xl hover:bg-[var(--bg-muted)] hover:text-[var(--text-subtle)] transition-all duration-200 hover:scale-110 active:scale-90 cursor-pointer"
           >
             {unreadNotificationsCount > 0 && (
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-brand rounded-full border border-[var(--bg-surface)]"></span>
             )}
-            <Bell size={16} />
+            <Bell size={16} className="transition-transform group-hover:animate-bell-ring origin-top" />
           </button>
 
           {showNotifications && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)}></div>
-              <div className="absolute right-0 mt-2 w-72 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xl z-20 overflow-hidden">
+              <div className="absolute right-0 mt-2 w-72 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xl z-20 overflow-hidden animate-slide-down origin-top-right">
                 <div className="px-4 py-2.5 border-b border-[var(--border-muted)] flex justify-between items-center bg-[var(--bg-muted)]">
                   <span className="font-bold text-xs text-[var(--text-primary)]">Alerts & Logs</span>
-                  {unreadNotificationsCount > 0 && (
-                    <button onClick={handleClearNotifs} className="text-[9px] font-bold text-brand hover:underline cursor-pointer">Clear All</button>
-                  )}
+                  <div className="flex items-center gap-2.5">
+                    {unreadNotificationsCount > 0 && (
+                      <button onClick={handleClearNotifs} className="text-[9px] font-bold text-brand hover:underline cursor-pointer">Clear All</button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setShowNotifications(false);
+                        navigate('/notifications');
+                      }}
+                      className="p-1 rounded-lg text-[var(--text-muted)] hover:text-brand hover:bg-[var(--bg-surface)] transition-all cursor-pointer flex items-center justify-center"
+                      title="View all notifications"
+                    >
+                      <ExternalLink size={13} />
+                    </button>
+                  </div>
                 </div>
                 <div className="divide-y divide-[var(--border-muted)] max-h-80 overflow-y-auto">
                   {notifications.length === 0 ? (
@@ -148,14 +261,21 @@ const Header = ({ toggleSidebar, title }) => {
                       <div
                         key={notif.id}
                         onClick={() => handleNotifClick(notif)}
-                        className="p-3 hover:bg-[var(--bg-muted)] transition-colors cursor-pointer flex gap-2.5"
+                        className={`p-3 hover:bg-[var(--bg-muted)] transition-colors cursor-pointer flex gap-2.5 ${
+                          notif.isRead ? 'opacity-60' : ''
+                        }`}
                       >
-                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${notif.color}`}>
-                          <CheckSquare size={14} />
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${getNotifColor(notif.type)}`}>
+                          {getNotifIcon(notif.type)}
                         </div>
-                        <div className="space-y-0.5">
-                          <p className="font-bold text-[11px] text-[var(--text-primary)] leading-tight">{notif.title}</p>
-                          <p className="text-[10px] text-[var(--text-subtle)] leading-snug">{notif.desc}</p>
+                        <div className="space-y-0.5 flex-1 min-w-0">
+                          <div className="flex justify-between items-baseline gap-1">
+                            <p className={`text-[11px] text-[var(--text-primary)] leading-tight truncate ${notif.isRead ? 'font-medium' : 'font-extrabold'}`}>
+                              {notif.title}
+                            </p>
+                            <span className="text-[8px] text-[var(--text-muted)] font-semibold shrink-0">{notif.time}</span>
+                          </div>
+                          <p className="text-[10px] text-[var(--text-subtle)] leading-snug line-clamp-2">{notif.desc}</p>
                         </div>
                       </div>
                     ))
@@ -167,14 +287,18 @@ const Header = ({ toggleSidebar, title }) => {
         </div>
 
         {/* Theme Toggle Button */}
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="p-2 text-[var(--text-muted)] rounded-xl hover:bg-[var(--bg-muted)] hover:text-[var(--text-subtle)] transition-colors cursor-pointer shrink-0"
-          title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-        >
-          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-        </button>
+         <button
+           type="button"
+           onClick={toggleTheme}
+           className="group p-2 text-[var(--text-muted)] rounded-xl hover:bg-[var(--bg-muted)] hover:text-[var(--text-subtle)] transition-all duration-300 hover:scale-110 active:scale-90 cursor-pointer shrink-0"
+           title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+         >
+           {theme === 'dark' ? (
+             <Sun size={16} className="transition-transform duration-500 group-hover:rotate-90" />
+           ) : (
+             <Moon size={16} className="transition-transform duration-500 group-hover:-rotate-12" />
+           )}
+         </button>
       </div>
     </header>
   );
