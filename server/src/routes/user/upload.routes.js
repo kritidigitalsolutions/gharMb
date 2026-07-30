@@ -9,7 +9,33 @@ const uploadController = require('../../controllers/user/upload.controller');
 
 const router = express.Router();
 
-// Single file upload endpoint (Accepts any key name: "file", "document", "photo", etc.)
+/**
+ * @swagger
+ * tags:
+ *   name: File Uploads
+ *   description: Endpoints for uploading single or multiple files (images, documents)
+ */
+
+/**
+ * @swagger
+ * /api/user/upload/single:
+ *   post:
+ *     summary: Upload a single file
+ *     tags: [File Uploads]
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: The file to upload (accepts any key name like "file", "photo", "document")
+ *     responses:
+ *       200:
+ *         description: File uploaded successfully
+ */
 router.post('/single', upload.any(), (req, res, next) => {
   if (req.files && req.files.length > 0) {
     req.file = req.files[0];
@@ -17,7 +43,29 @@ router.post('/single', upload.any(), (req, res, next) => {
   uploadController.uploadSingleFile(req, res, next);
 });
 
-// Multiple files upload endpoint (Accepts any key name: "file", "files", "photos", "images", etc.)
+/**
+ * @swagger
+ * /api/user/upload/multiple:
+ *   post:
+ *     summary: Upload multiple files
+ *     tags: [File Uploads]
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: The files to upload (accepts any key name like "files", "photos", "images")
+ *     responses:
+ *       200:
+ *         description: Files uploaded successfully
+ */
 router.post('/multiple', upload.any(), uploadController.uploadMultipleFiles);
 
 module.exports = router;
+

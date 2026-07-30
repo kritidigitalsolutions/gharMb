@@ -13,9 +13,12 @@ import LeadsDashboard from './pages/LeadsDashboard';
 import RevenueDashboard from './pages/RevenueDashboard';
 import ReportsScreen from './pages/ReportsScreen';
 import Settings from './pages/Settings';
+import Legal from './pages/Legal/Legal';
+import About from './pages/About/About';
 
 const LayoutWrapper = ({ children, onLogout }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
 
   // If on login page, render full screen login page without sidebar & header
@@ -36,17 +39,27 @@ const LayoutWrapper = ({ children, onLogout }) => {
       case '/revenue': return 'Revenue & Escrow Tokens';
       case '/reports': return 'Reports & Analytics Center';
       case '/settings': return 'System Configurations';
+      case '/legal': return 'Legal & Compliance Policies';
+      case '/about': return 'About Platform';
       default: return 'Gharmb Admin';
     }
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex h-screen overflow-hidden bg-[var(--bg-main)] text-[var(--text-primary)] transition-colors duration-200">
       {/* Collapsible Sidebar */}
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} onLogout={onLogout} />
+      <Sidebar 
+        isOpen={sidebarOpen} 
+        toggleSidebar={toggleSidebar} 
+        isCollapsed={isCollapsed} 
+        setIsCollapsed={setIsCollapsed} 
+        onLogout={onLogout} 
+      />
 
       {/* Main panel */}
-      <div className="flex flex-col flex-1 overflow-hidden md:pl-64">
+      <div className={`flex flex-col flex-1 overflow-hidden transition-[padding-left] duration-200 ease-in-out ${
+        isCollapsed ? 'md:pl-20' : 'md:pl-64'
+      }`}>
         {/* Header bar */}
         <Header toggleSidebar={toggleSidebar} title={getHeaderTitle(location.pathname)} />
 
@@ -86,6 +99,8 @@ const App = () => {
           <Route path="/revenue" element={<RevenueDashboard />} />
           <Route path="/reports" element={<ReportsScreen />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/legal" element={<Legal />} />
+          <Route path="/about" element={<About />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </LayoutWrapper>

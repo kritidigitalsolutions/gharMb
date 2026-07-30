@@ -42,11 +42,11 @@ const DashboardHome = () => {
 
   const metrics = [
     { title: 'Total Users', value: '18,490', change: '+12.4%', trend: 'up', color: 'text-brand bg-brand-light', sparkline: 'M0,20 Q15,10 30,18 T60,5 T90,12 T100,2' },
-    { title: 'Active Users', value: '4,102', change: '+8.2%', trend: 'up', color: 'text-green-600 bg-green-50', sparkline: 'M0,15 Q15,8 30,12 T60,10 T90,5 T100,3' },
-    { title: 'Total Properties', value: '32,840', change: '+15.1%', trend: 'up', color: 'text-blue-600 bg-blue-50', sparkline: 'M0,25 Q15,18 30,22 T60,12 T90,8 T100,2' },
+    { title: 'Active Users', value: '4,102', change: '+8.2%', trend: 'up', color: 'text-green-600 bg-green-500/10', sparkline: 'M0,15 Q15,8 30,12 T60,10 T90,5 T100,3' },
+    { title: 'Total Properties', value: '32,840', change: '+15.1%', trend: 'up', color: 'text-blue-600 bg-blue-500/10', sparkline: 'M0,25 Q15,18 30,22 T60,12 T90,8 T100,2' },
     { title: 'Live Properties', value: '28,190', change: '+14.2%', trend: 'up', color: 'text-emerald-600 bg-emerald-50', sparkline: 'M0,25 Q15,15 30,20 T60,15 T90,5 T100,1' },
-    { title: 'Pending Verification', value: '184', change: '-4.3%', trend: 'down', color: 'text-yellow-600 bg-yellow-50', sparkline: 'M0,5 Q15,18 30,10 T60,22 T90,15 T100,25' },
-    { title: 'Rejected Properties', value: '92', change: '+2.1%', trend: 'up', color: 'text-red-600 bg-red-50', sparkline: 'M0,20 Q15,22 30,15 T60,18 T90,10 T100,8' },
+    { title: 'Pending Verification', value: '184', change: '-4.3%', trend: 'down', color: 'text-yellow-600 bg-yellow-500/10', sparkline: 'M0,5 Q15,18 30,10 T60,22 T90,15 T100,25' },
+    { title: 'Rejected Properties', value: '92', change: '+2.1%', trend: 'up', color: 'text-red-600 bg-red-500/10', sparkline: 'M0,20 Q15,22 30,15 T60,18 T90,10 T100,8' },
     { title: 'Total Builders', value: '482', change: '+22.5%', trend: 'up', color: 'text-purple-600 bg-purple-50', sparkline: 'M0,22 Q15,15 30,18 T60,10 T90,5 T100,1' },
     { title: 'Active Projects', value: '1,284', change: '+11.8%', trend: 'up', color: 'text-sky-600 bg-sky-50', sparkline: 'M0,20 Q15,12 30,15 T60,8 T90,5 T100,2' },
     { title: 'Total Enquiries', value: '8,492', change: '+18.6%', trend: 'up', color: 'text-indigo-600 bg-indigo-50', sparkline: 'M0,25 Q15,18 30,20 T60,12 T90,5 T100,2' },
@@ -67,15 +67,15 @@ const DashboardHome = () => {
   return (
     <div className="space-y-6">
       {/* Upper action header with reload animation demo */}
-      <div className="flex justify-between items-center bg-white p-4 border border-slate-100 rounded-2xl shadow-xs">
+      <div className="flex justify-between items-center bg-[var(--bg-surface)] p-4 border border-[var(--border)] rounded-2xl shadow-xs">
         <div>
-          <h2 className="text-xs font-bold text-slate-800">SaaS Metrics Control</h2>
-          <p className="text-[10px] text-slate-400">Simulation tools for checking micro-interactions & load states</p>
+          <h2 className="text-xs font-bold text-[var(--text-primary)]">SaaS Metrics Control</h2>
+          <p className="text-[10px] text-[var(--text-muted)]">Simulation tools for checking micro-interactions & load states</p>
         </div>
         <button
           type="button"
           onClick={simulateLoading}
-          className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-[10px] font-bold transition-all cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-subtle)] rounded-xl text-[10px] font-bold transition-all cursor-pointer"
         >
           <RefreshCw size={12} className={isLoading ? 'animate-spin' : ''} /> Simulate Skeleton Loader
         </button>
@@ -84,24 +84,24 @@ const DashboardHome = () => {
       {/* 12 Metrics Sparklines Cards Grid */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {metrics.map((m, idx) => (
-          <div key={idx} className="p-5 bg-white border border-slate-100/80 rounded-2xl shadow-xs flex flex-col justify-between h-36 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
+          <div key={idx} className="p-5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xs flex flex-col justify-between h-36 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
             {isLoading ? (
               /* Skeleton Loader Card State */
               <div className="animate-pulse space-y-3 h-full flex flex-col justify-between">
                 <div className="flex justify-between items-center">
-                  <div className="h-3 bg-slate-200 rounded-md w-24"></div>
-                  <div className="h-6 w-6 bg-slate-200 rounded-lg"></div>
+                  <div className="h-3 bg-[var(--bg-muted)] rounded-md w-24"></div>
+                  <div className="h-6 w-6 bg-[var(--bg-muted)] rounded-lg"></div>
                 </div>
-                <div className="h-6 bg-slate-200 rounded-md w-16"></div>
-                <div className="h-3 bg-slate-200 rounded-md w-20"></div>
+                <div className="h-6 bg-[var(--bg-muted)] rounded-md w-16"></div>
+                <div className="h-3 bg-[var(--bg-muted)] rounded-md w-20"></div>
               </div>
             ) : (
               /* Normal Card State */
               <>
                 <div className="flex justify-between items-start">
-                  <span className="text-[10px] font-semibold text-slate-400">{m.title}</span>
+                  <span className="text-[10px] font-semibold text-[var(--text-muted)]">{m.title}</span>
                   <div className={`inline-flex items-center text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
-                    m.trend === 'up' ? 'text-green-700 bg-green-50/50' : 'text-red-700 bg-red-50/50'
+                    m.trend === 'up' ? 'text-green-700 bg-green-500/10/50' : 'text-red-700 bg-red-500/10/50'
                   }`}>
                     {m.change}
                   </div>
@@ -109,8 +109,8 @@ const DashboardHome = () => {
 
                 <div className="flex items-end justify-between mt-2">
                   <div className="space-y-1">
-                    <h3 className="text-xl font-extrabold text-slate-800 tracking-tight">{m.value}</h3>
-                    <p className="text-[9px] text-slate-400">Compared to last 30d</p>
+                    <h3 className="text-xl font-extrabold text-[var(--text-primary)] tracking-tight">{m.value}</h3>
+                    <p className="text-[9px] text-[var(--text-muted)]">Compared to last 30d</p>
                   </div>
 
                   {/* Sparkline trendline */}
@@ -129,11 +129,11 @@ const DashboardHome = () => {
       {/* Main Revenue & Conversion Analytics Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Revenue Area Chart */}
-        <div className="lg:col-span-2 p-6 bg-white border border-slate-100 rounded-2xl shadow-sm space-y-4">
+        <div className="lg:col-span-2 p-6 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-xs font-bold text-slate-800">Gross billing trend</h3>
-              <p className="text-[10px] text-slate-400">Monthly breakdown of gross platform revenues</p>
+              <h3 className="text-xs font-bold text-[var(--text-primary)]">Gross billing trend</h3>
+              <p className="text-[10px] text-[var(--text-muted)]">Monthly breakdown of gross platform revenues</p>
             </div>
             <div className="flex items-center gap-1 text-[10px] font-extrabold text-brand bg-brand-light px-2.5 py-1 rounded-lg">
               <Sparkles size={12} /> Live tracking
@@ -164,10 +164,10 @@ const DashboardHome = () => {
         </div>
 
         {/* Leads Funnel analytics chart */}
-        <div className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm space-y-4">
+        <div className="p-6 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm space-y-4">
           <div>
-            <h3 className="text-xs font-bold text-slate-800">Monthly lead inquiries</h3>
-            <p className="text-[10px] text-slate-400">Inbound leads captured by categories</p>
+            <h3 className="text-xs font-bold text-[var(--text-primary)]">Monthly lead inquiries</h3>
+            <p className="text-[10px] text-[var(--text-muted)]">Inbound leads captured by categories</p>
           </div>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -191,33 +191,33 @@ const DashboardHome = () => {
       {/* Verification alerts & activities logs */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Verification alert cards list */}
-        <div className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm space-y-4 lg:col-span-1">
+        <div className="p-6 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm space-y-4 lg:col-span-1">
           <div className="flex justify-between items-center">
-            <h3 className="text-xs font-bold text-slate-800">Verification Alerts</h3>
+            <h3 className="text-xs font-bold text-[var(--text-primary)]">Verification Alerts</h3>
             <span className="text-[9px] px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 font-extrabold">Require Review</span>
           </div>
           <div className="space-y-3">
             {isLoading ? (
               /* Loading Skeletons for sidebar alert lists */
               Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="p-3 bg-slate-50 border border-slate-100 rounded-xl animate-pulse space-y-2">
-                  <div className="h-3 bg-slate-200 rounded w-24"></div>
-                  <div className="h-2 bg-slate-200 rounded w-16"></div>
+                <div key={i} className="p-3 bg-[var(--bg-muted)] border border-[var(--border)] rounded-xl animate-pulse space-y-2">
+                  <div className="h-3 bg-[var(--border)] rounded w-24"></div>
+                  <div className="h-2 bg-[var(--border)] rounded w-16"></div>
                 </div>
               ))
             ) : (
               <>
-                <div className="p-3.5 bg-slate-50/50 border border-slate-100 rounded-2xl flex justify-between items-center group cursor-pointer hover:bg-slate-50 transition-colors">
+                <div className="p-3.5 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl flex justify-between items-center group cursor-pointer hover:bg-[var(--bg-hover)] transition-colors">
                   <div>
-                    <p className="text-xs font-bold text-slate-700">RERA License Check</p>
-                    <p className="text-[9px] text-slate-400">Tata Value Homes</p>
+                    <p className="text-xs font-bold text-[var(--text-subtle)]">RERA License Check</p>
+                    <p className="text-[9px] text-[var(--text-muted)]">Tata Value Homes</p>
                   </div>
                   <ChevronRight size={14} className="text-slate-400 group-hover:text-brand transition-colors" />
                 </div>
-                <div className="p-3.5 bg-slate-50/50 border border-slate-100 rounded-2xl flex justify-between items-center group cursor-pointer hover:bg-slate-50 transition-colors">
+                <div className="p-3.5 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl flex justify-between items-center group cursor-pointer hover:bg-[var(--bg-hover)] transition-colors">
                   <div>
-                    <p className="text-xs font-bold text-slate-700">Plot Land Survey Files</p>
-                    <p className="text-[9px] text-slate-400">Metro Developers</p>
+                    <p className="text-xs font-bold text-[var(--text-subtle)]">Plot Land Survey Files</p>
+                    <p className="text-[9px] text-[var(--text-muted)]">Metro Developers</p>
                   </div>
                   <ChevronRight size={14} className="text-slate-400 group-hover:text-brand transition-colors" />
                 </div>
@@ -227,9 +227,9 @@ const DashboardHome = () => {
         </div>
 
         {/* Audit Log timeline list */}
-        <div className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm space-y-4 lg:col-span-2">
+        <div className="p-6 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm space-y-4 lg:col-span-2">
           <div className="flex justify-between items-center">
-            <h3 className="text-xs font-bold text-slate-800">Audit logs & logs history</h3>
+            <h3 className="text-xs font-bold text-[var(--text-primary)]">Audit logs & logs history</h3>
             <button className="text-[10px] font-extrabold text-brand hover:underline flex items-center gap-0.5">
               Full Activity Log <ChevronRight size={12} />
             </button>
@@ -239,38 +239,38 @@ const DashboardHome = () => {
               /* Loading Skeletons for audit logs list */
               Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="flex gap-3 items-center animate-pulse">
-                  <div className="w-8 h-8 rounded-lg bg-slate-200 shrink-0"></div>
+                  <div className="w-8 h-8 rounded-lg bg-[var(--bg-muted)] shrink-0"></div>
                   <div className="space-y-2 flex-1">
-                    <div className="h-3 bg-slate-200 rounded w-1/3"></div>
-                    <div className="h-2 bg-slate-200 rounded w-1/4"></div>
+                    <div className="h-3 bg-[var(--border)] rounded w-1/3"></div>
+                    <div className="h-2 bg-[var(--border)] rounded w-1/4"></div>
                   </div>
                 </div>
               ))
             ) : (
               <>
-                <div className="flex justify-between items-center border-b border-slate-50 pb-3">
+                <div className="flex justify-between items-center border-b border-[var(--border-muted)] pb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-green-500/10 text-green-600 flex items-center justify-center shrink-0">
                       <CheckCircle size={15} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-700">Property Approved & Marked Live</p>
-                      <p className="text-[9px] text-slate-400">DLF Skycourt Sector 86 Gurugram</p>
+                      <p className="text-xs font-bold text-[var(--text-subtle)]">Property Approved & Marked Live</p>
+                      <p className="text-[9px] text-[var(--text-muted)]">DLF Skycourt Sector 86 Gurugram</p>
                     </div>
                   </div>
-                  <span className="text-[9px] text-slate-400">10 mins ago</span>
+                  <span className="text-[9px] text-[var(--text-muted)]">10 mins ago</span>
                 </div>
-                <div className="flex justify-between items-center border-b border-slate-50 pb-3">
+                <div className="flex justify-between items-center border-b border-[var(--border-muted)] pb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-red-500/10 text-red-600 flex items-center justify-center shrink-0">
                       <XCircle size={15} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-700">Property Verification Rejected</p>
-                      <p className="text-[9px] text-slate-400">Incorrect land deed document submitted</p>
+                      <p className="text-xs font-bold text-[var(--text-subtle)]">Property Verification Rejected</p>
+                      <p className="text-[9px] text-[var(--text-muted)]">Incorrect land deed document submitted</p>
                     </div>
                   </div>
-                  <span className="text-[9px] text-slate-400">45 mins ago</span>
+                  <span className="text-[9px] text-[var(--text-muted)]">45 mins ago</span>
                 </div>
               </>
             )}

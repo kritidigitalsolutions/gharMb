@@ -11,6 +11,8 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 
 const errorMiddleware = require('./middlewares/error.middleware');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 
 // Root Route Handlers (Admin vs App)
 const adminAuthRoutes = require('./routes/admin/auth.routes');
@@ -80,6 +82,20 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Swagger API Documentation Route
+app.use(
+  '/api-docs',
+  (req, res, next) => {
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline'; img-src * data:; connect-src *;"
+    );
+    next();
+  },
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec)
+);
+
 // 8. Mount Admin API Routers
 app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/dashboard', adminDashboardRoutes);
@@ -100,7 +116,7 @@ app.use('/api/properties', appPropertyRoutes);
 
 app.use('/api/projects', appProjectRoutes);
 
-app.use('/api/upload', appUploadRoutes);
+app.use('/api/user/upload', appUploadRoutes);
 
 app.use('/api/enquiries', appEnquiryRoutes);
 

@@ -363,3 +363,72 @@ exports.getVerifiedDevelopers = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Get detailed developer / builder profile by ID
+// @route   GET /api/users/developers/:id
+// @access  Public
+exports.getDeveloperProfile = async (req, res, next) => {
+  try {
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Invalid developer ID format.',
+      });
+    }
+
+    const developer = await User.findOne({
+      _id: req.params.id,
+      role: 'builder',
+    });
+
+    if (!developer) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'Developer profile not found or user is not a developer.',
+      });
+    }
+
+    const Project = require('../../models/project.model');
+
+    // 1. Get total approved projects count
+    const projectsCount = await Project.countDocuments({
+      developer: developer._id,
+      approvalStatus: 'approved',
+    });
+
+    // 2. Get operating cities count (distinct cities from their approved projects)
+    const cities = await Project.distinct('city', {
+      developer: developer._id,
+      approvalStatus: 'approved',
+    });
+    
+    // Fallback to 1 if developer has cityOfOperation specified but no projects yet
+    const citiesCount = cities.length > 0 ? cities.length : (developer.cityOfOperation ? 1 : 0);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        developer: {
+          id: developer._id,
+          name: developer.name,
+          companyName: developer.companyName || developer.name,
+          profilePicture: developer.profilePicture || 'default-avatar.png',
+          logo: developer.builderDocs?.companyLogo || '',
+          cityOfOperation: developer.cityOfOperation || '',
+          yearsInBusiness: developer.yearsInBusiness || '',
+          rating: developer.rating !== undefined ? developer.rating : 4.5,
+          reviewCount: developer.reviewCount !== undefined ? developer.reviewCount : 120,
+          bio: developer.bio || '',
+          unitsDelivered: developer.unitsDelivered || '0',
+          isIsoCertified: developer.isIsoCertified || false,
+          projectsCount,
+          citiesCount,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

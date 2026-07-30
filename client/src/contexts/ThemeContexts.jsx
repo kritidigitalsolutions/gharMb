@@ -8,6 +8,11 @@ export const ThemeProvider = ({ children }) => {
   useEffect(() => {
     document.body.classList.remove("theme-dark", "theme-light");
     document.body.classList.add(theme === "light" ? "theme-light" : "theme-dark");
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
     localStorage.setItem("adminTheme", theme);
   }, [theme]);
 

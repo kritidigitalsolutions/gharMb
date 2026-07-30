@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   IndianRupee,
   TrendingUp,
@@ -30,7 +30,7 @@ const RevenueDashboard = () => {
     { title: 'Featured Showcase Rev', value: '₹4,20,000', change: '+18.2%', trend: 'up', color: 'text-amber-600 bg-amber-50' },
     { title: 'Premium Subs Rev', value: '₹6,42,000', change: '+24.5%', trend: 'up', color: 'text-purple-600 bg-purple-50' },
     { title: 'Boost Listings Rev', value: '₹1,80,000', change: '+8.1%', trend: 'up', color: 'text-orange-600 bg-orange-50' },
-    { title: 'Escrow Booking Rev', value: '₹2,50,000', change: '+32.4%', trend: 'up', color: 'text-blue-600 bg-blue-50' }
+    { title: 'Escrow Booking Rev', value: '₹2,50,000', change: '+32.4%', trend: 'up', color: 'text-blue-600 bg-blue-500/10' }
   ];
 
   // Revenue chart data
@@ -74,11 +74,11 @@ const RevenueDashboard = () => {
       {/* Metrics Banner */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
         {revenueStats.map((stat, idx) => (
-          <div key={idx} className="p-5 bg-white border border-slate-100 rounded-2xl shadow-sm flex items-center justify-between hover:shadow-md transition-all">
+          <div key={idx} className="p-5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm flex items-center justify-between hover:shadow-md transition-all">
             <div className="space-y-1">
-              <span className="text-[9px] font-semibold text-slate-400 block uppercase">{stat.title}</span>
-              <h3 className="text-xl font-bold text-slate-800 tracking-tight">{stat.value}</h3>
-              <div className="flex items-center gap-1 text-[9px] font-bold text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full w-max">
+              <span className="text-[9px] font-semibold text-[var(--text-muted)] block uppercase">{stat.title}</span>
+              <h3 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">{stat.value}</h3>
+              <div className="flex items-center gap-1 text-[9px] font-bold text-green-700 bg-green-500/10 px-1.5 py-0.5 rounded-full w-max">
                 <ArrowUpRight size={10} /> {stat.change}
               </div>
             </div>
@@ -90,10 +90,10 @@ const RevenueDashboard = () => {
       </div>
 
       {/* Stacked Chart Panel */}
-      <div className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm space-y-4">
+      <div className="p-6 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm space-y-4">
         <div>
-          <h3 className="text-xs font-bold text-slate-800">Billing Category Growth</h3>
-          <p className="text-[10px] text-slate-400">Monthly breakdown of individual revenue sources</p>
+          <h3 className="text-xs font-bold text-[var(--text-primary)]">Billing Category Growth</h3>
+          <p className="text-[10px] text-[var(--text-muted)]">Monthly breakdown of individual revenue sources</p>
         </div>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
@@ -128,11 +128,11 @@ const RevenueDashboard = () => {
       </div>
 
       {/* Escrow Token Requests Table */}
-      <div className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm space-y-4">
+      <div className="p-6 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h3 className="text-xs font-bold text-slate-800">Token Escrow Transactions</h3>
-            <p className="text-[10px] text-slate-400">Escrowed deposits to hold properties before final sale deeds</p>
+            <h3 className="text-xs font-bold text-[var(--text-primary)]">Token Escrow Transactions</h3>
+            <p className="text-[10px] text-[var(--text-muted)]">Escrowed deposits to hold properties before final sale deeds</p>
           </div>
 
           {/* Filters */}
@@ -145,7 +145,7 @@ const RevenueDashboard = () => {
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                   tokenFilter === status
                     ? 'bg-brand text-white shadow-md shadow-brand/10'
-                    : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                    : 'bg-[var(--bg-muted)] text-[var(--text-subtle)] hover:bg-[var(--bg-muted)]'
                 }`}
               >
                 {status}
@@ -157,7 +157,7 @@ const RevenueDashboard = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-100 text-slate-400 text-[9px] font-bold uppercase tracking-wider bg-slate-50/50">
+              <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-[9px] font-bold uppercase tracking-wider bg-[var(--bg-muted)]">
                 <th className="py-3 px-6">Token ID</th>
                 <th className="py-3 px-6">Buyer (Payer)</th>
                 <th className="py-3 px-6">Seller (Escrow Target)</th>
@@ -168,19 +168,19 @@ const RevenueDashboard = () => {
                 <th className="py-3 px-6 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50 text-xs">
+            <tbody className="divide-y divide-[var(--border-muted)] text-xs">
               {filteredTokens.map((t) => (
-                <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="py-3.5 px-6 font-bold text-slate-500">{t.id}</td>
-                  <td className="py-3.5 px-6 font-bold text-slate-800">{t.buyer}</td>
-                  <td className="py-3.5 px-6 font-bold text-slate-700">{t.seller}</td>
-                  <td className="py-3.5 px-6 text-slate-600 font-semibold">{t.property}</td>
+                <tr key={t.id} className="hover:bg-[var(--bg-muted)] transition-colors">
+                  <td className="py-3.5 px-6 font-bold text-[var(--text-subtle)]">{t.id}</td>
+                  <td className="py-3.5 px-6 font-bold text-[var(--text-primary)]">{t.buyer}</td>
+                  <td className="py-3.5 px-6 font-bold text-[var(--text-subtle)]">{t.seller}</td>
+                  <td className="py-3.5 px-6 text-[var(--text-subtle)] font-semibold">{t.property}</td>
                   <td className="py-3.5 px-6 text-center font-bold text-brand">{t.amount}</td>
-                  <td className="py-3.5 px-6 text-slate-500">{t.date}</td>
+                  <td className="py-3.5 px-6 text-[var(--text-subtle)]">{t.date}</td>
                   <td className="py-3.5 px-6">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                      t.status === 'Approved' ? 'bg-green-50 text-green-700' :
-                      t.status === 'Pending' ? 'bg-yellow-50 text-yellow-700' : 'bg-blue-50 text-blue-700'
+                      t.status === 'Approved' ? 'bg-green-500/10 text-green-700' :
+                      t.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-700' : 'bg-blue-500/10 text-blue-700'
                     }`}>
                       {t.status}
                     </span>
@@ -199,7 +199,7 @@ const RevenueDashboard = () => {
                           <button
                             type="button"
                             onClick={() => refundToken(t.id)}
-                            className="p-1 px-2.5 border border-red-200 hover:bg-red-50 text-red-600 rounded-lg font-bold text-[10px] transition-colors flex items-center gap-0.5 cursor-pointer"
+                            className="p-1 px-2.5 border border-red-500/25 hover:bg-red-500/100/10 text-red-600 rounded-lg font-bold text-[10px] transition-colors flex items-center gap-0.5 cursor-pointer"
                           >
                             <RotateCcw size={12} /> Refund
                           </button>
