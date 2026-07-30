@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -13,11 +13,12 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  Sparkles
+  Sparkles,
+  FileText,
+  Info
 } from 'lucide-react';
 
-const Sidebar = ({ isOpen, toggleSidebar, onLogout }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, onLogout }) => {
   const navigate = useNavigate();
 
   // Get logged-in admin user info from localStorage if available
@@ -54,50 +55,55 @@ const Sidebar = ({ isOpen, toggleSidebar, onLogout }) => {
     { name: 'Revenue', path: '/revenue', icon: IndianRupee },
     { name: 'Reports & Export', path: '/reports', icon: BarChart3 },
     { name: 'Settings', path: '/settings', icon: Settings },
+    { name: 'Legal Policies', path: '/legal', icon: FileText },
+    { name: 'About Platform', path: '/about', icon: Info },
   ];
 
   return (
     <aside
-      className={`fixed top-0 left-0 z-40 h-screen bg-white border-r border-slate-100 transition-all duration-300 ${
+      className={`fixed top-0 left-0 z-40 h-screen bg-[var(--bg-surface)] border-r border-[var(--border)] transition-[width,transform] duration-200 ease-in-out ${
         isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-      } ${isCollapsed ? 'w-20' : 'w-64'}`}
+      } ${isCollapsed ? 'w-64 md:w-20' : 'w-64'}`}
     >
+      {/* Border toggle button */}
+      <button
+        type="button"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="hidden md:flex absolute top-5 -right-3 w-6 h-6 bg-[var(--bg-surface)] border border-[var(--border)] hover:border-slate-400 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-full items-center justify-center shadow-sm hover:shadow transition-all cursor-pointer z-50"
+      >
+        {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+      </button>
+
       <div className="flex flex-col h-full">
         {/* Brand header */}
-        <div className="flex items-center justify-between h-16 px-4 border-b border-slate-100 shrink-0">
+        <div className={`flex items-center border-b border-[var(--border)] shrink-0 h-16 transition-[padding] duration-200 ease-in-out px-4 justify-between ${
+          isCollapsed ? 'md:justify-center md:px-2' : ''
+        }`}>
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-brand text-white font-black text-sm shrink-0 shadow-md shadow-brand/20">
               G
             </div>
-            {!isCollapsed && (
-              <div className="flex flex-col">
-                <span className="font-extrabold text-sm text-slate-800 tracking-tight flex items-center gap-1">
-                  GHARMB <span className="text-[9px] bg-brand-light text-brand px-1.5 py-0.5 rounded-full font-bold">SaaS</span>
-                </span>
-              </div>
-            )}
+            <span className={`font-extrabold text-sm text-[var(--text-primary)] tracking-tight flex items-center gap-1 ${
+              isCollapsed ? 'md:hidden' : ''
+            }`}>
+              GHARMB <span className="text-[9px] bg-brand-light text-brand px-1.5 py-0.5 rounded-full font-bold">SaaS</span>
+            </span>
           </div>
 
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className="hidden md:flex p-1.5 text-slate-400 hover:bg-slate-50 hover:text-slate-600 rounded-xl transition-colors cursor-pointer"
-            >
-              {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-            </button>
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              className="p-1.5 text-slate-400 hover:bg-slate-50 md:hidden rounded-xl transition-colors cursor-pointer"
-            >
-              <X size={16} />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className="p-1.5 text-[var(--text-muted)] hover:bg-[var(--bg-muted)] md:hidden rounded-xl transition-colors cursor-pointer"
+          >
+            <X size={16} />
+          </button>
         </div>
 
         {/* Navigation list */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav
+          style={{ overflowX: 'clip' }}
+          className={`flex-1 py-4 space-y-1.5 overflow-y-auto overflow-x-hidden ${isCollapsed ? 'px-3 md:px-2' : 'px-3'}`}
+        >
           {navItems.map((item) => (
             <NavLink
               key={item.path}
@@ -106,24 +112,42 @@ const Sidebar = ({ isOpen, toggleSidebar, onLogout }) => {
                 if (window.innerWidth < 768) toggleSidebar();
               }}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all group relative cursor-pointer ${
+                `flex items-center rounded-xl text-xs font-bold transition-all group relative cursor-pointer ${
+                  isCollapsed ? 'justify-start gap-3 px-3 py-2.5 md:justify-center md:p-3' : 'justify-start gap-3 px-3 py-2.5'
+                } ${
                   isActive
-                    ? 'bg-brand text-white shadow-md shadow-brand/20'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                    ? isCollapsed
+                      ? 'bg-brand text-white shadow-md shadow-brand/20 md:bg-brand/5 md:text-brand md:shadow-none'
+                      : 'bg-brand text-white shadow-md shadow-brand/20'
+                    : 'text-[var(--text-subtle)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]'
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  <item.icon size={18} className={`shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                  {!isCollapsed && (
-                    <span className="flex-1 truncate tracking-tight">{item.name}</span>
+                  {isActive && isCollapsed && (
+                    <span className="absolute left-0 top-2.5 bottom-2.5 w-0.5 bg-brand rounded-r-full hidden md:block"></span>
                   )}
 
-                  {!isCollapsed && item.badge && (
+                  <item.icon 
+                    size={18} 
+                    className={`shrink-0 ${
+                      isActive 
+                        ? isCollapsed 
+                          ? 'text-white md:text-brand' 
+                          : 'text-white' 
+                        : 'text-[var(--text-muted)] group-hover:text-[var(--text-subtle)]'
+                    }`} 
+                  />
+                  
+                  <span className={`flex-1 truncate tracking-tight ${isCollapsed ? 'md:hidden' : ''}`}>
+                    {item.name}
+                  </span>
+
+                  {item.badge && (
                     <span
-                      className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${
-                        item.badgeColor || (isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600')
+                      className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${isCollapsed ? 'md:hidden' : ''} ${
+                        isActive ? 'bg-white/20 text-white' : 'bg-[var(--bg-muted)] text-[var(--text-subtle)]'
                       }`}
                     >
                       {item.badge}
@@ -131,7 +155,7 @@ const Sidebar = ({ isOpen, toggleSidebar, onLogout }) => {
                   )}
 
                   {isCollapsed && (
-                    <div className="absolute left-20 hidden group-hover:block bg-slate-900 text-white text-[10px] font-bold py-1 px-2.5 rounded shadow-lg whitespace-nowrap z-50">
+                    <div className="absolute left-16 hidden md:group-hover:block bg-slate-900 text-white text-[10px] font-extrabold py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap z-50 border border-slate-700">
                       {item.name}
                     </div>
                   )}
@@ -139,30 +163,53 @@ const Sidebar = ({ isOpen, toggleSidebar, onLogout }) => {
               )}
             </NavLink>
           ))}
+
+
+
+          {/* Divider line before logout */}
+          <div className="border-t border-[var(--border)] my-2 mx-1"></div>
+
+          {/* Logout Action */}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className={`w-full flex items-center rounded-xl text-xs font-bold transition-all group relative cursor-pointer text-[var(--text-subtle)] hover:bg-red-500/100/10 hover:text-red-600 ${
+              isCollapsed ? 'justify-start gap-3 px-3 py-2.5 md:justify-center md:p-3' : 'justify-start gap-3 px-3 py-2.5'
+            }`}
+          >
+            <LogOut 
+              size={18} 
+              className="shrink-0 text-slate-400 group-hover:text-red-500 transition-colors" 
+            />
+            <span className={`flex-1 text-left truncate tracking-tight ${isCollapsed ? 'md:hidden' : ''}`}>Logout</span>
+            {isCollapsed && (
+              <div className="absolute left-16 hidden md:group-hover:block bg-red-955 text-white text-[10px] font-extrabold py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap z-50 border border-red-800">
+                Logout
+              </div>
+            )}
+          </button>
         </nav>
 
         {/* User profile footer */}
-        <div className={`p-4 border-t border-slate-50 bg-slate-50/30 flex flex-col gap-2 ${isCollapsed ? 'items-center' : 'items-stretch'}`}>
-          <div className="flex items-center gap-3 justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-brand-light flex items-center justify-center font-bold text-xs text-brand shrink-0">
+        <div className={`p-3 border-t border-[var(--border)] bg-[var(--bg-muted)] flex items-center justify-between px-4 py-3.5 transition-[padding] duration-200 ease-in-out shrink-0 min-w-0 ${
+          isCollapsed ? 'md:justify-center md:px-2' : ''
+        }`}>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="relative group/avatar shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-brand-light flex items-center justify-center font-bold text-xs text-brand border border-brand/15 shadow-sm">
                 {getInitials(adminUser.name)}
               </div>
-              {!isCollapsed && (
-                <div className="text-left leading-none max-w-[110px] overflow-hidden">
-                  <p className="text-xs font-bold text-slate-800 truncate">{adminUser.name}</p>
-                  <p className="text-[9px] text-slate-400 mt-0.5 truncate">{adminUser.role || 'SaaS Admin'}</p>
+              {isCollapsed && (
+                <div className="absolute left-14 top-1/2 -translate-y-1/2 hidden md:group-hover/avatar:block bg-slate-955 text-white text-[10px] font-bold py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap z-50 border border-slate-800">
+                  <p className="font-extrabold">{adminUser.name}</p>
+                  <p className="text-[9px] text-slate-400 mt-0.5 font-semibold">{adminUser.role || 'SaaS Admin'}</p>
                 </div>
               )}
             </div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
-              title="Sign Out / Logout"
-            >
-              <LogOut size={16} />
-            </button>
+            <div className={`text-left leading-tight max-w-[130px] overflow-hidden ${isCollapsed ? 'md:hidden' : ''}`}>
+              <p className="text-xs font-bold text-[var(--text-primary)] truncate">{adminUser.name}</p>
+              <p className="text-[9px] text-[var(--text-muted)] mt-0.5 truncate font-medium">{adminUser.role || 'SaaS Admin'}</p>
+            </div>
           </div>
         </div>
       </div>

@@ -125,6 +125,20 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 120,
     },
+    bio: {
+      type: String,
+      trim: true,
+      maxLength: [1000, 'Bio cannot exceed 1000 characters.'],
+    },
+    unitsDelivered: {
+      type: String,
+      default: '0',
+      trim: true,
+    },
+    isIsoCertified: {
+      type: Boolean,
+      default: false,
+    },
 
     // User Onboarding Preferences
     intents: [

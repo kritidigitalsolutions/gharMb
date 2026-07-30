@@ -38,7 +38,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg-muted)] p-4">
       {/* Login Card */}
       <div className="w-full max-w-md bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 p-8 sm:p-10 relative overflow-hidden">
         
@@ -71,7 +71,7 @@ const Login = () => {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="admin@gharmb.in"
-                className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand/50 transition-all placeholder:text-slate-400 font-medium text-slate-700"
+                className="w-full pl-11 pr-4 py-3 bg-[var(--bg-muted)] border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand/50 transition-all placeholder:text-slate-400 font-medium text-slate-700"
               />
             </div>
           </div>
@@ -93,7 +93,7 @@ const Login = () => {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="••••••••"
-                className="w-full pl-11 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand/50 transition-all placeholder:text-slate-400 font-medium text-slate-700"
+                className="w-full pl-11 pr-12 py-3 bg-[var(--bg-muted)] border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand/50 transition-all placeholder:text-slate-400 font-medium text-slate-700"
               />
               <button
                 type="button"

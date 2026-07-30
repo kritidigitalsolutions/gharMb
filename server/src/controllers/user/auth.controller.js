@@ -27,7 +27,7 @@ const normalizePhone = (phone) => {
 // In-memory temporary store for OTPs & pending registration drafts (phone -> { otp, registrationData, expiresAt })
 const otpStore = new Map();
 
-// @desc    Step 1 of Auth: Submit Basic Info & Send OTP (Screen 1: Basic Info)
+// @desc    Step 1 of Auth: Register and Create User Directly (No OTP required for sign up)
 // @route   POST /api/user/auth/register
 // @access  Public
 exports.registerUser = async (req, res, next) => {
@@ -72,37 +72,33 @@ exports.registerUser = async (req, res, next) => {
       };
     }
 
-    // Generate random 6-digit OTP
-    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // Save registration draft & OTP in memory under normalized phone
-    otpStore.set(normalizedPhone, {
-      otp: generatedOtp,
-      registrationData: {
-        name,
-        email,
-        phone: normalizedPhone,
-        address: addressObj,
-        location: locationObj,
-        authProvider: 'mobile',
-      },
-      expiresAt: Date.now() + 10 * 60 * 1000,
+    // Create the user directly in the database
+    const user = await User.create({
+      name,
+      email,
+      phone: normalizedPhone,
+      address: addressObj,
+      location: locationObj,
+      authProvider: 'mobile',
     });
 
-    // Log OTP prominently in backend terminal
-    console.log(`\n==================================================`);
-    console.log(`📱 [NEW USER REGISTRATION OTP]`);
-    console.log(`   Name          : ${name}`);
-    console.log(`   Input Phone   : ${phone}`);
-    console.log(`   Normalized    : ${normalizedPhone}`);
-    console.log(`   🔑 GENERATED OTP : ${generatedOtp}`);
-    console.log(`==================================================\n`);
+    const token = generateToken(user._id, user.role);
 
-    res.status(200).json({
+    res.status(201).json({
       status: 'success',
-      message: `OTP sent successfully to ${normalizedPhone}. Check backend terminal for OTP log.`,
-      phone: normalizedPhone,
-      otp: generatedOtp, // Returned for dev testing
+      token,
+      data: {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+          address: user.address,
+          location: user.location,
+          isOnboardingCompleted: user.isOnboardingCompleted || false,
+        },
+      },
     });
   } catch (error) {
     next(error);
@@ -118,8 +114,8 @@ exports.sendOtp = async (req, res, next) => {
 
     if (!phone) {
       return res.status(400).json({
-        status: 'fail',
-        message: 'Please provide mobile number.',
+        success: false,
+        message: 'Please enter mobile number.',
       });
     }
 
@@ -129,14 +125,16 @@ exports.sendOtp = async (req, res, next) => {
 
     if (!existingUser) {
       return res.status(404).json({
-        status: 'fail',
-        message: 'No account found with this mobile number. Please click "Create an Account" to register first.',
+        success: false,
+        newUser: true,
+        message: 'User not registered. Please sign up first.',
       });
     }
 
     // Generate random 6-digit OTP
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
+    // Store OTP in memory for verification
     otpStore.set(normalizedPhone, {
       otp: generatedOtp,
       expiresAt: Date.now() + 10 * 60 * 1000,
@@ -209,7 +207,7 @@ exports.resendOtp = async (req, res, next) => {
   }
 };
 
-// @desc    Step 2 of Auth: Verify OTP & Create User / Session (Screen 2: Verify Your Number)
+// @desc    Step 2 of Auth: Verify OTP & Create Session (Screen 2: Verify Your Number)
 // @route   POST /api/user/auth/verify-otp
 // @access  Public
 exports.verifyOtp = async (req, res, next) => {
@@ -241,18 +239,13 @@ exports.verifyOtp = async (req, res, next) => {
 
     let user = await User.findOne({ phone: normalizedPhone });
 
-    // If new user registration draft exists in memory, create user now!
-    if (!user && storedData && storedData.registrationData) {
-      user = await User.create(storedData.registrationData);
-    }
-
     // Clean up stored OTP
     if (storedData) otpStore.delete(normalizedPhone);
 
     if (!user) {
       return res.status(404).json({
         status: 'fail',
-        message: 'User profile not found. Please complete Basic Info registration first.',
+        message: 'User profile not found. Please register first.',
       });
     }
 

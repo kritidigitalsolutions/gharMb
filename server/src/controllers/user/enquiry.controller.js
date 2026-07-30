@@ -5,6 +5,8 @@
 
 const PropertyEnquiry = require('../../models/property-enquiry.model');
 const Property = require('../../models/property.model');
+const DeveloperEnquiry = require('../../models/developer-enquiry.model');
+const User = require('../../models/user.model');
 const Notification = require('../../models/notification.model');
 
 // @desc    Submit an enquiry for a property listing
@@ -156,3 +158,74 @@ exports.updateEnquiryStatus = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Submit an enquiry for a developer/builder profile
+// @route   POST /api/enquiries/developer
+// @access  Private (Buyer/Tenant only)
+exports.createDeveloperEnquiry = async (req, res, next) => {
+  try {
+    const { developerId, message } = req.body;
+
+    if (!developerId || !message) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Please provide developer ID and enquiry message.',
+      });
+    }
+
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(developerId)) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Invalid developer ID format.',
+      });
+    }
+
+    // 1. Verify developer exists and is a builder
+    const developer = await User.findOne({ _id: developerId, role: 'builder' });
+    if (!developer) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'Developer profile not found.',
+      });
+    }
+
+    // 2. Prevent self-enquiring
+    if (developerId.toString() === req.user._id.toString()) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'You cannot submit an enquiry to your own developer profile.',
+      });
+    }
+
+    // 3. Create enquiry
+    const enquiry = await DeveloperEnquiry.create({
+      developer: developerId,
+      client: req.user._id,
+      message,
+      status: 'pending',
+    });
+
+    // 4. Notify developer
+    await Notification.create({
+      recipient: developerId,
+      title: 'New Developer Enquiry',
+      message: `${req.user.name} has submitted an enquiry regarding your developer profile.`,
+      type: 'enquiry',
+      metadata: {
+        enquiryId: enquiry._id,
+      },
+    });
+
+    res.status(201).json({
+      status: 'success',
+      message: 'Enquiry submitted successfully to developer.',
+      data: {
+        enquiry,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
