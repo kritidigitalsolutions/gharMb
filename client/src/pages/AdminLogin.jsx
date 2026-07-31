@@ -81,7 +81,7 @@ const AdminLogin = ({ onLoginSuccess }) => {
         {/* Card Box */}
         <div className="bg-slate-800/80 backdrop-blur-xl border border-slate-700/60 rounded-3xl p-6 sm:p-8 shadow-2xl">
           {errorMessage && (
-            <div className="mb-6 p-3.5 bg-red-500/100/10 border border-red-500/30 rounded-2xl text-red-400 text-xs font-semibold flex items-center gap-2">
+            <div className="mb-6 p-3.5 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-xs font-semibold flex items-center gap-2">
               <Shield size={16} className="shrink-0 text-red-400" />
               <span>{errorMessage}</span>
             </div>

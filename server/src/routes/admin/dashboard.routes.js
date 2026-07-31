@@ -37,5 +37,10 @@ router.use(restrictTo('admin'));
  */
 router.get('/stats', dashboardController.getDashboardStats);
 
+router.get('/enquiries', dashboardController.getAllEnquiries);
+router.patch('/enquiries/:id', dashboardController.updateEnquiry);
+router.delete('/enquiries/:id', dashboardController.deleteEnquiry);
+router.get('/revenue', dashboardController.getRevenueStats);
+
 module.exports = router;
 
