@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileText,
   Download,
@@ -301,7 +301,7 @@ const ReportsScreen = () => {
                 type="button"
                 onClick={() => triggerExport('Excel')}
                 disabled={isCompiling}
-                className="py-3 px-4 border border-green-500/25 hover:bg-green-500/100/10 rounded-xl text-xs font-bold text-green-700 transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="py-3 px-4 border border-green-500/25 hover:bg-green-500/10 rounded-xl text-xs font-bold text-green-700 transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <FileSpreadsheet size={14} />
                 Export XLSX
@@ -310,7 +310,7 @@ const ReportsScreen = () => {
                 type="button"
                 onClick={() => triggerExport('CSV')}
                 disabled={isCompiling}
-                className="py-3 px-4 border border-blue-500/25 hover:bg-blue-500/100/10 rounded-xl text-xs font-bold text-blue-700 transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="py-3 px-4 border border-blue-500/25 hover:bg-blue-500/10 rounded-xl text-xs font-bold text-blue-700 transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <FileCode size={14} />
                 Export CSV

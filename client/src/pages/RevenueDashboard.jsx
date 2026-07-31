@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   IndianRupee,
   TrendingUp,
@@ -25,49 +25,144 @@ import {
 } from 'recharts';
 
 const RevenueDashboard = () => {
-  // Mock Revenue segments
-  const revenueStats = [
-    { title: 'Featured Showcase Rev', value: '₹4,20,000', change: '+18.2%', trend: 'up', color: 'text-amber-600 bg-amber-50 dark:bg-amber-500/10' },
-    { title: 'Premium Subs Rev', value: '₹6,42,000', change: '+24.5%', trend: 'up', color: 'text-purple-600 bg-purple-50 dark:bg-purple-500/10' },
-    { title: 'Boost Listings Rev', value: '₹1,80,000', change: '+8.1%', trend: 'up', color: 'text-orange-600 bg-orange-50 dark:bg-orange-500/10' },
-    { title: 'Escrow Booking Rev', value: '₹2,50,000', change: '+32.4%', trend: 'up', color: 'text-blue-600 bg-blue-500/10 dark:bg-blue-500/15' }
-  ];
-
-  // Revenue chart data
-  const revenueTrend = [
-    { month: 'Jan', featured: 50000, premium: 80000, boost: 20000, escrow: 30000 },
-    { month: 'Feb', featured: 70000, premium: 120000, boost: 30000, escrow: 40000 },
-    { month: 'Mar', featured: 60000, premium: 110000, boost: 25000, escrow: 35000 },
-    { month: 'Apr', featured: 90000, premium: 150000, boost: 40000, escrow: 50000 },
-    { month: 'May', featured: 110000, premium: 180000, boost: 45000, escrow: 70000 },
-    { month: 'Jun', featured: 140000, premium: 202000, boost: 50000, escrow: 90000 },
-  ];
-
-  // Escrow Token Request Logs
-  const initialTokens = [
-    { id: 'TKN-8830', buyer: 'Alok Mishra', seller: 'Vikram Developers', property: 'Godrej Woods Sec 43', amount: '₹50,000', status: 'Pending', date: '16 Jun 2026' },
-    { id: 'TKN-4921', buyer: 'Sanjay Aggarwal', seller: 'Tata Value Homes', property: 'Tata Primanti Villa', amount: '₹1,00,000', status: 'Approved', date: '15 Jun 2026' },
-    { id: 'TKN-3120', buyer: 'Pooja Mehta', seller: 'Sandeep Sharma', property: '3 BHK Builder Floor', amount: '₹25,000', status: 'Refunded', date: '14 Jun 2026' }
-  ];
-
-  const [tokens, setTokens] = useState(initialTokens);
+  const [stats, setStats] = useState(null);
+  const [revenueTrend, setRevenueTrend] = useState([]);
+  const [tokens, setTokens] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [tokenFilter, setTokenFilter] = useState('All');
+  const [error, setError] = useState(null);
 
-  // Approve token (release escrow to seller)
-  const approveToken = (id) => {
-    setTokens(tokens.map(t => t.id === id ? { ...t, status: 'Approved' } : t));
-    alert(`Token escrow ID ${id} released to builder/seller profile successfully.`);
+  const isMockMode = !localStorage.getItem('adminToken') || localStorage.getItem('adminToken') === 'mock_admin_token_2026';
+
+  const fetchRevenueData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (isMockMode) {
+        loadMockData();
+        setIsLoading(false);
+        return;
+      }
+
+      const response = await fetch('http://localhost:5001/api/admin/dashboard/revenue', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        setStats(data.data.stats);
+        setRevenueTrend(data.data.revenueTrend);
+        setTokens(data.data.tokenTransactions || []);
+      } else {
+        setError(data.message || 'Failed to fetch revenue data.');
+        loadMockData();
+      }
+    } catch (err) {
+      console.error('Error fetching revenue details:', err);
+      loadMockData();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Refund token
-  const refundToken = (id) => {
-    setTokens(tokens.map(t => t.id === id ? { ...t, status: 'Refunded' } : t));
-    alert(`Refund transaction triggered. Wallet ledger updated for Token ID ${id}.`);
+  const loadMockData = () => {
+    setStats({
+      featuredRev: 420000,
+      premiumRev: 642000,
+      boostRev: 180000,
+      escrowCommission: 250000
+    });
+    setRevenueTrend([
+      { month: 'Jan', featured: 50000, premium: 80000, boost: 20000, escrow: 30000 },
+      { month: 'Feb', featured: 70000, premium: 120000, boost: 30000, escrow: 40000 },
+      { month: 'Mar', featured: 60000, premium: 110000, boost: 25000, escrow: 35000 },
+      { month: 'Apr', featured: 90000, premium: 150000, boost: 40000, escrow: 50000 },
+      { month: 'May', featured: 110000, premium: 180000, boost: 45000, escrow: 70000 },
+      { month: 'Jun', featured: 140000, premium: 202000, boost: 50000, escrow: 90000 }
+    ]);
+    setTokens([
+      { id: 'TKN-8830', enquiryId: 'mock_e1', buyer: 'Alok Mishra', seller: 'Vikram Developers', property: 'Godrej Woods Sec 43', amount: '₹50,000', status: 'Pending', date: '16 Jun 2026' },
+      { id: 'TKN-4921', enquiryId: 'mock_e2', buyer: 'Sanjay Aggarwal', seller: 'Tata Value Homes', property: 'Tata Primanti Villa', amount: '₹1,00,000', status: 'Approved', date: '15 Jun 2026' },
+      { id: 'TKN-3120', enquiryId: 'mock_e3', buyer: 'Pooja Mehta', seller: 'Sandeep Sharma', property: '3 BHK Builder Floor', amount: '₹25,000', status: 'Refunded', date: '14 Jun 2026' }
+    ]);
+  };
+
+  useEffect(() => {
+    fetchRevenueData();
+  }, []);
+
+  // Action: approve/release escrow to seller
+  const approveToken = async (transaction) => {
+    if (isMockMode) {
+      setTokens(tokens.map(t => t.id === transaction.id ? { ...t, status: 'Approved' } : t));
+      alert(`Token escrow ID ${transaction.id} released to builder/seller profile successfully.`);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`http://localhost:5001/api/admin/dashboard/enquiries/${transaction.enquiryId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: 'resolved' })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        fetchRevenueData();
+        alert(`Token escrow released to builder/seller profile successfully.`);
+      } else {
+        alert(data.message || 'Failed to release escrow.');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Action: refund token
+  const refundToken = async (transaction) => {
+    if (isMockMode) {
+      setTokens(tokens.map(t => t.id === transaction.id ? { ...t, status: 'Refunded' } : t));
+      alert(`Refund transaction triggered. Wallet ledger updated for Token ID ${transaction.id}.`);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`http://localhost:5001/api/admin/dashboard/enquiries/${transaction.enquiryId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: 'cancelled' })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        fetchRevenueData();
+        alert(`Refund transaction triggered. Wallet ledger updated.`);
+      } else {
+        alert(data.message || 'Failed to refund token.');
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const filteredTokens = tokenFilter === 'All'
     ? tokens
     : tokens.filter(t => t.status === tokenFilter);
+
+  const revenueStats = [
+    { title: 'Featured Showcase Rev', value: stats ? `₹${stats.featuredRev.toLocaleString('en-IN')}` : '₹0', change: '+18.2%', trend: 'up', color: 'text-amber-600 bg-amber-50 dark:bg-amber-500/10' },
+    { title: 'Premium Subs Rev', value: stats ? `₹${stats.premiumRev.toLocaleString('en-IN')}` : '₹0', change: '+24.5%', trend: 'up', color: 'text-purple-600 bg-purple-50 dark:bg-purple-500/10' },
+    { title: 'Boost Listings Rev', value: stats ? `₹${stats.boostRev.toLocaleString('en-IN')}` : '₹0', change: '+8.1%', trend: 'up', color: 'text-orange-600 bg-orange-50 dark:bg-orange-500/10' },
+    { title: 'Escrow Booking Rev', value: stats ? `₹${stats.escrowCommission.toLocaleString('en-IN')}` : '₹0', change: '+32.4%', trend: 'up', color: 'text-blue-600 bg-blue-500/10 dark:bg-blue-500/15' }
+  ];
 
   return (
     <div className="space-y-6">
@@ -96,34 +191,38 @@ const RevenueDashboard = () => {
           <p className="text-[10px] text-[var(--text-muted)]">Monthly breakdown of individual revenue sources</p>
         </div>
         <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={revenueTrend} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorFeaturedRev" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#FF5A3C" stopOpacity={0.15}/>
-                  <stop offset="95%" stopColor="#FF5A3C" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorPremiumRev" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.15}/>
-                  <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-              <XAxis dataKey="month" stroke="#94A3B8" fontSize={10} tickLine={false} />
-              <YAxis stroke="#94A3B8" fontSize={10} tickLine={false} />
-              <Tooltip 
-                cursor={false}
-                contentStyle={{ backgroundColor: 'var(--bg-surface)', borderRadius: '12px', border: 'none', boxShadow: 'var(--shadow)', padding: '8px 12px' }}
-                itemStyle={{ color: 'var(--text-primary)', fontSize: '11px', fontWeight: 'bold' }}
-                labelStyle={{ color: 'var(--text-muted)', fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '2px' }}
-              />
-              <Legend verticalAlign="top" height={36} />
-              <Area type="monotone" dataKey="premium" stackId="1" stroke="#8B5CF6" fillOpacity={1} fill="url(#colorPremiumRev)" name="Premium Subs" activeDot={{ r: 4, strokeWidth: 0 }} />
-              <Area type="monotone" dataKey="featured" stackId="1" stroke="#FF5A3C" fillOpacity={1} fill="url(#colorFeaturedRev)" name="Featured Showcase" activeDot={{ r: 4, strokeWidth: 0 }} />
-              <Area type="monotone" dataKey="escrow" stackId="1" stroke="#3B82F6" fillOpacity={0} name="Escrow Commissions" activeDot={{ r: 4, strokeWidth: 0 }} />
-              <Area type="monotone" dataKey="boost" stackId="1" stroke="#F59E0B" fillOpacity={0} name="Listing Boosts" activeDot={{ r: 4, strokeWidth: 0 }} />
-            </AreaChart>
-          </ResponsiveContainer>
+          {isLoading ? (
+            <div className="w-full h-full bg-[var(--bg-muted)] animate-pulse rounded-xl"></div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={revenueTrend} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorFeaturedRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#FF5A3C" stopOpacity={0.15}/>
+                    <stop offset="95%" stopColor="#FF5A3C" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorPremiumRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.15}/>
+                    <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <XAxis dataKey="month" stroke="#94A3B8" fontSize={10} tickLine={false} />
+                <YAxis stroke="#94A3B8" fontSize={10} tickLine={false} />
+                <Tooltip 
+                  cursor={false}
+                  contentStyle={{ backgroundColor: 'var(--bg-surface)', borderRadius: '12px', border: 'none', boxShadow: 'var(--shadow)', padding: '8px 12px' }}
+                  itemStyle={{ color: 'var(--text-primary)', fontSize: '11px', fontWeight: 'bold' }}
+                  labelStyle={{ color: 'var(--text-muted)', fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '2px' }}
+                />
+                <Legend verticalAlign="top" height={36} />
+                <Area type="monotone" dataKey="premium" stackId="1" stroke="#8B5CF6" fillOpacity={1} fill="url(#colorPremiumRev)" name="Premium Subs" activeDot={{ r: 4, strokeWidth: 0 }} />
+                <Area type="monotone" dataKey="featured" stackId="1" stroke="#FF5A3C" fillOpacity={1} fill="url(#colorFeaturedRev)" name="Featured Showcase" activeDot={{ r: 4, strokeWidth: 0 }} />
+                <Area type="monotone" dataKey="escrow" stackId="1" stroke="#3B82F6" fillOpacity={0} name="Escrow Commissions" activeDot={{ r: 4, strokeWidth: 0 }} />
+                <Area type="monotone" dataKey="boost" stackId="1" stroke="#F59E0B" fillOpacity={0} name="Listing Boosts" activeDot={{ r: 4, strokeWidth: 0 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
 
@@ -131,8 +230,8 @@ const RevenueDashboard = () => {
       <div className="p-6 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h3 className="text-xs font-bold text-[var(--text-primary)]">Token Escrow Transactions</h3>
-            <p className="text-[10px] text-[var(--text-muted)]">Escrowed deposits to hold properties before final sale deeds</p>
+            <h3 className="text-xs font-bold text-[var(--text-primary)] text-left">Token Escrow Transactions</h3>
+            <p className="text-[10px] text-[var(--text-muted)] text-left">Escrowed deposits to hold properties before final sale deeds</p>
           </div>
 
           {/* Filters */}
@@ -154,7 +253,7 @@ const RevenueDashboard = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto text-left">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-[9px] font-bold uppercase tracking-wider bg-[var(--bg-muted)]">
@@ -169,52 +268,71 @@ const RevenueDashboard = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-muted)] text-xs">
-              {filteredTokens.map((t) => (
-                <tr key={t.id} className="hover:bg-[var(--bg-muted)] transition-colors">
-                  <td className="py-3.5 px-6 font-bold text-[var(--text-subtle)]">{t.id}</td>
-                  <td className="py-3.5 px-6 font-bold text-[var(--text-primary)]">{t.buyer}</td>
-                  <td className="py-3.5 px-6 font-bold text-[var(--text-subtle)]">{t.seller}</td>
-                  <td className="py-3.5 px-6 text-[var(--text-subtle)] font-semibold">{t.property}</td>
-                  <td className="py-3.5 px-6 text-center font-bold text-brand">{t.amount}</td>
-                  <td className="py-3.5 px-6 text-[var(--text-subtle)]">{t.date}</td>
-                  <td className="py-3.5 px-6">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                      t.status === 'Approved' ? 'bg-green-500/10 text-green-700' :
-                      t.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-700' : 'bg-blue-500/10 text-blue-700'
-                    }`}>
-                      {t.status}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-6 text-right">
-                    <div className="flex justify-end gap-1.5">
-                      {t.status === 'Pending' && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => approveToken(t.id)}
-                            className="p-1 px-2.5 bg-brand hover:bg-brand-dark text-white rounded-lg font-bold text-[10px] shadow-lg shadow-brand/10 transition-all flex items-center gap-0.5 cursor-pointer"
-                          >
-                            <ShieldCheck size={12} /> Release
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => refundToken(t.id)}
-                            className="p-1 px-2.5 border border-red-500/25 hover:bg-red-500/10 text-red-600 dark:text-red-400 rounded-lg font-bold text-[10px] transition-colors flex items-center gap-0.5 cursor-pointer"
-                          >
-                            <RotateCcw size={12} /> Refund
-                          </button>
-                        </>
-                      )}
-                      {t.status === 'Approved' && (
-                        <span className="text-[10px] text-green-600 font-bold">Escrow Settled</span>
-                      )}
-                      {t.status === 'Refunded' && (
-                        <span className="text-[10px] text-blue-600 font-bold">Returned to Payer</span>
-                      )}
-                    </div>
-                  </td>
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="py-4 px-6"><div className="h-3 bg-[var(--bg-muted)] rounded w-16"></div></td>
+                    <td className="py-4 px-6"><div className="h-3 bg-[var(--bg-muted)] rounded w-20"></div></td>
+                    <td className="py-4 px-6"><div className="h-3 bg-[var(--bg-muted)] rounded w-24"></div></td>
+                    <td className="py-4 px-6"><div className="h-3 bg-[var(--bg-muted)] rounded w-32"></div></td>
+                    <td className="py-4 px-6"><div className="h-3 bg-[var(--bg-muted)] rounded w-12"></div></td>
+                    <td className="py-4 px-6"><div className="h-3 bg-[var(--bg-muted)] rounded w-16"></div></td>
+                    <td className="py-4 px-6"><div className="h-3 bg-[var(--bg-muted)] rounded w-12"></div></td>
+                    <td className="py-4 px-6"><div className="h-3 bg-[var(--bg-muted)] rounded w-16 ml-auto"></div></td>
+                  </tr>
+                ))
+              ) : filteredTokens.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="py-12 text-center text-[var(--text-muted)] font-semibold">No token escrow transactions found.</td>
                 </tr>
-              ))}
+              ) : (
+                filteredTokens.map((t) => (
+                  <tr key={t.id} className="hover:bg-[var(--bg-muted)] transition-colors">
+                    <td className="py-3.5 px-6 font-bold text-[var(--text-subtle)]">{t.id}</td>
+                    <td className="py-3.5 px-6 font-bold text-[var(--text-primary)]">{t.buyer}</td>
+                    <td className="py-3.5 px-6 font-bold text-[var(--text-subtle)]">{t.seller}</td>
+                    <td className="py-3.5 px-6 text-[var(--text-subtle)] font-semibold">{t.property}</td>
+                    <td className="py-3.5 px-6 text-center font-bold text-brand">{t.amount}</td>
+                    <td className="py-3.5 px-6 text-[var(--text-subtle)]">{t.date}</td>
+                    <td className="py-3.5 px-6">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                        t.status === 'Approved' ? 'bg-green-500/10 text-green-700' :
+                        t.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-700' : 'bg-red-500/10 text-red-700'
+                      }`}>
+                        {t.status}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-6 text-right">
+                      <div className="flex justify-end gap-1.5">
+                        {t.status === 'Pending' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => approveToken(t)}
+                              className="p-1 px-2.5 bg-brand hover:bg-brand-dark text-white rounded-lg font-bold text-[10px] shadow-lg shadow-brand/10 transition-all flex items-center gap-0.5 cursor-pointer"
+                            >
+                              <ShieldCheck size={12} /> Release
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => refundToken(t)}
+                              className="p-1 px-2.5 border border-red-500/25 hover:bg-red-500/10 text-red-600 dark:text-red-400 rounded-lg font-bold text-[10px] transition-colors flex items-center gap-0.5 cursor-pointer"
+                            >
+                              <RotateCcw size={12} /> Refund
+                            </button>
+                          </>
+                        )}
+                        {t.status === 'Approved' && (
+                          <span className="text-[10px] text-green-600 font-bold">Escrow Settled</span>
+                        )}
+                        {t.status === 'Refunded' && (
+                          <span className="text-[10px] text-blue-600 font-bold">Returned to Payer</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

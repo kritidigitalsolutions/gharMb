@@ -21,7 +21,8 @@ import {
   Sparkles,
   Edit,
   X,
-  XCircle
+  XCircle,
+  Copy
 } from 'lucide-react';
 
 const UserManagement = () => {
@@ -37,6 +38,15 @@ const UserManagement = () => {
   const [selectedRole, setSelectedRole] = useState('All');
   const [selectedUser, setSelectedUser] = useState(null);
   const [userDrawerTab, setUserDrawerTab] = useState('Overview');
+
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  const triggerToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: '', type: 'success' });
+    }, 3000);
+  };
 
   const isMockMode = !localStorage.getItem('adminToken') || localStorage.getItem('adminToken') === 'mock_admin_token_2026';
 
@@ -511,9 +521,12 @@ const UserManagement = () => {
 
   // Filters
   const filteredUsers = users.filter(u => {
-    const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          u.id.toLowerCase().includes(searchTerm.toLowerCase());
+    const name = u.name || '';
+    const email = u.email || '';
+    const id = u.id || u._id || '';
+    const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = selectedRole === 'All' || u.role === selectedRole;
     return matchesSearch && matchesRole;
   });
@@ -561,11 +574,11 @@ const UserManagement = () => {
     ].slice(0, selectedUser.role === 'Buyer' ? 2 : 1);
   })();
 
-  const listingsList = isMockMode ? userProperties : realProperties.map(p => ({
+  const listingsList = isMockMode ? userProperties : (realProperties || []).map(p => ({
     id: p._id,
-    title: p.title,
-    location: `${p.locality}, ${p.city}`,
-    price: p.price ? `₹${p.price.toLocaleString('en-IN')}` : 'N/A',
+    title: p.title || 'Untitled Property',
+    location: `${p.locality || ''}, ${p.city || ''}`,
+    price: p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : 'N/A',
     photoUrl: p.images && p.images[0] ? p.images[0] : 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=100&q=80',
     status: p.approvalStatus ? p.approvalStatus.charAt(0).toUpperCase() + p.approvalStatus.slice(1) : 'Pending'
   }));
@@ -573,50 +586,51 @@ const UserManagement = () => {
   const enquiriesList = (() => {
     if (isMockMode) return userLeads;
     const list = [];
-    if (realEnquiries.sent && realEnquiries.sent.property) {
-      realEnquiries.sent.property.forEach(enq => {
-        list.push({
-          id: enq._id,
-          property: enq.property ? enq.property.title : 'Deleted Property',
-          type: 'Property Enquiry',
-          date: enq.createdAt ? new Date(enq.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
-          status: enq.status ? enq.status.charAt(0).toUpperCase() + enq.status.slice(1) : 'Pending'
-        });
+    const sentProps = realEnquiries?.sent?.property || [];
+    const sentDevs = realEnquiries?.sent?.developer || [];
+    const recProps = realEnquiries?.received?.property || [];
+    const recDevs = realEnquiries?.received?.developer || [];
+
+    sentProps.forEach(enq => {
+      list.push({
+        id: enq._id,
+        property: enq.property ? enq.property.title : 'Deleted Property',
+        type: 'Property Enquiry',
+        date: enq.createdAt ? new Date(enq.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+        status: enq.status ? enq.status.charAt(0).toUpperCase() + enq.status.slice(1) : 'Pending'
       });
-    }
-    if (realEnquiries.sent && realEnquiries.sent.developer) {
-      realEnquiries.sent.developer.forEach(enq => {
-        list.push({
-          id: enq._id,
-          property: enq.developer ? (enq.developer.companyName || enq.developer.name) : 'Developer Contact',
-          type: 'Developer Enquiry',
-          date: enq.createdAt ? new Date(enq.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
-          status: enq.status ? enq.status.charAt(0).toUpperCase() + enq.status.slice(1) : 'Pending'
-        });
+    });
+
+    sentDevs.forEach(enq => {
+      list.push({
+        id: enq._id,
+        property: enq.developer ? (enq.developer.companyName || enq.developer.name) : 'Developer Contact',
+        type: 'Developer Enquiry',
+        date: enq.createdAt ? new Date(enq.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+        status: enq.status ? enq.status.charAt(0).toUpperCase() + enq.status.slice(1) : 'Pending'
       });
-    }
-    if (realEnquiries.received && realEnquiries.received.property) {
-      realEnquiries.received.property.forEach(enq => {
-        list.push({
-          id: enq._id,
-          property: enq.property ? enq.property.title : 'Deleted Property',
-          type: `Received (From: ${enq.client ? enq.client.name : 'Unknown'})`,
-          date: enq.createdAt ? new Date(enq.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
-          status: enq.status ? enq.status.charAt(0).toUpperCase() + enq.status.slice(1) : 'Pending'
-        });
+    });
+
+    recProps.forEach(enq => {
+      list.push({
+        id: enq._id,
+        property: enq.property ? enq.property.title : 'Deleted Property',
+        type: `Received (From: ${enq.client ? enq.client.name : 'Unknown'})`,
+        date: enq.createdAt ? new Date(enq.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+        status: enq.status ? enq.status.charAt(0).toUpperCase() + enq.status.slice(1) : 'Pending'
       });
-    }
-    if (realEnquiries.received && realEnquiries.received.developer) {
-      realEnquiries.received.developer.forEach(enq => {
-        list.push({
-          id: enq._id,
-          property: 'Developer Enquiry',
-          type: `Received (From: ${enq.client ? enq.client.name : 'Unknown'})`,
-          date: enq.createdAt ? new Date(enq.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
-          status: enq.status ? enq.status.charAt(0).toUpperCase() + enq.status.slice(1) : 'Pending'
-        });
+    });
+
+    recDevs.forEach(enq => {
+      list.push({
+        id: enq._id,
+        property: 'Developer Enquiry',
+        type: `Received (From: ${enq.client ? enq.client.name : 'Unknown'})`,
+        date: enq.createdAt ? new Date(enq.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+        status: enq.status ? enq.status.charAt(0).toUpperCase() + enq.status.slice(1) : 'Pending'
       });
-    }
+    });
+
     return list;
   })();
 
@@ -632,7 +646,7 @@ const UserManagement = () => {
     <div className="h-[calc(100vh-120px)] flex flex-col space-y-6 overflow-hidden relative">
       
       {/* Stats cards Banner */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
         <div className="p-4 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-[9px] font-semibold text-[var(--text-muted)] block uppercase">Total Users</span>
@@ -678,7 +692,7 @@ const UserManagement = () => {
       </div>
 
       {/* Main Datatable */}
-      <div className="flex-1 min-h-0 p-6 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm flex flex-col space-y-5">
+      <div className="flex-1 min-h-0 p-4 md:p-6 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm flex flex-col space-y-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 shrink-0">
           
           {/* Search bar */}
@@ -743,120 +757,255 @@ const UserManagement = () => {
             </div>
           </div>
         ) : (
-          <div className="flex-1 overflow-auto relative border border-[var(--border)]/40 rounded-xl min-h-[200px]">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="sticky top-0 z-10 bg-[var(--bg-surface)] border-b border-[var(--border)] text-[var(--text-muted)] text-[9px] font-bold uppercase tracking-wider">
-                  <th className="py-3 px-4 w-12">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.length === filteredUsers.length}
-                      onChange={toggleSelectAll}
-                      className="rounded border-slate-300 text-brand focus:ring-brand w-4 h-4 cursor-pointer"
-                    />
-                  </th>
-                  <th className="py-3 px-4 cursor-pointer hover:text-[var(--text-subtle)]" onClick={() => handleSort('id')}>
-                    <span className="flex items-center gap-1">User ID <ArrowUpDown size={10} /></span>
-                  </th>
-                  <th className="py-3 px-4 cursor-pointer hover:text-[var(--text-subtle)]" onClick={() => handleSort('name')}>
-                    <span className="flex items-center gap-1">User name <ArrowUpDown size={10} /></span>
-                  </th>
-                  <th className="py-3 px-4">Contact Detail</th>
-                  <th className="py-3 px-4">Account Type</th>
-                  <th className="py-3 px-4">KYC Status</th>
-                  <th className="py-3 px-4 text-center cursor-pointer hover:text-[var(--text-subtle)]" onClick={() => handleSort('listings')}>
-                    <span className="flex items-center gap-1 justify-center">Listings <ArrowUpDown size={10} /></span>
-                  </th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border-muted)] text-xs">
-                {paginatedUsers.map((u) => (
-                  <tr key={u.id} className="hover:bg-[var(--bg-muted)] transition-colors">
-                    <td className="py-3 px-4">
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block flex-1 overflow-auto relative border border-[var(--border)]/40 rounded-xl min-h-[200px]">
+              <table className="w-full text-left border-collapse min-w-[1000px]">
+                <thead>
+                  <tr className="sticky top-0 z-10 bg-[var(--bg-surface)] border-b border-[var(--border)] text-[var(--text-muted)] text-[9px] font-bold uppercase tracking-wider">
+                    <th className="py-3 px-4 w-12">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.length === filteredUsers.length}
+                        onChange={toggleSelectAll}
+                        className="rounded border-slate-300 text-brand focus:ring-brand w-4 h-4 cursor-pointer"
+                      />
+                    </th>
+                    <th className="py-3 px-4 cursor-pointer hover:text-[var(--text-subtle)]" onClick={() => handleSort('id')}>
+                      <span className="flex items-center gap-1">User ID <ArrowUpDown size={10} /></span>
+                    </th>
+                    <th className="py-3 px-4 cursor-pointer hover:text-[var(--text-subtle)]" onClick={() => handleSort('name')}>
+                      <span className="flex items-center gap-1">User name <ArrowUpDown size={10} /></span>
+                    </th>
+                    <th className="py-3 px-4">Contact Detail</th>
+                    <th className="py-3 px-4">Account Type</th>
+                    <th className="py-3 px-4">KYC Status</th>
+                    <th className="py-3 px-4 text-center cursor-pointer hover:text-[var(--text-subtle)]" onClick={() => handleSort('listings')}>
+                      <span className="flex items-center gap-1 justify-center">Listings <ArrowUpDown size={10} /></span>
+                    </th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-muted)] text-xs">
+                  {paginatedUsers.map((u) => (
+                    <tr key={u.id} className="hover:bg-[var(--bg-muted)] transition-colors">
+                      <td className="py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(u.id)}
+                          onChange={() => toggleSelectRow(u.id)}
+                          className="rounded border-slate-300 text-brand focus:ring-brand w-4 h-4 cursor-pointer"
+                        />
+                      </td>
+                      <td className="py-3 px-4 font-bold text-[var(--text-subtle)] font-mono">
+                        <div className="flex items-center gap-1 group">
+                          <span 
+                            onClick={() => {
+                              navigator.clipboard.writeText(u.id);
+                              triggerToast('Copied ID to clipboard!');
+                            }}
+                            className="cursor-pointer hover:text-brand px-1.5 py-0.5 bg-[var(--bg-muted)] hover:bg-[var(--border)] rounded transition-colors flex items-center gap-1 select-all"
+                            title="Click to copy ID"
+                          >
+                            {u.id.length > 12 ? `${u.id.substring(0, 8)}...${u.id.substring(u.id.length - 4)}` : u.id}
+                            <Copy size={10} className="text-[var(--text-muted)] hover:text-brand opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 font-bold text-[var(--text-primary)]">{u.name}</td>
+                      <td className="py-3 px-4">
+                        <p className="text-[var(--text-subtle)] font-semibold">{u.email}</p>
+                        <p className="text-[9px] text-[var(--text-muted)]">{u.phone}</p>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`inline-flex px-2 py-0.5 rounded-lg text-[9px] font-extrabold ${
+                          u.role === 'Builder' ? 'bg-purple-50 text-purple-700' :
+                          u.role === 'Agent' ? 'bg-blue-500/10 text-blue-700' :
+                          u.role === 'Seller' ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-brand'
+                        }`}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        {u.isVerified ? (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-green-600 bg-green-500/10 px-1.5 py-0.5 rounded-lg">
+                            <ShieldCheck size={12} /> Verified
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-[var(--text-muted)] bg-[var(--bg-muted)] px-1.5 py-0.5 rounded-lg">
+                            <ShieldAlert size={12} /> Unverified
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-center font-bold text-[var(--text-subtle)]">{u.listings}</td>
+                      <td className="py-3 px-4">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-extrabold ${
+                          u.status === 'Active' ? 'bg-green-500/10 text-green-700' : 'bg-red-500/10 text-red-700'
+                        }`}>
+                          {u.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openEditUserModal(u)}
+                            className="p-1.5 hover:bg-[var(--bg-muted)] rounded-lg text-[var(--text-subtle)] hover:text-[var(--text-primary)]"
+                            title="Edit user details"
+                          >
+                            <Edit size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setSelectedUser(u); setUserDrawerTab('Overview'); }}
+                            className="p-1.5 hover:bg-[var(--bg-muted)] rounded-lg text-[var(--text-subtle)] hover:text-[var(--text-primary)]"
+                            title="Inspect profile details"
+                          >
+                            <Eye size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleUserStatus(u.id)}
+                            className={`p-1.5 rounded-lg border ${
+                              u.status === 'Active'
+                                ? 'border-red-500/20 text-red-600 hover:bg-red-500/10'
+                                : 'border-green-500/20 text-green-600 hover:bg-green-500/10'
+                            }`}
+                          >
+                            {u.status === 'Active' ? <UserX size={14} /> : <UserCheck size={14} />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card List View */}
+            <div className="block md:hidden flex-1 overflow-y-auto space-y-3 min-h-[200px] pr-1">
+              {paginatedUsers.map((u) => (
+                <div 
+                  key={u.id} 
+                  className="p-4 bg-[var(--bg-surface)] border border-[var(--border)] hover:border-brand/40 rounded-xl shadow-xs space-y-3 transition-colors relative text-left"
+                >
+                  {/* Header: Checkbox, ID, Role & Status */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(u.id)}
                         onChange={() => toggleSelectRow(u.id)}
                         className="rounded border-slate-300 text-brand focus:ring-brand w-4 h-4 cursor-pointer"
                       />
-                    </td>
-                    <td className="py-3 px-4 font-bold text-[var(--text-subtle)]">{u.id}</td>
-                    <td className="py-3 px-4 font-bold text-[var(--text-primary)]">{u.name}</td>
-                    <td className="py-3 px-4">
-                      <p className="text-[var(--text-subtle)] font-semibold">{u.email}</p>
-                      <p className="text-[9px] text-[var(--text-muted)]">{u.phone}</p>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`inline-flex px-2 py-0.5 rounded-lg text-[9px] font-extrabold ${
-                        u.role === 'Builder' ? 'bg-purple-50 text-purple-700' :
-                        u.role === 'Agent' ? 'bg-blue-500/10 text-blue-700' :
-                        u.role === 'Seller' ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-brand'
+                      <div className="flex items-center gap-1 group">
+                        <span 
+                          onClick={() => {
+                            navigator.clipboard.writeText(u.id);
+                            triggerToast('Copied ID to clipboard!');
+                          }}
+                          className="font-mono text-[10px] bg-[var(--bg-muted)] text-[var(--text-subtle)] px-2 py-0.5 rounded cursor-pointer hover:bg-[var(--border)] transition-colors flex items-center gap-1 select-all"
+                          title="Click to copy User ID"
+                        >
+                          {u.id.length > 12 ? `${u.id.substring(0, 6)}...${u.id.substring(u.id.length - 4)}` : u.id}
+                          <Copy size={8} className="text-[var(--text-muted)] hover:text-brand" />
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className={`inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-extrabold tracking-wide uppercase ${
+                        u.role === 'Builder' ? 'bg-purple-50 text-purple-700 dark:bg-purple-900/10 dark:text-purple-400' :
+                        u.role === 'Agent' ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400' :
+                        u.role === 'Seller' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/10 dark:text-emerald-400' : 
+                        'bg-orange-50 text-brand dark:bg-orange-950/10'
                       }`}>
                         {u.role}
                       </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      {u.isVerified ? (
-                        <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-green-600 bg-green-500/10 px-1.5 py-0.5 rounded-lg">
-                          <ShieldCheck size={12} /> Verified
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-[var(--text-muted)] bg-[var(--bg-muted)] px-1.5 py-0.5 rounded-lg">
-                          <ShieldAlert size={12} /> Unverified
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-center font-bold text-[var(--text-subtle)]">{u.listings}</td>
-                    <td className="py-3 px-4">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-extrabold ${
-                        u.status === 'Active' ? 'bg-green-500/10 text-green-700' : 'bg-red-500/10 text-red-700'
+                      <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[8px] font-extrabold uppercase ${
+                        u.status === 'Active' ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-red-500/10 text-red-700 dark:text-red-400'
                       }`}>
                         {u.status}
                       </span>
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => openEditUserModal(u)}
-                          className="p-1.5 hover:bg-[var(--bg-muted)] rounded-lg text-[var(--text-subtle)] hover:text-[var(--text-primary)]"
-                          title="Edit user details"
-                        >
-                          <Edit size={14} />
-                        </button>
-                         <button
-                          type="button"
-                          onClick={() => { setSelectedUser(u); setUserDrawerTab('Overview'); }}
-                          className="p-1.5 hover:bg-[var(--bg-muted)] rounded-lg text-[var(--text-subtle)] hover:text-[var(--text-primary)]"
-                          title="Inspect profile details"
-                        >
-                          <Eye size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => toggleUserStatus(u.id)}
-                          className={`p-1.5 rounded-lg border ${
-                            u.status === 'Active'
-                              ? 'border-red-500/20 text-red-600 hover:bg-red-500/100/10'
-                              : 'border-green-500/20 text-green-600 hover:bg-green-500/100/10'
-                          }`}
-                        >
-                          {u.status === 'Active' ? <UserX size={14} /> : <UserCheck size={14} />}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </div>
+
+                  {/* Body: Name & Verification */}
+                  <div className="flex items-center justify-between">
+                    <h5 className="font-bold text-sm text-[var(--text-primary)]">{u.name}</h5>
+                    {u.isVerified ? (
+                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-green-600 bg-green-500/10 px-1.5 py-0.5 rounded-md">
+                        <ShieldCheck size={11} /> Verified
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-[var(--text-muted)] bg-[var(--bg-muted)] px-1.5 py-0.5 rounded-md">
+                        <ShieldAlert size={11} /> Unverified
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Details Grid: Contact, Listings */}
+                  <div className="grid grid-cols-1 gap-2 text-xs border-t border-[var(--border)]/40 pt-2 text-[var(--text-subtle)]">
+                    <div className="flex flex-col gap-0.5">
+                      <p className="text-[9px] text-[var(--text-muted)] uppercase font-bold tracking-wider">Contact Details</p>
+                      <p className="font-semibold break-all text-[11px]">{u.email}</p>
+                      <p className="text-[10px] text-[var(--text-muted)] font-medium">{u.phone}</p>
+                    </div>
+                    <div className="flex justify-between items-center bg-[var(--bg-muted)]/50 p-2 rounded-lg border border-[var(--border)]/30 mt-1">
+                      <span className="text-[10px] text-[var(--text-subtle)] font-semibold">Total Listings Uploaded</span>
+                      <span className="font-bold text-xs bg-brand/10 text-brand px-2 py-0.5 rounded-md">{u.listings} listings</span>
+                    </div>
+                  </div>
+
+                  {/* Actions Bar */}
+                  <div className="flex justify-end gap-1.5 border-t border-[var(--border)]/40 pt-2 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => openEditUserModal(u)}
+                      className="flex-1 py-1.5 bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-subtle)] hover:text-[var(--text-primary)] rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Edit size={12} />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedUser(u); setUserDrawerTab('Overview'); }}
+                      className="flex-1 py-1.5 bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-subtle)] hover:text-[var(--text-primary)] rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Eye size={12} />
+                      <span>Inspect</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleUserStatus(u.id)}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer border ${
+                        u.status === 'Active'
+                          ? 'border-red-500/20 text-red-600 bg-red-500/5 hover:bg-red-500/10'
+                          : 'border-green-500/20 text-green-600 bg-green-500/5 hover:bg-green-500/10'
+                      }`}
+                    >
+                      {u.status === 'Active' ? (
+                        <>
+                          <UserX size={12} />
+                          <span>Suspend</span>
+                        </>
+                      ) : (
+                        <>
+                          <UserCheck size={12} />
+                          <span>Activate</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {/* Pagination Footer controls */}
         {filteredUsers.length > 0 && (
-          <div className="flex justify-between items-center pt-4 border-t border-[var(--border)] text-xs shrink-0">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-4 border-t border-[var(--border)] text-xs shrink-0">
             <span className="text-[var(--text-subtle)] font-semibold">
               Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredUsers.length)} of {filteredUsers.length} profiles
             </span>
@@ -885,36 +1034,6 @@ const UserManagement = () => {
         )}
       </div>
 
-      {/* Floating Bulk Action Bar */}
-      {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white py-3.5 px-6 rounded-2xl shadow-2xl flex items-center gap-6 z-50 border border-slate-800 animate-slide-up">
-          <span className="text-xs font-bold">{selectedIds.length} profiles selected</span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={triggerBulkBlock}
-              className="py-1.5 px-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-extrabold flex items-center gap-1 shadow-md shadow-red-600/10 cursor-pointer"
-            >
-              <UserX size={12} /> Suspend Accounts
-            </button>
-            <button
-              type="button"
-              onClick={triggerBulkDelete}
-              className="py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-[10px] font-extrabold flex items-center gap-1 cursor-pointer"
-            >
-              <Trash2 size={12} /> Delete Profiles
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedIds([])}
-              className="py-1.5 px-3 text-[var(--text-muted)] hover:text-white rounded-xl text-[10px] font-bold"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Detailed user inspector drawer */}
       {selectedUser && (
         <>
@@ -937,8 +1056,16 @@ const UserManagement = () => {
                   <p className="text-xs text-[var(--text-muted)]">{selectedUser.email}</p>
                 </div>
                 <div className="flex gap-2">
-                  <span className="text-[9px] font-bold bg-[var(--bg-muted)] text-[var(--text-subtle)] px-2 py-0.5 rounded-md">
+                  <span 
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedUser.id);
+                      triggerToast('Copied ID to clipboard!');
+                    }}
+                    className="text-[9px] font-bold bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-subtle)] px-2 py-0.5 rounded-md cursor-pointer transition-colors flex items-center gap-1 select-all"
+                    title="Click to copy User ID"
+                  >
                     ID: {selectedUser.id}
+                    <Copy size={8} className="text-[var(--text-muted)]" />
                   </span>
                   <span className="text-[9px] font-bold bg-orange-50 dark:bg-orange-500/10 text-brand dark:text-brand-light px-2 py-0.5 rounded-md">
                     {selectedUser.role}
@@ -1226,7 +1353,20 @@ const UserManagement = () => {
 
             <div>
               <h3 className="text-sm font-bold text-[var(--text-primary)]">Edit User Details</h3>
-              <p className="text-[10px] text-[var(--text-muted)]">Modify properties for user ID: {editUserData.id}</p>
+              <p className="text-[10px] text-[var(--text-muted)] flex items-center gap-1 flex-wrap">
+                Modify properties for user ID: 
+                <span 
+                  onClick={() => {
+                    navigator.clipboard.writeText(editUserData.id);
+                    triggerToast('Copied ID to clipboard!');
+                  }}
+                  className="font-mono bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-subtle)] px-1.5 py-0.5 rounded cursor-pointer transition-colors flex items-center gap-0.5 select-all"
+                  title="Click to copy User ID"
+                >
+                  {editUserData.id}
+                  <Copy size={8} />
+                </span>
+              </p>
             </div>
 
             <form onSubmit={handleEditUserSubmit} className="space-y-4">
@@ -1328,7 +1468,7 @@ const UserManagement = () => {
       )}
       {/* Floating Bulk Action Bar */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 border border-slate-800 text-white py-3.5 px-6 rounded-2xl shadow-2xl flex items-center justify-between gap-6 animate-slide-up max-w-lg w-[calc(100%-2rem)] sm:w-auto">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-55 bg-slate-900 border border-slate-800 text-white py-3.5 px-6 rounded-2xl shadow-2xl flex items-center justify-between gap-6 animate-slide-up max-w-lg w-[calc(100%-2rem)] sm:w-auto">
           <div className="flex items-center gap-2 text-xs">
             <span className="w-5 h-5 rounded-full bg-brand text-white font-extrabold flex items-center justify-center text-[10px]">
               {selectedIds.length}
@@ -1346,7 +1486,7 @@ const UserManagement = () => {
             <button
               type="button"
               onClick={triggerBulkDelete}
-              className="py-1.5 px-3 bg-red-650 hover:bg-red-700 text-white rounded-lg text-[10px] font-extrabold transition-colors cursor-pointer flex items-center gap-1"
+              className="py-1.5 px-3 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[10px] font-extrabold transition-colors cursor-pointer flex items-center gap-1"
             >
               <Trash2 size={12} /> Delete
             </button>
@@ -1357,6 +1497,21 @@ const UserManagement = () => {
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification Popup */}
+      {toast.show && (
+        <div className={`fixed bottom-6 right-6 z-55 py-3 px-5 rounded-2xl shadow-2xl flex items-center gap-3 animate-slide-up border ${
+          toast.type === 'success' 
+            ? 'bg-emerald-950 border-emerald-800 text-emerald-300' 
+            : 'bg-rose-950 border-rose-800 text-rose-300'
+        }`}>
+          <span className={`w-2 h-2 rounded-full shrink-0 ${toast.type === 'success' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400 animate-pulse'}`} />
+          <div className="text-xs">
+            <p className="font-extrabold text-white">{toast.type === 'success' ? 'Success' : 'Error'}</p>
+            <p className={`text-[10px] ${toast.type === 'success' ? 'text-emerald-400/90' : 'text-rose-400/90'}`}>{toast.message}</p>
           </div>
         </div>
       )}

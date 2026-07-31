@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useEffect } from "react";
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState(() => localStorage.getItem("adminTheme") || "dark");
+  const [theme, setTheme] = useState(() => localStorage.getItem("adminTheme") || "light");
 
   useEffect(() => {
     document.body.classList.remove("theme-dark", "theme-light");

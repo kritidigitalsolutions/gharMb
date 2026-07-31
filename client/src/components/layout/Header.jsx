@@ -286,19 +286,27 @@ const Header = ({ toggleSidebar, title }) => {
           )}
         </div>
 
-        {/* Theme Toggle Button */}
-         <button
-           type="button"
-           onClick={toggleTheme}
-           className="group p-2 text-[var(--text-muted)] rounded-xl hover:bg-[var(--bg-muted)] hover:text-[var(--text-subtle)] transition-all duration-300 hover:scale-110 active:scale-90 cursor-pointer shrink-0"
-           title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-         >
-           {theme === 'dark' ? (
-             <Sun size={16} className="transition-transform duration-500 group-hover:rotate-90" />
-           ) : (
-             <Moon size={16} className="transition-transform duration-500 group-hover:-rotate-12" />
-           )}
-         </button>
+        {/* Theme Toggle Switch */}
+        <label
+          className="theme-toggle-switch flex items-center shrink-0 scale-90 md:scale-100 transition-transform"
+          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          <input
+            className="toggle-checkbox"
+            type="checkbox"
+            checked={theme === 'dark'}
+            onChange={toggleTheme}
+          />
+          <div className="toggle-slot">
+            <div className="sun-icon-wrapper">
+              <Sun className="sun-icon" />
+            </div>
+            <div className="toggle-button" />
+            <div className="moon-icon-wrapper">
+              <Moon className="moon-icon" />
+            </div>
+          </div>
+        </label>
       </div>
     </header>
   );
