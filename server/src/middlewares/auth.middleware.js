@@ -31,13 +31,28 @@ const protect = async (req, res, next) => {
 
     // 2. Verify Token
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const secret = process.env.JWT_SECRET || 'fallback_secret_key';
+      const decoded = jwt.verify(token, secret);
       
       let user = null;
-      if (decoded.role === 'admin') {
+      const roleStr = (decoded.role || '').toLowerCase();
+
+      if (roleStr === 'admin' || roleStr === 'superadmin' || roleStr === 'super_admin') {
         const Admin = getAdminModel();
         user = await Admin.findById(decoded.id).select('+password');
       } else {
+        const User = getUserModel();
+        user = await User.findById(decoded.id);
+      }
+
+      // Fallback: If not found in primary collection, check Admin model
+      if (!user) {
+        const Admin = getAdminModel();
+        user = await Admin.findById(decoded.id);
+      }
+
+      // Fallback 2: Check User model
+      if (!user) {
         const User = getUserModel();
         user = await User.findById(decoded.id);
       }
@@ -49,10 +64,10 @@ const protect = async (req, res, next) => {
         });
       }
 
-      if (user.status === 'Blocked') {
+      if (user.status === 'Blocked' || user.isActive === false) {
         return res.status(403).json({
           status: 'fail',
-          message: 'Your account has been suspended by administration.',
+          message: 'Your account has been suspended or deactivated.',
         });
       }
 

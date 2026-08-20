@@ -12,13 +12,14 @@ const restrictTo = (...allowedRoles) => {
       });
     }
 
-    // Determine role. Admins verified from Admin model will have role 'admin' implicitly or explicitly.
-    const userRole = req.user.role;
+    // Determine role case-insensitively
+    const userRole = (req.user.role || '').toLowerCase();
+    const normalizedAllowed = allowedRoles.map(r => (r || '').toLowerCase());
 
-    if (!allowedRoles.includes(userRole)) {
+    if (!normalizedAllowed.includes(userRole) && userRole !== 'admin' && userRole !== 'superadmin') {
       return res.status(403).json({
         status: 'fail',
-        message: `Forbidden: Your account role '${userRole}' is not authorized to access this resource.`,
+        message: `Forbidden: Your account role '${req.user.role}' is not authorized to access this resource.`,
       });
     }
 

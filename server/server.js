@@ -10,7 +10,7 @@ const path = require('path');
 // Load environment variables from .env
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-const app = require('./src/app');
+const app = require('./app');
 const connectDB = require('./src/config/db');
 
 // Handle uncaught exceptions globally
@@ -32,6 +32,24 @@ const server = app.listen(PORT, () => {
   console.log(`  Port: ${PORT}                                   `);
   console.log(`==================================================`);
 });
+
+
+// // this is for first time add new admin data
+// const bcrypt = require("bcryptjs");
+// const Admin = require("./models/admin.model");
+// const createAdmin = async () => {
+//   const hashedPassword = await bcrypt.hash("admin123", 10);
+
+//   await Admin.create({
+//     name: "Super Admin",
+//     email: "admin@gmail.com",
+//     password: hashedPassword
+//   });
+
+//   console.log("Admin created");
+// };
+// createAdmin().catch(err => console.log("Admin already exists or error:", err.message));
+
 
 // Handle unhandled promise rejections globally
 process.on('unhandledRejection', (err) => {

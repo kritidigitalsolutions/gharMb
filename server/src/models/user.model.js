@@ -20,11 +20,11 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
-    password: {
-      type: String,
-      minlength: 6,
-      select: false,
-    },
+    // password: {
+    //   type: String,
+    //   minlength: 6,
+    //   select: false,
+    // },
     phone: {
       type: String,
       unique: true,

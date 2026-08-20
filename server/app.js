@@ -10,30 +10,30 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
-const errorMiddleware = require('./middlewares/error.middleware');
+const errorMiddleware = require('./src/middlewares/error.middleware');
 
 // Root Route Handlers (Admin vs App)
-const adminAuthRoutes = require('./routes/admin/auth.routes');
-const adminDashboardRoutes = require('./routes/admin/dashboard.routes');
-const adminUserRoutes = require('./routes/admin/user.routes');
-const adminPropertyRoutes = require('./routes/admin/property.routes');
-const adminProjectRoutes = require('./routes/admin/project.routes');
-const adminNotificationRoutes = require('./routes/admin/notification.routes');
-const adminLegalRoutes = require('./routes/admin/legal.routes');
-const adminPageRoutes = require('./routes/admin/page.routes');
-const adminNewsRoutes = require('./routes/admin/news.routes');
+const adminAuthRoutes = require('./src/routes/admin/auth.routes');
+const adminDashboardRoutes = require('./src/routes/admin/dashboard.routes');
+const adminUserRoutes = require('./src/routes/admin/user.routes');
+const adminPropertyRoutes = require('./src/routes/admin/property.routes');
+const adminProjectRoutes = require('./src/routes/admin/project.routes');
+const adminNotificationRoutes = require('./src/routes/admin/notification.routes');
+const adminLegalRoutes = require('./src/routes/admin/legal.routes');
+const adminPageRoutes = require('./src/routes/admin/page.routes');
+const adminNewsRoutes = require('./src/routes/admin/news.routes');
 
-const appAuthRoutes = require('./routes/user/auth.routes');
-const appUserRoutes = require('./routes/user/user.routes');
-const appPropertyRoutes = require('./routes/user/property.routes');
-const appProjectRoutes = require('./routes/user/project.routes');
-const appUploadRoutes = require('./routes/user/upload.routes');
-const appEnquiryRoutes = require('./routes/user/enquiry.routes');
-const appFavoriteRoutes = require('./routes/user/favorite.routes');
-const appNotificationRoutes = require('./routes/user/notification.routes');
-const appLegalRoutes = require('./routes/user/legal.routes');
-const appPageRoutes = require('./routes/user/page.routes');
-const appNewsRoutes = require('./routes/user/news.routes');
+const appAuthRoutes = require('./src/routes/user/auth.routes');
+const appUserRoutes = require('./src/routes/user/user.routes');
+const appPropertyRoutes = require('./src/routes/user/property.routes');
+const appProjectRoutes = require('./src/routes/user/project.routes');
+const appUploadRoutes = require('./src/routes/user/upload.routes');
+const appEnquiryRoutes = require('./src/routes/user/enquiry.routes');
+const appFavoriteRoutes = require('./src/routes/user/favorite.routes');
+const appNotificationRoutes = require('./src/routes/user/notification.routes');
+const appLegalRoutes = require('./src/routes/user/legal.routes');
+const appPageRoutes = require('./src/routes/user/page.routes');
+const appNewsRoutes = require('./src/routes/user/news.routes');
 
 const app = express();
 
@@ -57,6 +57,24 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 // 5. Serve Static Assets (Uploaded images & files locally)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+
+// this is for first time add new admin data
+const bcrypt = require("bcryptjs");
+const Admin = require("./src/models/admin.model");
+const createAdmin = async () => {
+  const hashedPassword = await bcrypt.hash("admin123", 10);
+
+  await Admin.create({
+    name: "Super Admin",
+    email: "admin@gmail.com",
+    password: hashedPassword
+  });
+
+  console.log("Admin created");
+};
+createAdmin().catch(err => console.log("Admin already exists or error:", err.message));
+
 
 // 6. Global API Rate Limiter
 const apiLimiter = rateLimit({
@@ -93,6 +111,8 @@ app.use('/api/admin/legal', adminLegalRoutes);
 app.use('/api/admin/pages', adminPageRoutes);
 app.use('/api/admin/news', adminNewsRoutes);
 
+
+
 // 9. all USER API Routers
 app.use('/api/user/auth', appAuthRoutes);
 
@@ -108,7 +128,7 @@ app.use('/api/users/enquiries', appEnquiryRoutes);
 
 app.use('/api/favorites', appFavoriteRoutes);
 
-app.use('/api/notifications', appNotificationRoutes);
+// app.use('/api/notifications', appNotificationRoutes);
 
 app.use('/api/legal', appLegalRoutes);
 app.use('/api/pages', appPageRoutes);

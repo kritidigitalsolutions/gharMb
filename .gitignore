@@ -29,3 +29,4 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+server/src/firebase/serviceAccountKey.json

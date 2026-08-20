@@ -165,10 +165,82 @@ const BuilderManagement = () => {
       }
     }
     setBuilders([
-      { id: 'BLD-4011', _id: 'mock_b1', name: 'DLF Limited', rera: 'RERA-HR-2022-0091', exp: 40, delivered: 120, trust: 98, status: 'Approved', user: 'dlf.admin@dlf.in' },
-      { id: 'BLD-9812', _id: 'mock_b2', name: 'Godrej Properties', rera: 'RERA-UP-2023-0104', exp: 12, delivered: 42, trust: 95, status: 'Approved', user: 'estate@godrej.com' },
-      { id: 'BLD-0922', _id: 'mock_b3', name: 'Supertech Group', rera: 'RERA-HR-2019-0012', exp: 25, delivered: 78, trust: 45, status: 'Suspended', user: 'contact@supertech.in' },
-      { id: 'BLD-3319', _id: 'mock_b4', name: 'Tata Value Homes', rera: 'RERA-MH-2024-1182', exp: 18, delivered: 35, trust: 85, status: 'Pending', user: 'tatahousings@tata.com' }
+      { 
+        id: 'BLD-4011', 
+        _id: 'mock_b1', 
+        name: 'DLF Limited', 
+        rera: 'RERA-HR-2022-0091', 
+        exp: 40, 
+        delivered: 120, 
+        trust: 98, 
+        status: 'Approved', 
+        user: 'dlf.admin@dlf.in',
+        corporateAddress: 'DLF Gateway Tower, 10th Floor, DLF City Phase 2, Gurugram, Haryana - 122002',
+        cin: 'L70101HR1963PLC002484',
+        executiveContact: 'Mr. Ashok Kumar (Director of Sales) • +91 98110 22334 • ashok@dlf.in',
+        gstin: '06AAACD1234F1Z8',
+        pan: 'AAACD1234F',
+        internalRiskRating: 'Tier-1 A+ (Zero Default History)',
+        accountManager: 'Executive Vikram Malhotra',
+        internalNotes: 'All corporate audits, land clearances, and escrow compliance verified. Top performing developer partner.'
+      },
+      { 
+        id: 'BLD-9812', 
+        _id: 'mock_b2', 
+        name: 'Godrej Properties', 
+        rera: 'RERA-UP-2023-0104', 
+        exp: 12, 
+        delivered: 42, 
+        trust: 95, 
+        status: 'Approved', 
+        user: 'estate@godrej.com',
+        corporateAddress: 'Godrej One, 5th Floor, Pirojshanagar, Eastern Express Highway, Vikhroli East, Mumbai - 400079',
+        cin: 'L74120MH1990PLC049876',
+        executiveContact: 'Mr. Pirojsha Godrej • +91 98200 99881 • corporate@godrejproperties.com',
+        gstin: '27AAACG1234F1Z5',
+        pan: 'AAACG1234F',
+        internalRiskRating: 'Tier-1 A+ (High Liquidity)',
+        accountManager: 'Executive Sneha Verma',
+        internalNotes: 'Forest-theme projects validated. Digital customer onboarding integration complete.'
+      },
+      { 
+        id: 'BLD-0922', 
+        _id: 'mock_b3', 
+        name: 'Supertech Group', 
+        rera: 'RERA-HR-2019-0012', 
+        exp: 25, 
+        delivered: 78, 
+        trust: 45, 
+        status: 'Suspended', 
+        user: 'contact@supertech.in',
+        corporateAddress: 'Supertech Supernova, Sector 94, Noida, Uttar Pradesh - 201301',
+        cin: 'U70100DL1995PLC074122',
+        executiveContact: 'Mr. R.K. Arora • +91 98100 11223 • contact@supertech.in',
+        gstin: '09AAACS9876D1Z2',
+        pan: 'AAACS9876D',
+        internalRiskRating: 'High Risk (Litigation Pending)',
+        accountManager: 'Executive Vikram Malhotra',
+        internalNotes: 'CAUTION: RERA compliance default flagged in 2025. Escrow withdrawals locked pending legal review.'
+      },
+      { 
+        id: 'BLD-3319', 
+        _id: 'mock_b4', 
+        name: 'Tata Value Homes', 
+        rera: 'RERA-MH-2024-1182', 
+        exp: 18, 
+        delivered: 35, 
+        trust: 85, 
+        status: 'Pending', 
+        user: 'tatahousings@tata.com',
+        corporateAddress: 'Bombay House, 24 Homi Mody Street, Fort, Mumbai - 400001',
+        cin: 'U45200MH2009PLC195551',
+        executiveContact: 'Mr. Sanjay Dutt • +91 98330 44556 • sanjay.dutt@tatarealty.com',
+        gstin: '27AAACT4455K1Z1',
+        pan: 'AAACT4455K',
+        internalRiskRating: 'Tier-1 A (Institutional)',
+        accountManager: 'Executive Sneha Verma',
+        internalNotes: 'Onboarding application under final document scrutiny. Awaiting PAN verification seal.'
+      }
     ]);
   };
 
@@ -623,74 +695,155 @@ const BuilderManagement = () => {
       {/* Builder Details Drawer Slider */}
       {selectedBuilder && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-end">
-          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] h-full max-w-md w-full shadow-2xl border-l border-[var(--border)] p-6 overflow-y-auto flex flex-col justify-between">
-            <div className="space-y-6 text-left">
-              <div className="flex justify-between items-start">
+          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] h-full max-w-lg w-full shadow-2xl border-l border-[var(--border)] p-6 overflow-y-auto flex flex-col justify-between">
+            <div className="space-y-5 text-left">
+              
+              {/* Header */}
+              <div className="flex justify-between items-start border-b border-[var(--border)] pb-3">
                 <div>
-                  <span className="text-[9px] font-extrabold text-brand bg-brand-light dark:bg-brand/10 px-2 py-0.5 rounded">BUILDER PROFILE</span>
-                  <h3 className="text-sm font-extrabold text-[var(--text-primary)] mt-1.5">{selectedBuilder.name}</h3>
-                  <p className="text-[10px] text-[var(--text-muted)] font-mono">{selectedBuilder.id}</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-extrabold text-brand bg-brand-light dark:bg-brand/10 px-2 py-0.5 rounded">
+                      {selectedBuilder.id}
+                    </span>
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                      selectedBuilder.status === 'Approved' ? 'bg-green-500/10 text-green-700' :
+                      selectedBuilder.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-700' : 'bg-red-500/10 text-red-700'
+                    }`}>
+                      {selectedBuilder.status}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-extrabold text-[var(--text-primary)] mt-1.5">{selectedBuilder.name}</h3>
+                  <p className="text-[10px] text-[var(--text-muted)] font-mono">{selectedBuilder.user}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSelectedBuilder(null)}
-                  className="p-1 bg-[var(--bg-muted)] rounded-lg text-[var(--text-muted)]"
+                  className="p-1.5 bg-[var(--bg-muted)] rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
                 >
                   <X size={16} />
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-[var(--bg-muted)] rounded-xl">
-                  <span className="text-[8px] font-bold text-[var(--text-muted)] uppercase block">RERA License</span>
-                  <span className="text-[10px] font-bold text-[var(--text-primary)] font-mono block mt-0.5 truncate">{selectedBuilder.rera}</span>
+              {/* ─── SECTION A: CONFIDENTIAL - ADMIN INTERNAL ONLY ─── */}
+              <div className="p-4 bg-amber-500/5 rounded-2xl border border-amber-500/20 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <ShieldAlert size={14} className="text-amber-600" /> Admin Internal Information (Confidential)
+                  </span>
+                  <span className="text-[8px] font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded">
+                    Not Displayed Publicly
+                  </span>
                 </div>
-                <div className="p-3 bg-[var(--bg-muted)] rounded-xl">
-                  <span className="text-[8px] font-bold text-[var(--text-muted)] uppercase block">Years active</span>
-                  <span className="text-[10px] font-bold text-[var(--text-primary)] block mt-0.5">{selectedBuilder.exp} Years</span>
-                </div>
-                <div className="p-3 bg-[var(--bg-muted)] rounded-xl">
-                  <span className="text-[8px] font-bold text-[var(--text-muted)] uppercase block">Delivered count</span>
-                  <span className="text-[10px] font-bold text-[var(--text-primary)] block mt-0.5">{selectedBuilder.delivered} Projects</span>
-                </div>
-                <div className="p-3 bg-[var(--bg-muted)] rounded-xl">
-                  <span className="text-[8px] font-bold text-[var(--text-muted)] uppercase block">Trust Rating</span>
-                  <span className="text-[10px] font-bold text-[var(--text-primary)] block mt-0.5">{selectedBuilder.trust}% Rating</span>
+
+                <div className="space-y-2.5 text-xs">
+                  {/* Corporate Office Address */}
+                  <div>
+                    <label className="text-[9px] font-bold text-[var(--text-muted)] uppercase block">Corporate Office Address</label>
+                    <p className="text-[11px] font-bold text-[var(--text-primary)] mt-0.5 bg-[var(--bg-surface)] p-2 rounded-xl border border-[var(--border)]">
+                      {selectedBuilder.corporateAddress || 'Suite 800, DLF Cyber City, Gurugram, Haryana - 122002'}
+                    </p>
+                  </div>
+
+                  {/* Corporate CIN & Key Executive */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[9px] font-bold text-[var(--text-muted)] uppercase block">Corporate CIN</label>
+                      <p className="text-[10px] font-mono font-bold text-[var(--text-primary)] mt-0.5 bg-[var(--bg-surface)] p-1.5 rounded-lg border border-[var(--border)] truncate">
+                        {selectedBuilder.cin || 'U70109HR2010PTC041289'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-bold text-[var(--text-muted)] uppercase block">Risk Rating</label>
+                      <p className="text-[10px] font-bold text-emerald-600 mt-0.5 bg-[var(--bg-surface)] p-1.5 rounded-lg border border-[var(--border)] truncate">
+                        {selectedBuilder.internalRiskRating || 'Tier-1 A+'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Key Executive Contact */}
+                  <div>
+                    <label className="text-[9px] font-bold text-[var(--text-muted)] uppercase block">Key Executive / Director Contact</label>
+                    <p className="text-[10px] font-medium text-[var(--text-subtle)] mt-0.5 bg-[var(--bg-surface)] p-2 rounded-xl border border-[var(--border)]">
+                      {selectedBuilder.executiveContact || 'Director of Sales • +91 98110 22334'}
+                    </p>
+                  </div>
+
+                  {/* GSTIN & PAN */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[9px] font-bold text-[var(--text-muted)] uppercase block">GSTIN</label>
+                      <p className="text-[10px] font-mono text-[var(--text-primary)] bg-[var(--bg-surface)] p-1.5 rounded-lg border border-[var(--border)]">
+                        {selectedBuilder.gstin || '06AAACD1234F1Z8'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-bold text-[var(--text-muted)] uppercase block">PAN Card</label>
+                      <p className="text-[10px] font-mono text-[var(--text-primary)] bg-[var(--bg-surface)] p-1.5 rounded-lg border border-[var(--border)]">
+                        {selectedBuilder.pan || 'AAACD1234F'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Internal Notes */}
+                  <div>
+                    <label className="text-[9px] font-bold text-[var(--text-muted)] uppercase block">Internal Admin Notes</label>
+                    <p className="text-[10px] text-[var(--text-subtle)] mt-0.5 bg-[var(--bg-surface)] p-2 rounded-xl border border-[var(--border)] italic">
+                      {selectedBuilder.internalNotes || 'Verified developer profile. Escrow account compliant.'}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider block">Credentials Document checks</span>
-                <div className="p-3.5 border border-[var(--border)] rounded-xl space-y-2">
-                  <a 
-                    href="https://pdfobject.com/pdf/sample.pdf" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="flex items-center justify-between text-xs font-semibold hover:text-brand transition-colors cursor-pointer group"
-                  >
-                    <span className="text-[var(--text-subtle)] group-hover:text-brand flex items-center gap-1.5"><FileCheck size={14} className="text-green-600 group-hover:scale-105 transition-transform" /> PAN Identity Card Check</span>
-                    <span className="text-green-600 font-bold text-[10px]">View PDF</span>
-                  </a>
-                  <a 
-                    href="https://pdfobject.com/pdf/sample.pdf" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="flex items-center justify-between text-xs font-semibold hover:text-brand transition-colors cursor-pointer group"
-                  >
-                    <span className="text-[var(--text-subtle)] group-hover:text-brand flex items-center gap-1.5"><FileCheck size={14} className="text-green-600 group-hover:scale-105 transition-transform" /> Company Registration Deed</span>
-                    <span className="text-green-600 font-bold text-[10px]">View PDF</span>
-                  </a>
-                  <a 
-                    href="https://pdfobject.com/pdf/sample.pdf" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="flex items-center justify-between text-xs font-semibold hover:text-brand transition-colors cursor-pointer group"
-                  >
-                    <span className="text-[var(--text-subtle)] group-hover:text-brand flex items-center gap-1.5"><FileCheck size={14} className="text-green-600 group-hover:scale-105 transition-transform" /> RERA License Certificate</span>
-                    <span className="text-green-600 font-bold text-[10px]">View PDF</span>
-                  </a>
+              {/* ─── SECTION B: PUBLIC PROFILE INFORMATION ─── */}
+              <div className="space-y-3">
+                <span className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider block">
+                  Public Profile Information (User Visible)
+                </span>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-[var(--bg-muted)] rounded-xl">
+                    <span className="text-[8px] font-bold text-[var(--text-muted)] uppercase block">RERA License</span>
+                    <span className="text-[10px] font-bold text-[var(--text-primary)] font-mono block mt-0.5 truncate">{selectedBuilder.rera}</span>
+                  </div>
+                  <div className="p-3 bg-[var(--bg-muted)] rounded-xl">
+                    <span className="text-[8px] font-bold text-[var(--text-muted)] uppercase block">Years Active</span>
+                    <span className="text-[10px] font-bold text-[var(--text-primary)] block mt-0.5">{selectedBuilder.exp} Years</span>
+                  </div>
+                  <div className="p-3 bg-[var(--bg-muted)] rounded-xl">
+                    <span className="text-[8px] font-bold text-[var(--text-muted)] uppercase block">Delivered Count</span>
+                    <span className="text-[10px] font-bold text-[var(--text-primary)] block mt-0.5">{selectedBuilder.delivered} Projects</span>
+                  </div>
+                  <div className="p-3 bg-[var(--bg-muted)] rounded-xl">
+                    <span className="text-[8px] font-bold text-[var(--text-muted)] uppercase block">Public Trust Rating</span>
+                    <span className="text-[10px] font-bold text-emerald-600 block mt-0.5">{selectedBuilder.trust}% Rating</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider block">Credentials Document checks</span>
+                  <div className="p-3 border border-[var(--border)] rounded-xl space-y-2">
+                    <a 
+                      href="https://pdfobject.com/pdf/sample.pdf" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center justify-between text-xs font-semibold hover:text-brand transition-colors cursor-pointer group"
+                    >
+                      <span className="text-[var(--text-subtle)] group-hover:text-brand flex items-center gap-1.5"><FileCheck size={14} className="text-green-600 group-hover:scale-105 transition-transform" /> Corporate Registration Deed</span>
+                      <span className="text-green-600 font-bold text-[10px]">Verified</span>
+                    </a>
+                    <a 
+                      href="https://pdfobject.com/pdf/sample.pdf" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center justify-between text-xs font-semibold hover:text-brand transition-colors cursor-pointer group"
+                    >
+                      <span className="text-[var(--text-subtle)] group-hover:text-brand flex items-center gap-1.5"><FileCheck size={14} className="text-green-600 group-hover:scale-105 transition-transform" /> RERA License Certificate</span>
+                      <span className="text-green-600 font-bold text-[10px]">Verified</span>
+                    </a>
+                  </div>
                 </div>
               </div>
+
             </div>
 
             <div className="pt-4 border-t border-[var(--border)] space-y-2.5">

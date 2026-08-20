@@ -1,40 +1,50 @@
-/**
- * Admin Model
- * Schema representing system administrators managing the GHARMB real estate platform.
- * Employs local authentication credentials and secure bcrypt hashing.
- */
-
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const mongoose = require("mongoose");
 
 const adminSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, 'Admin must have a name.'],
+      required: true,
       trim: true,
     },
+
     email: {
       type: String,
-      required: [true, 'Admin must have a login email.'],
+      required: true,
       unique: true,
-      lowercase: true,
       trim: true,
-      index: true,
+      lowercase: true,
     },
+
     password: {
       type: String,
-      required: [true, 'Admin must have a password.'],
-      minlength: [8, 'Password must be at least 8 characters long.'],
-      select: false, // Prevents sending password by default
+      required: true,
+      minlength: 6,
     },
+
     role: {
       type: String,
-      default: 'admin', // Static role designation
+      default: "ADMIN",
     },
+
+    permissions: {
+      type: [String],
+      default: [],
+    },
+
     isActive: {
       type: Boolean,
       default: true,
+    },
+
+    loginAttempts: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+
+    lockUntil: {
+      type: Date,
     },
   },
   {
@@ -42,20 +52,4 @@ const adminSchema = new mongoose.Schema(
   }
 );
 
-// Hash password before saving to the database
-adminSchema.pre('save', async function () {
-  // Only hash password if it was modified (or is new)
-  if (!this.isModified('password')) return;
-
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-});
-
-// Compare password helper method
-adminSchema.methods.comparePassword = async function (candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
-};
-
-const Admin = mongoose.model('Admin', adminSchema);
-
-module.exports = Admin;
+module.exports = mongoose.model("Admin", adminSchema);

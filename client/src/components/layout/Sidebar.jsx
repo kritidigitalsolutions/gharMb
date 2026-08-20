@@ -16,11 +16,21 @@ import {
   Info,
   Crown,
   ShieldCheck,
-  Bell
+  Bell,
+  Briefcase,
+  Lock,
+  Gift,
+  Sparkles
 } from 'lucide-react';
 
-const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, onLogout }) => {
+const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, collapsed, setCollapsed, onLogout }) => {
   const navigate = useNavigate();
+
+  const collapsedState = isCollapsed !== undefined ? isCollapsed : (collapsed !== undefined ? collapsed : false);
+  const toggleCollapse = () => {
+    if (setIsCollapsed) setIsCollapsed(!collapsedState);
+    else if (setCollapsed) setCollapsed(!collapsedState);
+  };
 
   // Get logged-in admin user info from localStorage if available
   const storedUserRaw = localStorage.getItem('adminUser');
@@ -43,50 +53,54 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, onLogout 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminUser');
+    localStorage.removeItem('admin');
     if (onLogout) onLogout();
     navigate('/login');
   };
 
   const navItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Verification', path: '/verification', icon: CheckSquare, badge: '5' },
-    { name: 'User Directory', path: '/users', icon: Users },
-    { name: 'Builders & RERA', path: '/builders', icon: Building2 },
-    { name: 'Leads & Enquiries', path: '/leads', icon: Inbox, badge: 'New', badgeColor: 'bg-brand text-white' },
-    { name: 'Revenue', path: '/revenue', icon: IndianRupee },
-    { name: 'Reports & Export', path: '/reports', icon: BarChart3 },
-    { name: 'Notifications', path: '/notifications', icon: Bell },
-    { name: 'Settings', path: '/settings', icon: Settings },
-    { name: 'Legal Policies', path: '/legal', icon: FileText },
-    { name: 'About Platform', path: '/about', icon: Info },
+    { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
+    { name: 'Verification', path: '/admin/verification', icon: CheckSquare, badge: '5' },
+    { name: 'User Directory', path: '/admin/users', icon: Users },
+    { name: 'Builders & RERA', path: '/admin/builders', icon: Building2 },
+    { name: 'Leads & Enquiries', path: '/admin/leads', icon: Inbox, badge: 'New', badgeColor: 'bg-brand text-white' },
+    { name: 'Services Hub', path: '/admin/services', icon: Briefcase, badge: '4' },
+    { name: 'Token Bookings', path: '/admin/tokens', icon: Lock },
+    { name: 'Referral Network', path: '/admin/references', icon: Gift },
+    { name: 'Revenue', path: '/admin/revenue', icon: IndianRupee },
+    { name: 'Reports & Export', path: '/admin/reports', icon: BarChart3 },
+    { name: 'Notifications', path: '/admin/notifications', icon: Bell },
+    { name: 'Settings', path: '/admin/settings', icon: Settings },
+    { name: 'Legal Policies', path: '/admin/legal', icon: FileText },
+    { name: 'About Platform', path: '/admin/about', icon: Info },
   ];
 
   return (
     <aside
       className={`fixed top-0 left-0 z-40 h-screen bg-[var(--bg-surface)] border-r border-[var(--border)] transition-[width,transform] duration-200 ease-in-out ${
         isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-      } ${isCollapsed ? 'w-64 md:w-20' : 'w-64'}`}
+      } ${collapsedState ? 'w-64 md:w-20' : 'w-64'}`}
     >
       {/* Border toggle button */}
       <button
         type="button"
-        onClick={() => setIsCollapsed(!isCollapsed)}
+        onClick={toggleCollapse}
         className="hidden md:flex absolute top-5 -right-3 w-6 h-6 bg-[var(--bg-surface)] border border-[var(--border)] hover:border-slate-400 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-full items-center justify-center shadow-sm hover:shadow transition-all hover:scale-110 active:scale-90 duration-200 cursor-pointer z-50"
       >
-        {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+        {collapsedState ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
       </button>
 
       <div className="flex flex-col h-full">
         {/* Brand header */}
         <div className={`flex items-center border-b border-[var(--border)] shrink-0 h-16 transition-[padding] duration-200 ease-in-out px-4 justify-between ${
-          isCollapsed ? 'md:justify-center md:px-2' : ''
+          collapsedState ? 'md:justify-center md:px-2' : ''
         }`}>
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-brand text-white font-black text-sm shrink-0 shadow-md shadow-brand/20 hover:scale-105 transition-transform duration-300 cursor-pointer">
               G
             </div>
             <span className={`font-extrabold text-sm text-[var(--text-primary)] tracking-tight flex items-center gap-1 ${
-              isCollapsed ? 'md:hidden' : ''
+              collapsedState ? 'md:hidden' : ''
             }`}>
               GHARMB <span className="text-[9px] bg-brand-light text-brand px-1.5 py-0.5 rounded-full font-bold">SaaS</span>
             </span>
@@ -104,12 +118,13 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, onLogout 
         {/* Navigation list */}
         <nav
           style={{ overflowX: 'clip' }}
-          className={`flex-1 py-4 space-y-1.5 overflow-y-auto overflow-x-hidden ${isCollapsed ? 'px-3 md:px-2' : 'px-3'}`}
+          className={`flex-1 py-4 space-y-1.5 overflow-y-auto overflow-x-hidden ${collapsedState ? 'px-3 md:px-2' : 'px-3'}`}
         >
           {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
+              end={item.path === '/admin'}
               onClick={() => {
                 if (window.innerWidth < 768) toggleSidebar();
               }}

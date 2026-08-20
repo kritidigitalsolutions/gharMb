@@ -1,39 +1,19 @@
-/**
- * MongoDB Mongoose Connection Helper
- * Manages connecting to MongoDB Atlas or local MongoDB using connection pools.
- */
-
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
+// const fixDuplicateIndexError = require("../utils/fixDuplicateIndex");
 
 const connectDB = async () => {
   try {
-    const mongoUri = process.env.MONGO_URI;
+    console.log("Mongo URI:", process.env.MONGO_URI); // 👈 debug
 
-    if (!mongoUri) {
-      console.error('MONGO_URI environment variable is missing!');
-      process.exit(1);
-    }
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("MongoDB Connected");
 
-    // Set connection options
-    const options = {
-      autoIndex: true, // Auto-build indexes in development; might disable in high-write production
-    };
+    // Fix duplicate index errors on startup
+    console.log("🔍 Checking and fixing indexes...");
+    // await fixDuplicateIndexError();
 
-    const conn = await mongoose.connect(mongoUri, options);
-
-    console.log(`🍃 MongoDB Connected: ${conn.connection.host}`);
-    
-    // Connection event listeners
-    mongoose.connection.on('error', (err) => {
-      console.error(`MongoDB connection error: ${err}`);
-    });
-
-    mongoose.connection.on('disconnected', () => {
-      console.warn('MongoDB connection lost. Attempting to reconnect...');
-    });
-
-  } catch (error) {
-    console.error(`Error connecting to MongoDB: ${error.message}`);
+  } catch(error) {
+    console.error("DB Error:", error.message);
     process.exit(1);
   }
 };

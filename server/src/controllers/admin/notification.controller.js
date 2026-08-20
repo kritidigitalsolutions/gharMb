@@ -79,3 +79,48 @@ exports.getNotificationLogs = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Mark a single notification as read
+// @route   PATCH /api/admin/notifications/:id/read
+// @access  Private (Admin only)
+exports.markNotificationRead = async (req, res, next) => {
+  try {
+    const notification = await Notification.findByIdAndUpdate(
+      req.params.id,
+      { isRead: true },
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'Notification not found',
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        notification,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Mark all notifications as read
+// @route   POST /api/admin/notifications/mark-all-read
+// @access  Private (Admin only)
+exports.markAllNotificationsRead = async (req, res, next) => {
+  try {
+    await Notification.updateMany({ isRead: false }, { isRead: true });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'All notifications marked as read.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};

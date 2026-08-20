@@ -288,7 +288,7 @@ const DashboardHome = () => {
               verificationAlerts.map((alert) => (
                 <div 
                   key={alert.id} 
-                  onClick={() => navigate('/verification')}
+                  onClick={() => navigate('/admin/verification')}
                   className="p-3.5 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl flex justify-between items-center group cursor-pointer hover:bg-[var(--bg-hover)] transition-colors"
                 >
                   <div>
