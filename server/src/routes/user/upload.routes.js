@@ -36,36 +36,25 @@ const router = express.Router();
  *       200:
  *         description: File uploaded successfully
  */
-router.post('/single', upload.any(), (req, res, next) => {
+// Single file upload handler helper
+const handleSingleUpload = (req, res, next) => {
   if (req.files && req.files.length > 0) {
     req.file = req.files[0];
   }
   uploadController.uploadSingleFile(req, res, next);
-});
+};
 
-/**
- * @swagger
- * /api/user/upload/multiple:
- *   post:
- *     summary: Upload multiple files
- *     tags: [File Uploads]
- *     requestBody:
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               files:
- *                 type: array
- *                 items:
- *                   type: string
- *                   format: binary
- *                 description: The files to upload (accepts any key name like "files", "photos", "images")
- *     responses:
- *       200:
- *         description: Files uploaded successfully
- */
+// Single file routes (generic, with ID param, and specific entity routes)
+router.post('/single', upload.any(), handleSingleUpload);
+router.post('/single/property/:propertyId', upload.any(), handleSingleUpload);
+router.post('/single/project/:projectId', upload.any(), handleSingleUpload);
+router.post('/single/:id', upload.any(), handleSingleUpload);
+
+// Multiple files routes (generic, with ID param, and specific entity routes)
 router.post('/multiple', upload.any(), uploadController.uploadMultipleFiles);
+router.post('/multiple/property/:propertyId', upload.any(), uploadController.uploadMultipleFiles);
+router.post('/multiple/project/:projectId', upload.any(), uploadController.uploadMultipleFiles);
+router.post('/multiple/:id', upload.any(), uploadController.uploadMultipleFiles);
 
 module.exports = router;
 

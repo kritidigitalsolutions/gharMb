@@ -18,12 +18,20 @@ exports.getAllProjects = async (req, res, next) => {
     if (city) filter.city = new RegExp(city, 'i');
 
     if (search) {
-      filter.$text = { $search: search };
+      const searchRegex = new RegExp(search.trim(), 'i');
+      filter.$or = [
+        { projectName: searchRegex },
+        { developerName: searchRegex },
+        { city: searchRegex },
+        { locality: searchRegex },
+        { reraProjectNumber: searchRegex },
+        { submissionId: searchRegex },
+      ];
     }
 
     const projects = await Project.find(filter)
       .sort({ createdAt: -1 })
-      .populate('developer', 'name companyName email phone reraNumber builderDocs');
+      .populate('developer', 'name companyName email phone reraNumber builderDocs isVerified');
 
     res.status(200).json({
       status: 'success',
@@ -42,23 +50,24 @@ exports.getAllProjects = async (req, res, next) => {
 // @access  Private (Admin only)
 exports.updateProjectStatus = async (req, res, next) => {
   try {
-    const { approvalStatus, rejectionReason } = req.body;
+    const rawStatus = req.body.approvalStatus || req.body.status;
+    const rejectionReason = req.body.rejectionReason || req.body.rejectReason;
 
-    if (!approvalStatus || !['approved', 'rejected', 'pending'].includes(approvalStatus)) {
+    if (!rawStatus || !['approved', 'rejected', 'pending'].includes(rawStatus)) {
       return res.status(400).json({
         status: 'fail',
-        message: 'Valid approvalStatus (approved, rejected, pending) is required.',
+        message: 'Valid approvalStatus or status (approved, rejected, pending) is required.',
       });
     }
 
     const updateData = {
-      approvalStatus,
-      isLive: approvalStatus === 'approved',
+      approvalStatus: rawStatus,
+      isLive: rawStatus === 'approved',
     };
 
-    if (approvalStatus === 'rejected' && rejectionReason) {
+    if (rawStatus === 'rejected' && rejectionReason) {
       updateData.rejectionReason = rejectionReason;
-    } else if (approvalStatus === 'approved') {
+    } else if (rawStatus === 'approved') {
       updateData.rejectionReason = undefined;
     }
 
@@ -74,9 +83,33 @@ exports.updateProjectStatus = async (req, res, next) => {
       });
     }
 
+    // Send notification to the Developer
+    try {
+      const Notification = require('../../models/notification.model');
+      if (rawStatus === 'approved') {
+        await Notification.create({
+          recipient: project.developer._id,
+          title: 'Project Listing Approved & Live! 🏗️',
+          message: `Your project listing "${project.projectName}" (${project.submissionId || ''}) has been verified and approved by admin. It is now live in the project directory.`,
+          type: 'verification',
+          isRead: false,
+        });
+      } else if (rawStatus === 'rejected') {
+        await Notification.create({
+          recipient: project.developer._id,
+          title: 'Project Listing Review Update',
+          message: `Your project listing "${project.projectName}" was not approved. Reason: ${rejectionReason || 'Please review project details/documents and re-submit.'}`,
+          type: 'verification',
+          isRead: false,
+        });
+      }
+    } catch (notifErr) {
+      console.error('Error creating user notification for project moderation:', notifErr);
+    }
+
     res.status(200).json({
       status: 'success',
-      message: `Developer project approval status updated to ${approvalStatus}.`,
+      message: `Developer project approval status updated to ${rawStatus}.`,
       data: {
         project,
       },

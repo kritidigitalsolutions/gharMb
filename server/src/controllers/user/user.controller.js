@@ -171,6 +171,25 @@ exports.registerAgent = async (req, res, next) => {
       runValidators: true,
     });
 
+    // Notify administrators about the pending agent verification
+    try {
+      const Admin = require('../../models/admin.model');
+      const Notification = require('../../models/notification.model');
+      const admins = await Admin.find().select('_id');
+      if (admins.length > 0) {
+        const notificationsData = admins.map((admin) => ({
+          recipient: admin._id,
+          title: 'New Agent Verification Pending',
+          message: `Agent ${user.name} (${user.cityOfOperation || 'India'}) has submitted RERA credentials (${user.reraNumber}) for review.`,
+          type: 'verification',
+          isRead: false,
+        }));
+        await Notification.insertMany(notificationsData);
+      }
+    } catch (notifErr) {
+      console.error('Error creating admin notification for agent registration:', notifErr);
+    }
+
     // Issue fresh JWT token with updated 'agent' role
     const token = signToken(user._id, user.role);
 
@@ -322,6 +341,27 @@ exports.registerDeveloper = async (req, res, next) => {
       new: true,
       runValidators: true,
     });
+
+    // Notify administrators if submitted for verification
+    if (submitForVerification) {
+      try {
+        const Admin = require('../../models/admin.model');
+        const Notification = require('../../models/notification.model');
+        const admins = await Admin.find().select('_id');
+        if (admins.length > 0) {
+          const notificationsData = admins.map((admin) => ({
+            recipient: admin._id,
+            title: 'New Developer Verification Pending',
+            message: `Developer ${user.companyName || user.name} (${user.cityOfOperation || 'India'}) has submitted company documents for review.`,
+            type: 'verification',
+            isRead: false,
+          }));
+          await Notification.insertMany(notificationsData);
+        }
+      } catch (notifErr) {
+        console.error('Error creating admin notification for developer registration:', notifErr);
+      }
+    }
 
     // Issue fresh JWT token with updated 'builder' role
     const token = signToken(user._id, user.role);

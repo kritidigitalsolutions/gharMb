@@ -149,23 +149,24 @@ exports.getUserDetails = async (req, res, next) => {
 // @access  Private (Admin only)
 exports.verifyAgent = async (req, res, next) => {
   try {
-    const { agentVerificationStatus, rejectionReason } = req.body;
+    const rawStatus = req.body.agentVerificationStatus || req.body.status;
+    const rejectionReason = req.body.agentRejectionReason || req.body.rejectionReason || req.body.rejectReason;
 
-    if (!agentVerificationStatus || !['approved', 'rejected', 'pending'].includes(agentVerificationStatus)) {
+    if (!rawStatus || !['approved', 'rejected', 'pending'].includes(rawStatus)) {
       return res.status(400).json({
         status: 'fail',
-        message: 'Valid agentVerificationStatus (approved, rejected, pending) is required.',
+        message: 'Valid agentVerificationStatus or status (approved, rejected, pending) is required.',
       });
     }
 
     const updateData = {
-      agentVerificationStatus,
-      isVerified: agentVerificationStatus === 'approved',
+      agentVerificationStatus: rawStatus,
+      isVerified: rawStatus === 'approved',
     };
 
-    if (agentVerificationStatus === 'rejected' && rejectionReason) {
+    if (rawStatus === 'rejected' && rejectionReason) {
       updateData.agentRejectionReason = rejectionReason;
-    } else if (agentVerificationStatus === 'approved') {
+    } else if (rawStatus === 'approved') {
       updateData.agentRejectionReason = undefined;
     }
 
@@ -181,9 +182,33 @@ exports.verifyAgent = async (req, res, next) => {
       });
     }
 
+    // Send notification to the Agent
+    try {
+      const Notification = require('../../models/notification.model');
+      if (rawStatus === 'approved') {
+        await Notification.create({
+          recipient: user._id,
+          title: 'Agent Profile Verified & Approved! 🎉',
+          message: 'Congratulations! Your Agent RERA profile and verification documents have been verified and approved by admin. You can now upload and manage property listings.',
+          type: 'verification',
+          isRead: false,
+        });
+      } else if (rawStatus === 'rejected') {
+        await Notification.create({
+          recipient: user._id,
+          title: 'Agent Profile Verification Update',
+          message: `Your Agent profile verification could not be approved. Reason: ${rejectionReason || 'Please check your submitted documents and re-apply.'}`,
+          type: 'verification',
+          isRead: false,
+        });
+      }
+    } catch (notifErr) {
+      console.error('Error creating user notification for agent verification:', notifErr);
+    }
+
     res.status(200).json({
       status: 'success',
-      message: `Agent verification status updated to ${agentVerificationStatus}.`,
+      message: `Agent verification status updated to ${rawStatus}.`,
       data: {
         user,
       },
@@ -198,23 +223,24 @@ exports.verifyAgent = async (req, res, next) => {
 // @access  Private (Admin only)
 exports.verifyDeveloper = async (req, res, next) => {
   try {
-    const { builderVerificationStatus, rejectionReason } = req.body;
+    const rawStatus = req.body.builderVerificationStatus || req.body.status;
+    const rejectionReason = req.body.builderRejectionReason || req.body.rejectionReason || req.body.rejectReason;
 
-    if (!builderVerificationStatus || !['approved', 'rejected', 'pending'].includes(builderVerificationStatus)) {
+    if (!rawStatus || !['approved', 'rejected', 'pending'].includes(rawStatus)) {
       return res.status(400).json({
         status: 'fail',
-        message: 'Valid builderVerificationStatus (approved, rejected, pending) is required.',
+        message: 'Valid builderVerificationStatus or status (approved, rejected, pending) is required.',
       });
     }
 
     const updateData = {
-      builderVerificationStatus,
-      isVerified: builderVerificationStatus === 'approved',
+      builderVerificationStatus: rawStatus,
+      isVerified: rawStatus === 'approved',
     };
 
-    if (builderVerificationStatus === 'rejected' && rejectionReason) {
+    if (rawStatus === 'rejected' && rejectionReason) {
       updateData.builderRejectionReason = rejectionReason;
-    } else if (builderVerificationStatus === 'approved') {
+    } else if (rawStatus === 'approved') {
       updateData.builderRejectionReason = undefined;
     }
 
@@ -230,9 +256,33 @@ exports.verifyDeveloper = async (req, res, next) => {
       });
     }
 
+    // Send notification to the Developer
+    try {
+      const Notification = require('../../models/notification.model');
+      if (rawStatus === 'approved') {
+        await Notification.create({
+          recipient: user._id,
+          title: 'Developer Profile Verified & Approved! 🏢',
+          message: 'Congratulations! Your Developer company profile and RERA credentials have been verified and approved by admin. You can now launch projects and post property listings.',
+          type: 'verification',
+          isRead: false,
+        });
+      } else if (rawStatus === 'rejected') {
+        await Notification.create({
+          recipient: user._id,
+          title: 'Developer Profile Verification Update',
+          message: `Your Developer profile verification could not be approved. Reason: ${rejectionReason || 'Please check your submitted documents and re-apply.'}`,
+          type: 'verification',
+          isRead: false,
+        });
+      }
+    } catch (notifErr) {
+      console.error('Error creating user notification for developer verification:', notifErr);
+    }
+
     res.status(200).json({
       status: 'success',
-      message: `Developer verification status updated to ${builderVerificationStatus}.`,
+      message: `Developer verification status updated to ${rawStatus}.`,
       data: {
         user,
       },

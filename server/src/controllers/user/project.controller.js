@@ -43,17 +43,19 @@ exports.getAllProjects = async (req, res, next) => {
 // @access  Public
 exports.getProjectDetails = async (req, res, next) => {
   try {
-    const project = await Project.findByIdAndUpdate(
-      req.params.id,
-      { $inc: { viewsCount: 1 } },
-      { new: true }
-    ).populate('developer', 'name companyName email phone profilePicture builderDocs isVerified');
+    const project = await Project.findById(req.params.id)
+      .populate('developer', 'name companyName email phone profilePicture builderDocs isVerified');
 
     if (!project) {
       return res.status(404).json({
         status: 'fail',
         message: 'Developer project not found.',
       });
+    }
+
+    // Increment views only for approved live projects
+    if (project.approvalStatus === 'approved' && project.isLive) {
+      await Project.findByIdAndUpdate(req.params.id, { $inc: { viewsCount: 1 } });
     }
 
     res.status(200).json({
@@ -72,9 +74,27 @@ exports.getProjectDetails = async (req, res, next) => {
 // @access  Private (Builder/Developer)
 exports.createProject = async (req, res, next) => {
   try {
+    const user = req.user;
+    const userRole = (user.role || '').toLowerCase();
+
+    // 1. Developer Verification Guard: Developer must be verified & approved by Admin before uploading projects
+    if (userRole !== 'builder' || user.builderVerificationStatus !== 'approved') {
+      if (user.builderVerificationStatus === 'rejected') {
+        return res.status(403).json({
+          status: 'fail',
+          message: `Your Developer profile verification was rejected by admin: ${user.builderRejectionReason || 'Please review and re-upload your company documents.'}`,
+        });
+      }
+      return res.status(403).json({
+        status: 'fail',
+        message: 'Your Developer profile and company documents are currently under admin review. You can upload projects once admin verifies and approves your account.',
+      });
+    }
+
     const projectData = {
       ...req.body,
-      developer: req.user._id,
+      developer: user._id,
+      developerName: req.body.developerName || user.companyName || user.name,
       approvalStatus: 'pending',
       isLive: false,
     };
@@ -89,9 +109,28 @@ exports.createProject = async (req, res, next) => {
 
     const project = await Project.create(projectData);
 
+    // Notify all admins about the new project submission
+    try {
+      const Admin = require('../../models/admin.model');
+      const Notification = require('../../models/notification.model');
+      const admins = await Admin.find().select('_id');
+      if (admins.length > 0) {
+        const notificationsData = admins.map((admin) => ({
+          recipient: admin._id,
+          title: 'New Developer Project Pending Verification',
+          message: `Developer ${user.companyName || user.name} has submitted a new project "${project.projectName}" (${project.city}) for review.`,
+          type: 'verification',
+          isRead: false,
+        }));
+        await Notification.insertMany(notificationsData);
+      }
+    } catch (notifErr) {
+      console.error('Error creating admin notification for project creation:', notifErr);
+    }
+
     res.status(201).json({
       status: 'success',
-      message: 'Developer project submitted for admin verification.',
+      message: 'Developer project submitted successfully! Admin will verify and approve before it goes live.',
       data: {
         submissionId: project.submissionId,
         project,

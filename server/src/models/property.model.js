@@ -213,6 +213,22 @@ const propertySchema = new mongoose.Schema(
       default: false,
     },
 
+    // Property Documents (Title deed, tax receipt, electricity bill, khata, etc.)
+    propertyDocuments: {
+      titleDeed: { type: String, trim: true },
+      electricityBill: { type: String, trim: true },
+      taxReceipt: { type: String, trim: true },
+      khataExtract: { type: String, trim: true },
+      otherDoc: { type: String, trim: true },
+    },
+    documents: [
+      {
+        name: { type: String, trim: true },
+        url: { type: String, trim: true },
+        docType: { type: String, trim: true },
+      },
+    ],
+
     // Plan Selection
     listingTier: {
       type: String,

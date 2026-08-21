@@ -59,22 +59,23 @@ const BuilderManagement = () => {
     stage: 'Launch'
   });
 
-  const isMockMode = !localStorage.getItem('adminToken') || localStorage.getItem('adminToken') === 'mock_admin_token_2026';
+  const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+  const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
+  const API_URL = `${API_BASE}/api`;
+
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('adminToken');
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+  };
 
   const fetchBuilders = async () => {
     setIsLoadingBuilders(true);
     try {
-      const token = localStorage.getItem('adminToken');
-      if (isMockMode) {
-        loadMockBuilders();
-        setIsLoadingBuilders(false);
-        return;
-      }
-
-      const response = await fetch('http://localhost:5001/api/admin/users?role=Builder', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await fetch(`${API_URL}/admin/users?role=builder`, {
+        headers: getAuthHeaders()
       });
       const data = await response.json();
       if (response.ok && data.status === 'success') {
@@ -89,11 +90,22 @@ const BuilderManagement = () => {
             _id: u._id,
             name: u.companyName || u.name,
             rera: u.reraNumber || u.gstNumber || 'Pending Check',
-            exp: parseInt(u.yearsInBusiness) || 10,
-            delivered: parseInt(u.unitsDelivered) || 20,
-            trust: Math.round((u.rating || 4.5) * 20),
+            exp: parseInt(u.yearsInBusiness) || 5,
+            delivered: parseInt(u.unitsDelivered) || 10,
+            trust: u.builderVerificationStatus === 'approved' ? 95 : 60,
             status,
-            user: u.email
+            user: u.email || u.phone,
+            corporateAddress: `${u.cityOfOperation || 'India'}`,
+            cin: u.gstNumber || 'GST-REGISTERED',
+            executiveContact: `${u.name} • ${u.phone} • ${u.email}`,
+            gstin: u.gstNumber || 'N/A',
+            pan: u.builderDocs?.panCard ? 'PAN Uploaded' : 'N/A',
+            builderDocs: u.builderDocs || {},
+            bio: u.bio || '',
+            isIsoCertified: u.isIsoCertified || false,
+            internalRiskRating: u.builderVerificationStatus === 'approved' ? 'Tier-1 A+ (Verified)' : 'Under Audit',
+            accountManager: 'Executive Admin',
+            internalNotes: u.builderRejectionReason ? `Audit Note: ${u.builderRejectionReason}` : 'Company profile submitted for platform verification.'
           };
         });
         setBuilders(mapped);
@@ -111,17 +123,8 @@ const BuilderManagement = () => {
   const fetchProjects = async () => {
     setIsLoadingProjects(true);
     try {
-      const token = localStorage.getItem('adminToken');
-      if (isMockMode) {
-        loadMockProjects();
-        setIsLoadingProjects(false);
-        return;
-      }
-
-      const response = await fetch('http://localhost:5001/api/admin/projects', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await fetch(`${API_URL}/admin/projects`, {
+        headers: getAuthHeaders()
       });
       const data = await response.json();
       if (response.ok && data.status === 'success') {
@@ -131,15 +134,23 @@ const BuilderManagement = () => {
           else if (p.approvalStatus === 'rejected') status = 'Archived';
 
           return {
-            id: `PRJ-${p._id.slice(-4).toUpperCase()}`,
+            id: p.submissionId || `PRJ-${p._id.slice(-4).toUpperCase()}`,
             _id: p._id,
             title: p.projectName,
-            builder: p.developerName || p.developer?.companyName || 'Developer',
-            location: `${p.locality}, ${p.city}`,
-            score: 8.5,
+            builder: p.developerName || p.developer?.companyName || p.developer?.name || 'Developer',
+            location: `${p.locality ? p.locality + ', ' : ''}${p.city}`,
+            score: 9.0,
             status,
             units: `${p.totalUnits || 0} Units`,
-            stage: p.projectStatus
+            stage: p.projectStatus || 'Under construction',
+            projectPhotos: Array.isArray(p.projectPhotos) ? p.projectPhotos : [],
+            bhkConfigurations: Array.isArray(p.bhkConfigurations) ? p.bhkConfigurations : [],
+            masterPlanUrl: p.masterPlanUrl,
+            floorPlanUrl: p.floorPlanUrl,
+            brochureUrl: p.brochureUrl,
+            reraNumber: p.reraProjectNumber,
+            possessionDate: p.possessionDate,
+            description: p.shortDescription
           };
         });
         setProjects(mapped);
@@ -155,15 +166,6 @@ const BuilderManagement = () => {
   };
 
   const loadMockBuilders = () => {
-    const saved = localStorage.getItem('gharmb_builders');
-    if (saved) {
-      try {
-        setBuilders(JSON.parse(saved));
-        return;
-      } catch (err) {
-        console.error('Error parsing mock builders:', err);
-      }
-    }
     setBuilders([
       { 
         id: 'BLD-4011', 
@@ -183,82 +185,13 @@ const BuilderManagement = () => {
         internalRiskRating: 'Tier-1 A+ (Zero Default History)',
         accountManager: 'Executive Vikram Malhotra',
         internalNotes: 'All corporate audits, land clearances, and escrow compliance verified. Top performing developer partner.'
-      },
-      { 
-        id: 'BLD-9812', 
-        _id: 'mock_b2', 
-        name: 'Godrej Properties', 
-        rera: 'RERA-UP-2023-0104', 
-        exp: 12, 
-        delivered: 42, 
-        trust: 95, 
-        status: 'Approved', 
-        user: 'estate@godrej.com',
-        corporateAddress: 'Godrej One, 5th Floor, Pirojshanagar, Eastern Express Highway, Vikhroli East, Mumbai - 400079',
-        cin: 'L74120MH1990PLC049876',
-        executiveContact: 'Mr. Pirojsha Godrej • +91 98200 99881 • corporate@godrejproperties.com',
-        gstin: '27AAACG1234F1Z5',
-        pan: 'AAACG1234F',
-        internalRiskRating: 'Tier-1 A+ (High Liquidity)',
-        accountManager: 'Executive Sneha Verma',
-        internalNotes: 'Forest-theme projects validated. Digital customer onboarding integration complete.'
-      },
-      { 
-        id: 'BLD-0922', 
-        _id: 'mock_b3', 
-        name: 'Supertech Group', 
-        rera: 'RERA-HR-2019-0012', 
-        exp: 25, 
-        delivered: 78, 
-        trust: 45, 
-        status: 'Suspended', 
-        user: 'contact@supertech.in',
-        corporateAddress: 'Supertech Supernova, Sector 94, Noida, Uttar Pradesh - 201301',
-        cin: 'U70100DL1995PLC074122',
-        executiveContact: 'Mr. R.K. Arora • +91 98100 11223 • contact@supertech.in',
-        gstin: '09AAACS9876D1Z2',
-        pan: 'AAACS9876D',
-        internalRiskRating: 'High Risk (Litigation Pending)',
-        accountManager: 'Executive Vikram Malhotra',
-        internalNotes: 'CAUTION: RERA compliance default flagged in 2025. Escrow withdrawals locked pending legal review.'
-      },
-      { 
-        id: 'BLD-3319', 
-        _id: 'mock_b4', 
-        name: 'Tata Value Homes', 
-        rera: 'RERA-MH-2024-1182', 
-        exp: 18, 
-        delivered: 35, 
-        trust: 85, 
-        status: 'Pending', 
-        user: 'tatahousings@tata.com',
-        corporateAddress: 'Bombay House, 24 Homi Mody Street, Fort, Mumbai - 400001',
-        cin: 'U45200MH2009PLC195551',
-        executiveContact: 'Mr. Sanjay Dutt • +91 98330 44556 • sanjay.dutt@tatarealty.com',
-        gstin: '27AAACT4455K1Z1',
-        pan: 'AAACT4455K',
-        internalRiskRating: 'Tier-1 A (Institutional)',
-        accountManager: 'Executive Sneha Verma',
-        internalNotes: 'Onboarding application under final document scrutiny. Awaiting PAN verification seal.'
       }
     ]);
   };
 
   const loadMockProjects = () => {
-    const saved = localStorage.getItem('gharmb_projects');
-    if (saved) {
-      try {
-        setProjects(JSON.parse(saved));
-        return;
-      } catch (err) {
-        console.error('Error parsing mock projects:', err);
-      }
-    }
     setProjects([
-      { id: 'PRJ-1082', _id: 'mock_p1', title: 'Tata Primanti', builder: 'Tata Value Homes', location: 'Sector 72, Gurugram', score: 9.2, status: 'Published', units: '3/4 BHK Villas', stage: 'Launch' },
-      { id: 'PRJ-4902', _id: 'mock_p2', title: 'Godrej Woods Phase 2', builder: 'Godrej Properties', location: 'Sector 43, Noida', score: 8.8, status: 'Published', units: '2/3 BHK Apartments', stage: 'Construction' },
-      { id: 'PRJ-0021', _id: 'mock_p3', title: 'DLF Skycourt', builder: 'DLF Limited', location: 'Sector 86, Gurugram', score: 9.5, status: 'Published', units: '3 BHK Apartments', stage: 'Completed' },
-      { id: 'PRJ-8812', _id: 'mock_p4', title: 'Supertech Hues', builder: 'Supertech Group', location: 'Sector 68, Gurugram', score: 4.2, status: 'Archived', units: '2/3 BHK Apartments', stage: 'Planning' }
+      { id: 'PRJ-1082', _id: 'mock_p1', title: 'Tata Primanti', builder: 'Tata Value Homes', location: 'Sector 72, Gurugram', score: 9.2, status: 'Published', units: '3/4 BHK Villas', stage: 'Launch' }
     ]);
   };
 
@@ -267,50 +200,15 @@ const BuilderManagement = () => {
     fetchProjects();
   }, []);
 
-  useEffect(() => {
-    if (isMockMode) {
-      localStorage.setItem('gharmb_builders', JSON.stringify(builders));
-    }
-  }, [builders]);
-
-  useEffect(() => {
-    if (isMockMode) {
-      localStorage.setItem('gharmb_projects', JSON.stringify(projects));
-    }
-  }, [projects]);
-
   // Builder actions
   const updateBuilderStatus = async (builder, newStatus) => {
-    if (isMockMode) {
-      setBuilders(builders.map(b => {
-        if (b.id === builder.id) {
-          let trustModifier = b.trust;
-          if (newStatus === 'Suspended') trustModifier = Math.max(10, b.trust - 30);
-          if (newStatus === 'Approved' && b.status === 'Pending') trustModifier = 90;
-          const updated = { ...b, status: newStatus, trust: trustModifier };
-          if (selectedBuilder && selectedBuilder.id === builder.id) {
-            setSelectedBuilder(updated);
-          }
-          return updated;
-        }
-        return b;
-      }));
-      alert(`Builder status updated locally.`);
-      return;
-    }
-
     try {
-      const token = localStorage.getItem('adminToken');
-      let url = `http://localhost:5001/api/admin/users/${builder._id}/verify-developer`;
       let bodyStatus = newStatus === 'Approved' ? 'approved' : 'rejected';
       
-      const response = await fetch(url, {
+      const response = await fetch(`${API_URL}/admin/users/${builder._id}/verify-developer`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status: bodyStatus, rejectReason: 'Suspended by admin' })
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ builderVerificationStatus: bodyStatus, rejectReason: 'Status updated by admin' })
       });
       const data = await response.json();
       if (response.ok && data.status === 'success') {
@@ -327,26 +225,16 @@ const BuilderManagement = () => {
   };
 
   const deleteBuilder = async (builder) => {
-    if (isMockMode) {
-      setBuilders(builders.filter(b => b.id !== builder.id));
-      setSelectedBuilder(null);
-      alert('Builder deleted locally.');
-      return;
-    }
-
     try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:5001/api/admin/users/${builder._id}`, {
+      const response = await fetch(`${API_URL}/admin/users/${builder._id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: getAuthHeaders()
       });
       const data = await response.json();
       if (response.ok) {
         fetchBuilders();
         setSelectedBuilder(null);
-        alert('Builder deactivated/suspended successfully.');
+        alert('Builder deactivated successfully.');
       } else {
         alert(data.message || 'Failed to delete builder.');
       }
@@ -358,33 +246,14 @@ const BuilderManagement = () => {
 
   // Project actions
   const updateProjectStatus = async (project, newStatus) => {
-    if (isMockMode) {
-      setProjects(projects.map(p => {
-        if (p.id === project.id) {
-          const updated = { ...p, status: newStatus };
-          if (selectedProject && selectedProject.id === project.id) {
-            setSelectedProject(updated);
-          }
-          return updated;
-        }
-        return p;
-      }));
-      alert('Project status updated locally.');
-      return;
-    }
-
     try {
-      const token = localStorage.getItem('adminToken');
       let apiStatus = 'pending';
       if (newStatus === 'Published') apiStatus = 'approved';
       else if (newStatus === 'Archived') apiStatus = 'rejected';
 
-      const response = await fetch(`http://localhost:5001/api/admin/projects/${project._id}/status`, {
+      const response = await fetch(`${API_URL}/admin/projects/${project._id}/status`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ approvalStatus: apiStatus })
       });
       const data = await response.json();
@@ -402,20 +271,10 @@ const BuilderManagement = () => {
   };
 
   const deleteProject = async (project) => {
-    if (isMockMode) {
-      setProjects(projects.filter(p => p.id !== project.id));
-      setSelectedProject(null);
-      alert('Project deleted locally.');
-      return;
-    }
-
     try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:5001/api/admin/projects/${project._id}`, {
+      const response = await fetch(`${API_URL}/admin/projects/${project._id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: getAuthHeaders()
       });
       const data = await response.json();
       if (response.ok) {

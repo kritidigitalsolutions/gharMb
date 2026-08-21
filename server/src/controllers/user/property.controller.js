@@ -71,17 +71,19 @@ exports.getAllProperties = async (req, res, next) => {
 // @access  Public
 exports.getPropertyDetails = async (req, res, next) => {
   try {
-    const property = await Property.findByIdAndUpdate(
-      req.params.id,
-      { $inc: { viewsCount: 1 } },
-      { new: true }
-    ).populate('owner', 'name email phone profilePicture isVerified role address');
+    const property = await Property.findById(req.params.id)
+      .populate('owner', 'name email phone profilePicture isVerified role address');
 
     if (!property) {
       return res.status(404).json({
         status: 'fail',
         message: 'Property not found.',
       });
+    }
+
+    // Increment views only for approved live properties
+    if (property.approvalStatus === 'approved' && property.isLive) {
+      await Property.findByIdAndUpdate(req.params.id, { $inc: { viewsCount: 1 } });
     }
 
     res.status(200).json({
@@ -100,9 +102,46 @@ exports.getPropertyDetails = async (req, res, next) => {
 // @access  Private (Owner/Agent/Builder)
 exports.createProperty = async (req, res, next) => {
   try {
+    const user = req.user;
+    const userRole = (user.role || '').toLowerCase();
+    const listingAs = (req.body.listingAs || '').toLowerCase();
+
+    // 1. Agent Verification Guard: Agent must be verified & approved by Admin before uploading
+    if (userRole === 'agent' || listingAs.includes('agent') || listingAs.includes('broker')) {
+      if (user.agentVerificationStatus !== 'approved') {
+        if (user.agentVerificationStatus === 'rejected') {
+          return res.status(403).json({
+            status: 'fail',
+            message: `Your Agent profile verification was rejected by admin: ${user.agentRejectionReason || 'Please review and re-upload your verification documents.'}`,
+          });
+        }
+        return res.status(403).json({
+          status: 'fail',
+          message: 'Your Agent profile and RERA documents are currently under admin review. You can upload properties once admin verifies and approves your account.',
+        });
+      }
+    }
+
+    // 2. Developer / Builder Verification Guard: Developer must be verified & approved by Admin before uploading
+    if (userRole === 'builder' || listingAs.includes('developer') || listingAs.includes('builder')) {
+      if (user.builderVerificationStatus !== 'approved') {
+        if (user.builderVerificationStatus === 'rejected') {
+          return res.status(403).json({
+            status: 'fail',
+            message: `Your Developer profile verification was rejected by admin: ${user.builderRejectionReason || 'Please review and re-upload your company documents.'}`,
+          });
+        }
+        return res.status(403).json({
+          status: 'fail',
+          message: 'Your Developer profile and company documents are currently under admin review. You can upload properties once admin verifies and approves your account.',
+        });
+      }
+    }
+
+    // 3. Prepare property data (Owner can upload directly, but property itself will require Admin verification)
     const propertyData = {
       ...req.body,
-      owner: req.user._id,
+      owner: user._id,
       approvalStatus: 'pending',
       isLive: false,
     };
@@ -123,12 +162,12 @@ exports.createProperty = async (req, res, next) => {
       const Notification = require('../../models/notification.model');
       const admins = await Admin.find().select('_id');
       if (admins.length > 0) {
-        const notificationsData = admins.map(admin => ({
+        const notificationsData = admins.map((admin) => ({
           recipient: admin._id,
-          title: 'Property Verification Pending',
-          message: `A new property listing "${property.title}" has been submitted and requires verification.`,
+          title: 'New Property Verification Pending',
+          message: `A new property listing "${property.title}" (${property.category} - ${property.listingFor}) by ${user.name} requires verification.`,
           type: 'verification',
-          isRead: false
+          isRead: false,
         }));
         await Notification.insertMany(notificationsData);
       }
@@ -138,7 +177,7 @@ exports.createProperty = async (req, res, next) => {
 
     res.status(201).json({
       status: 'success',
-      message: 'Property listing submitted for admin verification.',
+      message: 'Property listing submitted successfully! Admin will verify and approve before it goes live.',
       data: {
         submissionId: property.submissionId,
         property,

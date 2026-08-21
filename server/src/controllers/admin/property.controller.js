@@ -19,12 +19,20 @@ exports.getAllProperties = async (req, res, next) => {
     if (owner) filter.owner = owner;
 
     if (search) {
-      filter.$text = { $search: search };
+      const searchRegex = new RegExp(search.trim(), 'i');
+      filter.$or = [
+        { title: searchRegex },
+        { city: searchRegex },
+        { locality: searchRegex },
+        { submissionId: searchRegex },
+        { propertyType: searchRegex },
+        { listingAs: searchRegex },
+      ];
     }
 
     const properties = await Property.find(filter)
       .sort({ createdAt: -1 })
-      .populate('owner', 'name email phone role isVerified');
+      .populate('owner', 'name email phone role isVerified companyName');
 
     res.status(200).json({
       status: 'success',
@@ -43,23 +51,24 @@ exports.getAllProperties = async (req, res, next) => {
 // @access  Private (Admin only)
 exports.updatePropertyStatus = async (req, res, next) => {
   try {
-    const { approvalStatus, rejectionReason } = req.body;
+    const rawStatus = req.body.approvalStatus || req.body.status;
+    const rejectionReason = req.body.rejectionReason || req.body.rejectReason;
 
-    if (!approvalStatus || !['approved', 'rejected', 'pending'].includes(approvalStatus)) {
+    if (!rawStatus || !['approved', 'rejected', 'pending'].includes(rawStatus)) {
       return res.status(400).json({
         status: 'fail',
-        message: 'Valid approvalStatus (approved, rejected, pending) is required.',
+        message: 'Valid approvalStatus or status (approved, rejected, pending) is required.',
       });
     }
 
     const updateData = {
-      approvalStatus,
-      isLive: approvalStatus === 'approved',
+      approvalStatus: rawStatus,
+      isLive: rawStatus === 'approved',
     };
 
-    if (approvalStatus === 'rejected' && rejectionReason) {
+    if (rawStatus === 'rejected' && rejectionReason) {
       updateData.rejectionReason = rejectionReason;
-    } else if (approvalStatus === 'approved') {
+    } else if (rawStatus === 'approved') {
       updateData.rejectionReason = undefined;
     }
 
@@ -75,9 +84,33 @@ exports.updatePropertyStatus = async (req, res, next) => {
       });
     }
 
+    // Send notification to the property owner / agent / developer
+    try {
+      const Notification = require('../../models/notification.model');
+      if (rawStatus === 'approved') {
+        await Notification.create({
+          recipient: property.owner._id,
+          title: 'Property Listing Approved & Live! 🏡',
+          message: `Your property listing "${property.title}" (${property.submissionId || ''}) has been verified and approved by admin. It is now live for all buyers/tenants.`,
+          type: 'verification',
+          isRead: false,
+        });
+      } else if (rawStatus === 'rejected') {
+        await Notification.create({
+          recipient: property.owner._id,
+          title: 'Property Listing Review Update',
+          message: `Your property listing "${property.title}" was not approved. Reason: ${rejectionReason || 'Please review property details/documents and re-submit.'}`,
+          type: 'verification',
+          isRead: false,
+        });
+      }
+    } catch (notifErr) {
+      console.error('Error creating user notification for property moderation:', notifErr);
+    }
+
     res.status(200).json({
       status: 'success',
-      message: `Property listing approval status updated to ${approvalStatus}.`,
+      message: `Property listing approval status updated to ${rawStatus}.`,
       data: {
         property,
       },
