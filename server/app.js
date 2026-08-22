@@ -10,6 +10,11 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
+const dotenv = require('dotenv');
+dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config();
+
+const connectDB = require('./src/config/db');
 const errorMiddleware = require('./src/middlewares/error.middleware');
 
 // Root Route Handlers (Admin vs App)
@@ -30,7 +35,7 @@ const appProjectRoutes = require('./src/routes/user/project.routes');
 const appUploadRoutes = require('./src/routes/user/upload.routes');
 const appEnquiryRoutes = require('./src/routes/user/enquiry.routes');
 const appFavoriteRoutes = require('./src/routes/user/favorite.routes');
-const appNotificationRoutes = require('./src/routes/user/notification.routes');
+// const appNotificationRoutes = require('./src/routes/user/notification.routes');
 const appLegalRoutes = require('./src/routes/user/legal.routes');
 const appPageRoutes = require('./src/routes/user/page.routes');
 const appNewsRoutes = require('./src/routes/user/news.routes');
@@ -42,12 +47,54 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// 2. CORS Policy Configuration
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+// 2. CORS Policy Configuration with Allow Origins
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5001',
+  'https://ghar-mb-226x.vercel.app',
+  ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()) : [])
+];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow non-browser requests (Postman, curl, server-to-server)
+    if (!origin) return callback(null, true);
+
+    // Allow localhost with any port
+    if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+
+    // Allow all vercel preview & production domains
+    if (/\.vercel\.app$/.test(origin)) {
+      return callback(null, true);
+    }
+
+    // Check specific allowed origins
+    if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      return callback(null, true);
+    }
+
+    // Fallback: allow request
+    return callback(null, true);
+  },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Access-Control-Request-Method',
+    'Access-Control-Request-Headers'
+  ],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 
 // 3. Logger Middleware
 app.use(morgan('dev'));
@@ -66,22 +113,49 @@ const serveUploads = (req, res, next) => {
 app.use('/uploads', serveUploads, express.static(path.join(__dirname, '../uploads')));
 app.use('/uploads', serveUploads, express.static(path.join(__dirname, 'uploads')));
 
+// 6. Database Connection Middleware (Awaits connection for serverless requests)
+app.use(async (req, res, next) => {
+  // Skip DB connection for static files and simple health checks
+  if (req.path === '/' || req.path === '/health' || req.path.startsWith('/uploads') || req.path === '/favicon.ico' || req.path === '/favicon.png') {
+    return next();
+  }
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error("Database connection failure:", err.message);
+    return res.status(500).json({
+      status: 'error',
+      success: false,
+      message: `Database Connection Failed: ${err.message}. Please verify MONGO_URI in Vercel environment variables and ensure MongoDB Atlas Network Access has IP 0.0.0.0/0 allowed.`
+    });
+  }
+});
 
-// this is for first time add new admin data
+// 7. Safe Admin Seeding (executed only when DB is connected)
 const bcrypt = require("bcryptjs");
 const Admin = require("./src/models/admin.model");
-const createAdmin = async () => {
-  const hashedPassword = await bcrypt.hash("admin123", 10);
-
-  await Admin.create({
-    name: "Super Admin",
-    email: "admin@gmail.com",
-    password: hashedPassword
-  });
-
-  console.log("Admin created");
+let isSeedingAdmin = false;
+const initAdmin = async () => {
+  if (isSeedingAdmin) return;
+  isSeedingAdmin = true;
+  try {
+    await connectDB();
+    const existingAdmin = await Admin.findOne({ email: "admin@gmail.com" });
+    if (!existingAdmin) {
+      const hashedPassword = await bcrypt.hash("admin123", 10);
+      await Admin.create({
+        name: "Super Admin",
+        email: "admin@gmail.com",
+        password: hashedPassword
+      });
+      console.log("Super Admin seeded successfully");
+    }
+  } catch (err) {
+    console.log("Admin initialization note:", err.message);
+  }
 };
-createAdmin().catch(err => console.log("Admin already exists or error:", err.message));
+initAdmin().catch(() => {});
 
 
 // 6. Global API Rate Limiter
