@@ -97,7 +97,19 @@ const apiLimiter = rateLimit({
 });
 app.use('/api', apiLimiter);
 
-// 7. Base Health Checks
+// 7. Base Health Checks & Root Route
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'GHARMB Platform API is running smoothly.',
+    health: '/health',
+    timestamp: new Date()
+  });
+});
+
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+app.get('/favicon.png', (req, res) => res.status(204).end());
+
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'success',
