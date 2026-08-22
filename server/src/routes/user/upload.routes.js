@@ -1,6 +1,7 @@
 /**
  * File Upload Routes
- * Exposes endpoints for uploading single and multiple files/photos with flexible field names.
+ * Exposes 2 clean, dedicated endpoints for uploading multiple images, photos,
+ * and PDF documents directly to a Property or Developer Project by ID.
  */
 
 const express = require('express');
@@ -9,52 +10,17 @@ const uploadController = require('../../controllers/user/upload.controller');
 
 const router = express.Router();
 
-/**
- * @swagger
- * tags:
- *   name: File Uploads
- *   description: Endpoints for uploading single or multiple files (images, documents)
- */
+// 1. Upload multiple images & documents for a Property by ID
+// POST /api/user/upload/property/:id (or PATCH)
+router.route('/property/:id')
+  .post(upload.any(), uploadController.uploadPropertyFiles)
+  .patch(upload.any(), uploadController.uploadPropertyFiles);
 
-/**
- * @swagger
- * /api/user/upload/single:
- *   post:
- *     summary: Upload a single file
- *     tags: [File Uploads]
- *     requestBody:
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               file:
- *                 type: string
- *                 format: binary
- *                 description: The file to upload (accepts any key name like "file", "photo", "document")
- *     responses:
- *       200:
- *         description: File uploaded successfully
- */
-// Single file upload handler helper
-const handleSingleUpload = (req, res, next) => {
-  if (req.files && req.files.length > 0) {
-    req.file = req.files[0];
-  }
-  uploadController.uploadSingleFile(req, res, next);
-};
-
-// Single file routes (generic, with ID param, and specific entity routes)
-router.post('/single', upload.any(), handleSingleUpload);
-router.post('/single/property/:propertyId', upload.any(), handleSingleUpload);
-router.post('/single/project/:projectId', upload.any(), handleSingleUpload);
-router.post('/single/:id', upload.any(), handleSingleUpload);
-
-// Multiple files routes (generic, with ID param, and specific entity routes)
-router.post('/multiple', upload.any(), uploadController.uploadMultipleFiles);
-router.post('/multiple/property/:propertyId', upload.any(), uploadController.uploadMultipleFiles);
-router.post('/multiple/project/:projectId', upload.any(), uploadController.uploadMultipleFiles);
-router.post('/multiple/:id', upload.any(), uploadController.uploadMultipleFiles);
+// 2. Upload multiple photos, plans & brochures for a Developer Project by ID
+// POST /api/user/upload/project/:id (or PATCH)
+router.route('/project/:id')
+  .post(upload.any(), uploadController.uploadProjectFiles)
+  .patch(upload.any(), uploadController.uploadProjectFiles);
 
 module.exports = router;
 

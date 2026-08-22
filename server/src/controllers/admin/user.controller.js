@@ -152,10 +152,10 @@ exports.verifyAgent = async (req, res, next) => {
     const rawStatus = req.body.agentVerificationStatus || req.body.status;
     const rejectionReason = req.body.agentRejectionReason || req.body.rejectionReason || req.body.rejectReason;
 
-    if (!rawStatus || !['approved', 'rejected', 'pending'].includes(rawStatus)) {
+    if (!rawStatus || !['approved', 'rejected', 'pending', 'unverified'].includes(rawStatus)) {
       return res.status(400).json({
         status: 'fail',
-        message: 'Valid agentVerificationStatus or status (approved, rejected, pending) is required.',
+        message: 'Valid agentVerificationStatus or status (approved, rejected, pending, unverified) is required.',
       });
     }
 
@@ -164,10 +164,11 @@ exports.verifyAgent = async (req, res, next) => {
       isVerified: rawStatus === 'approved',
     };
 
-    if (rawStatus === 'rejected' && rejectionReason) {
-      updateData.agentRejectionReason = rejectionReason;
-    } else if (rawStatus === 'approved') {
+    if (rawStatus === 'approved') {
+      updateData.role = 'agent';
       updateData.agentRejectionReason = undefined;
+    } else if (rawStatus === 'rejected' && rejectionReason) {
+      updateData.agentRejectionReason = rejectionReason;
     }
 
     const user = await User.findByIdAndUpdate(req.params.id, updateData, {
@@ -226,10 +227,10 @@ exports.verifyDeveloper = async (req, res, next) => {
     const rawStatus = req.body.builderVerificationStatus || req.body.status;
     const rejectionReason = req.body.builderRejectionReason || req.body.rejectionReason || req.body.rejectReason;
 
-    if (!rawStatus || !['approved', 'rejected', 'pending'].includes(rawStatus)) {
+    if (!rawStatus || !['approved', 'rejected', 'pending', 'unverified'].includes(rawStatus)) {
       return res.status(400).json({
         status: 'fail',
-        message: 'Valid builderVerificationStatus or status (approved, rejected, pending) is required.',
+        message: 'Valid builderVerificationStatus or status (approved, rejected, pending, unverified) is required.',
       });
     }
 
@@ -238,10 +239,11 @@ exports.verifyDeveloper = async (req, res, next) => {
       isVerified: rawStatus === 'approved',
     };
 
-    if (rawStatus === 'rejected' && rejectionReason) {
-      updateData.builderRejectionReason = rejectionReason;
-    } else if (rawStatus === 'approved') {
+    if (rawStatus === 'approved') {
+      updateData.role = 'builder';
       updateData.builderRejectionReason = undefined;
+    } else if (rawStatus === 'rejected' && rejectionReason) {
+      updateData.builderRejectionReason = rejectionReason;
     }
 
     const user = await User.findByIdAndUpdate(req.params.id, updateData, {
@@ -262,8 +264,8 @@ exports.verifyDeveloper = async (req, res, next) => {
       if (rawStatus === 'approved') {
         await Notification.create({
           recipient: user._id,
-          title: 'Developer Profile Verified & Approved! 🏢',
-          message: 'Congratulations! Your Developer company profile and RERA credentials have been verified and approved by admin. You can now launch projects and post property listings.',
+          title: 'Developer Profile Verified & Approved! 🎉',
+          message: 'Congratulations! Your Developer profile and company documents have been verified and approved by admin. You can now upload and manage builder projects.',
           type: 'verification',
           isRead: false,
         });
@@ -327,6 +329,8 @@ exports.updateUser = async (req, res, next) => {
       role,
       status,
       isVerified,
+      agentVerificationStatus,
+      builderVerificationStatus,
       companyName,
       gstNumber,
       reraNumber,
@@ -385,7 +389,41 @@ exports.updateUser = async (req, res, next) => {
       else if (role === 'Builder') updateData.role = 'builder';
       else updateData.role = role.toLowerCase();
     }
-    if (isVerified !== undefined) updateData.isVerified = isVerified;
+
+    if (agentVerificationStatus) {
+      updateData.agentVerificationStatus = agentVerificationStatus;
+      if (agentVerificationStatus === 'approved') {
+        updateData.isVerified = true;
+        updateData.role = 'agent';
+      }
+    }
+
+    if (builderVerificationStatus) {
+      updateData.builderVerificationStatus = builderVerificationStatus;
+      if (builderVerificationStatus === 'approved') {
+        updateData.isVerified = true;
+        updateData.role = 'builder';
+      }
+    }
+
+    if (isVerified !== undefined) {
+      updateData.isVerified = isVerified;
+      const targetRole = updateData.role || user.role;
+      if (isVerified) {
+        if (targetRole === 'agent') {
+          updateData.agentVerificationStatus = 'approved';
+        } else if (targetRole === 'builder') {
+          updateData.builderVerificationStatus = 'approved';
+        }
+      } else {
+        if (targetRole === 'agent' && updateData.agentVerificationStatus !== 'rejected') {
+          updateData.agentVerificationStatus = 'unverified';
+        } else if (targetRole === 'builder' && updateData.builderVerificationStatus !== 'rejected') {
+          updateData.builderVerificationStatus = 'unverified';
+        }
+      }
+    }
+
     if (status) updateData.status = status;
     if (companyName) updateData.companyName = companyName;
     if (gstNumber) updateData.gstNumber = gstNumber;

@@ -8,280 +8,29 @@ const userController = require('../../controllers/user/user.controller');
 const developerReviewController = require('../../controllers/user/developer-review.controller');
 const userAuth = require('../../middlewares/userAuth.middleware');
 const restrictTo = require('../../middlewares/role.middleware');
+const upload = require('../../middlewares/upload.middleware');
 
 const router = express.Router();
 
-/**
- * @swagger
- * tags:
- *   name: User Profile
- *   description: Endpoints for user profile details, updates, and Agent/Developer registration.
- */
-
-/**
- * @swagger
- * /api/users/developers:
- *   get:
- *     summary: Retrieve verified developers/builders
- *     tags: [User Profile]
- *     responses:
- *       200:
- *         description: Successfully retrieved list of verified developers
- */
 router.get('/developers', userController.getVerifiedDevelopers);
 
-/**
- * @swagger
- * /api/users/developers/{id}:
- *   get:
- *     summary: Retrieve detailed developer profile by ID
- *     tags: [User Profile]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Successfully retrieved developer profile
- *       404:
- *         description: Developer not found
- */
 router.get('/developers/:id', userController.getDeveloperProfile);
 
-/**
- * @swagger
- * /api/users/developers/{id}/reviews:
- *   get:
- *     summary: Retrieve developer reviews and ratings statistics
- *     tags: [User Profile]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Successfully retrieved reviews list
- */
 router.get('/developers/:id/reviews', developerReviewController.getDeveloperReviews);
 
 // All routes require login
 router.use(userAuth);
 
-/**
- * @swagger
- * /api/users/developers/{id}/reviews:
- *   post:
- *     summary: Submit a review/rating for a developer
- *     tags: [User Profile]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - rating
- *               - comment
- *             properties:
- *               rating:
- *                 type: number
- *                 minimum: 1
- *                 maximum: 5
- *                 example: 5
- *               comment:
- *                 type: string
- *                 example: "Excellent construction quality."
- *               tag:
- *                 type: string
- *                 example: "Bought a premium project"
- *     responses:
- *       201:
- *         description: Review submitted successfully
- */
 router.post('/developers/:id/reviews', restrictTo('buyer', 'tenant'), developerReviewController.createDeveloperReview);
 
 
-/**
- * @swagger
- * /api/users/me:
- *   get:
- *     summary: Retrieve current authenticated user profile details
- *     tags: [User Profile]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Current user profile data retrieved successfully
- *       401:
- *         description: Unauthorized
- */
 router.get('/me', userController.getMe);
 
-/**
- * @swagger
- * /api/users/update-me:
- *   patch:
- *     summary: Update current user profile basic info
- *     tags: [User Profile]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *                 example: Rajesh Kumar
- *               email:
- *                 type: string
- *                 example: rajesh@example.com
- *               address:
- *                 type: string
- *                 example: "Sector 62, Noida"
- *     responses:
- *       200:
- *         description: Profile updated successfully
- *       401:
- *         description: Unauthorized
- */
-router.patch('/update-me', userController.updateMe);
+router.patch('/update-me', upload.any(), userController.updateMe);
 
-/**
- * @swagger
- * /api/users/register-agent:
- *   post:
- *     summary: Register the current user as a verified Agent (requires RERA)
- *     tags: [User Profile]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - reraNumber
- *               - experienceYears
- *             properties:
- *               reraNumber:
- *                 type: string
- *                 description: Real Estate Regulatory Authority registration number
- *                 example: "UPRERAPRJ123456"
- *               experienceYears:
- *                 type: number
- *                 example: 5
- *               specialties:
- *                 type: array
- *                 items:
- *                   type: string
- *                 example: ["residential", "commercial"]
- *     responses:
- *       200:
- *         description: Agent registration request submitted successfully
- *       400:
- *         description: Missing fields or already registered as an agent
- *       401:
- *         description: Unauthorized
- */
-router.post('/register-agent', userController.registerAgent);
+router.post('/register-agent', upload.any(), userController.registerAgent);
 
-/**
- * @swagger
- * /api/users/register-developer:
- *   post:
- *     summary: Register or save onboarding draft as a Developer/Builder (Supports 3-step progressive flow)
- *     tags: [User Profile]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *                 description: Optional user display name update
- *                 example: "Vikram Singh"
- *               phone:
- *                 type: string
- *                 description: Optional phone/mobile update
- *                 example: "+919876543210"
- *               companyName:
- *                 type: string
- *                 description: Step 1 - Company / firm name (Required if submitForVerification is true)
- *                 example: "Kriti Digital Solutions"
- *               reraNumber:
- *                 type: string
- *                 description: Step 1 - RERA registration number (Required if submitForVerification is true)
- *                 example: "UPRERAPRM123456"
- *               gstNumber:
- *                 type: string
- *                 description: Step 1 - GST registration number (optional)
- *                 example: "09AAAAA1111A1Z1"
- *               yearsInBusiness:
- *                 type: string
- *                 description: Step 1 - Years in business
- *                 enum: ["< 2 yrs", "2-5 yrs", "5-10 yrs", "10+ yrs"]
- *                 example: "2-5 yrs"
- *               cityOfOperation:
- *                 type: string
- *                 description: Step 1 - Base operating city (Required if submitForVerification is true)
- *                 example: "Noida"
- *               reraCertificate:
- *                 type: string
- *                 description: Step 2 - Uploaded RERA certificate file path/URL (Required if submitForVerification is true)
- *                 example: "uploads/rera_cert_12345.pdf"
- *               panCard:
- *                 type: string
- *                 description: Step 2 - Uploaded PAN card file path/URL (Required if submitForVerification is true)
- *                 example: "uploads/pan_card_12345.jpg"
- *               companyLogo:
- *                 type: string
- *                 description: Step 2 - Uploaded company logo file path/URL (optional)
- *                 example: "uploads/logo_12345.png"
- *               bio:
- *                 type: string
- *                 description: Step 3 - Company bio/profile summary (optional)
- *                 example: "Leading construction group since 2018."
- *               unitsDelivered:
- *                 type: string
- *                 description: Step 3 - Total projects/units delivered (optional)
- *                 example: "12"
- *               isIsoCertified:
- *                 type: boolean
- *                 description: Step 3 - ISO certification status (optional)
- *                 example: true
- *               submitForVerification:
- *                 type: boolean
- *                 description: Flag to submit registration for admin verification. Enforces mandatory fields when true.
- *                 example: false
- *     responses:
- *       200:
- *         description: Developer profile updated (saved draft or submitted for verification successfully)
- *       400:
- *         description: Validation failed (duplicate RERA/phone, or missing mandatory fields on final submission)
- *       401:
- *         description: Unauthorized
- */
-router.post('/register-developer', userController.registerDeveloper);
+router.post('/register-developer', upload.any(), userController.registerDeveloper);
 
 module.exports = router;
 

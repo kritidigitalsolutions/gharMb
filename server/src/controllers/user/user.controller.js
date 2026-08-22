@@ -22,6 +22,13 @@ const normalizePhone = (phone) => {
   return cleaned;
 };
 
+/// Helper to construct full public URL for uploaded files
+const getFileUrl = (req, filename) => {
+  const protocol = req.protocol;
+  const host = req.get('host');
+  return `${protocol}://${host}/uploads/${filename}`;
+};
+
 // Sign JWT helper function
 const signToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET || 'gharmb_secret_key_2026', {
@@ -50,7 +57,20 @@ exports.getMe = async (req, res, next) => {
 // @access  Private
 exports.updateMe = async (req, res, next) => {
   try {
-    const { name, phone, profilePicture, address, latitude, longitude } = req.body;
+    const { name, phone, address, latitude, longitude } = req.body;
+
+    let profilePicture = req.body.profilePicture;
+
+    // Handle file upload via form-data
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const fileUrl = getFileUrl(req, file.filename);
+        const fieldname = (file.fieldname || '').toLowerCase();
+        if (fieldname.includes('profile') || fieldname.includes('photo') || fieldname.includes('avatar') || fieldname === 'image') {
+          profilePicture = fileUrl;
+        }
+      }
+    }
 
     const updateData = {};
     if (name) updateData.name = name;
@@ -110,10 +130,26 @@ exports.registerAgent = async (req, res, next) => {
       reraNumber,
       experience,
       cityOfOperation,
-      reraCertificate,
-      aadhaarCard,
-      profilePhoto,
     } = req.body;
+
+    let reraCertificate = req.body.reraCertificate || '';
+    let aadhaarCard = req.body.aadhaarCard || '';
+    let profilePhoto = req.body.profilePhoto || '';
+
+    // Handle files uploaded via FormData (multipart/form-data)
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const fileUrl = getFileUrl(req, file.filename);
+        const fieldname = (file.fieldname || '').toLowerCase();
+        if (fieldname.includes('rera') || fieldname === 'reracertificate') {
+          reraCertificate = fileUrl;
+        } else if (fieldname.includes('aadhaar') || fieldname.includes('aadhar') || fieldname === 'aadhaarcard') {
+          aadhaarCard = fileUrl;
+        } else if (fieldname.includes('profile') || fieldname.includes('photo') || fieldname === 'profilephoto') {
+          profilePhoto = fileUrl;
+        }
+      }
+    }
 
     if (!reraNumber || !cityOfOperation) {
       return res.status(400).json({
@@ -134,18 +170,25 @@ exports.registerAgent = async (req, res, next) => {
       });
     }
 
+    const currentUser = await User.findById(req.user._id);
+    const existingDocs = currentUser?.verificationDocs || {};
+
     const updateData = {
       role: 'agent',
       reraNumber,
-      experience: experience || '1-3 yrs',
+      experience: experience || currentUser?.experience || '1-3 yrs',
       cityOfOperation,
       verificationDocs: {
-        reraCertificate: reraCertificate || '',
-        aadhaarCard: aadhaarCard || '',
-        profilePhoto: profilePhoto || '',
+        reraCertificate: reraCertificate || existingDocs.reraCertificate || '',
+        aadhaarCard: aadhaarCard || existingDocs.aadhaarCard || '',
+        profilePhoto: profilePhoto || existingDocs.profilePhoto || '',
       },
       agentVerificationStatus: 'pending',
     };
+
+    if (profilePhoto) {
+      updateData.profilePicture = profilePhoto;
+    }
 
     if (name) updateData.name = name;
 
@@ -153,17 +196,19 @@ exports.registerAgent = async (req, res, next) => {
     const phoneInput = phone || mobileNumber;
     if (phoneInput) {
       const normalizedPhone = normalizePhone(phoneInput);
-      const existingPhoneUser = await User.findOne({
-        phone: normalizedPhone,
-        _id: { $ne: req.user._id },
-      });
-      if (existingPhoneUser) {
-        return res.status(400).json({
-          status: 'fail',
-          message: 'This mobile number is already registered with another account.',
+      if (normalizedPhone !== currentUser.phone) {
+        const existingPhoneUser = await User.findOne({
+          phone: normalizedPhone,
+          _id: { $ne: req.user._id },
         });
+        if (existingPhoneUser) {
+          return res.status(400).json({
+            status: 'fail',
+            message: 'This mobile number is already registered with another account.',
+          });
+        }
+        updateData.phone = normalizedPhone;
       }
-      updateData.phone = normalizedPhone;
     }
 
     const user = await User.findByIdAndUpdate(req.user._id, updateData, {
@@ -217,7 +262,7 @@ exports.registerAgent = async (req, res, next) => {
 };
 
 // @desc    Register as Developer / Builder (Company Name, Full Name, Phone, RERA, PAN & Logo Submission)
-// @route   POST /api/users/register-developer
+// @route   POST /api/user/users/register-developer
 // @access  Private
 exports.registerDeveloper = async (req, res, next) => {
   try {
@@ -230,14 +275,32 @@ exports.registerDeveloper = async (req, res, next) => {
       gstNumber,
       yearsInBusiness,
       cityOfOperation,
-      reraCertificate,
-      panCard,
-      companyLogo,
       bio,
       unitsDelivered,
-      isIsoCertified,
-      submitForVerification,
     } = req.body;
+
+    let reraCertificate = req.body.reraCertificate;
+    let panCard = req.body.panCard;
+    let companyLogo = req.body.companyLogo;
+
+    // Parse boolean fields from multipart/form-data or JSON
+    const isIsoCertified = req.body.isIsoCertified === true || req.body.isIsoCertified === 'true';
+    const submitForVerification = req.body.submitForVerification === true || req.body.submitForVerification === 'true';
+
+    // Handle files uploaded via FormData (multipart/form-data)
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const fileUrl = getFileUrl(req, file.filename);
+        const fieldname = (file.fieldname || '').toLowerCase();
+        if (fieldname.includes('rera')) {
+          reraCertificate = fileUrl;
+        } else if (fieldname.includes('logo') || fieldname.includes('avatar') || fieldname.includes('photo')) {
+          companyLogo = fileUrl;
+        } else if (fieldname.includes('pan')) {
+          panCard = fileUrl;
+        }
+      }
+    }
 
     const currentUser = await User.findById(req.user._id);
     if (!currentUser) {
@@ -304,18 +367,22 @@ exports.registerDeveloper = async (req, res, next) => {
       companyLogo: companyLogo !== undefined ? companyLogo : (existingDocs.companyLogo || ''),
     };
 
+    if (companyLogo) {
+      updateData.profilePicture = companyLogo;
+    }
+
     // Update Step 3 details (business profile)
     if (bio !== undefined) updateData.bio = bio;
     if (unitsDelivered !== undefined) updateData.unitsDelivered = unitsDelivered;
-    if (isIsoCertified !== undefined) updateData.isIsoCertified = isIsoCertified;
+    updateData.isIsoCertified = isIsoCertified;
 
     // If submitForVerification is true, run complete validation
     if (submitForVerification) {
       const finalCompanyName = companyName !== undefined ? companyName : currentUser.companyName;
       const finalReraNumber = reraNumber !== undefined ? reraNumber : currentUser.reraNumber;
       const finalCityOfOperation = cityOfOperation !== undefined ? cityOfOperation : currentUser.cityOfOperation;
-      const finalReraCert = reraCertificate !== undefined ? reraCertificate : existingDocs.reraCertificate;
-      const finalPanCard = panCard !== undefined ? panCard : existingDocs.panCard;
+      const finalReraCert = updateData.builderDocs.reraCertificate || existingDocs.reraCertificate;
+      const finalPanCard = updateData.builderDocs.panCard || existingDocs.panCard;
 
       if (!finalCompanyName || !finalReraNumber || !finalCityOfOperation) {
         return res.status(400).json({

@@ -216,7 +216,7 @@ app.use('/api/properties', appPropertyRoutes);
 
 app.use('/api/projects', appProjectRoutes);
 
-app.use('/api/user/upload', appUploadRoutes);
+app.use('/api/upload', appUploadRoutes);
 
 app.use('/api/users/enquiries', appEnquiryRoutes);
 

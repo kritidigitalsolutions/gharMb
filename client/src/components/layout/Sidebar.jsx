@@ -79,7 +79,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, collapsed
     <aside
       className={`fixed top-0 left-0 z-40 h-screen bg-[var(--bg-surface)] border-r border-[var(--border)] transition-[width,transform] duration-200 ease-in-out ${
         isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-      } ${collapsedState ? 'w-64 md:w-20' : 'w-64'}`}
+      } ${collapsedState ? 'w-64 md:w-16' : 'w-64'}`}
     >
       {/* Border toggle button */}
       <button
