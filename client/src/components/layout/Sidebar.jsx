@@ -60,11 +60,11 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, collapsed
 
   const navItems = [
     { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
-    { name: 'Verification', path: '/admin/verification', icon: CheckSquare, badge: '5' },
+    { name: 'Verification', path: '/admin/verification', icon: CheckSquare },
     { name: 'User Directory', path: '/admin/users', icon: Users },
     { name: 'Builders & RERA', path: '/admin/builders', icon: Building2 },
-    { name: 'Leads & Enquiries', path: '/admin/leads', icon: Inbox, badge: 'New', badgeColor: 'bg-brand text-white' },
-    { name: 'Services Hub', path: '/admin/services', icon: Briefcase, badge: '4' },
+    { name: 'Leads & Enquiries', path: '/admin/leads', icon: Inbox, badgeColor: 'bg-brand text-white' },
+    { name: 'Services Hub', path: '/admin/services', icon: Briefcase },
     { name: 'Token Bookings', path: '/admin/tokens', icon: Lock },
     { name: 'Referral Network', path: '/admin/references', icon: Gift },
     { name: 'Revenue', path: '/admin/revenue', icon: IndianRupee },

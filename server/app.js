@@ -38,7 +38,9 @@ const appNewsRoutes = require('./src/routes/user/news.routes');
 const app = express();
 
 // 1. Security Middlewares
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // 2. CORS Policy Configuration
 app.use(cors({
@@ -54,9 +56,15 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
-// 5. Serve Static Assets (Uploaded images & files locally)
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// 5. Serve Static Assets (Uploaded images & files locally) with Cross-Origin headers
+const serveUploads = (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  next();
+};
+
+app.use('/uploads', serveUploads, express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', serveUploads, express.static(path.join(__dirname, 'uploads')));
 
 
 // this is for first time add new admin data

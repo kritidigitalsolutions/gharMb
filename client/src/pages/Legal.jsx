@@ -13,6 +13,8 @@ import {
   Redo
 } from 'lucide-react';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+
 const LegalSettings = () => {
   const [activeTab, setActiveTab] = useState('terms');
   const [isSaving, setIsSaving] = useState(false);
@@ -234,10 +236,10 @@ const LegalSettings = () => {
 
       // Fetch both terms and privacy policies in parallel
       const [responseTerms, responsePrivacy] = await Promise.all([
-        fetch('http://localhost:5001/api/admin/legal/terms', {
+        fetch(`${API_URL}/admin/legal/terms`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('http://localhost:5001/api/admin/legal/privacy-policy', {
+        fetch(`${API_URL}/admin/legal/privacy-policy`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -337,7 +339,7 @@ const LegalSettings = () => {
         return;
       }
 
-      const response = await fetch(`http://localhost:5001/api/admin/legal/${apiType}`, {
+      const response = await fetch(`${API_URL}/admin/legal/${apiType}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
