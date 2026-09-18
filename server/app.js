@@ -53,6 +53,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5001',
   'https://ghar-mb-226x.vercel.app',
+  'https://frontend-ghar-mb.vercel.app',
   ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()) : [])
 ];
 
@@ -77,7 +78,7 @@ const corsOptions = {
     }
 
     // Fallback: allow request
-    return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

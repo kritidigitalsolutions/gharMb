@@ -96,8 +96,8 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, collapsed
           collapsedState ? 'md:justify-center md:px-2' : ''
         }`}>
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-brand text-white font-black text-sm shrink-0 shadow-md shadow-brand/20 hover:scale-105 transition-transform duration-300 cursor-pointer">
-              G
+            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white border border-slate-200/50 p-1 shrink-0 shadow-md shadow-brand/10 hover:scale-105 transition-transform duration-300 cursor-pointer overflow-hidden">
+              <img src="/favicon.png" alt="GHARMB Logo" className="w-full h-full object-contain" />
             </div>
             <span className={`font-extrabold text-sm text-[var(--text-primary)] tracking-tight flex items-center gap-1 ${
               collapsedState ? 'md:hidden' : ''

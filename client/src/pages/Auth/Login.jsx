@@ -72,8 +72,8 @@ const Login = () => {
 
         {/* Logo & Header */}
         <div className="flex flex-col items-center mb-10 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-orange-500 text-white flex items-center justify-center mb-4 shadow-lg shadow-orange-500/20">
-            <Home size={32} strokeWidth={2.5} />
+          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-white border border-slate-100 p-3 flex items-center justify-center mb-5 shadow-xl shadow-slate-200">
+            <img src="/favicon.png" alt="GHARMB Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">GHAR<span className="text-brand">MB</span> Admin</h1>
           <p className="text-sm font-medium text-slate-500 mt-2">Enter your credentials to access the dashboard</p>

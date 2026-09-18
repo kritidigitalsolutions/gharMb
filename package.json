@@ -1,0 +1,13 @@
+{
+  "name": "gharmb-root",
+  "version": "1.0.0",
+  "description": "GHARMB Real Estate Infrastructure Platform",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "start:server": "npm start --prefix server",
+    "build:client": "npm run build --prefix client"
+  }
+}

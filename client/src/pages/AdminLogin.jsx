@@ -67,8 +67,8 @@ const AdminLogin = ({ onLoginSuccess }) => {
       <div className="w-full max-w-md relative z-10">
         {/* Logo & Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand/10 border border-brand/20 text-brand mb-4 shadow-xl shadow-brand/10">
-            <Building2 size={28} />
+          <div className="inline-flex items-center justify-center w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-white/10 border border-white/20 p-3 mb-5 shadow-2xl shadow-brand/20 overflow-hidden">
+            <img src="/favicon.png" alt="GHARMB Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-2xl font-black text-white tracking-tight sm:text-3xl">
             GHARMB <span className="text-brand text-xs px-2 py-0.5 bg-brand/10 border border-brand/20 rounded-md font-bold align-middle">SaaS Admin</span>
