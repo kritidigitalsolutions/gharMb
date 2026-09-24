@@ -1,0 +1,192 @@
+export const properties = [
+  {
+    id: 1,
+    title: "Skyline Heights",
+    location: "Sector 62, Noida",
+    type: "Apartment",
+    bedrooms: 3,
+    bathrooms: 2,
+    area: 1480,
+    price: 8500000,
+    priceLabel: "₹85 Lakh",
+    status: "verified",
+    image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&h=400&fit=crop",
+    badge: "Verified",
+    furnishing: "Semi-furnished",
+    listingType: "buy",
+  },
+  {
+    id: 2,
+    title: "Emerald Towers",
+    location: "Indirapuram, Ghaziabad",
+    type: "Apartment",
+    bedrooms: 2,
+    bathrooms: 2,
+    area: 1150,
+    price: 5800000,
+    priceLabel: "₹58 Lakh",
+    status: "verified",
+    image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&h=400&fit=crop",
+    badge: "Verified",
+    furnishing: "Unfurnished",
+    listingType: "buy",
+  },
+  {
+    id: 3,
+    title: "Royal Residency",
+    location: "Raj Nagar Extension, Ghaziabad",
+    type: "Villa",
+    bedrooms: 4,
+    bathrooms: 3,
+    area: 2200,
+    price: 14500000,
+    priceLabel: "₹1.45 Cr",
+    status: "premium",
+    image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=400&fit=crop",
+    badge: "Premium",
+    furnishing: "Fully-furnished",
+    listingType: "buy",
+  },
+  {
+    id: 4,
+    title: "Green Valley Apartments",
+    location: "Crossing Republik, Ghaziabad",
+    type: "Apartment",
+    bedrooms: 3,
+    bathrooms: 2,
+    area: 1350,
+    price: 6200000,
+    priceLabel: "₹62 Lakh",
+    status: "verified",
+    image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600&h=400&fit=crop",
+    badge: "Verified",
+    furnishing: "Unfurnished",
+    listingType: "buy",
+  },
+];
+
+export const developers = [
+  {
+    id: 1,
+    name: "Mahagun Group",
+    projectName: "Mahagun Moderne",
+    location: "Sector 78, Noida",
+    projectType: "Residential",
+    priceRange: "₹65 Lakh – ₹1.2 Cr",
+    status: "Under Construction",
+    image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&h=400&fit=crop",
+    logo: null,
+    units: 420,
+  },
+  {
+    id: 2,
+    name: "ATS Infrastructure",
+    projectName: "ATS Pristine",
+    location: "Sector 150, Noida",
+    projectType: "Residential",
+    priceRange: "₹90 Lakh – ₹1.8 Cr",
+    status: "Ready to Move",
+    image: "https://images.unsplash.com/photo-1515263487990-61b07816b324?w=600&h=400&fit=crop",
+    logo: null,
+    units: 300,
+  },
+  {
+    id: 3,
+    name: "Godrej Properties",
+    projectName: "Godrej Palm Retreat",
+    location: "Sector 150, Noida",
+    projectType: "Residential",
+    priceRange: "₹1.1 Cr – ₹2.5 Cr",
+    status: "New Launch",
+    image: "https://images.unsplash.com/photo-1574362848149-11496d93a7c7?w=600&h=400&fit=crop",
+    logo: null,
+    units: 550,
+  },
+];
+
+export const commercialCategories = [
+  { name: "Office Space", icon: "Building2" },
+  { name: "Retail Shop", icon: "Store" },
+  { name: "Showroom", icon: "Presentation" },
+  { name: "Warehouse", icon: "Warehouse" },
+  { name: "Co-working", icon: "Users" },
+  { name: "Industrial", icon: "Factory" },
+];
+
+export const tools = [
+  {
+    id: 1,
+    name: "Loan Calculator",
+    description: "Estimate your monthly EMI, total interest and loan eligibility for any property.",
+    icon: "Calculator",
+  },
+  {
+    id: 2,
+    name: "Unit Converter",
+    description: "Convert between sq ft, sq m, sq yards, acres, hectares and more instantly.",
+    icon: "ArrowLeftRight",
+  },
+  {
+    id: 3,
+    name: "Market Insights",
+    description: "Understand property price trends, locality ratings and investment potential.",
+    icon: "TrendingUp",
+  },
+  {
+    id: 4,
+    name: "Property Dashboard",
+    description: "Track your listings, enquiries, token requests and property analytics.",
+    icon: "LayoutDashboard",
+  },
+];
+
+export const testimonials = [
+  {
+    id: 1,
+    name: "Rajesh Sharma",
+    role: "Home Buyer",
+    text: "GharMB made finding our dream home incredibly simple. The verified listings gave us confidence, and the token booking process was seamless.",
+    location: "Noida",
+  },
+  {
+    id: 2,
+    name: "Priya Gupta",
+    role: "Property Owner",
+    text: "Listing my property was effortless. The admin verification process ensures only genuine buyers reach out. Highly recommended for property owners.",
+    location: "Ghaziabad",
+  },
+  {
+    id: 3,
+    name: "Amit Verma",
+    role: "Real Estate Developer",
+    text: "As a developer, GharMB provides the visibility our projects need. The platform is professionally managed and connects us with serious buyers.",
+    location: "Greater Noida",
+  },
+];
+
+export const faqItems = [
+  {
+    question: "How does GharMB verify properties?",
+    answer: "Every property listed on GharMB goes through a multi-step verification process. Our admin team reviews property documents, photos, location details and ownership information before a listing goes live. This ensures that buyers and renters only see genuine, verified properties.",
+  },
+  {
+    question: "Can I list my property on GharMB?",
+    answer: "Yes. Whether you are an owner, agent or developer, you can list your property on GharMB. Simply create an account, choose your listing type and follow the guided listing process. Our team will verify your listing within 24–48 hours.",
+  },
+  {
+    question: "Can developers list their projects?",
+    answer: "Absolutely. Developers and builders can showcase their projects on GharMB with project details, floor plans, pricing, RERA information and more. This helps them reach a wider audience of genuine home buyers.",
+  },
+  {
+    question: "Can I find commercial properties?",
+    answer: "Yes. GharMB supports commercial property discovery including office spaces, retail shops, showrooms, warehouses and co-working spaces. You can filter and search specifically for commercial properties.",
+  },
+  {
+    question: "What tools does GharMB provide?",
+    answer: "GharMB offers a loan EMI calculator, unit converter, market insights, property dashboard and more. These tools help you make smarter property decisions — from understanding your loan eligibility to comparing area measurements.",
+  },
+  {
+    question: "How can I contact GharMB?",
+    answer: "You can reach us through the Contact page, email us at support@gharmb.com, or connect via WhatsApp. Our support team typically responds within a few hours during business days.",
+  },
+];

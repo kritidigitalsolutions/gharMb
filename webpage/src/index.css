@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #FF5A3C;
+  --color-brand-light: #FFF0ED;
+  --color-brand-dark: #E04F34;
+  --color-brand-accent: #FF7A63;
+
+  --color-warm-bg: #FFFCFB;
+  --color-section-bg: #F8F8F7;
+  --color-surface: #FFFFFF;
+  --color-dark: #17202A;
+  --color-dark-surface: #1C2433;
+
+  --color-text-primary: #17202A;
+  --color-text-secondary: #667085;
+  --color-text-muted: #98A2B3;
+
+  --color-border: #E7E7E5;
+  --color-border-soft: #F0F0EE;
+
+  --color-success: #16A36A;
+  --color-warning: #F59E0B;
+  --color-error: #E5484D;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+
+  --animate-marquee: marquee 30s linear infinite;
+
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+}
+
+/* ── Base ────────────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+  background-color: #FFFFFF;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Selection ───────────────────────────────────────────────── */
+::selection {
+  background-color: #FFF0ED;
+  color: #17202A;
+}
+
+/* ── Focus visible ───────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid #FF5A3C;
+  outline-offset: 2px;
+}
+
+/* ── Marquee ─────────────────────────────────────────────────── */
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 30s linear infinite;
+}
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+/* ── Ecosystem ───────────────────────────────────────────────── */
+.ecosystem-line {
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  transition: stroke-dashoffset 0.8s ease-out;
+}
+.ecosystem-line.active {
+  stroke-dashoffset: 0;
+}
+
+/* ── Reduced motion ──────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html { scroll-behavior: auto; }
+  .marquee-track { animation: none; }
+}
