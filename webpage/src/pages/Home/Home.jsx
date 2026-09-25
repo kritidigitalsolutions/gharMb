@@ -4545,7 +4545,7 @@ function InsightImage({ src, alt, className = "", aspectClass = "" }) {
         <div className="w-10 h-10 rounded-full bg-[#FFF0ED] text-[#FF5A3C] flex items-center justify-center mb-2.5 shadow-xs">
           <BookOpen size={18} />
         </div>
-        <span className="text-[12px] font-semibold text-[#17202A] tracking-tight">GharMB Editorial</span>
+        <span className="text-[12px] font-semibold text-[#17202A] tracking-tight">GharMB</span>
         <span className="text-[11px] text-[#667085] mt-0.5">Image preview unavailable</span>
       </div>
     );
@@ -4565,7 +4565,7 @@ function InsightImage({ src, alt, className = "", aspectClass = "" }) {
 
 function Insights() {
   const [activeCategory, setActiveCategory] = useState("All");
-  const [categories, setCategories] = useState(["All"]);
+  const [categories, setCategories] = useState([{ name: "All", slug: "" }]);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [articles, setArticles] = useState([]);
@@ -4586,7 +4586,7 @@ function Insights() {
     async function loadCats() {
       const apiCats = await fetchActiveCategories();
       if (apiCats && apiCats.length > 0) {
-        setCategories(["All", ...apiCats.map(c => c.name)]);
+        setCategories([{ name: "All", slug: "" }, ...apiCats]);
       }
     }
     loadCats();
@@ -4605,7 +4605,8 @@ function Insights() {
     let isMounted = true;
     async function loadArticles() {
       setIsLoading(true);
-      const catParam = activeCategory !== "All" ? activeCategory : "";
+      const activeCatObj = categories.find(c => c.name === activeCategory);
+      const catParam = activeCatObj && activeCatObj.slug ? activeCatObj.slug : "";
       const res = await fetchPublishedBlogs({ limit: 12, category: catParam, search: debouncedSearch });
       if (isMounted) {
         setArticles(res.blogs || []);
@@ -4633,7 +4634,7 @@ function Insights() {
   };
 
   const getImageSrc = (art) => {
-    return art?.bannerImage || art?.coverImage || 'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=1000&h=600&fit=crop';
+    return art?.bannerImage || art?.coverImage || art?.image || 'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=1000&h=600&fit=crop';
   };
 
   return (
@@ -4674,19 +4675,19 @@ function Insights() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10 lg:mb-12 pb-5 border-b border-[#E7E7E5]">
           {/* Horizontal Category Navigation */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-none no-scrollbar -mx-5 px-5 md:mx-0 md:px-0">
-            {categories.map((cat) => {
-              const isActive = activeCategory === cat;
+            {categories.map((cat, idx) => {
+              const isActive = activeCategory === cat.name;
               return (
                 <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
+                  key={idx}
+                  onClick={() => setActiveCategory(cat.name)}
                   className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium transition-all duration-200 whitespace-nowrap shrink-0 cursor-pointer ${
                     isActive
                       ? "bg-[#FFF0ED] text-[#FF5A3C] border border-[#FF5A3C]/30 shadow-xs font-semibold"
                       : "bg-white text-[#667085] border border-[#E7E7E5] hover:text-[#17202A] hover:border-[#17202A]/20"
                   }`}
                 >
-                  {cat}
+                  {cat.name}
                 </button>
               );
             })}

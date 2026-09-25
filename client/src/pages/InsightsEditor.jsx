@@ -74,7 +74,7 @@ const InsightsEditor = () => {
     excerpt: '',
     content: '',
     bannerImage: '',
-    author: 'GharMB Editorial',
+    author: 'GharMB',
     readTime: 5,
     isFeatured: false,
     status: 'draft',

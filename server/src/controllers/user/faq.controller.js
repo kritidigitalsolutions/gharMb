@@ -50,7 +50,7 @@ exports.getActiveFaqs = async (req, res, next) => {
 
     const faqs = await Faq.find(query)
       .populate('category', 'name slug')
-      .sort({ createdAt: 1 })
+      .sort({ sortOrder: 1, createdAt: 1 })
       .lean();
 
     res.status(200).json({

@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   Plus, Search, Filter, Edit, Trash2,
   CheckCircle2, XCircle, Clock, Folder, AlertCircle, RefreshCw, 
-  Layers, CheckSquare, Square, X, ArrowRight
+  Layers, CheckSquare, Square, X, ArrowRight, ArrowUp, ArrowDown
 } from 'lucide-react';
 import API from '../api/api';
 
@@ -62,6 +62,34 @@ const FaqManagement = () => {
       }
     } catch (err) {
       console.error('Error fetching categories:', err);
+    }
+  };
+
+  const handleReorder = async (currentIndex, direction) => {
+    if (direction === 'up' && currentIndex === 0) return;
+    if (direction === 'down' && currentIndex === faqs.length - 1) return;
+
+    const newFaqs = [...faqs];
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    
+    const temp = newFaqs[currentIndex];
+    newFaqs[currentIndex] = newFaqs[swapIndex];
+    newFaqs[swapIndex] = temp;
+
+    setFaqs(newFaqs);
+
+    const items = newFaqs.map((faq, index) => ({
+      id: faq._id,
+      sortOrder: index
+    }));
+
+    try {
+      await API.put('/admin/faqs/reorder', { items });
+      triggerToast('Order updated', 'success');
+    } catch (err) {
+      console.error(err);
+      triggerToast('Failed to update order', 'error');
+      fetchFaqs();
     }
   };
 
@@ -381,6 +409,7 @@ const FaqManagement = () => {
                   <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider">Question</th>
                   <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider">Category</th>
                   <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider text-center">Status</th>
+                  <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider text-center">Order</th>
                   <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider text-right">Actions</th>
                 </tr>
               </thead>
@@ -392,6 +421,7 @@ const FaqManagement = () => {
                       <td className="px-5 py-5"><div className="w-3/4 h-4 bg-[#F1F1F0] rounded" /></td>
                       <td className="px-5 py-5"><div className="w-24 h-4 bg-[#F1F1F0] rounded" /></td>
                       <td className="px-5 py-5 text-center"><div className="w-16 h-5 bg-[#F1F1F0] rounded-full mx-auto" /></td>
+                      <td className="px-5 py-5 text-center"><div className="w-16 h-8 bg-[#F1F1F0] rounded-lg mx-auto" /></td>
                       <td className="px-5 py-5"><div className="w-16 h-8 bg-[#F1F1F0] rounded-lg ml-auto" /></td>
                     </tr>
                   ))
@@ -404,7 +434,7 @@ const FaqManagement = () => {
                   </tr>
                 ) : faqs.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-5 py-16 text-center">
+                    <td colSpan={6} className="px-5 py-16 text-center">
                       <div className="w-12 h-12 rounded-2xl bg-[#F8F8F7] flex items-center justify-center mx-auto mb-4 border border-[#E8E5E1]">
                         <Search size={20} className="text-[#94A3B8]" />
                       </div>
@@ -421,7 +451,7 @@ const FaqManagement = () => {
                     </td>
                   </tr>
                 ) : (
-                  faqs.map((faq) => {
+                  faqs.map((faq, index) => {
                     const isSelected = selectedFaqIds.includes(faq._id);
                     return (
                       <tr key={faq._id} className={`hover:bg-[#FAF9F7] transition-colors ${isSelected ? 'bg-[#FFF7F4] hover:bg-[#FFF7F4]' : ''}`}>
@@ -455,6 +485,34 @@ const FaqManagement = () => {
                           }`}>
                             {faq.isActive ? 'Active' : 'Inactive'}
                           </span>
+                        </td>
+                        <td className="px-5 py-5 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => handleReorder(index, 'up')}
+                              disabled={index === 0}
+                              className={`p-1.5 rounded-lg border transition-all ${
+                                index === 0 
+                                  ? 'bg-[#F8F8F7] border-transparent text-[#CBD5E1] cursor-not-allowed'
+                                  : 'bg-white border-[#E8E5E1] text-[#64748B] hover:text-[#17202A] hover:bg-[#F8F8F7]'
+                              }`}
+                              title="Move Up"
+                            >
+                              <ArrowUp size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleReorder(index, 'down')}
+                              disabled={index === faqs.length - 1}
+                              className={`p-1.5 rounded-lg border transition-all ${
+                                index === faqs.length - 1
+                                  ? 'bg-[#F8F8F7] border-transparent text-[#CBD5E1] cursor-not-allowed'
+                                  : 'bg-white border-[#E8E5E1] text-[#64748B] hover:text-[#17202A] hover:bg-[#F8F8F7]'
+                              }`}
+                              title="Move Down"
+                            >
+                              <ArrowDown size={14} />
+                            </button>
+                          </div>
                         </td>
                         <td className="px-5 py-5">
                           <div className="flex items-center justify-end gap-2">

@@ -40,7 +40,7 @@ const blogSchema = new mongoose.Schema(
 
     author: {
       type: String,
-      default: 'GharMB Editorial',
+      default: 'GharMB',
       trim: true,
     },
 
@@ -71,6 +71,10 @@ const blogSchema = new mongoose.Schema(
     },
 
     views: {
+      type: Number,
+      default: 0,
+    },
+    sortOrder: {
       type: Number,
       default: 0,
     },

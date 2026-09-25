@@ -341,7 +341,7 @@ export default function BlogDetail() {
 
   const authorName = typeof blog.author === 'object'
     ? blog.author?.name
-    : (blog.author || 'GharMB Editorial');
+    : (blog.author || 'GharMB');
 
   const bannerImage = blog.bannerImage || blog.coverImage || 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1400&q=85';
   const tagsList = blog.tags || [];

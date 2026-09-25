@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   Plus, Search, Filter, Edit, Trash2,
   CheckCircle2, XCircle, Clock, Folder, AlertCircle, RefreshCw, 
-  Layers, CheckSquare, Square, X, ArrowRight, Quote, ImageIcon
+  Layers, CheckSquare, Square, X, ArrowRight, Quote, ImageIcon, ArrowUp, ArrowDown
 } from 'lucide-react';
 import API from '../api/api';
 
@@ -90,6 +90,34 @@ const TestimonialManagement = () => {
   useEffect(() => {
     fetchTestimonials();
   }, [search, selectedStatus]);
+
+  const handleReorder = async (currentIndex, direction) => {
+    if (direction === 'up' && currentIndex === 0) return;
+    if (direction === 'down' && currentIndex === testimonials.length - 1) return;
+
+    const newItems = [...testimonials];
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    
+    const temp = newItems[currentIndex];
+    newItems[currentIndex] = newItems[swapIndex];
+    newItems[swapIndex] = temp;
+
+    setTestimonials(newItems);
+
+    const items = newItems.map((item, index) => ({
+      id: item._id,
+      sortOrder: index
+    }));
+
+    try {
+      await API.put('/admin/testimonials/reorder', { items });
+      triggerToast('Order updated', 'success');
+    } catch (err) {
+      console.error(err);
+      triggerToast('Failed to update order', 'error');
+      fetchTestimonials();
+    }
+  };
 
   // Selection helpers
   const isAllSelected = testimonials.length > 0 && selectedIds.length === testimonials.length;
@@ -467,7 +495,7 @@ const TestimonialManagement = () => {
                     </td>
                   </tr>
                 ) : (
-                  testimonials.map((t) => {
+                  testimonials.map((t, index) => {
                     const isSelected = selectedIds.includes(t._id);
                     return (
                       <tr key={t._id} className={`hover:bg-[#FAF9F7] transition-colors ${isSelected ? 'bg-[#FFF7F4] hover:bg-[#FFF7F4]' : ''}`}>
@@ -506,9 +534,32 @@ const TestimonialManagement = () => {
                           </div>
                         </td>
                         <td className="px-5 py-5 text-center">
-                          <span className="text-[13px] font-mono text-[#64748B]">
-                            {t.displayOrder}
-                          </span>
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => handleReorder(index, 'up')}
+                              disabled={index === 0}
+                              className={`p-1.5 rounded-lg border transition-all ${
+                                index === 0 
+                                  ? 'bg-[#F8F8F7] border-transparent text-[#CBD5E1] cursor-not-allowed'
+                                  : 'bg-white border-[#E8E5E1] text-[#64748B] hover:text-[#17202A] hover:bg-[#F8F8F7]'
+                              }`}
+                              title="Move Up"
+                            >
+                              <ArrowUp size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleReorder(index, 'down')}
+                              disabled={index === testimonials.length - 1}
+                              className={`p-1.5 rounded-lg border transition-all ${
+                                index === testimonials.length - 1
+                                  ? 'bg-[#F8F8F7] border-transparent text-[#CBD5E1] cursor-not-allowed'
+                                  : 'bg-white border-[#E8E5E1] text-[#64748B] hover:text-[#17202A] hover:bg-[#F8F8F7]'
+                              }`}
+                              title="Move Down"
+                            >
+                              <ArrowDown size={14} />
+                            </button>
+                          </div>
                         </td>
                         <td className="px-5 py-5 text-center">
                           <span className={`inline-flex items-center justify-center px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded-full border ${

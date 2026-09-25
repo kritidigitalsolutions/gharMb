@@ -43,7 +43,7 @@ const testimonialSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-  displayOrder: {
+  sortOrder: {
     type: Number,
     default: 0
   }

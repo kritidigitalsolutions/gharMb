@@ -3,7 +3,7 @@ const Testimonial = require('../../models/testimonial.model');
 exports.getActiveTestimonials = async (req, res) => {
   try {
     const testimonials = await Testimonial.find({ isActive: true })
-      .sort({ displayOrder: 1, createdAt: -1 });
+      .sort({ sortOrder: 1, createdAt: -1 });
       
     res.status(200).json({
       status: 'success',

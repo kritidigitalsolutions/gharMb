@@ -9,6 +9,7 @@ router
   .post(faqController.createFaq);
 
 router.post('/bulk-delete', faqController.bulkDeleteFaqs);
+router.put('/reorder', faqController.reorderFaqs);
 
 router
   .route('/:id')

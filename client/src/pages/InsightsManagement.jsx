@@ -4,7 +4,7 @@ import {
   Sparkles, Plus, Search, Filter, Edit, Trash2, Eye,
   CheckCircle2, XCircle, Clock, Folder, ExternalLink,
   Calendar, User, AlertCircle, RefreshCw, Layers, CheckSquare,
-  Square, X, Check, ArrowUpDown
+  Square, X, Check, ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react';
 import API from '../api/api';
 
@@ -103,6 +103,38 @@ const InsightsManagement = () => {
       setError('Failed to load articles. Please check server connection.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleReorder = async (currentIndex, direction) => {
+    if (direction === 'up' && currentIndex === 0 && currentPage === 1) return;
+    if (direction === 'down' && currentIndex === blogs.length - 1 && currentPage === totalPages) return;
+    
+    // For simplicity, we only allow reordering within the current page bounds for now.
+    if (direction === 'up' && currentIndex === 0) return;
+    if (direction === 'down' && currentIndex === blogs.length - 1) return;
+
+    const newItems = [...blogs];
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    
+    const temp = newItems[currentIndex];
+    newItems[currentIndex] = newItems[swapIndex];
+    newItems[swapIndex] = temp;
+
+    setBlogs(newItems);
+
+    const items = newItems.map((item, index) => ({
+      id: item._id,
+      sortOrder: (currentPage - 1) * 10 + index
+    }));
+
+    try {
+      await API.put('/admin/blogs/reorder', { items });
+      triggerToast('Order updated', 'success');
+    } catch (err) {
+      console.error(err);
+      triggerToast('Failed to update order', 'error');
+      fetchBlogs();
     }
   };
 
@@ -470,11 +502,12 @@ const InsightsManagement = () => {
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Views</th>
                   <th className="py-3 px-4">Published Date</th>
+                  <th className="py-3 px-4 text-center">Order</th>
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)] text-xs">
-                {blogs.map((blog) => {
+                {blogs.map((blog, index) => {
                   const isSelected = selectedBlogIds.includes(blog._id);
                   return (
                     <tr
@@ -579,6 +612,35 @@ const InsightsManagement = () => {
                               year: 'numeric'
                             })
                           : 'Not published'}
+                      </td>
+
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => handleReorder(index, 'up')}
+                            disabled={index === 0 && currentPage === 1}
+                            className={`p-1.5 rounded-lg border transition-all ${
+                              index === 0 && currentPage === 1
+                                ? 'bg-[#F8F8F7] border-transparent text-[#CBD5E1] cursor-not-allowed'
+                                : 'bg-white border-[#E8E5E1] text-[#64748B] hover:text-[#17202A] hover:bg-[#F8F8F7]'
+                            }`}
+                            title="Move Up"
+                          >
+                            <ArrowUp size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleReorder(index, 'down')}
+                            disabled={index === blogs.length - 1 && currentPage === totalPages}
+                            className={`p-1.5 rounded-lg border transition-all ${
+                              index === blogs.length - 1 && currentPage === totalPages
+                                ? 'bg-[#F8F8F7] border-transparent text-[#CBD5E1] cursor-not-allowed'
+                                : 'bg-white border-[#E8E5E1] text-[#64748B] hover:text-[#17202A] hover:bg-[#F8F8F7]'
+                            }`}
+                            title="Move Down"
+                          >
+                            <ArrowDown size={14} />
+                          </button>
+                        </div>
                       </td>
 
                       {/* Actions */}

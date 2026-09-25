@@ -29,6 +29,7 @@ router.post('/upload', upload.single('image'), (req, res, next) => {
 // Bulk operations
 router.post('/bulk-delete', blogController.bulkDeleteBlogs);
 router.patch('/bulk-status', blogController.bulkUpdateStatus);
+router.put('/reorder', blogController.reorderBlogs);
 
 // Blog CRUD
 router

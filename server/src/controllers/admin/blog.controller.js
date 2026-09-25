@@ -70,7 +70,7 @@ exports.createBlog = async (req, res, next) => {
       excerpt: excerpt.trim(),
       content: content || '',
       bannerImage: bannerImage || '',
-      author: author || 'GharMB Editorial',
+      author: author || 'GharMB',
       readTime: readTime || 5,
       status: status || 'draft',
       isPublished,
@@ -117,7 +117,7 @@ exports.getAllBlogs = async (req, res, next) => {
     const [blogs, totalCount] = await Promise.all([
       Blog.find(query)
         .populate('category', 'name slug')
-        .sort({ createdAt: -1 })
+        .sort({ sortOrder: 1, createdAt: -1 })
         .skip(skip)
         .limit(Number(limit))
         .select('-content')
@@ -384,6 +384,37 @@ exports.bulkUpdateStatus = async (req, res, next) => {
       status: 'success',
       message: `${result.modifiedCount} article(s) updated to ${status}.`,
       modifiedCount: result.modifiedCount,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Reorder blogs
+// @route   PUT /api/admin/blogs/reorder
+// @access  Private (Admin only)
+exports.reorderBlogs = async (req, res, next) => {
+  try {
+    const { items } = req.body; // Array of { id, sortOrder }
+
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ status: 'fail', message: 'items array is required' });
+    }
+
+    const bulkOps = items.map((item) => ({
+      updateOne: {
+        filter: { _id: item.id },
+        update: { sortOrder: item.sortOrder }
+      }
+    }));
+
+    if (bulkOps.length > 0) {
+      await Blog.bulkWrite(bulkOps);
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Reordered successfully'
     });
   } catch (error) {
     next(error);

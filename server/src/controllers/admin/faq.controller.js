@@ -61,7 +61,7 @@ exports.getAllFaqs = async (req, res, next) => {
 
     const faqs = await Faq.find(query)
       .populate('category', 'name slug')
-      .sort({ createdAt: -1 })
+      .sort({ sortOrder: 1, createdAt: -1 })
       .lean();
 
     res.status(200).json({
@@ -162,6 +162,37 @@ exports.bulkDeleteFaqs = async (req, res, next) => {
       status: 'success',
       message: `${result.deletedCount} FAQ(s) deleted successfully.`,
       deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Reorder FAQs
+// @route   PUT /api/admin/faqs/reorder
+// @access  Private (Admin only)
+exports.reorderFaqs = async (req, res, next) => {
+  try {
+    const { items } = req.body; // Array of { id, sortOrder }
+
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ status: 'fail', message: 'items array is required' });
+    }
+
+    const bulkOps = items.map((item) => ({
+      updateOne: {
+        filter: { _id: item.id },
+        update: { sortOrder: item.sortOrder }
+      }
+    }));
+
+    if (bulkOps.length > 0) {
+      await Faq.bulkWrite(bulkOps);
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Reordered successfully'
     });
   } catch (error) {
     next(error);
