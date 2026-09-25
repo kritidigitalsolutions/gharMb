@@ -27,6 +27,11 @@ const adminNotificationRoutes = require('./src/routes/admin/notification.routes'
 const adminLegalRoutes = require('./src/routes/admin/legal.routes');
 const adminPageRoutes = require('./src/routes/admin/page.routes');
 const adminNewsRoutes = require('./src/routes/admin/news.routes');
+const adminBlogRoutes = require('./src/routes/admin/blog.routes');
+const adminBlogCategoryRoutes = require('./src/routes/admin/blog-category.routes');
+const adminFaqRoutes = require('./src/routes/admin/faq.routes');
+const adminFaqCategoryRoutes = require('./src/routes/admin/faq-category.routes');
+const adminTestimonialRoutes = require('./src/routes/admin/testimonial.routes');
 
 const appAuthRoutes = require('./src/routes/user/auth.routes');
 const appUserRoutes = require('./src/routes/user/user.routes');
@@ -39,6 +44,9 @@ const appFavoriteRoutes = require('./src/routes/user/favorite.routes');
 const appLegalRoutes = require('./src/routes/user/legal.routes');
 const appPageRoutes = require('./src/routes/user/page.routes');
 const appNewsRoutes = require('./src/routes/user/news.routes');
+const appBlogRoutes = require('./src/routes/user/blog.routes');
+const appFaqRoutes = require('./src/routes/user/faq.routes');
+const appTestimonialRoutes = require('./src/routes/user/testimonial.routes');
 
 const app = express();
 
@@ -100,9 +108,9 @@ app.use(cors(corsOptions));
 // 3. Logger Middleware
 app.use(morgan('dev'));
 
-// 4. Request Body Parsers
-app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+// 4. Request Body Parsers (Increased to 50mb to support rich articles, base64 images & documents)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // 5. Serve Static Assets (Uploaded images & files locally) with Cross-Origin headers
 const serveUploads = (req, res, next) => {
@@ -205,6 +213,11 @@ app.use('/api/admin/notifications', adminNotificationRoutes);
 app.use('/api/admin/legal', adminLegalRoutes);
 app.use('/api/admin/pages', adminPageRoutes);
 app.use('/api/admin/news', adminNewsRoutes);
+app.use('/api/admin/blogs', adminBlogRoutes);
+app.use('/api/admin/blog-categories', adminBlogCategoryRoutes);
+app.use('/api/admin/faqs', adminFaqRoutes);
+app.use('/api/admin/faq-categories', adminFaqCategoryRoutes);
+app.use('/api/admin/testimonials', adminTestimonialRoutes);
 
 
 
@@ -228,6 +241,9 @@ app.use('/api/favorites', appFavoriteRoutes);
 app.use('/api/legal', appLegalRoutes);
 app.use('/api/pages', appPageRoutes);
 app.use('/api/news', appNewsRoutes);
+app.use('/api/blogs', appBlogRoutes);
+app.use('/api/faqs', appFaqRoutes);
+app.use('/api/testimonials', appTestimonialRoutes);
 
 // 10. Fallback 404 Route handler
 app.use((req, res, next) => {

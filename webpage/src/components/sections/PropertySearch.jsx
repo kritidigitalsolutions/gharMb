@@ -13,7 +13,7 @@ export default function PropertySearch() {
           {/* Left — Image */}
           <div className="relative rounded-2xl overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.08)] order-2 lg:order-1">
             <img
-              src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=640&h=440&fit=crop"
+              src="https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=640&h=440&fit=crop"
               alt="Modern apartment interior with natural light"
               loading="lazy"
               className="w-full h-auto"

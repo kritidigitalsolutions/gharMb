@@ -12,7 +12,7 @@ import {
   BookOpen, Clock, X, Info, Compass, ArrowDownRight, Layers,
   Plus, Minus, Quote, Mail, Phone
 } from 'lucide-react';
-import { blogArticles, blogCategories, realEstateGlossary } from '../../data/blogs';
+import { fetchActiveCategories, fetchPublishedBlogs } from '../../api/blogApi';
 
 /* ─────────── Animation Helpers ─────────── */
 const fadeUp = {
@@ -545,7 +545,7 @@ function AboutGharMB() {
             <div className="relative">
               <div className="relative rounded-[24px] sm:rounded-[32px] overflow-hidden border border-[#E7E7E5] shadow-[0_24px_70px_rgba(20,30,40,0.08)] bg-[#F5F5F3] aspect-[16/10] sm:aspect-[21/10] lg:aspect-[2.35/1]">
                 <img
-                  src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1600&h=800&fit=crop&q=85"
+                  src="https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1600&h=800&fit=crop&q=85"
                   alt="Modern architectural home representing connected real estate"
                   className="w-full h-full object-cover"
                 />
@@ -1300,7 +1300,7 @@ function Ecosystem() {
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-border">
                             <img
-                              src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=160&h=160&fit=crop&q=80"
+                              src="https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=160&h=160&fit=crop&q=80"
                               alt="Property"
                               className="w-full h-full object-cover"
                             />
@@ -1511,7 +1511,7 @@ const platformJourneyStages = [
     ],
     ctaText: 'Understand verification',
     ctaLink: '#verification',
-    image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=900&h=650&fit=crop&q=85',
+    image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=900&h=650&fit=crop&q=85',
     overlay: {
       badge: '4-Stage Legal Verification Passed',
       title: 'The Grand Reserve Luxury Suites',
@@ -1536,7 +1536,7 @@ const platformJourneyStages = [
     ],
     ctaText: 'Explore ecosystem',
     ctaLink: '#ecosystem',
-    image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=900&h=650&fit=crop&q=85',
+    image: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=900&h=650&fit=crop&q=85',
     overlay: {
       badge: 'Verified Professional Network',
       title: 'Aarav Sharma & Prestige Partners',
@@ -1562,7 +1562,7 @@ const platformJourneyStages = [
     ctaText: 'Explore management',
     ctaLink: '/contact',
     isRoute: true,
-    image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=900&h=650&fit=crop&q=85',
+    image: 'https://images.unsplash.com/photo-1502005229762-ee152da915ba?w=900&h=650&fit=crop&q=85',
     overlay: {
       badge: 'Unified Property Console',
       title: 'My GharMB Portfolio Console',
@@ -2180,7 +2180,7 @@ function Verification() {
                 <div className="flex items-center gap-3.5">
                   <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 border border-border shadow-xs">
                     <img
-                      src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=160&h=160&fit=crop&q=80"
+                      src="https://images.unsplash.com/photo-1567496898669-ee935f5f647a?w=160&h=160&fit=crop&q=80"
                       alt="Skyline Heights"
                       className="w-full h-full object-cover"
                     />
@@ -2401,7 +2401,7 @@ function OwnerShowcaseUI() {
         <div className="flex items-center gap-3">
           <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden shrink-0 border border-border">
             <img
-              src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=200&h=200&fit=crop&q=80"
+              src="https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?w=200&h=200&fit=crop&q=80"
               alt="Skyline Heights"
               className="w-full h-full object-cover"
             />
@@ -2674,7 +2674,7 @@ function DeveloperShowcaseUI() {
       >
         <div className="relative h-28 sm:h-32 w-full overflow-hidden">
           <img
-            src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&h=240&fit=crop&q=80"
+            src="https://images.unsplash.com/photo-1574362848149-11496d93a7c7?w=600&h=240&fit=crop&q=80"
             alt="Emerald Heights"
             className="w-full h-full object-cover"
           />
@@ -4179,7 +4179,7 @@ function PropertyDashboardView() {
         <div className="flex items-center gap-3">
           <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-border shadow-xs">
             <img
-              src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=200&h=200&fit=crop&q=80"
+              src="https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=200&h=200&fit=crop&q=80"
               alt="Skyline Heights"
               className="w-full h-full object-cover"
             />
@@ -4565,18 +4565,11 @@ function InsightImage({ src, alt, className = "", aspectClass = "" }) {
 
 function Insights() {
   const [activeCategory, setActiveCategory] = useState("All");
+  const [categories, setCategories] = useState(["All"]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeGlossaryIndex, setActiveGlossaryIndex] = useState(0);
-
-  const categories = [
-    "All",
-    "Buying Guides",
-    "Market Trends",
-    "Property Insights",
-    "Legal & RERA",
-    "Commercial",
-    "Home & Living",
-  ];
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [articles, setArticles] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Helper date formatter
   const formatDate = (dateStr) => {
@@ -4588,36 +4581,60 @@ function Insights() {
     });
   };
 
-  // Filtered insights based on category and search query
-  const filteredArticles = blogArticles.filter((article) => {
-    const matchesCategory =
-      activeCategory === "All" ||
-      article.category?.toLowerCase() === activeCategory.toLowerCase() ||
-      (activeCategory === "Buying Guides" && article.category?.toLowerCase().includes("buying")) ||
-      (activeCategory === "Legal & RERA" && (article.category?.toLowerCase().includes("legal") || article.category?.toLowerCase().includes("rera")));
+  // Load categories from API
+  useEffect(() => {
+    async function loadCats() {
+      const apiCats = await fetchActiveCategories();
+      if (apiCats && apiCats.length > 0) {
+        setCategories(["All", ...apiCats.map(c => c.name)]);
+      }
+    }
+    loadCats();
+  }, []);
 
-    const query = searchQuery.trim().toLowerCase();
-    const matchesSearch =
-      !query ||
-      article.title.toLowerCase().includes(query) ||
-      article.excerpt.toLowerCase().includes(query) ||
-      article.category.toLowerCase().includes(query) ||
-      (article.tags && article.tags.some((t) => t.toLowerCase().includes(query)));
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-    return matchesCategory && matchesSearch;
-  });
+  // Fetch articles from API
+  useEffect(() => {
+    let isMounted = true;
+    async function loadArticles() {
+      setIsLoading(true);
+      const catParam = activeCategory !== "All" ? activeCategory : "";
+      const res = await fetchPublishedBlogs({ limit: 12, category: catParam, search: debouncedSearch });
+      if (isMounted) {
+        setArticles(res.blogs || []);
+        setIsLoading(false);
+      }
+    }
+    loadArticles();
+    return () => { isMounted = false; };
+  }, [activeCategory, debouncedSearch]);
 
-  // Featured article: default to rera-explained or first matching
-  const featuredArticle =
-    filteredArticles.find((a) => a.slug === "rera-explained") ||
-    filteredArticles[0] ||
-    blogArticles[0];
+  // Only treat as featured if explicitly marked isFeatured: true
+  const featuredArticle = articles.find((a) => Boolean(a.isFeatured));
+  const cardArticles = featuredArticle
+    ? articles.filter((a) => (a._id || a.id) !== (featuredArticle._id || featuredArticle.id)).slice(0, 3)
+    : articles.slice(0, 3);
 
-  // Remaining articles for the grid
-  const remainingArticles = filteredArticles.filter((a) => a.id !== featuredArticle?.id);
-  const cardArticles = remainingArticles.slice(0, 3).length > 0
-    ? remainingArticles.slice(0, 3)
-    : blogArticles.filter((a) => a.id !== featuredArticle?.id).slice(0, 3);
+  const getCategoryName = (cat) => {
+    if (typeof cat === 'object' && cat !== null) return cat.name;
+    return cat || 'Insights';
+  };
+
+  const getReadTime = (art) => {
+    if (art?.readTime) return `${art.readTime} min read`;
+    return art?.readingTime || '5 min read';
+  };
+
+  const getImageSrc = (art) => {
+    return art?.bannerImage || art?.coverImage || 'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=1000&h=600&fit=crop';
+  };
 
   return (
     <Section id="insights" className="py-20 sm:py-24 lg:py-32" bg="bg-[#FCFCFB]">
@@ -4703,7 +4720,16 @@ function Insights() {
 
       {/* ── ARTICLE CONTENT CONTAINER (Animated on Filter Change) ── */}
       <AnimatePresence mode="wait">
-        {filteredArticles.length === 0 ? (
+        {isLoading ? (
+          <div key="loading" className="py-16 grid md:grid-cols-2 gap-6 lg:gap-10 animate-pulse bg-white border border-[#E7E7E5] rounded-[24px] p-6">
+            <div className="aspect-[16/10] bg-slate-100 rounded-[18px]" />
+            <div className="space-y-4 py-2">
+              <div className="w-24 h-4 bg-slate-100 rounded" />
+              <div className="w-full h-8 bg-slate-100 rounded" />
+              <div className="w-full h-12 bg-slate-100 rounded" />
+            </div>
+          </div>
+        ) : articles.length === 0 ? (
           <motion.div
             key="empty-state"
             initial={{ opacity: 0, y: 12 }}
@@ -4717,39 +4743,43 @@ function Insights() {
             </div>
             <h3 className="text-lg font-bold text-[#17202A] mb-1">No insights found</h3>
             <p className="text-sm text-[#667085] mb-5 max-w-sm mx-auto">
-              We couldn't find any articles matching &quot;{searchQuery}&quot; in {activeCategory}.
+              {searchQuery
+                ? `We couldn't find any articles matching "${searchQuery}".`
+                : "No articles published yet. Check back soon!"}
             </p>
-            <button
-              onClick={() => {
-                setActiveCategory("All");
-                setSearchQuery("");
-              }}
-              className="px-4 py-2 text-xs font-semibold text-[#FF5A3C] bg-white border border-[#E7E7E5] hover:border-[#FF5A3C]/40 rounded-full transition-colors"
-            >
-              Reset filters & search
-            </button>
+            {(searchQuery || activeCategory !== "All") && (
+              <button
+                onClick={() => {
+                  setActiveCategory("All");
+                  setSearchQuery("");
+                }}
+                className="px-4 py-2 text-xs font-semibold text-[#FF5A3C] bg-white border border-[#E7E7E5] hover:border-[#FF5A3C]/40 rounded-full transition-colors cursor-pointer"
+              >
+                Reset filters & search
+              </button>
+            )}
           </motion.div>
         ) : (
           <motion.div
-            key={`${activeCategory}-${searchQuery}`}
+            key={`${activeCategory}-${debouncedSearch}`}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
             transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
             className="space-y-14 lg:space-y-16"
           >
-            {/* ── 06 & 07 & 08 FEATURED INSIGHT ── */}
+            {/* ── 06 & 07 & 08 FEATURED INSIGHT (Only when isFeatured is true) ── */}
             {featuredArticle && (
               <div>
                 <Link
                   to={`/insights/${featuredArticle.slug}`}
-                  className="group block bg-white border border-[#E7E7E5] hover:border-[#FF5A3C]/35 rounded-[24px] p-4 sm:p-6 lg:p-7 transition-all duration-300 shadow-xs hover:shadow-md"
+                  className="group block bg-white border border-[#E7E7E5] hover:border-[#FF5A3C]/35 rounded-[24px] p-4 sm:p-6 lg:p-7 transition-all duration-300 shadow-xs hover:shadow-md min-w-0 w-full"
                 >
-                  <div className="grid lg:grid-cols-[1.38fr_1fr] gap-6 lg:gap-10 items-center">
+                  <div className="grid lg:grid-cols-[1.38fr_1fr] gap-6 lg:gap-10 items-center min-w-0">
                     {/* Left: Large Editorial Image (16:10 aspect ratio) */}
-                    <div className="aspect-[16/10] sm:aspect-[16/10] w-full rounded-[18px] sm:rounded-[20px] overflow-hidden bg-[#F8F8F6] relative">
+                    <div className="aspect-[16/10] sm:aspect-[16/10] w-full min-w-0 rounded-[18px] sm:rounded-[20px] overflow-hidden bg-[#F8F8F6] relative">
                       <InsightImage
-                        src={featuredArticle.coverImage}
+                        src={getImageSrc(featuredArticle)}
                         alt={featuredArticle.title}
                         className="w-full h-full object-cover group-hover:scale-[1.025] transition-transform duration-500 ease-out"
                         aspectClass="aspect-[16/10]"
@@ -4757,32 +4787,32 @@ function Insights() {
                     </div>
 
                     {/* Right: Article Information */}
-                    <div className="flex flex-col justify-center py-1 sm:py-2">
+                    <div className="flex flex-col justify-center py-1 sm:py-2 min-w-0 w-full">
                       <div className="flex items-center gap-2.5 mb-4">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-[#FFF0ED] text-[#FF5A3C] border border-[#FF5A3C]/20">
                           FEATURED
                         </span>
                         <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#667085]">
-                          {featuredArticle.category}
+                          {getCategoryName(featuredArticle.category)}
                         </span>
                       </div>
 
-                      <h3 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-[#17202A] leading-[1.2] tracking-[-0.02em] group-hover:text-[#FF5A3C] transition-colors mb-3 line-clamp-3">
+                      <h3 className="text-[22px] sm:text-[28px] lg:text-[32px] font-bold text-[#17202A] leading-[1.2] tracking-[-0.02em] group-hover:text-[#FF5A3C] transition-colors mb-3 line-clamp-3 break-words [overflow-wrap:anywhere]">
                         {featuredArticle.title}
                       </h3>
 
-                      <p className="text-[14px] sm:text-[15px] text-[#667085] leading-[1.65] line-clamp-3 mb-6">
+                      <p className="text-[14px] sm:text-[15px] text-[#667085] leading-[1.65] line-clamp-3 mb-6 break-words [overflow-wrap:anywhere]">
                         {featuredArticle.excerpt}
                       </p>
 
-                      <div className="flex items-center gap-3 text-[12px] text-[#667085] mb-6 pt-4 border-t border-[#E7E7E5]">
+                      <div className="flex items-center gap-3 text-[12px] text-[#667085] mb-6 pt-4 border-t border-[#E7E7E5] flex-wrap">
                         <span className="font-semibold text-[#17202A] uppercase tracking-wider text-[11px]">
-                          {featuredArticle.category}
+                          {getCategoryName(featuredArticle.category)}
                         </span>
                         <span className="w-1 h-1 rounded-full bg-[#667085]/40" />
-                        <span>{featuredArticle.readingTime}</span>
+                        <span>{getReadTime(featuredArticle)}</span>
                         <span className="w-1 h-1 rounded-full bg-[#667085]/40" />
-                        <span>{formatDate(featuredArticle.publishedAt)}</span>
+                        <span>{formatDate(featuredArticle.publishedAt || featuredArticle.createdAt)}</span>
                       </div>
 
                       <div className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#FF5A3C] group-hover:text-[#E04F34] transition-colors">
@@ -4804,7 +4834,7 @@ function Insights() {
                 <div className="flex items-center justify-between mb-6 sm:mb-8">
                   <div>
                     <h3 className="text-[18px] sm:text-[20px] font-bold text-[#17202A] tracking-[-0.01em]">
-                      More from GharMB
+                      {featuredArticle ? 'More from GharMB' : 'Latest Insights & Perspectives'}
                     </h3>
                     <p className="text-[13px] text-[#667085] mt-0.5">
                       Essential perspectives for buyers, owners and investors
@@ -4815,14 +4845,14 @@ function Insights() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-7">
                   {cardArticles.map((article) => (
                     <Link
-                      key={article.id}
+                      key={article._id || article.id || article.slug}
                       to={`/insights/${article.slug}`}
-                      className="group flex flex-col bg-white rounded-[18px] border border-[#E7E7E5] overflow-hidden hover:border-[#FF5A3C]/45 hover:shadow-sm transition-all duration-300"
+                      className="group flex flex-col bg-white rounded-[18px] border border-[#E7E7E5] overflow-hidden hover:border-[#FF5A3C]/45 hover:shadow-sm transition-all duration-300 min-w-0 w-full"
                     >
                       {/* Image: 16:9 Aspect Ratio */}
-                      <div className="aspect-[16/9] w-full overflow-hidden bg-[#F8F8F6] relative border-b border-[#E7E7E5]/70">
+                      <div className="aspect-[16/9] w-full min-w-0 overflow-hidden bg-[#F8F8F6] relative border-b border-[#E7E7E5]/70">
                         <InsightImage
-                          src={article.coverImage}
+                          src={getImageSrc(article)}
                           alt={article.title}
                           className="w-full h-full object-cover group-hover:scale-[1.025] transition-transform duration-500 ease-out"
                           aspectClass="aspect-[16/9]"
@@ -4830,21 +4860,21 @@ function Insights() {
                       </div>
 
                       {/* Card Content */}
-                      <div className="p-5 sm:p-6 flex flex-col flex-1">
+                      <div className="p-5 sm:p-6 flex flex-col flex-1 min-w-0">
                         <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#FF5A3C] mb-2 block">
-                          {article.category}
+                          {getCategoryName(article.category)}
                         </span>
 
-                        <h4 className="text-[17px] sm:text-[18px] font-bold text-[#17202A] leading-snug group-hover:text-[#FF5A3C] transition-colors mb-2.5 line-clamp-2">
+                        <h4 className="text-[17px] sm:text-[18px] font-bold text-[#17202A] leading-snug group-hover:text-[#FF5A3C] transition-colors mb-2.5 line-clamp-2 break-words [overflow-wrap:anywhere]">
                           {article.title}
                         </h4>
 
-                        <p className="text-[13.5px] text-[#667085] leading-[1.6] line-clamp-2 mb-5 flex-1">
+                        <p className="text-[13.5px] text-[#667085] leading-[1.6] line-clamp-2 mb-5 flex-1 break-words [overflow-wrap:anywhere]">
                           {article.excerpt}
                         </p>
 
                         <div className="flex items-center justify-between pt-3.5 border-t border-[#E7E7E5] text-[12px] text-[#667085]">
-                          <span>{article.readingTime}</span>
+                          <span>{getReadTime(article)}</span>
                           <span className="inline-flex items-center gap-1 text-[13px] font-medium text-[#FF5A3C] opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-200">
                             Read <ArrowRight size={13} />
                           </span>
@@ -4882,6 +4912,7 @@ function Insights() {
   );
 }
 
+
 /* ═══════════════════════════════════════════════════════════════
    11 — HOW IT WORKS (Interactive Journey, Testimonials & FAQ)
    ═══════════════════════════════════════════════════════════════ */
@@ -4899,7 +4930,7 @@ const journeyStages = [
       "Master project blueprints & specifications",
       "High-precision search & budget filters"
     ],
-    image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&h=800&fit=crop",
+    image: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=1200&h=800&fit=crop",
     floatingBadges: [
       {
         pos: "top-left",
@@ -4927,7 +4958,7 @@ const journeyStages = [
       "Locality price indices & 5-year growth",
       "Developer delivery track record"
     ],
-    image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&h=800&fit=crop",
+    image: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1200&h=800&fit=crop",
     floatingBadges: [
       {
         pos: "top-right",
@@ -4955,7 +4986,7 @@ const journeyStages = [
       "Title deed & encumbrance review",
       "Dedicated project escrow monitoring"
     ],
-    image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1200&h=800&fit=crop",
+    image: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=1200&h=800&fit=crop",
     floatingBadges: [
       {
         pos: "top-left",
@@ -4983,7 +5014,7 @@ const journeyStages = [
       "Zero spam direct enquiry channels",
       "Instant site visit appointment scheduling"
     ],
-    image: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&h=800&fit=crop",
+    image: "https://images.unsplash.com/photo-1577495508048-b635879837f1?w=1200&h=800&fit=crop",
     floatingBadges: [
       {
         pos: "top-right",
@@ -5011,7 +5042,7 @@ const journeyStages = [
       "Digital token & documentation assistance",
       "Complete post-booking milestone tracker"
     ],
-    image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=1200&h=800&fit=crop",
+    image: "https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=1200&h=800&fit=crop",
     floatingBadges: [
       {
         pos: "top-left",
@@ -5029,122 +5060,85 @@ const journeyStages = [
   }
 ];
 
-const testimonialsData = [
-  {
-    id: "01",
-    quote: "I finally had a clearer way to understand the information around a property before reaching out. The verification details and property context made the process much easier to navigate.",
-    name: "Ananya Sharma",
-    role: "First-time Homebuyer",
-    location: "Noida, NCR",
-    propertyType: "Residential",
-    journeyType: "First-time homebuyer",
-    stages: ["Discover", "Verify", "Understand", "Decide"],
-    activeStageIndex: 1,
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop&q=80",
-    propertyImage: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=640&h=440&fit=crop&q=80",
-    propertyBadge: "Verified information"
-  },
-  {
-    id: "02",
-    quote: "Having the important property information structured in one place made it much easier to compare what actually mattered without cold calls or endless ambiguity.",
-    name: "Rahul Mehta",
-    role: "Property Professional",
-    location: "Delhi NCR",
-    propertyType: "Commercial & Luxury",
-    journeyType: "Portfolio Advisory",
-    stages: ["Discover", "Verify", "Understand", "Decide"],
-    activeStageIndex: 2,
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&q=80",
-    propertyImage: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=640&h=440&fit=crop&q=80",
-    propertyBadge: "Verified information"
-  },
-  {
-    id: "03",
-    quote: "Instead of jumping between different sources, I could understand the project, location and available information together with transparent regulatory documents.",
-    name: "Priya Kapoor",
-    role: "Property Seeker",
-    location: "Gurugram, NCR",
-    propertyType: "High-rise Apartment",
-    journeyType: "Relocation & Upgrade",
-    stages: ["Discover", "Verify", "Understand", "Decide"],
-    activeStageIndex: 3,
-    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&h=200&fit=crop&q=80",
-    propertyImage: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=640&h=440&fit=crop&q=80",
-    propertyBadge: "Verified information"
-  }
-];
-
-const faqCategories = ["All", "Platform", "Properties", "Verification", "Professionals", "Tools"];
-
-const faqData = [
-  {
-    id: "01",
-    category: "Platform",
-    question: "What is GharMB?",
-    answer: "GharMB is a connected real-estate ecosystem designed to bring property discovery, verification signals, intelligence tools, and verified professional connections together into one unified experience."
-  },
-  {
-    id: "02",
-    category: "Properties",
-    question: "How does GharMB help with property discovery?",
-    answer: "Instead of raw, unstructured listings, GharMB provides standardized property profiles with verified carpet areas, transparent price histories, high-resolution layout plans, and localized infrastructure insights."
-  },
-  {
-    id: "03",
-    category: "Verification",
-    question: "How are properties and information verified?",
-    answer: "Our verification team validates state RERA registrations, sanctioned municipal layout plans, project commencement certificates, and developer track records before assigning our verified status badge."
-  },
-  {
-    id: "04",
-    category: "Professionals",
-    question: "Can developers and property professionals use GharMB?",
-    answer: "Yes. Authorized builders, certified channel partners, and property owners can manage project portfolios, respond to verified enquiries directly, and showcase regulatory compliance through dedicated workspace tools."
-  },
-  {
-    id: "05",
-    category: "Properties",
-    question: "What kind of commercial properties are covered?",
-    answer: "GharMB covers Grade-A office buildings, tech parks, co-working facilities, retail high-street shops, and logistics warehouses with detailed lease terms, floor plates, and yield metrics."
-  },
-  {
-    id: "06",
-    category: "Tools",
-    question: "What tools are available on GharMB?",
-    answer: "We offer comprehensive evaluation tools including Home Loan EMI Calculators, Unit Area & Carpet Ratio Converters, Stamp Duty Estimators, and side-by-side property comparison matrices."
-  },
-  {
-    id: "07",
-    category: "Tools",
-    question: "Can I compare property information?",
-    answer: "Yes. Our comparison feature allows you to evaluate multiple properties or projects across critical dimensions like carpet price per sq ft, amenities, possession dates, and developer ratings."
-  },
-  {
-    id: "08",
-    category: "Platform",
-    question: "How can I get started with GharMB?",
-    answer: "You can start immediately by exploring our verified properties, reading our editorial insights, or using our calculators. When ready, contact verified professionals directly through any property profile."
-  }
-];
 
 function HowItWorks() {
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [activeTestimonial, setActiveTestimonial] = useState(0);
   const [activeFaqCategory, setActiveFaqCategory] = useState("All");
-  const [openFaq, setOpenFaq] = useState("01");
+  const [openFaq, setOpenFaq] = useState(null);
   const [faqQuery, setFaqQuery] = useState("");
   const [isTestimonialHovered, setIsTestimonialHovered] = useState(false);
+  
+  // Dynamic FAQ State
+  const [faqCategories, setFaqCategories] = useState(["All"]);
+  const [faqData, setFaqData] = useState([]);
+  const [isFaqLoading, setIsFaqLoading] = useState(true);
+
+  // Dynamic Testimonial State
+  const [testimonials, setTestimonials] = useState([]);
+  const [isTestimonialsLoading, setIsTestimonialsLoading] = useState(true);
+  const [testimonialsError, setTestimonialsError] = useState(false);
+
+  // Fetch FAQ & Testimonials Data
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsFaqLoading(true);
+      setIsTestimonialsLoading(true);
+      setTestimonialsError(false);
+      try {
+        const [catRes, faqRes, testRes] = await Promise.all([
+          fetch('http://localhost:5001/api/faqs/categories').then(res => res.json()).catch(() => ({})),
+          fetch('http://localhost:5001/api/faqs').then(res => res.json()).catch(() => ({})),
+          fetch('http://localhost:5001/api/testimonials').then(res => res.json()).catch(() => ({ error: true }))
+        ]);
+
+        if (catRes.status === 'success' && catRes.data?.categories) {
+          const fetchedCategories = ["All", ...catRes.data.categories.map(c => c.name)];
+          setFaqCategories(fetchedCategories);
+        }
+
+        if (faqRes.status === 'success' && faqRes.data?.faqs) {
+          // Map backend format to frontend format
+          const formattedFaqs = faqRes.data.faqs.map((faq, index) => ({
+            id: String(index + 1).padStart(2, '0'),
+            dbId: faq._id,
+            category: faq.category?.name || "Uncategorized",
+            question: faq.question,
+            answer: faq.answer
+          }));
+          setFaqData(formattedFaqs);
+          if (formattedFaqs.length > 0) {
+            setOpenFaq(formattedFaqs[0].id); // Open first by default
+          }
+        }
+        
+        if (testRes.status === 'success' && testRes.data?.testimonials) {
+          setTestimonials(testRes.data.testimonials);
+        } else if (testRes.error) {
+          setTestimonialsError(true);
+        }
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setTestimonialsError(true);
+      } finally {
+        setIsFaqLoading(false);
+        setIsTestimonialsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const currentStep = journeyStages[activeStepIndex];
 
   // Auto-advance testimonials (6s autoplay, paused on hover/interaction)
   useEffect(() => {
-    if (isTestimonialHovered) return;
+    if (isTestimonialHovered || testimonials.length <= 1) return;
     const interval = setInterval(() => {
-      setActiveTestimonial((prev) => (prev + 1) % testimonialsData.length);
+      setActiveTestimonial((prev) => (prev + 1) % testimonials.length);
     }, 6000);
     return () => clearInterval(interval);
-  }, [isTestimonialHovered]);
+  }, [isTestimonialHovered, testimonials.length]);
 
   const filteredFaqs = faqData.filter((item) => {
     const matchesCategory = activeFaqCategory === "All" || item.category === activeFaqCategory;
@@ -5403,7 +5397,7 @@ function HowItWorks() {
         <div className="relative rounded-[24px] sm:rounded-[28px] overflow-hidden aspect-[21/9] sm:aspect-[2.8/1] min-h-[220px] sm:min-h-[260px] flex items-center shadow-xs border border-[#E7E7E5] text-left">
           {/* Background Image */}
           <img
-            src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1600&h=800&fit=crop&q=80"
+            src="https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=1600&h=800&fit=crop&q=80"
             alt="Modern Architecture"
             className="absolute inset-0 w-full h-full object-cover"
           />
@@ -5455,22 +5449,43 @@ function HowItWorks() {
           </div>
 
           <div className="shrink-0 flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11.5px] font-mono font-bold tracking-wider text-[#17202A] bg-white border border-[#E8E5E1] shadow-2xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
-              03 STORIES
-            </span>
+            {!isTestimonialsLoading && testimonials.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11.5px] font-mono font-bold tracking-wider text-[#17202A] bg-white border border-[#E8E5E1] shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
+                {testimonials.length < 10 ? `0${testimonials.length}` : testimonials.length} {testimonials.length === 1 ? 'STORY' : 'STORIES'}
+              </span>
+            )}
           </div>
         </div>
 
         {/* Main Testimonial Editorial Composition (Warm Off-White #FAF9F7) */}
-        <div className="bg-[#FAF9F7] border border-[#E8E5E1] rounded-[24px] sm:rounded-[28px] p-6 sm:p-8 lg:p-10 shadow-xs overflow-hidden">
+        {isTestimonialsLoading ? (
+          <div className="bg-[#FAF9F7] border border-[#E8E5E1] rounded-[24px] sm:rounded-[28px] p-6 sm:p-12 shadow-xs flex items-center justify-center min-h-[400px]">
+            <div className="flex flex-col items-center justify-center gap-3 animate-pulse">
+              <div className="w-12 h-12 rounded-full border-2 border-[#E8E5E1] border-t-[#FF5A3C] animate-spin" />
+              <p className="text-[13px] font-semibold text-[#64748B]">Loading stories...</p>
+            </div>
+          </div>
+        ) : testimonialsError ? (
+          <div className="bg-[#FAF9F7] border border-[#E8E5E1] rounded-[24px] sm:rounded-[28px] p-6 sm:p-12 shadow-xs flex flex-col items-center justify-center min-h-[300px]">
+             <AlertCircle size={28} className="text-[#94A3B8] mb-3" />
+             <p className="text-[14.5px] font-medium text-[#17202A]">Unable to load stories right now.</p>
+          </div>
+        ) : testimonials.length === 0 ? (
+          <div className="bg-[#FAF9F7] border border-[#E8E5E1] rounded-[24px] sm:rounded-[28px] p-6 sm:p-12 shadow-xs flex flex-col items-center justify-center min-h-[300px]">
+             <Quote size={28} className="text-[#94A3B8] mb-3" />
+             <p className="text-[14.5px] font-medium text-[#17202A]">No stories available yet.</p>
+          </div>
+        ) : (
+          <div className="bg-[#FAF9F7] border border-[#E8E5E1] rounded-[24px] sm:rounded-[28px] p-6 sm:p-8 lg:p-10 shadow-xs overflow-hidden">
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
             
             {/* ── LEFT COLUMN (55% width ~ 7 cols): TESTIMONIAL QUOTE & PERSON ── */}
             <div className="lg:col-span-7 flex flex-col justify-between h-full space-y-6">
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={testimonialsData[activeTestimonial].id}
+                  key={testimonials[activeTestimonial]._id || testimonials[activeTestimonial].id}
                   initial={{ opacity: 0, x: -24 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 24 }}
@@ -5481,32 +5496,40 @@ function HowItWorks() {
                   <div className="relative pl-5 sm:pl-6 border-l-2 border-[#FF5A3C] text-left">
                     <Quote size={20} className="text-[#FF5A3C] mb-2.5 opacity-90" />
                     <p className="text-[20px] sm:text-[24px] lg:text-[27px] font-medium text-[#17202A] leading-[1.28] tracking-tight max-w-[620px] text-left">
-                      &ldquo;{testimonialsData[activeTestimonial].quote}&rdquo;
+                      &ldquo;{testimonials[activeTestimonial].quote}&rdquo;
                     </p>
                   </div>
 
                   {/* Person Profile Row */}
                   <div className="flex items-center gap-3.5 pt-2 text-left">
-                    <motion.img
-                      src={testimonialsData[activeTestimonial].avatar}
-                      alt={testimonialsData[activeTestimonial].name}
-                      initial={{ scale: 0.94, opacity: 0.8 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ duration: 0.3 }}
-                      className="w-14 h-14 rounded-full object-cover border border-[#E8E5E1] shadow-2xs shrink-0"
-                    />
+                    {testimonials[activeTestimonial].avatar ? (
+                      <motion.img
+                        src={testimonials[activeTestimonial].avatar}
+                        alt={testimonials[activeTestimonial].name}
+                        initial={{ scale: 0.94, opacity: 0.8 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ duration: 0.3 }}
+                        className="w-14 h-14 rounded-full object-cover border border-[#E8E5E1] shadow-2xs shrink-0"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-full bg-[#E8E5E1] flex items-center justify-center border border-[#D1D5DB] shadow-2xs shrink-0 text-[#64748B] font-bold">
+                        {testimonials[activeTestimonial].name.charAt(0)}
+                      </div>
+                    )}
                     <div className="min-w-0 text-left">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="text-[15.5px] font-bold text-[#17202A] text-left">
-                          {testimonialsData[activeTestimonial].name}
+                          {testimonials[activeTestimonial].name}
                         </h4>
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#16A66A] bg-[#16A66A]/10 px-2 py-0.5 rounded-full">
-                          <Check size={11} strokeWidth={3} />
-                          Verified experience
-                        </span>
+                        {testimonials[activeTestimonial].isVerified !== false && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#16A66A] bg-[#16A66A]/10 px-2 py-0.5 rounded-full">
+                            <Check size={11} strokeWidth={3} />
+                            Verified experience
+                          </span>
+                        )}
                       </div>
                       <p className="text-[13px] text-[#64748B] text-left mt-0.5">
-                        {testimonialsData[activeTestimonial].role} · {testimonialsData[activeTestimonial].location}
+                        {testimonials[activeTestimonial].role} {testimonials[activeTestimonial].location ? `· ${testimonials[activeTestimonial].location}` : ''}
                       </p>
                     </div>
                   </div>
@@ -5518,7 +5541,7 @@ function HowItWorks() {
             <div className="lg:col-span-5 border-t lg:border-t-0 lg:border-l border-[#E8E5E1] pt-6 lg:pt-0 lg:pl-8 flex flex-col justify-between text-left">
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={`context-${testimonialsData[activeTestimonial].id}`}
+                  key={`context-${testimonials[activeTestimonial]._id || testimonials[activeTestimonial].id}`}
                   initial={{ opacity: 0, scale: 0.96 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.96 }}
@@ -5532,8 +5555,8 @@ function HowItWorks() {
 
                   {/* Stage Flow */}
                   <div className="flex items-center gap-1.5 text-[12px] font-medium flex-wrap text-left">
-                    {testimonialsData[activeTestimonial].stages.map((stg, sIdx) => {
-                      const isActive = sIdx === testimonialsData[activeTestimonial].activeStageIndex;
+                    {testimonials[activeTestimonial].stages?.map((stg, sIdx) => {
+                      const isActive = sIdx === testimonials[activeTestimonial].activeStageIndex;
                       return (
                         <div key={stg} className="flex items-center gap-1.5">
                           <span
@@ -5545,7 +5568,7 @@ function HowItWorks() {
                           >
                             {stg}
                           </span>
-                          {sIdx < testimonialsData[activeTestimonial].stages.length - 1 && (
+                          {sIdx < testimonials[activeTestimonial].stages.length - 1 && (
                             <span className="text-[#64748B]/50 font-mono text-[11px]">→</span>
                           )}
                         </div>
@@ -5560,7 +5583,7 @@ function HowItWorks() {
                         PROPERTY
                       </span>
                       <span className="text-[12px] font-semibold text-[#17202A] block truncate mt-0.5">
-                        {testimonialsData[activeTestimonial].propertyType}
+                        {testimonials[activeTestimonial].propertyType || '-'}
                       </span>
                     </div>
                     <div className="bg-white/80 border border-[#E8E5E1] p-2.5 rounded-xl">
@@ -5568,7 +5591,7 @@ function HowItWorks() {
                         LOCATION
                       </span>
                       <span className="text-[12px] font-semibold text-[#17202A] block truncate mt-0.5">
-                        {testimonialsData[activeTestimonial].location}
+                        {testimonials[activeTestimonial].location || '-'}
                       </span>
                     </div>
                     <div className="bg-white/80 border border-[#E8E5E1] p-2.5 rounded-xl">
@@ -5576,23 +5599,31 @@ function HowItWorks() {
                         JOURNEY
                       </span>
                       <span className="text-[12px] font-semibold text-[#17202A] block truncate mt-0.5">
-                        {testimonialsData[activeTestimonial].journeyType}
+                        {testimonials[activeTestimonial].journeyType || '-'}
                       </span>
                     </div>
                   </div>
 
                   {/* Architectural Property Image */}
                   <div className="relative rounded-[16px] overflow-hidden aspect-[16/10] max-w-[340px] border border-[#E8E5E1] bg-white group cursor-pointer mt-3">
-                    <motion.img
-                      src={testimonialsData[activeTestimonial].propertyImage}
-                      alt={testimonialsData[activeTestimonial].name}
-                      className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500 ease-out"
-                    />
+                    {testimonials[activeTestimonial].propertyImage ? (
+                      <motion.img
+                        src={testimonials[activeTestimonial].propertyImage}
+                        alt={testimonials[activeTestimonial].name}
+                        className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500 ease-out"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-[#E8E5E1] flex items-center justify-center text-[#94A3B8]">
+                        No property image available
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10 pointer-events-none" />
-                    <div className="absolute bottom-2.5 left-2.5 bg-white/94 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/70 text-[11px] font-semibold text-[#17202A] flex items-center gap-1.5 shadow-2xs">
-                      <CheckCircle2 size={13} className="text-[#16A66A]" />
-                      <span>{testimonialsData[activeTestimonial].propertyBadge}</span>
-                    </div>
+                    {testimonials[activeTestimonial].isVerified !== false && (
+                      <div className="absolute bottom-2.5 left-2.5 bg-white/94 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/70 text-[11px] font-semibold text-[#17202A] flex items-center gap-1.5 shadow-2xs">
+                        <CheckCircle2 size={13} className="text-[#16A66A]" />
+                        <span>Verified information</span>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               </AnimatePresence>
@@ -5600,60 +5631,63 @@ function HowItWorks() {
           </div>
 
           {/* ── MINIMAL NAVIGATION BAR ── */}
-          <div className="mt-8 pt-6 border-t border-[#E8E5E1] flex items-center justify-between gap-4">
-            {/* Previous Button */}
-            <button
-              onClick={() =>
-                setActiveTestimonial((prev) =>
-                  prev === 0 ? testimonialsData.length - 1 : prev - 1
-                )
-              }
-              aria-label="Previous testimonial"
-              className="px-3.5 sm:px-4 py-2 rounded-xl border border-[#E8E5E1] bg-white hover:bg-[#FAF9F7] text-[13px] font-semibold text-[#17202A] transition-all inline-flex items-center gap-2 group cursor-pointer shadow-2xs"
-            >
-              <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
-              <span>Previous</span>
-            </button>
+          {testimonials.length > 1 && (
+            <div className="mt-8 pt-6 border-t border-[#E8E5E1] flex items-center justify-between gap-4">
+              {/* Previous Button */}
+              <button
+                onClick={() =>
+                  setActiveTestimonial((prev) =>
+                    prev === 0 ? testimonials.length - 1 : prev - 1
+                  )
+                }
+                aria-label="Previous testimonial"
+                className="px-3.5 sm:px-4 py-2 rounded-xl border border-[#E8E5E1] bg-white hover:bg-[#FAF9F7] text-[13px] font-semibold text-[#17202A] transition-all inline-flex items-center gap-2 group cursor-pointer shadow-2xs"
+              >
+                <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+                <span>Previous</span>
+              </button>
 
-            {/* Center Counter with Active Coral Line Indicator */}
-            <div className="flex items-center gap-3">
-              <span className="font-mono text-[12px] font-bold text-[#64748B]">
-                0{activeTestimonial + 1}
-              </span>
-              <div className="flex items-center gap-1.5">
-                {testimonialsData.map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setActiveTestimonial(idx)}
-                    aria-label={`Go to slide ${idx + 1}`}
-                    className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                      activeTestimonial === idx
-                        ? "w-8 bg-[#FF5A3C]"
-                        : "w-2.5 bg-[#E8E5E1] hover:bg-[#64748B]/40"
-                    }`}
-                  />
-                ))}
+              {/* Center Counter with Active Coral Line Indicator */}
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-[12px] font-bold text-[#64748B]">
+                  {activeTestimonial + 1 < 10 ? `0${activeTestimonial + 1}` : activeTestimonial + 1}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {testimonials.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setActiveTestimonial(idx)}
+                      aria-label={`Go to slide ${idx + 1}`}
+                      className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                        activeTestimonial === idx
+                          ? "w-8 bg-[#FF5A3C]"
+                          : "w-2.5 bg-[#E8E5E1] hover:bg-[#64748B]/40"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="font-mono text-[12px] font-bold text-[#64748B]">
+                  {testimonials.length < 10 ? `0${testimonials.length}` : testimonials.length}
+                </span>
               </div>
-              <span className="font-mono text-[12px] font-bold text-[#64748B]">
-                0{testimonialsData.length}
-              </span>
-            </div>
 
-            {/* Next Button */}
-            <button
-              onClick={() =>
-                setActiveTestimonial((prev) =>
-                  prev === testimonialsData.length - 1 ? 0 : prev + 1
-                )
-              }
-              aria-label="Next testimonial"
-              className="px-3.5 sm:px-4 py-2 rounded-xl border border-[#E8E5E1] bg-white hover:bg-[#FAF9F7] text-[13px] font-semibold text-[#17202A] transition-all inline-flex items-center gap-2 group cursor-pointer shadow-2xs"
-            >
-              <span>Next</span>
-              <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
-            </button>
-          </div>
+              {/* Next Button */}
+              <button
+                onClick={() =>
+                  setActiveTestimonial((prev) =>
+                    prev === testimonials.length - 1 ? 0 : prev + 1
+                  )
+                }
+                aria-label="Next testimonial"
+                className="px-3.5 sm:px-4 py-2 rounded-xl border border-[#E8E5E1] bg-white hover:bg-[#FAF9F7] text-[13px] font-semibold text-[#17202A] transition-all inline-flex items-center gap-2 group cursor-pointer shadow-2xs"
+              >
+                <span>Next</span>
+                <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            </div>
+          )}
         </div>
+        )}
       </div>
 
       {/* ── 06 EDITORIAL FREQUENTLY ASKED QUESTIONS SECTION ── */}
@@ -5734,7 +5768,7 @@ function HowItWorks() {
                 FAQ
               </span>
               <h4 className="text-[20px] sm:text-[22px] font-bold text-[#17202A] tracking-tight text-left">
-                08 QUESTIONS
+                {faqData.length < 10 ? `0${faqData.length}` : faqData.length} QUESTIONS
               </h4>
               <div className="border-l-2 border-[#FF5A3C] pl-3 py-1">
                 <p className="text-[13px] text-[#64748B] leading-relaxed text-left">
@@ -5765,7 +5799,13 @@ function HowItWorks() {
 
           {/* Right Column (70% ~ 8 cols): Editorial Accordion Rows */}
           <div className="lg:col-span-8 text-left">
-            {filteredFaqs.length === 0 ? (
+            {isFaqLoading ? (
+              <div className="py-12 px-6 text-left border border-dashed border-[#E7E7E5] rounded-2xl bg-[#F8F8F7] space-y-4 animate-pulse">
+                <div className="h-6 bg-[#E7E7E5] rounded-full w-1/4"></div>
+                <div className="h-4 bg-[#E7E7E5] rounded-full w-1/2"></div>
+                <div className="h-4 bg-[#E7E7E5] rounded-full w-1/3"></div>
+              </div>
+            ) : filteredFaqs.length === 0 ? (
               <div className="py-12 px-6 text-left border border-dashed border-[#E7E7E5] rounded-2xl bg-white space-y-2">
                 <h4 className="text-[16px] font-bold text-[#17202A]">No questions found</h4>
                 <p className="text-[13.5px] text-[#64748B]">
@@ -5786,16 +5826,11 @@ function HowItWorks() {
               <div className="divide-y divide-[#E7E7E5] border-t border-[#E7E7E5] text-left">
                 {filteredFaqs.map((faq) => {
                   const isOpen = openFaq === faq.id;
-                  const isFeaturedFirst = faq.id === "01";
 
                   return (
                     <div
                       key={faq.id}
-                      className={`transition-colors text-left ${
-                        isFeaturedFirst && !isOpen
-                          ? "bg-[#FFF7F4] border-l-2 border-[#FF5A3C] px-4 -mx-4 rounded-lg my-1"
-                          : ""
-                      }`}
+                      className="transition-colors text-left"
                     >
                       <button
                         onClick={() => setOpenFaq(isOpen ? null : faq.id)}
@@ -5842,7 +5877,7 @@ function HowItWorks() {
                             className="overflow-hidden text-left"
                           >
                             <div className="pl-7 sm:pl-9 pr-4 pb-6 text-left">
-                              <div className="border-l-2 border-[#FF5A3C] pl-4 sm:pl-5 py-1 text-left">
+                              <div className="border-l-2 border-[#FF5A3C] pl-4 sm:pl-5 py-1 text-left whitespace-pre-wrap">
                                 <p className="text-[14.5px] sm:text-[15.5px] text-[#64748B] leading-[1.68] max-w-[650px] text-left">
                                   {faq.answer}
                                 </p>
@@ -5897,7 +5932,7 @@ function HowItWorks() {
         <div className="relative max-w-[1200px] mx-auto min-h-[500px] sm:min-h-[540px] rounded-[28px] overflow-hidden flex flex-col justify-between p-7 sm:p-12 lg:p-14 shadow-lg border border-[#E7E7E5] text-left">
           {/* Background Image with subtle zoom */}
           <motion.img
-            src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1600&h=1000&fit=crop&q=85"
+            src="https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=1600&h=1000&fit=crop&q=85"
             alt="Luxury Architecture"
             initial={{ scale: 1.04 }}
             whileInView={{ scale: 1 }}

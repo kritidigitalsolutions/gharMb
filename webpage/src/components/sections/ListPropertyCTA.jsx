@@ -9,7 +9,7 @@ export default function ListPropertyCTA() {
           {/* Image */}
           <div className="relative rounded-2xl overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.08)] order-2 lg:order-1">
             <img
-              src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=640&h=420&fit=crop"
+              src="https://images.unsplash.com/photo-1582407947304-fd86f028f716?w=640&h=420&fit=crop"
               alt="Property owner reviewing documents at home"
               loading="lazy"
               className="w-full h-auto"

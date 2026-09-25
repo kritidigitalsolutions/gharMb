@@ -130,7 +130,7 @@ const LeadsDashboard = () => {
       type: '3 BHK Modern Flat',
       builder: 'Prestige Group',
       area: '1900 sq.ft',
-      image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&auto=format&fit=crop&q=80',
+      image: 'https://images.unsplash.com/photo-1567496898669-ee935f5f647a?w=800&auto=format&fit=crop&q=80',
       status: 'Live on GharMB'
     }
   };

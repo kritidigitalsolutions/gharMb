@@ -15,6 +15,12 @@ import Settings from '../pages/Settings';
 import Legal from '../pages/Legal';
 import About from '../pages/About';
 import AdminNotifications from '../pages/AdminNotifications';
+import InsightsManagement from '../pages/InsightsManagement';
+import InsightsCategories from '../pages/InsightsCategories';
+import InsightsEditor from '../pages/InsightsEditor';
+import FaqManagement from '../pages/FaqManagement';
+import FaqCategories from '../pages/FaqCategories';
+import TestimonialManagement from '../pages/TestimonialManagement';
 
 const AdminRoutes = () => {
     return (
@@ -34,6 +40,13 @@ const AdminRoutes = () => {
                 <Route path="references" element={<ReferenceWorkflow />} />
                 <Route path="revenue" element={<RevenueDashboard />} />
                 <Route path="reports" element={<ReportsScreen />} />
+                <Route path="insights" element={<InsightsManagement />} />
+                <Route path="insights/categories" element={<InsightsCategories />} />
+                <Route path="insights/new" element={<InsightsEditor />} />
+                <Route path="insights/edit/:id" element={<InsightsEditor />} />
+                <Route path="faq" element={<FaqManagement />} />
+                <Route path="faq/categories" element={<FaqCategories />} />
+                <Route path="testimonials" element={<TestimonialManagement />} />
                 <Route path="notifications" element={<AdminNotifications />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="legal" element={<Legal />} />

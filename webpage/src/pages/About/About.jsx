@@ -47,7 +47,7 @@ export default function About() {
             </div>
             <div className="rounded-2xl overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.08)]">
               <img
-                src="https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=600&h=420&fit=crop"
+                src="https://images.unsplash.com/photo-1577495508048-b635879837f1?w=600&h=420&fit=crop"
                 alt="Modern apartment building exterior"
                 loading="lazy"
                 className="w-full h-auto"

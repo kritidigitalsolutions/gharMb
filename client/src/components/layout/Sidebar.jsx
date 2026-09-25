@@ -20,7 +20,8 @@ import {
   Briefcase,
   Lock,
   Gift,
-  Sparkles
+  Sparkles,
+  MessageSquareQuote
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, collapsed, setCollapsed, onLogout }) => {
@@ -69,6 +70,9 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, collapsed
     { name: 'Referral Network', path: '/admin/references', icon: Gift },
     { name: 'Revenue', path: '/admin/revenue', icon: IndianRupee },
     { name: 'Reports & Export', path: '/admin/reports', icon: BarChart3 },
+    { name: 'Insights & Blogs', path: '/admin/insights', icon: Sparkles },
+    { name: 'FAQ Management', path: '/admin/faq', icon: Info },
+    { name: 'Testimonials', path: '/admin/testimonials', icon: MessageSquareQuote },
     { name: 'Notifications', path: '/admin/notifications', icon: Bell },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
     { name: 'Legal Policies', path: '/admin/legal', icon: FileText },
