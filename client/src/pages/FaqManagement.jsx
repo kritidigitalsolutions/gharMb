@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   Plus, Search, Filter, Edit, Trash2,
   CheckCircle2, XCircle, Clock, Folder, AlertCircle, RefreshCw, 
-  Layers, CheckSquare, Square, X, ArrowRight, ArrowUp, ArrowDown
+  Layers, CheckSquare, Square, X, ArrowRight, ArrowUp, ArrowDown, ArrowUpDown
 } from 'lucide-react';
 import API from '../api/api';
 
@@ -23,6 +23,7 @@ const FaqManagement = () => {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [sortDirection, setSortDirection] = useState('desc');
 
   // Form Modal (Add / Edit)
   const [modalState, setModalState] = useState({
@@ -65,34 +66,6 @@ const FaqManagement = () => {
     }
   };
 
-  const handleReorder = async (currentIndex, direction) => {
-    if (direction === 'up' && currentIndex === 0) return;
-    if (direction === 'down' && currentIndex === faqs.length - 1) return;
-
-    const newFaqs = [...faqs];
-    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    
-    const temp = newFaqs[currentIndex];
-    newFaqs[currentIndex] = newFaqs[swapIndex];
-    newFaqs[swapIndex] = temp;
-
-    setFaqs(newFaqs);
-
-    const items = newFaqs.map((faq, index) => ({
-      id: faq._id,
-      sortOrder: index
-    }));
-
-    try {
-      await API.put('/admin/faqs/reorder', { items });
-      triggerToast('Order updated', 'success');
-    } catch (err) {
-      console.error(err);
-      triggerToast('Failed to update order', 'error');
-      fetchFaqs();
-    }
-  };
-
   // Fetch faqs
   const fetchFaqs = async () => {
     setIsLoading(true);
@@ -101,6 +74,7 @@ const FaqManagement = () => {
       const params = {};
       if (search.trim()) params.search = search.trim();
       if (selectedCategory) params.category = selectedCategory;
+      params.sort = sortDirection;
 
       const res = await API.get('/admin/faqs', { params });
       if (res.data?.data?.faqs) {
@@ -127,7 +101,7 @@ const FaqManagement = () => {
 
   useEffect(() => {
     fetchFaqs();
-  }, [search, selectedCategory, selectedStatus]);
+  }, [search, selectedCategory, selectedStatus, sortDirection]);
 
   // Selection helpers
   const isAllSelected = faqs.length > 0 && selectedFaqIds.length === faqs.length;
@@ -406,10 +380,19 @@ const FaqManagement = () => {
                       )}
                     </button>
                   </th>
+                  <th className="px-5 py-4 w-[60px]">
+                    <button 
+                      onClick={() => setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc')}
+                      className="flex items-center gap-1 text-[12px] font-bold text-[#64748B] hover:text-[#FF5A3C] transition-colors uppercase tracking-wider"
+                      title="Toggle Sort Order"
+                    >
+                      S.No
+                      <ArrowUpDown size={12} className={sortDirection === 'asc' ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                    </button>
+                  </th>
                   <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider">Question</th>
                   <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider">Category</th>
                   <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider text-center">Status</th>
-                  <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider text-center">Order</th>
                   <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider text-right">Actions</th>
                 </tr>
               </thead>
@@ -417,11 +400,10 @@ const FaqManagement = () => {
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      <td className="px-5 py-5"><div className="w-4 h-4 bg-[#F1F1F0] rounded" /></td>
+                      <td className="px-5 py-5"><div className="w-8 h-4 bg-[#F1F1F0] rounded" /></td>
                       <td className="px-5 py-5"><div className="w-3/4 h-4 bg-[#F1F1F0] rounded" /></td>
                       <td className="px-5 py-5"><div className="w-24 h-4 bg-[#F1F1F0] rounded" /></td>
                       <td className="px-5 py-5 text-center"><div className="w-16 h-5 bg-[#F1F1F0] rounded-full mx-auto" /></td>
-                      <td className="px-5 py-5 text-center"><div className="w-16 h-8 bg-[#F1F1F0] rounded-lg mx-auto" /></td>
                       <td className="px-5 py-5"><div className="w-16 h-8 bg-[#F1F1F0] rounded-lg ml-auto" /></td>
                     </tr>
                   ))
@@ -463,6 +445,9 @@ const FaqManagement = () => {
                             {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
                           </button>
                         </td>
+                        <td className="px-5 py-5 font-mono text-[13px] text-[#64748B]">
+                          {index + 1}
+                        </td>
                         <td className="px-5 py-5">
                           <div className="text-[14px] font-semibold text-[#17202A] mb-1 leading-snug max-w-lg truncate">
                             {faq.question}
@@ -485,34 +470,6 @@ const FaqManagement = () => {
                           }`}>
                             {faq.isActive ? 'Active' : 'Inactive'}
                           </span>
-                        </td>
-                        <td className="px-5 py-5 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => handleReorder(index, 'up')}
-                              disabled={index === 0}
-                              className={`p-1.5 rounded-lg border transition-all ${
-                                index === 0 
-                                  ? 'bg-[#F8F8F7] border-transparent text-[#CBD5E1] cursor-not-allowed'
-                                  : 'bg-white border-[#E8E5E1] text-[#64748B] hover:text-[#17202A] hover:bg-[#F8F8F7]'
-                              }`}
-                              title="Move Up"
-                            >
-                              <ArrowUp size={14} />
-                            </button>
-                            <button
-                              onClick={() => handleReorder(index, 'down')}
-                              disabled={index === faqs.length - 1}
-                              className={`p-1.5 rounded-lg border transition-all ${
-                                index === faqs.length - 1
-                                  ? 'bg-[#F8F8F7] border-transparent text-[#CBD5E1] cursor-not-allowed'
-                                  : 'bg-white border-[#E8E5E1] text-[#64748B] hover:text-[#17202A] hover:bg-[#F8F8F7]'
-                              }`}
-                              title="Move Down"
-                            >
-                              <ArrowDown size={14} />
-                            </button>
-                          </div>
                         </td>
                         <td className="px-5 py-5">
                           <div className="flex items-center justify-end gap-2">

@@ -1,7 +1,37 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Mail } from 'lucide-react';
 
 export default function Footer() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isHome = location.pathname === '/';
+
+  const handleAnchorClick = (e, href) => {
+    if (href.startsWith('#')) {
+      e.preventDefault();
+      if (isHome) {
+        const target = document.querySelector(href);
+        if (target) {
+          const yOffset = -75;
+          const y = target.getBoundingClientRect().top + window.scrollY + yOffset;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      } else {
+        navigate('/' + href);
+        setTimeout(() => {
+          const target = document.querySelector(href);
+          if (target) {
+            const yOffset = -75;
+            const y = target.getBoundingClientRect().top + window.scrollY + yOffset;
+            window.scrollTo({ top: y, behavior: 'smooth' });
+          }
+        }, 150);
+      }
+    }
+  };
+
   return (
     <footer className="bg-[#FF5A3C] text-white relative overflow-hidden">
       {/* Decorative Oversized Watermark */}
@@ -55,18 +85,19 @@ export default function Footer() {
               </h4>
               <ul className="space-y-2.5 text-left">
                 {[
-                  { label: 'Property Discovery', href: '/properties' },
-                  { label: 'Verified Listings', href: '/properties' },
-                  { label: 'Developer Projects', href: '/developers' },
-                  { label: 'Commercial Spaces', href: '/commercial' }
+                  { label: 'Platform Overview', href: '#platform' },
+                  { label: 'Ecosystem', href: '#ecosystem' },
+                  { label: 'Smart Tools', href: '#tools' },
+                  { label: 'How It Works', href: '#how-it-works' }
                 ].map((item) => (
                   <li key={item.label}>
-                    <Link
-                      to={item.href}
-                      className="text-[13px] text-white/80 hover:text-white transition-all hover:translate-x-1 inline-block"
+                    <a
+                      href={item.href}
+                      onClick={(e) => handleAnchorClick(e, item.href)}
+                      className="text-[13px] text-white/80 hover:text-white transition-all hover:translate-x-1 inline-block cursor-pointer"
                     >
                       {item.label}
-                    </Link>
+                    </a>
                   </li>
                 ))}
               </ul>
@@ -79,18 +110,19 @@ export default function Footer() {
               </h4>
               <ul className="space-y-2.5 text-left">
                 {[
-                  { label: 'Professionals', href: '/about' },
-                  { label: 'Developers', href: '/developers' },
-                  { label: 'Property Owners', href: '/properties' },
-                  { label: 'Verification', href: '/about' }
+                  { label: 'For Professionals', href: '#professionals' },
+                  { label: 'Market Insights', href: '#insights' },
+                  { label: 'About GharMB', href: '#about' },
+                  { label: 'Contact Us', href: '#contact' }
                 ].map((item) => (
                   <li key={item.label}>
-                    <Link
-                      to={item.href}
-                      className="text-[13px] text-white/80 hover:text-white transition-all hover:translate-x-1 inline-block"
+                    <a
+                      href={item.href}
+                      onClick={(e) => handleAnchorClick(e, item.href)}
+                      className="text-[13px] text-white/80 hover:text-white transition-all hover:translate-x-1 inline-block cursor-pointer"
                     >
                       {item.label}
-                    </Link>
+                    </a>
                   </li>
                 ))}
               </ul>
@@ -99,22 +131,23 @@ export default function Footer() {
             {/* COMPANY */}
             <div className="text-left">
               <h4 className="text-[11.5px] font-bold uppercase tracking-[0.12em] text-white/90 mb-4 text-left">
-                COMPANY
+                QUICK LINKS
               </h4>
               <ul className="space-y-2.5 text-left">
                 {[
-                  { label: 'About', href: '/about' },
-                  { label: 'Insights', href: '/insights' },
-                  { label: 'Contact', href: '/contact' },
-                  { label: 'Careers', href: '/about' }
+                  { label: 'Home', href: '#hero' },
+                  { label: 'About Us', href: '#about' },
+                  { label: 'Insights', href: '#insights' },
+                  { label: 'Get in Touch', href: '#contact' }
                 ].map((item) => (
                   <li key={item.label}>
-                    <Link
-                      to={item.href}
-                      className="text-[13px] text-white/80 hover:text-white transition-all hover:translate-x-1 inline-block"
+                    <a
+                      href={item.href}
+                      onClick={(e) => handleAnchorClick(e, item.href)}
+                      className="text-[13px] text-white/80 hover:text-white transition-all hover:translate-x-1 inline-block cursor-pointer"
                     >
                       {item.label}
-                    </Link>
+                    </a>
                   </li>
                 ))}
               </ul>
@@ -127,17 +160,16 @@ export default function Footer() {
               </h4>
               <ul className="space-y-2.5 text-left">
                 {[
-                  { label: 'Privacy Policy', href: '#' },
-                  { label: 'Terms of Service', href: '#' },
-                  { label: 'Cookie Policy', href: '#' }
+                  { label: 'Privacy Policy', href: '/privacy-policy' },
+                  { label: 'Terms of Service', href: '/terms-of-service' },
                 ].map((item) => (
                   <li key={item.label}>
-                    <a
-                      href={item.href}
+                    <Link
+                      to={item.href}
                       className="text-[13px] text-white/80 hover:text-white transition-all hover:translate-x-1 inline-block"
                     >
                       {item.label}
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -169,11 +201,6 @@ export default function Footer() {
             ))}
           </div>
 
-          <div className="flex items-center gap-4 text-[12px] text-white/75">
-            <a href="#" className="hover:text-white transition-colors">Privacy</a>
-            <span className="text-white/30">•</span>
-            <a href="#" className="hover:text-white transition-colors">Terms</a>
-          </div>
         </div>
       </div>
     </footer>

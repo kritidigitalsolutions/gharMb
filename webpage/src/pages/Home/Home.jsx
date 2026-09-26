@@ -6287,24 +6287,22 @@ function ContactSection() {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   HOME PAGE
-   ═══════════════════════════════════════════════════════════════ */
 export default function Home() {
   return (
-    <>
-      <Hero />
+    <div className="overflow-x-hidden">
+      <div id="hero"><Hero /></div>
       <BrandMarquee />
-      <AboutGharMB />
-      <Ecosystem />
-      <ProductShowcase />
+      <div id="about"><AboutGharMB /></div>
+      <div id="ecosystem"><Ecosystem /></div>
+      <div id="platform"><ProductShowcase /></div>
       <Verification />
-      <Professionals />
+      <div id="professionals"><Professionals /></div>
       <Commercial />
-      <SmartTools />
-      <Insights />
-      <HowItWorks />
-      <ContactSection />
-    </>
+      <div id="tools"><SmartTools /></div>
+      <div id="insights"><Insights /></div>
+      <div id="how-it-works"><HowItWorks /></div>
+      <div id="contact"><ContactSection /></div>
+    </div>
   );
 }
+

@@ -3,7 +3,7 @@ const Testimonial = require('../../models/testimonial.model');
 // Get all testimonials (with filters & search)
 exports.getTestimonials = async (req, res) => {
   try {
-    const { search, isActive } = req.query;
+    const { search, isActive, sort = 'desc' } = req.query;
     
     let query = {};
     
@@ -20,7 +20,7 @@ exports.getTestimonials = async (req, res) => {
     }
 
     const testimonials = await Testimonial.find(query)
-      .sort({ sortOrder: 1, createdAt: -1 });
+      .sort({ createdAt: sort === 'asc' ? 1 : -1 });
 
     res.status(200).json({
       status: 'success',

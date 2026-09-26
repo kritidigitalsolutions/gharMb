@@ -97,7 +97,7 @@ exports.createBlog = async (req, res, next) => {
 // @access  Private (Admin only)
 exports.getAllBlogs = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, category, status, search } = req.query;
+    const { page = 1, limit = 20, category, status, search, sort = 'desc' } = req.query;
 
     const query = {};
     if (category) query.category = category;
@@ -117,7 +117,7 @@ exports.getAllBlogs = async (req, res, next) => {
     const [blogs, totalCount] = await Promise.all([
       Blog.find(query)
         .populate('category', 'name slug')
-        .sort({ sortOrder: 1, createdAt: -1 })
+        .sort({ createdAt: sort === 'asc' ? 1 : -1 })
         .skip(skip)
         .limit(Number(limit))
         .select('-content')

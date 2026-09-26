@@ -47,7 +47,7 @@ exports.createFaq = async (req, res, next) => {
 // @access  Private (Admin only)
 exports.getAllFaqs = async (req, res, next) => {
   try {
-    const { category, search } = req.query;
+    const { category, search, sort = 'desc' } = req.query;
 
     const query = {};
     if (category) query.category = category;
@@ -61,7 +61,7 @@ exports.getAllFaqs = async (req, res, next) => {
 
     const faqs = await Faq.find(query)
       .populate('category', 'name slug')
-      .sort({ sortOrder: 1, createdAt: -1 })
+      .sort({ createdAt: sort === 'asc' ? 1 : -1 })
       .lean();
 
     res.status(200).json({

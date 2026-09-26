@@ -1,204 +1,132 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  Save,
-  Bold,
-  Italic,
-  List,
-  Link as LinkIcon,
-  RotateCcw,
-  AlertTriangle,
-  Info,
-  CheckCircle2,
-  Undo,
-  Redo
+  Save, Bold, Italic, List, Link as LinkIcon, RotateCcw, AlertTriangle, Info, CheckCircle2, Undo, Redo, Heading1, Heading2, ListOrdered
 } from 'lucide-react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+import LinkExtension from '@tiptap/extension-link';
+import Placeholder from '@tiptap/extension-placeholder';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 const LegalSettings = () => {
   const [activeTab, setActiveTab] = useState('terms');
   const [isSaving, setIsSaving] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isMockMode, setIsMockMode] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('June 26, 2026');
-  const textareaRef = useRef(null);
 
-  // Content states
+  // Content states for the two tabs
   const [contents, setContents] = useState({
     terms: '',
     privacy: ''
   });
 
-  // History stack for custom Undo/Redo
-  const [history, setHistory] = useState({
-    terms: { past: [], future: [] },
-    privacy: { past: [], future: [] }
-  });
-
   // Toast feedback
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-
   const triggerToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast({ show: false, message: '', type: 'success' });
-    }, 4000);
+    setTimeout(() => { setToast({ show: false, message: '', type: 'success' }); }, 4000);
   };
 
-  // Helper to commit to history stack
-  const updateContentsWithHistory = (newText) => {
-    const currentText = contents[activeTab];
-    if (currentText === newText) return;
-
-    setHistory(prev => {
-      const tabHistory = prev[activeTab];
-      const newPast = [...tabHistory.past, currentText].slice(-100);
-      return {
-        ...prev,
-        [activeTab]: {
-          past: newPast,
-          future: [] // Reset redo future stack on new actions
+  // TipTap WYSIWYG Editor Instance
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] }
+      }),
+      Underline,
+      LinkExtension.configure({ openOnClick: false }),
+      Placeholder.configure({ placeholder: 'Start typing or paste your legal content here...' })
+    ],
+    content: '',
+    editorProps: {
+      attributes: {
+        class: 'w-full min-h-[500px] text-[15px] text-[var(--text-subtle)] leading-[1.8] bg-transparent border-0 focus:ring-0 outline-none custom-scrollbar prose max-w-none prose-h2:text-[26px] prose-h2:text-[#FF5A3C] prose-h2:mt-8 prose-h2:mb-4 prose-h3:text-[20px] prose-h3:mt-6 prose-p:mb-4 prose-ul:list-disc prose-ol:list-decimal prose-ul:pl-5 prose-ol:pl-5 prose-li:mb-1'
+      },
+      handlePaste: (view, event) => {
+        const text = event.clipboardData.getData('text/plain');
+        const htmlData = event.clipboardData.getData('text/html');
+        if (htmlData) return false;
+        
+        if (text) {
+          const lines = text.split('\n');
+          let inUl = false;
+          let inOl = false;
+          let newLines = [];
+          
+          for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+            if (!line) {
+              if (inUl) { newLines.push('</ul>'); inUl = false; }
+              if (inOl) { newLines.push('</ol>'); inOl = false; }
+              newLines.push('');
+              continue;
+            }
+            if (line.startsWith('•')) {
+              if (inOl) { newLines.push('</ol>'); inOl = false; }
+              if (!inUl) { newLines.push('<ul>'); inUl = true; }
+              newLines.push(`<li>${line.substring(1).trim()}</li>`);
+              continue;
+            }
+            const numMatch = line.match(/^(\d+)\.\s+(.*)/);
+            if (numMatch) {
+              const currentNum = parseInt(numMatch[1], 10);
+              const nextLine = (lines[i+1] || '').trim();
+              const nextNumMatch = nextLine.match(/^(\d+)\.\s+/);
+              if (nextNumMatch && parseInt(nextNumMatch[1], 10) === currentNum + 1) {
+                if (inUl) { newLines.push('</ul>'); inUl = false; }
+                if (!inOl) { newLines.push('<ol>'); inOl = true; }
+                newLines.push(`<li>${numMatch[2].trim()}</li>`);
+                continue;
+              } else if (inOl && currentNum > 1) {
+                 newLines.push(`<li>${numMatch[2].trim()}</li>`);
+                 continue;
+              } else {
+                 if (inUl) { newLines.push('</ul>'); inUl = false; }
+                 if (inOl) { newLines.push('</ol>'); inOl = false; }
+                 newLines.push(`<h2>${line}</h2>`);
+                 continue;
+              }
+            }
+            if (inUl) { newLines.push('</ul>'); inUl = false; }
+            if (inOl) { newLines.push('</ol>'); inOl = false; }
+            newLines.push(line);
+          }
+          if (inUl) newLines.push('</ul>');
+          if (inOl) newLines.push('</ol>');
+          
+          const paragraphs = newLines.join('\n').split(/\n{2,}/).map(p => {
+             const t = p.trim();
+             if (!t) return '';
+             if (t.startsWith('<ul') || t.startsWith('<ol') || t.startsWith('<h')) return t;
+             return `<p>${t.replace(/\n/g, '<br>')}</p>`;
+          }).join('');
+          
+          setTimeout(() => {
+            view.state.tr.insertText('');
+            editor.commands.insertContent(paragraphs);
+          }, 0);
+          event.preventDefault();
+          return true;
         }
-      };
-    });
-
-    setContents(prev => ({
-      ...prev,
-      [activeTab]: newText
-    }));
-  };
-
-  const applyFormat = (formatType) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    const selectedText = text.substring(start, end);
-
-    let replacement;
-    let selectionOffsetStart = 0;
-    let selectionOffsetEnd = 0;
-
-    switch (formatType) {
-      case 'bold':
-        replacement = `**${selectedText || 'bold text'}**`;
-        selectionOffsetStart = 2;
-        selectionOffsetEnd = selectedText ? replacement.length - 2 : replacement.length - 2;
-        break;
-      case 'italic':
-        replacement = `*${selectedText || 'italic text'}*`;
-        selectionOffsetStart = 1;
-        selectionOffsetEnd = selectedText ? replacement.length - 1 : replacement.length - 1;
-        break;
-      case 'list':
-        replacement = `\n- ${selectedText || 'list item'}`;
-        selectionOffsetStart = 3;
-        selectionOffsetEnd = replacement.length;
-        break;
-      case 'link': {
-        const url = prompt('Enter URL:', 'https://');
-        if (url === null) return; // User cancelled
-        replacement = `[${selectedText || 'link text'}](${url})`;
-        selectionOffsetStart = 1;
-        selectionOffsetEnd = selectedText ? selectedText.length + 1 : 10;
-        break;
+        return false;
       }
-      default:
-        return;
+    },
+    onUpdate: ({ editor: currentEditor }) => {
+      setContents(prev => ({ ...prev, [activeTab]: currentEditor.getHTML() }));
     }
+  });
 
-    const newContent = text.substring(0, start) + replacement + text.substring(end);
-    updateContentsWithHistory(newContent);
-
-    // Focus and select the replacement text
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + selectionOffsetStart, start + selectionOffsetEnd);
-    }, 0);
-  };
-
-  const handleUndo = () => {
-    const tabHistory = history[activeTab];
-    if (tabHistory.past.length === 0) return;
-
-    const currentText = contents[activeTab];
-    const previousText = tabHistory.past[tabHistory.past.length - 1];
-    const newPast = tabHistory.past.slice(0, -1);
-    const newFuture = [currentText, ...tabHistory.future];
-
-    setHistory(prev => ({
-      ...prev,
-      [activeTab]: {
-        past: newPast,
-        future: newFuture
-      }
-    }));
-
-    setContents(prev => ({
-      ...prev,
-      [activeTab]: previousText
-    }));
-  };
-
-  const handleRedo = () => {
-    const tabHistory = history[activeTab];
-    if (tabHistory.future.length === 0) return;
-
-    const currentText = contents[activeTab];
-    const nextText = tabHistory.future[0];
-    const newPast = [...tabHistory.past, currentText];
-    const newFuture = tabHistory.future.slice(1);
-
-    setHistory(prev => ({
-      ...prev,
-      [activeTab]: {
-        past: newPast,
-        future: newFuture
-      }
-    }));
-
-    setContents(prev => ({
-      ...prev,
-      [activeTab]: nextText
-    }));
-  };
-
-  const handleKeyDown = (e) => {
-    const isCtrl = e.ctrlKey || e.metaKey;
-    
-    if (isCtrl && e.key.toLowerCase() === 'z') {
-      e.preventDefault();
-      if (e.shiftKey) {
-        handleRedo();
-      } else {
-        handleUndo();
-      }
-    } else if (isCtrl && e.key.toLowerCase() === 'y') {
-      e.preventDefault();
-      handleRedo();
+  // Sync TipTap content when tab changes or data loads
+  useEffect(() => {
+    if (editor && !loading) {
+      editor.commands.setContent(contents[activeTab] || '');
     }
-  };
+  }, [activeTab, loading]);
 
-  const handleBlur = () => {
-    const currentText = contents[activeTab];
-    setHistory(prev => {
-      const tabHistory = prev[activeTab];
-      const lastSaved = tabHistory.past[tabHistory.past.length - 1];
-      if (lastSaved === currentText) return prev;
-      return {
-        ...prev,
-        [activeTab]: {
-          past: [...tabHistory.past, currentText].slice(-100),
-          future: []
-        }
-      };
-    });
-  };
-
-  // 1. Load mock data fallback
   const loadMockContent = () => {
     const saved = localStorage.getItem('gharmb_legal_contents');
     const savedDate = localStorage.getItem('gharmb_legal_last_updated');
@@ -207,21 +135,16 @@ const LegalSettings = () => {
         setContents(JSON.parse(saved));
         if (savedDate) setLastUpdated(savedDate);
         return;
-      } catch (err) {
-        console.error('Error parsing mock legal contents:', err);
-      }
+      } catch (err) {}
     }
-    
-    // Default initial contents
     const defaultContents = {
-      terms: "1. Acceptance of Terms\nBy accessing and using the GHARMB admin platform, you accept and agree to be bound by the terms and provision of this agreement.\n\n2. Administrator Responsibilities\nAs an authorized administrator, you are responsible for maintaining the confidentiality of your account credentials. All actions performed under your account, including property verification approvals and builder suspensions, are logged and audited.\n\n3. Data Usage & Modification\nThe platform aggregates sensitive real estate data. You agree not to reproduce, duplicate, copy, sell, or exploit any portion of the Service without express written permission.",
-      privacy: "Information Collection\nWe collect information to provide better services to our users. For administrative users, this includes login logs, IP addresses, action history, and performance metrics to ensure platform security.\n\nHow We Use Information\nThe data collected on the GHARMB platform is utilized strictly for providing, maintaining, and improving our services, developing new features, and protecting GHARMB.\n\nData Security\nWe work hard to protect GHARMB and our users from unauthorized access to or unauthorized alteration, disclosure, or destruction of information we hold. We use robust encryption protocols for all database communications."
+      terms: "<h2>1. Acceptance of Terms</h2><p>By accessing and using the GHARMB admin platform, you accept and agree to be bound by the terms.</p>",
+      privacy: "<h2>1. Information We Collect</h2><p>We collect information to provide better services to our users.</p>"
     };
     setContents(defaultContents);
     setLastUpdated('June 26, 2026');
   };
 
-  // 2. Fetch legal content from MongoDB API
   const fetchLegalContent = async () => {
     setLoading(true);
     setError(null);
@@ -234,14 +157,9 @@ const LegalSettings = () => {
         return;
       }
 
-      // Fetch both terms and privacy policies in parallel
       const [responseTerms, responsePrivacy] = await Promise.all([
-        fetch(`${API_URL}/admin/legal/terms`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${API_URL}/admin/legal/privacy-policy`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+        fetch(`${API_URL}/admin/legal/terms`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_URL}/admin/legal/privacy-policy`, { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
 
       let termsText = '';
@@ -273,45 +191,29 @@ const LegalSettings = () => {
         }
       }
 
-      // If at least one call worked, populate states
       if (responseTerms.ok || responsePrivacy.ok) {
         setContents({
-          terms: termsText || contents.terms,
-          privacy: privacyText || contents.privacy
+          terms: termsText || '',
+          privacy: privacyText || ''
         });
         setLastUpdated(dateString);
         setIsMockMode(false);
-        setHistory({
-          terms: { past: [], future: [] },
-          privacy: { past: [], future: [] }
-        });
       } else {
-        // Both requests failed (e.g. 404 or DB empty, but server responsive)
         setIsMockMode(true);
         loadMockContent();
       }
     } catch (err) {
-      console.warn('API logs fetch failed. Using local storage logs.', err);
-      setError('Could not sync legal policies with backend. Make sure the server is running on port 5001.');
+      setError('Could not sync legal policies with backend.');
       loadMockContent();
     } finally {
       setLoading(false);
     }
   };
 
-  /* eslint-disable react-hooks/exhaustive-deps */
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchLegalContent();
   }, []);
-  /* eslint-enable react-hooks/exhaustive-deps */
-  /* eslint-enable react-hooks/set-state-in-effect */
 
-  const handleContentChange = (e) => {
-    setContents({ ...contents, [activeTab]: e.target.value });
-  };
-
-  // 3. Save Legal Content changes back to MongoDB
   const handleSave = async () => {
     if (!contents[activeTab] || !contents[activeTab].trim()) {
       triggerToast('Document content cannot be empty.', 'error');
@@ -326,7 +228,6 @@ const LegalSettings = () => {
     try {
       const token = localStorage.getItem('adminToken');
       if (!token || token === 'mock_admin_token_2026') {
-        // Fallback local save
         setTimeout(() => {
           const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
           setLastUpdated(today);
@@ -355,39 +256,41 @@ const LegalSettings = () => {
       if (response.ok && data.status === 'success') {
         const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
         setLastUpdated(today);
-        // Sync local storage copy
         const updatedContents = { ...contents, [activeTab]: textToSend };
         localStorage.setItem('gharmb_legal_contents', JSON.stringify(updatedContents));
         localStorage.setItem('gharmb_legal_last_updated', today);
         triggerToast(`${docTitle} updated successfully on database!`);
       } else {
-        triggerToast(data.message || `Failed to update ${docTitle} on database.`, 'error');
+        triggerToast(data.message || `Failed to update ${docTitle}.`, 'error');
       }
     } catch (err) {
-      console.error('Error saving legal content:', err);
       triggerToast('Backend connection failed. Could not write to MongoDB.', 'error');
     } finally {
       setIsSaving(false);
     }
   };
 
+  const addLink = () => {
+    const url = window.prompt('URL');
+    if (url === null) return;
+    if (url === '') {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      return;
+    }
+    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+  };
+
   return (
     <div className="space-y-6">
-      {/* Toast Notification Popup */}
+      {/* Toast Notification */}
       {toast.show && (
         <div className={`fixed bottom-6 right-6 z-50 py-3.5 px-6 rounded-2xl shadow-2xl flex items-center gap-3 animate-slide-up border ${
-          toast.type === 'success' 
-            ? 'bg-emerald-950 border-emerald-800 text-emerald-300' 
-            : 'bg-rose-950 border-rose-800 text-rose-300'
+          toast.type === 'success' ? 'bg-emerald-950 border-emerald-800 text-emerald-300' : 'bg-rose-950 border-rose-800 text-rose-300'
         }`}>
-          {toast.type === 'success' ? (
-            <CheckCircle2 className="text-emerald-400 shrink-0" size={18} />
-          ) : (
-            <AlertTriangle className="text-rose-400 shrink-0" size={18} />
-          )}
+          {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
           <div className="text-xs">
             <p className="font-extrabold text-white">{toast.type === 'success' ? 'Changes Saved' : 'Operation Error'}</p>
-            <p className={`text-[10px] ${toast.type === 'success' ? 'text-emerald-400/90' : 'text-rose-400/90'}`}>{toast.message}</p>
+            <p className="opacity-90">{toast.message}</p>
           </div>
         </div>
       )}
@@ -396,12 +299,12 @@ const LegalSettings = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">Legal Documents</h2>
-          <p className="text-xs text-[var(--text-subtle)] mt-1">Configure Terms of Service and Privacy Policy contents dynamically saved to database.</p>
+          <p className="text-xs text-[var(--text-subtle)] mt-1">Configure Terms of Service and Privacy Policy contents.</p>
         </div>
         <button
           onClick={handleSave}
           disabled={isSaving || loading}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-brand hover:bg-brand-dark text-white text-xs font-black rounded-xl shadow-lg shadow-brand/10 transition-all disabled:opacity-70 cursor-pointer"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-brand hover:bg-brand-dark text-white text-xs font-black rounded-xl shadow-lg transition-all disabled:opacity-70 cursor-pointer"
         >
           <Save size={14} />
           {isSaving ? 'Publishing...' : 'Publish Changes'}
@@ -409,58 +312,43 @@ const LegalSettings = () => {
       </div>
 
       {/* Error & Sandbox Banners */}
-      {error ? (
-        <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+      {error && (
+        <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 rounded-2xl flex items-center justify-between text-xs">
           <div className="flex items-center gap-3">
-            <AlertTriangle className="shrink-0 text-rose-500" size={18} />
+            <AlertTriangle size={18} />
             <div>
-              <p className="font-extrabold text-[var(--text-primary)]">Legal Database Sync Failed</p>
-              <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{error}</p>
+              <p className="font-extrabold">Database Sync Failed</p>
+              <p className="opacity-80 mt-0.5">{error}</p>
             </div>
           </div>
-          <button 
-            type="button"
-            onClick={fetchLegalContent}
-            className="w-full sm:w-auto px-4 py-2 bg-rose-500 text-white hover:bg-rose-600 rounded-xl font-bold transition-all text-[10px] cursor-pointer shadow-md shadow-rose-500/10"
-          >
-            Retry Sync
-          </button>
+          <button onClick={fetchLegalContent} className="px-4 py-2 bg-rose-500 text-white rounded-xl font-bold">Retry</button>
         </div>
-      ) : isMockMode ? (
-        <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-2xl flex items-center gap-3 text-xs animate-fade-in">
-          <Info className="shrink-0 text-amber-500" size={18} />
+      )}
+      {isMockMode && !error && (
+        <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-600 rounded-2xl flex items-center gap-3 text-xs">
+          <Info size={18} />
           <div>
-            <p className="font-extrabold text-[var(--text-primary)]">Sandbox Simulation Active</p>
-            <p className="text-[10px] text-[var(--text-muted)] mt-0.5">Showing mock legal content in localStorage cache. Please sign in with a real administrator account to write to MongoDB.</p>
+            <p className="font-extrabold">Sandbox Simulation Active</p>
+            <p className="opacity-80 mt-0.5">Showing mock legal content in localStorage cache.</p>
           </div>
         </div>
-      ) : null}
+      )}
 
       {/* Tabs */}
       <div className="border-b border-[var(--border)]">
         <div className="flex gap-8">
-          <button
-            onClick={() => setActiveTab('terms')}
-            className={`pb-3 text-sm font-bold transition-all relative cursor-pointer ${
-              activeTab === 'terms' ? 'text-brand font-black' : 'text-[var(--text-subtle)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            Terms of Service
-            {activeTab === 'terms' && (
-              <span className="absolute bottom-0 left-0 w-full h-0.5 bg-brand rounded-t-full"></span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('privacy')}
-            className={`pb-3 text-sm font-bold transition-all relative cursor-pointer ${
-              activeTab === 'privacy' ? 'text-brand font-black' : 'text-[var(--text-subtle)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            Privacy Policy
-            {activeTab === 'privacy' && (
-              <span className="absolute bottom-0 left-0 w-full h-0.5 bg-brand rounded-t-full"></span>
-            )}
-          </button>
+          {['terms', 'privacy'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`pb-3 text-sm font-bold transition-all relative cursor-pointer ${
+                activeTab === tab ? 'text-brand font-black' : 'text-[var(--text-subtle)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              {tab === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
+              {activeTab === tab && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-brand rounded-t-full"></span>}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -468,60 +356,20 @@ const LegalSettings = () => {
       <div className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border)] shadow-sm flex flex-col overflow-hidden">
         
         {/* Editor Toolbar */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-muted)]">
+        <div className="flex flex-wrap items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-muted)]">
           <div className="flex items-center gap-1">
-            <button 
-              type="button" 
-              onClick={() => applyFormat('bold')} 
-              className="p-1.5 text-[var(--text-subtle)] hover:bg-[var(--border)] rounded transition-colors cursor-pointer" 
-              title="Bold"
-            >
-              <Bold size={15} />
-            </button>
-            <button 
-              type="button" 
-              onClick={() => applyFormat('italic')} 
-              className="p-1.5 text-[var(--text-subtle)] hover:bg-[var(--border)] rounded transition-colors cursor-pointer" 
-              title="Italic"
-            >
-              <Italic size={15} />
-            </button>
+            <button onClick={() => editor?.chain().focus().toggleBold().run()} className={`p-1.5 rounded transition-colors ${editor?.isActive('bold') ? 'bg-brand/10 text-brand' : 'text-[var(--text-subtle)] hover:bg-[var(--border)]'}`}><Bold size={15} /></button>
+            <button onClick={() => editor?.chain().focus().toggleItalic().run()} className={`p-1.5 rounded transition-colors ${editor?.isActive('italic') ? 'bg-brand/10 text-brand' : 'text-[var(--text-subtle)] hover:bg-[var(--border)]'}`}><Italic size={15} /></button>
             <div className="w-px h-5 bg-slate-300 mx-1"></div>
-            <button 
-              type="button" 
-              onClick={() => applyFormat('list')} 
-              className="p-1.5 text-[var(--text-subtle)] hover:bg-[var(--border)] rounded transition-colors cursor-pointer" 
-              title="Bullet List"
-            >
-              <List size={15} />
-            </button>
-            <button 
-              type="button" 
-              onClick={() => applyFormat('link')} 
-              className="p-1.5 text-[var(--text-subtle)] hover:bg-[var(--border)] rounded transition-colors cursor-pointer" 
-              title="Add Link"
-            >
-              <LinkIcon size={15} />
-            </button>
+            <button onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`p-1.5 rounded transition-colors ${editor?.isActive('heading', { level: 2 }) ? 'bg-brand/10 text-brand' : 'text-[var(--text-subtle)] hover:bg-[var(--border)]'}`}><Heading2 size={15} /></button>
+            <button onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()} className={`p-1.5 rounded transition-colors ${editor?.isActive('heading', { level: 3 }) ? 'bg-brand/10 text-brand' : 'text-[var(--text-subtle)] hover:bg-[var(--border)]'}`}><Heading1 size={15} /></button>
             <div className="w-px h-5 bg-slate-300 mx-1"></div>
-            <button 
-              type="button" 
-              onClick={handleUndo} 
-              disabled={history[activeTab].past.length === 0}
-              className="p-1.5 text-[var(--text-subtle)] hover:bg-[var(--border)] disabled:opacity-30 rounded transition-colors cursor-pointer" 
-              title="Undo (Ctrl+Z)"
-            >
-              <Undo size={15} />
-            </button>
-            <button 
-              type="button" 
-              onClick={handleRedo} 
-              disabled={history[activeTab].future.length === 0}
-              className="p-1.5 text-[var(--text-subtle)] hover:bg-[var(--border)] disabled:opacity-30 rounded transition-colors cursor-pointer" 
-              title="Redo (Ctrl+Y)"
-            >
-              <Redo size={15} />
-            </button>
+            <button onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded transition-colors ${editor?.isActive('bulletList') ? 'bg-brand/10 text-brand' : 'text-[var(--text-subtle)] hover:bg-[var(--border)]'}`}><List size={15} /></button>
+            <button onClick={() => editor?.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded transition-colors ${editor?.isActive('orderedList') ? 'bg-brand/10 text-brand' : 'text-[var(--text-subtle)] hover:bg-[var(--border)]'}`}><ListOrdered size={15} /></button>
+            <button onClick={addLink} className={`p-1.5 rounded transition-colors ${editor?.isActive('link') ? 'bg-brand/10 text-brand' : 'text-[var(--text-subtle)] hover:bg-[var(--border)]'}`}><LinkIcon size={15} /></button>
+            <div className="w-px h-5 bg-slate-300 mx-1"></div>
+            <button onClick={() => editor?.chain().focus().undo().run()} disabled={!editor?.can().undo()} className="p-1.5 text-[var(--text-subtle)] hover:bg-[var(--border)] disabled:opacity-30 rounded transition-colors"><Undo size={15} /></button>
+            <button onClick={() => editor?.chain().focus().redo().run()} disabled={!editor?.can().redo()} className="p-1.5 text-[var(--text-subtle)] hover:bg-[var(--border)] disabled:opacity-30 rounded transition-colors"><Redo size={15} /></button>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-[10px] font-semibold text-[var(--text-muted)] flex items-center gap-1">
@@ -531,25 +379,18 @@ const LegalSettings = () => {
         </div>
 
         {/* Text Area */}
-        <div className="p-6">
+        <div className="p-6 md:p-10">
           {loading ? (
             <div className="flex flex-col items-center justify-center p-20 gap-3">
               <div className="w-8 h-8 rounded-full border-2 border-brand/20 border-t-brand animate-spin"></div>
-              <p className="text-xs text-[var(--text-subtle)]">Loading document details from database...</p>
+              <p className="text-xs text-[var(--text-subtle)]">Loading document...</p>
             </div>
           ) : (
-            <textarea
-              ref={textareaRef}
-              value={contents[activeTab]}
-              onChange={handleContentChange}
-              onKeyDown={handleKeyDown}
-              onBlur={handleBlur}
-              placeholder={`Enter your ${activeTab === 'terms' ? 'Terms of Service' : 'Privacy Policy'} content here...`}
-              className="w-full min-h-[400px] text-sm text-[var(--text-subtle)] leading-relaxed bg-transparent border-0 focus:ring-0 resize-none outline-none custom-scrollbar"
-            />
+            <div className="editor-container">
+              <EditorContent editor={editor} />
+            </div>
           )}
         </div>
-
       </div>
     </div>
   );

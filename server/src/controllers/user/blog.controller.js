@@ -34,7 +34,7 @@ exports.getPublishedBlogs = async (req, res, next) => {
     const [blogs, totalCount] = await Promise.all([
       Blog.find(query)
         .populate('category', 'name slug')
-        .sort({ sortOrder: 1, publishedAt: -1, createdAt: -1 })
+        .sort({ publishedAt: -1, createdAt: -1 })
         .skip(skip)
         .limit(Number(limit))
         .select('-content -seo')

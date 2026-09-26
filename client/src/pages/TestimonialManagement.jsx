@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   Plus, Search, Filter, Edit, Trash2,
   CheckCircle2, XCircle, Clock, Folder, AlertCircle, RefreshCw, 
-  Layers, CheckSquare, Square, X, ArrowRight, Quote, ImageIcon, ArrowUp, ArrowDown
+  Layers, CheckSquare, Square, X, ArrowRight, Quote, ImageIcon, ArrowUp, ArrowDown, ArrowUpDown
 } from 'lucide-react';
 import API from '../api/api';
 
@@ -21,6 +21,7 @@ const TestimonialManagement = () => {
   // Filters & Search
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [sortDirection, setSortDirection] = useState('desc');
 
   // Form Modal (Add / Edit)
   const [modalState, setModalState] = useState({
@@ -74,6 +75,7 @@ const TestimonialManagement = () => {
       if (search.trim()) params.search = search.trim();
       if (selectedStatus === 'active') params.isActive = true;
       if (selectedStatus === 'inactive') params.isActive = false;
+      params.sort = sortDirection;
 
       const res = await API.get('/admin/testimonials', { params });
       if (res.data?.data?.testimonials) {
@@ -89,35 +91,8 @@ const TestimonialManagement = () => {
 
   useEffect(() => {
     fetchTestimonials();
-  }, [search, selectedStatus]);
+  }, [search, selectedStatus, sortDirection]);
 
-  const handleReorder = async (currentIndex, direction) => {
-    if (direction === 'up' && currentIndex === 0) return;
-    if (direction === 'down' && currentIndex === testimonials.length - 1) return;
-
-    const newItems = [...testimonials];
-    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    
-    const temp = newItems[currentIndex];
-    newItems[currentIndex] = newItems[swapIndex];
-    newItems[swapIndex] = temp;
-
-    setTestimonials(newItems);
-
-    const items = newItems.map((item, index) => ({
-      id: item._id,
-      sortOrder: index
-    }));
-
-    try {
-      await API.put('/admin/testimonials/reorder', { items });
-      triggerToast('Order updated', 'success');
-    } catch (err) {
-      console.error(err);
-      triggerToast('Failed to update order', 'error');
-      fetchTestimonials();
-    }
-  };
 
   // Selection helpers
   const isAllSelected = testimonials.length > 0 && selectedIds.length === testimonials.length;
@@ -450,9 +425,18 @@ const TestimonialManagement = () => {
                       )}
                     </button>
                   </th>
+                  <th className="px-5 py-4 w-[60px]">
+                    <button 
+                      onClick={() => setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc')}
+                      className="flex items-center gap-1 text-[12px] font-bold text-[#64748B] hover:text-[#FF5A3C] transition-colors uppercase tracking-wider"
+                      title="Toggle Sort Order"
+                    >
+                      S.No
+                      <ArrowUpDown size={12} className={sortDirection === 'asc' ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                    </button>
+                  </th>
                   <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider">Name & Role</th>
                   <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider">Quote</th>
-                  <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider text-center">Order</th>
                   <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider text-center">Status</th>
                   <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider text-right">Actions</th>
                 </tr>
@@ -461,10 +445,9 @@ const TestimonialManagement = () => {
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      <td className="px-5 py-5"><div className="w-4 h-4 bg-[#F1F1F0] rounded" /></td>
+                      <td className="px-5 py-5"><div className="w-8 h-4 bg-[#F1F1F0] rounded" /></td>
                       <td className="px-5 py-5"><div className="w-32 h-4 bg-[#F1F1F0] rounded mb-2" /><div className="w-24 h-3 bg-[#F1F1F0] rounded" /></td>
                       <td className="px-5 py-5"><div className="w-full h-4 bg-[#F1F1F0] rounded" /></td>
-                      <td className="px-5 py-5 text-center"><div className="w-8 h-4 bg-[#F1F1F0] rounded mx-auto" /></td>
                       <td className="px-5 py-5 text-center"><div className="w-16 h-5 bg-[#F1F1F0] rounded-full mx-auto" /></td>
                       <td className="px-5 py-5"><div className="w-16 h-8 bg-[#F1F1F0] rounded-lg ml-auto" /></td>
                     </tr>
@@ -507,6 +490,9 @@ const TestimonialManagement = () => {
                             {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
                           </button>
                         </td>
+                        <td className="px-5 py-5 font-mono text-[13px] text-[#64748B]">
+                          {index + 1}
+                        </td>
                         <td className="px-5 py-5">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-[#E8E5E1] overflow-hidden border border-[#D1D5DB] shrink-0">
@@ -531,34 +517,6 @@ const TestimonialManagement = () => {
                         <td className="px-5 py-5">
                           <div className="text-[13px] text-[#17202A] max-w-sm line-clamp-2 italic">
                             "{t.quote}"
-                          </div>
-                        </td>
-                        <td className="px-5 py-5 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => handleReorder(index, 'up')}
-                              disabled={index === 0}
-                              className={`p-1.5 rounded-lg border transition-all ${
-                                index === 0 
-                                  ? 'bg-[#F8F8F7] border-transparent text-[#CBD5E1] cursor-not-allowed'
-                                  : 'bg-white border-[#E8E5E1] text-[#64748B] hover:text-[#17202A] hover:bg-[#F8F8F7]'
-                              }`}
-                              title="Move Up"
-                            >
-                              <ArrowUp size={14} />
-                            </button>
-                            <button
-                              onClick={() => handleReorder(index, 'down')}
-                              disabled={index === testimonials.length - 1}
-                              className={`p-1.5 rounded-lg border transition-all ${
-                                index === testimonials.length - 1
-                                  ? 'bg-[#F8F8F7] border-transparent text-[#CBD5E1] cursor-not-allowed'
-                                  : 'bg-white border-[#E8E5E1] text-[#64748B] hover:text-[#17202A] hover:bg-[#F8F8F7]'
-                              }`}
-                              title="Move Down"
-                            >
-                              <ArrowDown size={14} />
-                            </button>
                           </div>
                         </td>
                         <td className="px-5 py-5 text-center">

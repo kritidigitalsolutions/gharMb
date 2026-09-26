@@ -58,8 +58,10 @@ app.use(helmet({
 // 2. CORS Policy Configuration with Allow Origins
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://localhost:5174',
   'http://localhost:3000',
   'http://localhost:5001',
+  'https://gharmb-web.vercel.app',
   'https://ghar-mb-226x.vercel.app',
   'https://frontend-ghar-mb.vercel.app',
   ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()) : [])
@@ -70,8 +72,8 @@ const corsOptions = {
     // Allow non-browser requests (Postman, curl, server-to-server)
     if (!origin) return callback(null, true);
 
-    // Allow localhost with any port
-    if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) {
+    // Allow localhost and 127.0.0.1 with any port
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
       return callback(null, true);
     }
 

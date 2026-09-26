@@ -1,4 +1,7 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const RAW_API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_BASE = RAW_API.replace(/\/+$/, '').endsWith('/api')
+  ? RAW_API.replace(/\/+$/, '')
+  : `${RAW_API.replace(/\/+$/, '')}/api`;
 
 // In-memory cache for instant switching (short TTL so admin updates show immediately)
 const cache = new Map();
