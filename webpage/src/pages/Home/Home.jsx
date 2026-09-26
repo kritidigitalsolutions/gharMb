@@ -441,6 +441,88 @@ function BrandMarquee() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   TOP BUILDERS & DEVELOPERS (INFINITE SMOOTH SLIDER)
+   ═══════════════════════════════════════════════════════════════ */
+const builderLogos = [
+  { id: 'jp-infra', name: 'JP Infra', logo: '/builder logo/JP infra.png' },
+  { id: 'kalpataru', name: 'Kalpataru', logo: '/builder logo/Kalpa Taru.png' },
+  { id: 'sunteck', name: 'Sunteck Realty', logo: '/builder logo/sunteck.png' },
+  { id: 'micl', name: 'MICL Group', logo: '/builder logo/micl.png' },
+  { id: 'sanghavi', name: 'Sanghavi Group', logo: '/builder logo/sanghavi.png' },
+  { id: 'chheda-group', name: 'Chheda Group', logo: '/builder logo/chheda group.png' },
+];
+
+function TopBuildersSection() {
+  return (
+    <section id="developers" className="relative py-20 sm:py-28 bg-[#FAF9F7] border-y border-[#ECECE9] overflow-hidden">
+      {/* Section Header */}
+      <div className="max-w-[1280px] mx-auto px-5 sm:px-8 lg:px-12 mb-12 sm:mb-14 text-center">
+        <Reveal>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
+            <Building2 size={13} />
+            <span>Builder & Developer Network</span>
+          </div>
+        </Reveal>
+
+        <Reveal delay={1}>
+          <h2 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5 max-w-3xl mx-auto">
+            Trusted by Leading{' '}
+            <span className="text-[#FF5A3C]">Builders & Developers</span>
+          </h2>
+        </Reveal>
+
+        <Reveal delay={2}>
+          <p className="text-[15px] sm:text-[16.5px] text-[#667085] leading-[1.65] font-normal max-w-[640px] mx-auto">
+            Direct inventory and verified project collaborations with reputable real-estate developers across Mira-Bhayandar and Mumbai MMR.
+          </p>
+        </Reveal>
+      </div>
+
+      {/* Infinite Smooth Scrolling Slider Track */}
+      <div className="relative w-full overflow-hidden py-3">
+        {/* Left & Right Gradient Fade Masks */}
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-24 sm:w-48 bg-gradient-to-r from-[#FAF9F7] via-[#FAF9F7]/90 to-transparent z-10" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-24 sm:w-48 bg-gradient-to-l from-[#FAF9F7] via-[#FAF9F7]/90 to-transparent z-10" />
+
+        {/* Marquee Track with Smooth Continuous Looping */}
+        <div className="marquee-track flex items-center">
+          {[...builderLogos, ...builderLogos, ...builderLogos, ...builderLogos].map((builder, idx) => (
+            <div
+              key={`${builder.id}-${idx}`}
+              className="w-[200px] sm:w-[230px] h-[96px] sm:h-[106px] bg-white rounded-2xl border border-[#E7E7E5] p-5 flex items-center justify-center shrink-0 mx-3 shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:border-brand/40 transition-all duration-300 group cursor-pointer"
+            >
+              <img
+                src={builder.logo}
+                alt={builder.name}
+                className="max-h-[52px] sm:max-h-[58px] max-w-[150px] sm:max-w-[170px] object-contain filter grayscale-[15%] opacity-90 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300"
+                loading="lazy"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Bottom Trust Indicators */}
+      <div className="max-w-[1280px] mx-auto px-5 sm:px-8 lg:px-12 mt-12 pt-6 border-t border-[#ECECE9]">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#667085]">
+          <div className="flex items-center gap-2 font-semibold text-[#17202A]">
+            <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+            <span>100% RERA verified developer projects listed on GharMB</span>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-4 text-text-muted">
+            <span>Direct Developer Pricing</span>
+            <span>•</span>
+            <span>Zero Brokerage on New Launches</span>
+            <span>•</span>
+            <span>Priority Site Visits</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    03 — ABOUT GHARMB (UNIFIED BRAND STORY & PHILOSOPHY)
    ═══════════════════════════════════════════════════════════════ */
 
@@ -528,14 +610,14 @@ function AboutGharMB() {
             </Reveal>
 
             <Reveal delay={1}>
-              <h2 className="text-[34px] sm:text-[46px] lg:text-[54px] font-bold text-[#17202A] leading-[1.06] tracking-[-0.03em] mb-4">
+              <h2 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5">
                 Real estate should feel{' '}
                 <span className="text-[#FF5A3C]">more connected.</span>
               </h2>
             </Reveal>
 
             <Reveal delay={2}>
-              <p className="text-[16px] sm:text-[18px] text-[#667085] leading-[1.65] font-normal max-w-[680px]">
+              <p className="text-[15px] sm:text-[16.5px] text-[#667085] leading-[1.65] font-normal max-w-[680px]">
                 GharMB brings property information, verified signals, professionals, developers and practical tools into one connected real-estate ecosystem.
               </p>
             </Reveal>
@@ -652,14 +734,14 @@ function AboutGharMB() {
             {/* Left Narrative */}
             <div className="lg:col-span-5 space-y-4">
               <Reveal>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em]">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
                   <span>Why GharMB</span>
                 </div>
               </Reveal>
 
               <Reveal delay={1}>
-                <h3 className="text-[30px] sm:text-[38px] xl:text-[42px] font-bold text-[#17202A] leading-[1.08] tracking-[-0.03em]">
+                <h3 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5">
                   Real estate is{' '}
                   <span className="text-[#FF5A3C]">more than a listing.</span>
                 </h3>
@@ -786,7 +868,7 @@ function AboutGharMB() {
            BLOCK 3: OUR APPROACH (4 VALUE PILLARS + EDITORIAL SHOWCASE)
            ───────────────────────────────────────────────────────────── */}
         <div className="pt-4 sm:pt-8 border-t border-border-soft">
-          <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-14">
+          <div className="text-left max-w-3xl mb-10 sm:mb-14">
             <Reveal>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
@@ -795,14 +877,14 @@ function AboutGharMB() {
             </Reveal>
 
             <Reveal delay={1}>
-              <h3 className="text-[32px] sm:text-[42px] font-bold text-[#17202A] leading-[1.08] tracking-[-0.03em] mb-3">
+              <h3 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5">
                 Better real-estate decisions start with{' '}
                 <span className="text-[#FF5A3C]">better information.</span>
               </h3>
             </Reveal>
 
             <Reveal delay={2}>
-              <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-[12px] sm:text-[13px] font-semibold text-[#667085] mb-3">
+              <div className="flex flex-wrap items-center justify-start gap-2 sm:gap-3 text-[12px] sm:text-[13px] font-semibold text-[#667085] mb-3">
                 <span>Clear information</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
                 <span>Visible verification</span>
@@ -811,7 +893,7 @@ function AboutGharMB() {
                 <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
                 <span>Meaningful connections</span>
               </div>
-              <p className="text-[15px] sm:text-[16px] text-[#667085] leading-[1.65] font-normal max-w-[640px] mx-auto">
+              <p className="text-[15px] sm:text-[16px] text-[#667085] leading-[1.65] font-normal max-w-[680px]">
                 GharMB brings information, verification, tools and trusted connections together so every property decision starts with more clarity.
               </p>
             </Reveal>
@@ -1041,12 +1123,12 @@ function Ecosystem() {
   const [activeNode, setActiveNode] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Auto-Story mode: cycle through nodes every 4.5s when idle
+  // Auto-Story mode: cycle through nodes every 2.5s when idle
   useEffect(() => {
     if (isPaused) return;
     const timer = setInterval(() => {
       setActiveNode((prev) => (prev + 1) % ecosystemNodes.length);
-    }, 4500);
+    }, 2500);
     return () => clearInterval(timer);
   }, [isPaused]);
 
@@ -1073,21 +1155,21 @@ function Ecosystem() {
         {/* Section Header */}
         <div className="max-w-2xl mb-12 sm:mb-16">
           <Reveal>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-light border border-brand/15 text-[11px] font-bold text-brand uppercase tracking-[0.16em] mb-4">
-              <span className="w-1.5 h-1.5 rounded-full bg-brand" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
               <span>The GharMB Ecosystem</span>
             </div>
           </Reveal>
 
           <Reveal delay={1}>
-            <h2 className="text-[34px] sm:text-[46px] lg:text-[56px] xl:text-[62px] font-bold text-text-primary leading-[1.02] tracking-[-0.03em] mb-5">
+            <h2 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5">
               One platform,{' '}
-              <span className="text-brand">every connection.</span>
+              <span className="text-[#FF5A3C]">every connection.</span>
             </h2>
           </Reveal>
 
           <Reveal delay={2}>
-            <p className="text-[16px] sm:text-[17px] text-text-secondary leading-[1.65] max-w-[620px] font-normal">
+            <p className="text-[15px] sm:text-[16.5px] text-[#667085] leading-[1.65] max-w-[620px] font-normal">
               GharMB brings property seekers, owners, developers, professionals, insights and intelligent tools into one connected real-estate ecosystem.
             </p>
           </Reveal>
@@ -1618,21 +1700,21 @@ function ProductShowcase() {
         {/* Section Header */}
         <div className="max-w-3xl mb-12 sm:mb-16">
           <Reveal>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-light border border-brand/15 text-[11px] font-bold text-brand uppercase tracking-[0.16em] mb-4">
-              <span className="w-1.5 h-1.5 rounded-full bg-brand" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
               <span>The Platform</span>
             </div>
           </Reveal>
 
           <Reveal delay={1}>
-            <h2 className="text-[34px] sm:text-[46px] lg:text-[56px] xl:text-[62px] font-bold text-text-primary leading-[1.02] tracking-[-0.03em] mb-5">
+            <h2 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5">
               Everything around a property,{' '}
-              <span className="text-brand">connected in one place.</span>
+              <span className="text-[#FF5A3C]">connected in one place.</span>
             </h2>
           </Reveal>
 
           <Reveal delay={2}>
-            <p className="text-[16px] sm:text-[17px] text-text-secondary leading-[1.65] max-w-[680px] font-normal">
+            <p className="text-[15px] sm:text-[16.5px] text-[#667085] leading-[1.65] max-w-[680px] font-normal">
               From discovering properties to understanding details, connecting with professionals and managing property activity, GharMB brings the experience together in one platform.
             </p>
           </Reveal>
@@ -2050,14 +2132,14 @@ function Verification() {
             </Reveal>
 
             <Reveal delay={1}>
-              <h2 className="text-[34px] sm:text-[46px] lg:text-[54px] font-bold text-text-primary leading-[1.02] tracking-[-0.03em] mb-5">
+              <h2 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5">
                 Trust should be{' '}
                 <span className="text-emerald-600">visible.</span>
               </h2>
             </Reveal>
 
             <Reveal delay={2}>
-              <p className="text-[16px] sm:text-[17px] text-text-secondary leading-[1.65] max-w-[520px] mb-8 font-normal">
+              <p className="text-[15px] sm:text-[16.5px] text-[#667085] leading-[1.65] max-w-[520px] mb-8 font-normal">
                 GharMB brings verification signals and structured property information closer to every real-estate decision. Documents, photos, ownership and location are checked before verification.
               </p>
             </Reveal>
@@ -2884,21 +2966,21 @@ function Professionals() {
         {/* ───────── MOBILE-ONLY INTRO & TAB RAIL (< lg) ───────── */}
         <div className="lg:hidden mb-8">
           <Reveal>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
               <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
               <span>For Professionals</span>
             </div>
           </Reveal>
 
           <Reveal delay={1}>
-            <h2 className="text-[28px] sm:text-[34px] font-bold text-[#17202A] leading-[1.08] tracking-[-0.03em] mb-3">
+            <h2 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5">
               Built for everyone who{' '}
               <span className="text-[#FF5A3C]">moves real estate</span> forward.
             </h2>
           </Reveal>
 
           <Reveal delay={2}>
-            <p className="text-[14px] sm:text-[15px] text-[#667085] leading-[1.6] mb-6">
+            <p className="text-[15px] sm:text-[16.5px] text-[#667085] leading-[1.65] font-normal mb-6">
               Whether you own a property, represent clients, develop projects, or work across the
               real-estate ecosystem — GharMB gives you the tools and connections to move work forward.
             </p>
@@ -2952,21 +3034,21 @@ function Professionals() {
             {/* Desktop Section Intro */}
             <div className="hidden lg:block space-y-3">
               <Reveal>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em]">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
                   <span>For Professionals</span>
                 </div>
               </Reveal>
 
               <Reveal delay={1}>
-                <h2 className="text-[32px] sm:text-[38px] xl:text-[42px] font-bold text-[#17202A] leading-[1.06] tracking-[-0.03em]">
+                <h2 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5">
                   Built for everyone who{' '}
                   <span className="text-[#FF5A3C]">moves real estate</span> forward.
                 </h2>
               </Reveal>
 
               <Reveal delay={2}>
-                <p className="text-[14px] xl:text-[15px] text-[#667085] leading-[1.65] font-normal">
+                <p className="text-[15px] sm:text-[16.5px] text-[#667085] leading-[1.65] font-normal">
                   Whether you own a property, represent clients, develop projects, or work across the
                   real-estate ecosystem — GharMB gives you the tools and connections to move work forward.
                 </p>
@@ -3403,20 +3485,20 @@ function Commercial() {
         {/* ───────── MOBILE-ONLY INTRO & CATEGORY RAIL (< lg) ───────── */}
         <div className="lg:hidden mb-8">
           <Reveal>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
               <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
               <span>Commercial</span>
             </div>
           </Reveal>
 
           <Reveal delay={1}>
-            <h2 className="text-[28px] sm:text-[34px] font-bold text-[#17202A] leading-[1.08] tracking-[-0.03em] mb-3">
+            <h2 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5">
               Real estate beyond the <span className="text-[#FF5A3C]">home.</span>
             </h2>
           </Reveal>
 
           <Reveal delay={2}>
-            <p className="text-[14px] sm:text-[15px] text-[#667085] leading-[1.6] mb-6">
+            <p className="text-[15px] sm:text-[16.5px] text-[#667085] leading-[1.65] font-normal mb-6">
               Explore offices, retail spaces, showrooms, co-working environments and other
               commercial spaces through one connected real-estate ecosystem.
             </p>
@@ -3470,20 +3552,20 @@ function Commercial() {
             {/* Desktop Section Intro */}
             <div className="hidden lg:block space-y-3">
               <Reveal>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em]">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
                   <span>Commercial</span>
                 </div>
               </Reveal>
 
               <Reveal delay={1}>
-                <h2 className="text-[32px] sm:text-[38px] xl:text-[42px] font-bold text-[#17202A] leading-[1.06] tracking-[-0.03em]">
+                <h2 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5">
                   Real estate beyond the <span className="text-[#FF5A3C]">home.</span>
                 </h2>
               </Reveal>
 
               <Reveal delay={2}>
-                <p className="text-[14px] xl:text-[15px] text-[#667085] leading-[1.65] font-normal">
+                <p className="text-[15px] sm:text-[16.5px] text-[#667085] leading-[1.65] font-normal">
                   Explore offices, retail spaces, showrooms, co-working environments and other
                   commercial spaces through one connected real-estate ecosystem.
                 </p>
@@ -4275,20 +4357,20 @@ function SmartTools() {
         {/* ───────── MOBILE-ONLY INTRO & TOOL RAIL (< lg) ───────── */}
         <div className="lg:hidden mb-8">
           <Reveal>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
               <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
               <span>Tools</span>
             </div>
           </Reveal>
 
           <Reveal delay={1}>
-            <h2 className="text-[28px] sm:text-[34px] font-bold text-[#17202A] leading-[1.08] tracking-[-0.03em] mb-3">
+            <h2 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5">
               Tools that make property decisions <span className="text-[#FF5A3C]">clearer.</span>
             </h2>
           </Reveal>
 
           <Reveal delay={2}>
-            <p className="text-[14px] sm:text-[15px] text-[#667085] leading-[1.6] mb-6">
+            <p className="text-[15px] sm:text-[16.5px] text-[#667085] leading-[1.65] font-normal mb-6">
               Simple, useful tools designed to help you calculate, compare and understand
               real estate with more clarity.
             </p>
@@ -4342,21 +4424,20 @@ function SmartTools() {
             {/* Desktop Section Intro */}
             <div className="hidden lg:block space-y-3">
               <Reveal>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em]">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
                   <span>Tools</span>
                 </div>
               </Reveal>
 
               <Reveal delay={1}>
-                <h2 className="text-[32px] sm:text-[38px] xl:text-[42px] font-bold text-[#17202A] leading-[1.06] tracking-[-0.03em]">
-                  Tools that make property <br className="hidden sm:inline" />
-                  decisions <span className="text-[#FF5A3C]">clearer.</span>
+                <h2 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5">
+                  Tools that make property decisions <span className="text-[#FF5A3C]">clearer.</span>
                 </h2>
               </Reveal>
 
               <Reveal delay={2}>
-                <p className="text-[14px] xl:text-[15px] text-[#667085] leading-[1.65] font-normal">
+                <p className="text-[15px] sm:text-[16.5px] text-[#667085] leading-[1.65] font-normal">
                   Simple, useful tools designed to help you calculate, compare and understand
                   real estate with more clarity.
                 </p>
@@ -4644,17 +4725,18 @@ function Insights() {
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-10 lg:mb-12">
         <div className="max-w-2xl">
           <Reveal>
-            <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#FF5A3C] mb-3 block">
-              INSIGHTS
-            </span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
+              <span>Insights</span>
+            </div>
           </Reveal>
           <Reveal delay={1}>
-            <h2 className="text-[32px] sm:text-[40px] lg:text-[46px] font-bold text-[#17202A] leading-[1.12] tracking-[-0.02em] mb-3">
-              Real estate, explained simply.
+            <h2 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5">
+              Real estate, <span className="text-[#FF5A3C]">explained simply.</span>
             </h2>
           </Reveal>
           <Reveal delay={2}>
-            <p className="text-[15px] sm:text-[16px] text-[#667085] leading-relaxed">
+            <p className="text-[15px] sm:text-[16.5px] text-[#667085] leading-[1.65] font-normal">
               Practical guides, market explainers and useful perspectives to help you understand real estate with more clarity.
             </p>
           </Reveal>
@@ -5158,17 +5240,18 @@ function HowItWorks() {
       {/* ── 01 SECTION HEADER (LEFT ALIGNED) ── */}
       <div className="mb-10 lg:mb-12 text-left max-w-2xl">
         <Reveal>
-          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#FF5A3C] mb-3 block text-left">
-            HOW IT WORKS
-          </span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
+            <span>How It Works</span>
+          </div>
         </Reveal>
         <Reveal delay={1}>
-          <h2 className="text-[32px] sm:text-[40px] lg:text-[46px] font-bold text-[#17202A] leading-[1.12] tracking-[-0.02em] mb-3 text-left">
+          <h2 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5 text-left">
             From discovery to <span className="text-[#FF5A3C]">confident decisions.</span>
           </h2>
         </Reveal>
         <Reveal delay={2}>
-          <p className="text-[15px] sm:text-[16px] text-[#64748B] leading-relaxed text-left">
+          <p className="text-[15px] sm:text-[16.5px] text-[#667085] leading-[1.65] font-normal text-left">
             Five connected stages designed to make the property journey transparent, structured and easier to understand.
           </p>
         </Reveal>
@@ -6087,14 +6170,15 @@ function ContactSection() {
           {/* Left Column (45% ~ 5 cols) */}
           <div className="lg:col-span-5 space-y-6 text-left">
             <Reveal>
-              <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#FF5A3C] mb-2 block text-left">
-                GET STARTED
-              </span>
-              <h3 className="text-[28px] sm:text-[36px] lg:text-[40px] font-bold text-[#17202A] leading-[1.16] tracking-tight text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
+                <span>Contact Us</span>
+              </div>
+              <h2 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5 text-left">
                 Have a question? <br />
-                Let&apos;s talk.
-              </h3>
-              <p className="text-[14.5px] sm:text-[15.5px] text-[#64748B] mt-3 leading-relaxed text-left">
+                <span className="text-[#FF5A3C]">Let&apos;s talk.</span>
+              </h2>
+              <p className="text-[15px] sm:text-[16.5px] text-[#667085] leading-[1.65] font-normal text-left">
                 Whether you&apos;re exploring the platform, representing a property or looking to understand the GharMB ecosystem, we&apos;re here to help.
               </p>
             </Reveal>
@@ -6294,6 +6378,7 @@ export default function Home() {
       <div id="hero"><Hero /></div>
       <BrandMarquee />
       <div id="about"><AboutGharMB /></div>
+      <div id="developers"><TopBuildersSection /></div>
       <div id="ecosystem"><Ecosystem /></div>
       <div id="platform"><ProductShowcase /></div>
       <Verification />

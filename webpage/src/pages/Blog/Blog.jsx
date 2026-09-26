@@ -129,13 +129,14 @@ export default function Blog() {
       <section className="bg-section-bg pt-12 sm:pt-16 pb-12">
         <div className="max-w-[1280px] mx-auto px-5 md:px-8 lg:px-12">
           <div className="max-w-2xl">
-            <span className="inline-block text-xs font-semibold uppercase tracking-[0.12em] text-brand mb-3">
-              Blog & Insights
-            </span>
-            <h1 className="text-3xl sm:text-4xl lg:text-[48px] font-bold text-text-primary leading-[1.1] tracking-tight mb-4">
-              Real estate, explained simply.
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
+              <span>Blog & Insights</span>
+            </div>
+            <h1 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5">
+              Real estate, <span className="text-[#FF5A3C]">explained simply.</span>
             </h1>
-            <p className="text-base sm:text-lg text-text-secondary leading-relaxed">
+            <p className="text-[15px] sm:text-[16.5px] text-[#667085] leading-[1.65] font-normal">
               Property guides, market analysis, home loan advice and practical tips for buyers, owners and investors in India.
             </p>
           </div>

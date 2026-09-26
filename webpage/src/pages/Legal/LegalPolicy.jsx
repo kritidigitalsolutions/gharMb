@@ -444,16 +444,16 @@ export default function LegalPolicy({ type }) {
             </div>
 
             <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-light border border-brand/20 text-brand text-xs font-bold uppercase tracking-wider mb-3">
-                {isPrivacy ? <ShieldCheck size={14} /> : <Scale size={14} />}
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
+                {isPrivacy ? <ShieldCheck size={13} /> : <Scale size={13} />}
                 <span>{info.badge}</span>
               </div>
 
-              <h1 className="text-3xl sm:text-4xl lg:text-[42px] font-extrabold text-text-primary leading-[1.15] tracking-tight mb-3">
+              <h1 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5">
                 {info.title}
               </h1>
 
-              <p className="text-base sm:text-lg text-text-secondary leading-relaxed max-w-2xl">
+              <p className="text-[15px] sm:text-[16.5px] text-[#667085] leading-[1.65] font-normal max-w-2xl">
                 {info.desc}
               </p>
             </div>
