@@ -1,7 +1,4 @@
-const RAW_API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-const API_BASE = RAW_API.replace(/\/+$/, '').endsWith('/api')
-  ? RAW_API.replace(/\/+$/, '')
-  : `${RAW_API.replace(/\/+$/, '')}/api`;
+import { API_BASE_URL } from './config';
 
 const cache = new Map();
 const CACHE_TTL = 4 * 1000;
@@ -16,7 +13,7 @@ export async function fetchLegalContent(type, forceRefresh = false) {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/legal/${encodeURIComponent(type)}`);
+    const res = await fetch(`${API_BASE_URL}/legal/${encodeURIComponent(type)}`);
     if (!res.ok) throw new Error(`Failed to fetch ${type}`);
     const data = await res.json();
     const result = data?.data?.legalContent || null;

@@ -13,6 +13,7 @@ import {
   Plus, Minus, Quote, Mail, Phone
 } from 'lucide-react';
 import { fetchActiveCategories, fetchPublishedBlogs } from '../../api/blogApi';
+import { API_BASE_URL } from '../../api/config';
 
 /* ─────────── Animation Helpers ─────────── */
 const fadeUp = {
@@ -5088,9 +5089,9 @@ function HowItWorks() {
       setTestimonialsError(false);
       try {
         const [catRes, faqRes, testRes] = await Promise.all([
-          fetch('http://localhost:5001/api/faqs/categories').then(res => res.json()).catch(() => ({})),
-          fetch('http://localhost:5001/api/faqs').then(res => res.json()).catch(() => ({})),
-          fetch('http://localhost:5001/api/testimonials').then(res => res.json()).catch(() => ({ error: true }))
+          fetch(`${API_BASE_URL}/faqs/categories`).then(res => res.json()).catch(() => ({})),
+          fetch(`${API_BASE_URL}/faqs`).then(res => res.json()).catch(() => ({})),
+          fetch(`${API_BASE_URL}/testimonials`).then(res => res.json()).catch(() => ({ error: true }))
         ]);
 
         if (catRes.status === 'success' && catRes.data?.categories) {

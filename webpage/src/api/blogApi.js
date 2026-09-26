@@ -1,7 +1,4 @@
-const RAW_API = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-const API_BASE = RAW_API.replace(/\/+$/, '').endsWith('/api')
-  ? RAW_API.replace(/\/+$/, '')
-  : `${RAW_API.replace(/\/+$/, '')}/api`;
+import { API_BASE_URL } from './config';
 
 // In-memory cache for instant switching (short TTL so admin updates show immediately)
 const cache = new Map();
@@ -20,7 +17,7 @@ export async function fetchActiveCategories(forceRefresh = false) {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/blogs/categories`);
+    const res = await fetch(`${API_BASE_URL}/blogs/categories`);
     if (!res.ok) throw new Error('Failed to fetch categories');
     const data = await res.json();
     const categories = data?.data?.categories || [];
@@ -58,7 +55,7 @@ export async function fetchPublishedBlogs({ page = 1, limit = 12, category = '',
       params.set('search', normalizedSearch);
     }
 
-    const res = await fetch(`${API_BASE}/blogs?${params.toString()}`);
+    const res = await fetch(`${API_BASE_URL}/blogs?${params.toString()}`);
     if (!res.ok) throw new Error('Failed to fetch blogs');
     const data = await res.json();
     const result = {
@@ -89,7 +86,7 @@ export async function fetchBlogBySlug(slug, forceRefresh = false) {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/blogs/${encodeURIComponent(slug)}`);
+    const res = await fetch(`${API_BASE_URL}/blogs/${encodeURIComponent(slug)}`);
     if (!res.ok) throw new Error('Failed to fetch blog');
     const data = await res.json();
     const result = {
