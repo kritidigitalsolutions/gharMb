@@ -12,7 +12,8 @@ import {
   ListOrdered,
   ChevronDown,
   Mail,
-  Info
+  Info,
+  Trash2
 } from 'lucide-react';
 import { fetchLegalContent } from '../../api/legalApi';
 
@@ -459,7 +460,7 @@ export default function LegalPolicy({ type }) {
             </div>
 
             {/* Document Switcher Tabs */}
-            <div className="flex items-center gap-2 mt-6 pt-5 border-t border-[#F0EBE7]">
+            <div className="flex flex-wrap items-center gap-2 mt-6 pt-5 border-t border-[#F0EBE7]">
               <Link
                 to="/privacy-policy"
                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
@@ -482,6 +483,14 @@ export default function LegalPolicy({ type }) {
               >
                 <FileText size={16} />
                 <span>Terms of Service</span>
+              </Link>
+
+              <Link
+                to="/delete-profile"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-white border border-border text-text-secondary hover:text-text-primary hover:bg-gray-50 transition-all"
+              >
+                <Trash2 size={16} />
+                <span>Delete Profile</span>
               </Link>
             </div>
 

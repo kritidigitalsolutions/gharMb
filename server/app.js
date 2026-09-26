@@ -32,6 +32,7 @@ const adminBlogCategoryRoutes = require('./src/routes/admin/blog-category.routes
 const adminFaqRoutes = require('./src/routes/admin/faq.routes');
 const adminFaqCategoryRoutes = require('./src/routes/admin/faq-category.routes');
 const adminTestimonialRoutes = require('./src/routes/admin/testimonial.routes');
+const adminWebInquiryRoutes = require('./src/routes/admin/web-inquiry.routes');
 
 const appAuthRoutes = require('./src/routes/user/auth.routes');
 const appUserRoutes = require('./src/routes/user/user.routes');
@@ -46,6 +47,7 @@ const appPageRoutes = require('./src/routes/user/page.routes');
 const appNewsRoutes = require('./src/routes/user/news.routes');
 const appBlogRoutes = require('./src/routes/user/blog.routes');
 const appFaqRoutes = require('./src/routes/user/faq.routes');
+const appWebInquiryRoutes = require('./src/routes/user/web-inquiry.routes');
 const appTestimonialRoutes = require('./src/routes/user/testimonial.routes');
 
 const app = express();
@@ -220,6 +222,7 @@ app.use('/api/admin/blog-categories', adminBlogCategoryRoutes);
 app.use('/api/admin/faqs', adminFaqRoutes);
 app.use('/api/admin/faq-categories', adminFaqCategoryRoutes);
 app.use('/api/admin/testimonials', adminTestimonialRoutes);
+app.use('/api/admin/web-inquiries', adminWebInquiryRoutes);
 
 
 
@@ -246,6 +249,7 @@ app.use('/api/news', appNewsRoutes);
 app.use('/api/blogs', appBlogRoutes);
 app.use('/api/faqs', appFaqRoutes);
 app.use('/api/testimonials', appTestimonialRoutes);
+app.use('/api/web-inquiries', appWebInquiryRoutes);
 
 // 10. Fallback 404 Route handler
 app.use((req, res, next) => {

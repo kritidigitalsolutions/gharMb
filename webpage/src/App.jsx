@@ -7,6 +7,7 @@ import Home from './pages/Home/Home';
 import Blog from './pages/Blog/Blog';
 import BlogDetail from './pages/BlogDetail/BlogDetail';
 import LegalPolicy from './pages/Legal/LegalPolicy';
+import DeleteProfile from './pages/Legal/DeleteProfile';
 
 function App() {
   return (
@@ -23,6 +24,9 @@ function App() {
             <Route path="/blog/:slug" element={<BlogDetail />} />
             <Route path="/privacy-policy" element={<LegalPolicy type="privacy-policy" />} />
             <Route path="/terms-of-service" element={<LegalPolicy type="terms" />} />
+            <Route path="/delete-profile" element={<DeleteProfile />} />
+            <Route path="/delete-account" element={<DeleteProfile />} />
+            <Route path="/account-deletion" element={<DeleteProfile />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

@@ -21,7 +21,8 @@ import {
   Lock,
   Gift,
   Sparkles,
-  MessageSquareQuote
+  MessageSquareQuote,
+  MailCheck
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, collapsed, setCollapsed, onLogout }) => {
@@ -45,7 +46,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, collapsed
   }
 
   const getInitials = (name) => {
-    if (!name) return 'RC';
+    if (!name) return 'AD';
     const parts = name.trim().split(' ');
     if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     return name.slice(0, 2).toUpperCase();
@@ -77,6 +78,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, setIsCollapsed, collapsed
     { name: 'Settings', path: '/admin/settings', icon: Settings },
     { name: 'Legal Policies', path: '/admin/legal', icon: FileText },
     { name: 'About Platform', path: '/admin/about', icon: Info },
+    { name: 'Web Inquiries', path: '/admin/web-inquiries', icon: MailCheck },
   ];
 
   return (

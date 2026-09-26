@@ -21,6 +21,7 @@ import InsightsEditor from '../pages/InsightsEditor';
 import FaqManagement from '../pages/FaqManagement';
 import FaqCategories from '../pages/FaqCategories';
 import TestimonialManagement from '../pages/TestimonialManagement';
+import WebInquiries from '../pages/WebInquiries';
 
 const AdminRoutes = () => {
     return (
@@ -51,6 +52,7 @@ const AdminRoutes = () => {
                 <Route path="settings" element={<Settings />} />
                 <Route path="legal" element={<Legal />} />
                 <Route path="about" element={<About />} />
+                <Route path="web-inquiries" element={<WebInquiries />} />
                 <Route path="*" element={<Navigate to="/admin" replace />} />
             </Route>
         </Routes>
