@@ -35,7 +35,7 @@ export default function Footer() {
   return (
     <footer className="bg-[#FF5A3C] text-white relative overflow-hidden">
       {/* Decorative Oversized Watermark */}
-      <div className="absolute right-[-20px] bottom-[-30px] select-none pointer-events-none text-white/[0.07] font-black text-[140px] sm:text-[200px] lg:text-[260px] leading-none tracking-tighter">
+      <div className="absolute right-[-20px] bottom-[-30px] select-none pointer-events-none text-white/[0.18] font-black text-[140px] sm:text-[200px] lg:text-[260px] leading-none tracking-tighter">
         GharMB
       </div>
 
