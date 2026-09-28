@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, Navigate } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import {
   FileText,
@@ -57,7 +57,7 @@ export default function LegalPolicy({ type: propType }) {
   const isTerms = normalizedSlug === 'terms';
 
   // Fallback defaults
-  const pageTitle = content?.title || formatSlugTitle(normalizedSlug);
+  const pageTitle = content?.title || (isTerms ? 'Terms of Service' : isPrivacy ? 'Privacy Policy' : 'Legal Policy');
   const categoryBadge = isPrivacy
     ? 'Privacy & Data Protection'
     : isTerms
@@ -69,7 +69,7 @@ export default function LegalPolicy({ type: propType }) {
       ? 'Please review these terms carefully. They govern your access and use of the GharMB platform, mobile application, and all real estate services.'
       : isPrivacy
       ? 'Learn how GharMB collects, utilizes, safeguards, and manages your personal data across our real estate ecosystem in compliance with applicable law.'
-      : `Official terms, rules, and guidelines regarding ${pageTitle} on the GharMB real-estate platform.`
+      : 'Official legal policies and terms of the GharMB real-estate platform.'
   );
 
   const formattedDate = content?.updatedAt
@@ -281,6 +281,10 @@ export default function LegalPolicy({ type: propType }) {
       setActiveSection(id);
     }
   }, []);
+
+  if (!isLoading && isNotFound) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <>
@@ -572,14 +576,6 @@ export default function LegalPolicy({ type: propType }) {
                     </Link>
                   );
                 })}
-
-              {/* If current policy is custom and not yet in allPolicies list */}
-              {!isPrivacy && !isTerms && !allPolicies.some(p => p.slug === normalizedSlug) && (
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-brand text-white shadow-xs">
-                  <BookOpen size={16} />
-                  <span>{pageTitle}</span>
-                </div>
-              )}
 
               <Link
                 to="/delete-profile"
