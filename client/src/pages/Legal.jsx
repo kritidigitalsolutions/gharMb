@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Save, Bold, Italic, List, Link as LinkIcon, RotateCcw, AlertTriangle, Info,
   CheckCircle2, Undo, Redo, Heading1, Heading2, ListOrdered, Plus, Trash2,
-  FileText, Globe, Eye, EyeOff, Sparkles, ExternalLink, RefreshCw
+  FileText, Globe, Eye, EyeOff, Sparkles, ExternalLink, RefreshCw, Loader2
 } from 'lucide-react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -23,13 +23,17 @@ const slugify = (text) => {
     .replace(/-+$/, '');
 };
 
+// Global in-memory cache for instant 0ms switching & initial render
+let globalPoliciesCache = null;
+
 const LegalSettings = () => {
-  const [policies, setPolicies] = useState([]);
+  const [policies, setPolicies] = useState(() => globalPoliciesCache || []);
   const [activeSlug, setActiveSlug] = useState('terms');
   const [isCreatingNew, setIsCreatingNew] = useState(false);
 
   // Form states for current editing policy
   const [policyForm, setPolicyForm] = useState({
+    _id: null,
     title: '',
     slug: '',
     shortDescription: '',
@@ -43,16 +47,24 @@ const LegalSettings = () => {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !globalPoliciesCache);
+  const [isRevalidating, setIsRevalidating] = useState(false);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState('');
 
   // Toast feedback
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-  const triggerToast = (message, type = 'success') => {
+  const toastTimeoutRef = useRef(null);
+  const triggerToast = useCallback((message, type = 'success') => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     setToast({ show: true, message, type });
-    setTimeout(() => { setToast({ show: false, message: '', type: 'success' }); }, 4000);
-  };
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast({ show: false, message: '', type: 'success' });
+    }, 3500);
+  }, []);
+
+  // In-flight request controller
+  const abortControllerRef = useRef(null);
 
   // TipTap WYSIWYG Editor Instance
   const editor = useEditor({
@@ -114,8 +126,8 @@ const LegalSettings = () => {
                 continue;
               }
             }
-            if (inUl) { newLines.push('</ul>'); inUl = false; }
-            if (inOl) { newLines.push('</ol>'); inOl = false; }
+            if (inUl) newLines.push('</ul>');
+            if (inOl) newLines.push('</ol>');
             newLines.push(line);
           }
           if (inUl) newLines.push('</ul>');
@@ -139,23 +151,80 @@ const LegalSettings = () => {
       }
     },
     onUpdate: ({ editor: currentEditor }) => {
-      setPolicyForm(prev => ({ ...prev, content: currentEditor.getHTML() }));
+      const html = currentEditor.getHTML();
+      setPolicyForm(prev => ({ ...prev, content: html }));
     }
   });
 
-  const fetchPolicies = async (targetSlug = null) => {
-    setLoading(true);
+  // Switch active policy and sync editor in 0ms
+  const selectPolicyBySlug = useCallback((slugToSelect, policyList = policies) => {
+    const list = (policyList && policyList.length > 0) ? policyList : policies;
+    if (!list || list.length === 0) return;
+
+    const found = list.find(p => p.slug === slugToSelect || p.type === slugToSelect) || list[0];
+    if (found) {
+      setIsCreatingNew(false);
+      const activeTypeOrSlug = found.slug || found.type || 'terms';
+      setActiveSlug(activeTypeOrSlug);
+
+      const newForm = {
+        _id: found._id || null,
+        title: found.title || '',
+        slug: found.slug || found.type || '',
+        shortDescription: found.shortDescription || '',
+        status: found.status || 'published',
+        platform: found.platform || 'both',
+        showInFooter: found.showInFooter !== false,
+        displayOrder: found.displayOrder || 1,
+        content: found.content || '',
+        isSystem: Boolean(found.isSystem || found.type === 'terms' || found.type === 'privacy-policy')
+      };
+      setPolicyForm(newForm);
+
+      const d = found.updatedAt ? new Date(found.updatedAt) : new Date();
+      setLastUpdated(d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }));
+
+      if (editor && !editor.isDestroyed) {
+        try {
+          if (editor.getHTML() !== (found.content || '')) {
+            editor.commands.setContent(found.content || '');
+          }
+        } catch (e) {
+          console.warn('Editor sync notice:', e);
+        }
+      }
+    }
+  }, [policies, editor]);
+
+  // Concurrent Stale-While-Revalidate Policy Fetcher
+  const fetchPolicies = useCallback(async (targetSlug = null, silent = false) => {
+    if (!silent && !globalPoliciesCache) {
+      setLoading(true);
+    } else {
+      setIsRevalidating(true);
+    }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     let loadedPolicies = [];
     let fetchError = null;
 
     try {
-      const res = await API.get('/admin/legal/policies');
+      const res = await API.get('/admin/legal/policies', {
+        signal: abortControllerRef.current.signal
+      });
       loadedPolicies = res.data?.data?.policies || [];
     } catch (err) {
-      console.error('Error fetching policies from server:', err);
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+        return; // In-flight request was superseded
+      }
+      console.error('Fetch policies error:', err);
       if (err.message === 'Admin session expired' || err.response?.status === 401) {
-        // Handled centrally by API interceptor
         setLoading(false);
+        setIsRevalidating(false);
         return;
       }
       if (err.response?.status === 403) {
@@ -170,55 +239,35 @@ const LegalSettings = () => {
     }
 
     if (fetchError) {
-      setError(fetchError);
+      if (!globalPoliciesCache) {
+        setError(fetchError);
+      }
       setLoading(false);
+      setIsRevalidating(false);
       return;
     }
 
-    // Safely update state outside network try/catch
     if (loadedPolicies.length > 0) {
       setError(null);
+      globalPoliciesCache = loadedPolicies;
       setPolicies(loadedPolicies);
       selectPolicyBySlug(targetSlug || activeSlug || 'terms', loadedPolicies);
-    } else {
+    } else if (!globalPoliciesCache) {
       setError('No legal policies found on server.');
     }
+
     setLoading(false);
-  };
+    setIsRevalidating(false);
+  }, [activeSlug, selectPolicyBySlug]);
 
-  const selectPolicyBySlug = (slugToSelect, policyList = policies) => {
-    const list = policyList && policyList.length > 0 ? policyList : policies;
-    const found = list.find(p => p.slug === slugToSelect || p.type === slugToSelect) || list[0];
-    if (found) {
-      setIsCreatingNew(false);
-      setActiveSlug(found.slug || found.type);
-      const newFormData = {
-        _id: found._id,
-        title: found.title || '',
-        slug: found.slug || found.type || '',
-        shortDescription: found.shortDescription || '',
-        status: found.status || 'published',
-        platform: found.platform || 'both',
-        showInFooter: found.showInFooter !== false,
-        displayOrder: found.displayOrder || 1,
-        content: found.content || '',
-        isSystem: Boolean(found.isSystem || found.type === 'terms' || found.type === 'privacy-policy')
-      };
-      setPolicyForm(newFormData);
-      const d = found.updatedAt ? new Date(found.updatedAt) : new Date();
-      setLastUpdated(d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }));
-      if (editor && !editor.isDestroyed) {
-        try {
-          editor.commands.setContent(found.content || '');
-        } catch (e) {
-          console.warn('TipTap editor sync notice:', e);
-        }
-      }
-    }
-  };
-
+  // Initial concurrent mount fetch
   useEffect(() => {
-    fetchPolicies();
+    fetchPolicies(activeSlug, Boolean(globalPoliciesCache));
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
 
   // Update TipTap editor when active policy changes or when editor is ready
@@ -234,11 +283,13 @@ const LegalSettings = () => {
     }
   }, [editor, activeSlug, isCreatingNew, loading]);
 
+  // Instant Add Policy
   const handleStartAddNew = () => {
     setIsCreatingNew(true);
     setActiveSlug('new-policy');
     const nextOrder = policies.length + 1;
-    setPolicyForm({
+    const newDraftForm = {
+      _id: null,
       title: '',
       slug: '',
       shortDescription: '',
@@ -248,10 +299,16 @@ const LegalSettings = () => {
       displayOrder: nextOrder,
       content: '<h2>1. Policy Overview</h2><p>Provide detailed terms and policy clauses here.</p>',
       isSystem: false
-    });
+    };
+    setPolicyForm(newDraftForm);
     setLastUpdated('Drafting new policy');
-    if (editor) {
-      editor.commands.setContent('<h2>1. Policy Overview</h2><p>Provide detailed terms and policy clauses here.</p>');
+    if (editor && !editor.isDestroyed) {
+      try {
+        editor.commands.setContent(newDraftForm.content);
+        editor.commands.focus();
+      } catch (e) {
+        console.warn('Editor focus notice:', e);
+      }
     }
   };
 
@@ -266,6 +323,7 @@ const LegalSettings = () => {
     });
   };
 
+  // Instant Optimistic Save & Publish
   const handleSave = async (overrideStatus = null) => {
     const currentStatus = overrideStatus || policyForm.status || 'published';
     const contentToSave = editor ? editor.getHTML() : policyForm.content;
@@ -289,7 +347,9 @@ const LegalSettings = () => {
       return;
     }
 
-    setIsSaving(true);
+    // Keep snapshot for rollback if needed
+    const previousPoliciesSnapshot = [...policies];
+    const previousFormSnapshot = { ...policyForm };
 
     const payload = {
       title: policyForm.title.trim(),
@@ -300,58 +360,118 @@ const LegalSettings = () => {
       platform: policyForm.platform || 'both',
       showInFooter: Boolean(policyForm.showInFooter),
       displayOrder: Number(policyForm.displayOrder) || 1,
-      isSystem: Boolean(policyForm.isSystem)
+      isSystem: Boolean(policyForm.isSystem),
+      updatedAt: new Date().toISOString()
     };
 
+    // 1. INSTANT OPTIMISTIC UI UPDATE
+    setIsSaving(true);
+    let optimisticPolicies = [];
+
+    if (isCreatingNew) {
+      const newOptimisticItem = { ...payload, _id: 'temp_' + Date.now() };
+      optimisticPolicies = [...policies, newOptimisticItem];
+      setPolicies(optimisticPolicies);
+      setIsCreatingNew(false);
+      setActiveSlug(finalSlug);
+      setPolicyForm(newOptimisticItem);
+    } else {
+      optimisticPolicies = policies.map(p => {
+        if (p.slug === finalSlug || p.slug === activeSlug || p.type === activeSlug) {
+          return { ...p, ...payload };
+        }
+        return p;
+      });
+      setPolicies(optimisticPolicies);
+      setPolicyForm(prev => ({ ...prev, ...payload }));
+    }
+
+    globalPoliciesCache = optimisticPolicies;
+    setLastUpdated('Just now');
+    triggerToast(`${payload.title} ${currentStatus === 'draft' ? 'saved as draft' : 'published'} successfully!`, 'success');
+
+    // 2. CONCURRENT BACKGROUND SYNC WITH MONGODB
     try {
       let res;
-      if (isCreatingNew) {
-        res = await API.post('/admin/legal/policies', payload);
-      } else {
-        const targetTypeOrSlug = policyForm.slug || activeSlug;
+      if (previousFormSnapshot._id && !previousFormSnapshot._id.toString().startsWith('temp_')) {
+        const targetTypeOrSlug = previousFormSnapshot.slug || activeSlug;
         res = await API.put(`/admin/legal/${targetTypeOrSlug}`, payload);
+      } else {
+        res = await API.post('/admin/legal/policies', payload);
       }
 
       if (res.status === 200 || res.status === 201) {
-        triggerToast(`${payload.title} ${currentStatus === 'draft' ? 'saved as draft' : 'published'} successfully!`);
-        setIsCreatingNew(false);
-        await fetchPolicies(finalSlug);
+        const savedDoc = res.data?.data?.policy || res.data?.data?.legalContent;
+        if (savedDoc) {
+          // Reconcile server ID quietly
+          setPolicies(prev => prev.map(p => (p.slug === finalSlug ? { ...p, ...savedDoc } : p)));
+          setPolicyForm(prev => (prev.slug === finalSlug ? { ...prev, ...savedDoc } : prev));
+          globalPoliciesCache = optimisticPolicies;
+        }
       } else {
-        triggerToast(res.data?.message || 'Failed to save policy.', 'error');
+        throw new Error(res.data?.message || 'Failed to save policy.');
       }
     } catch (err) {
       console.error('Save policy error:', err);
-      const errMsg = err.response?.data?.message || (err.code === 'ERR_NETWORK' ? 'Network error. Server unreachable.' : 'Failed to save policy to server.');
+      // Rollback on failure
+      setPolicies(previousPoliciesSnapshot);
+      setPolicyForm(previousFormSnapshot);
+      globalPoliciesCache = previousPoliciesSnapshot;
+      const errMsg = err.response?.data?.message || (err.code === 'ERR_NETWORK' ? 'Network error. Changes could not be saved to server.' : 'Failed to save policy to server.');
       triggerToast(errMsg, 'error');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDeletePolicy = async () => {
-    if (policyForm.isSystem) {
+  // Instant Optimistic Delete
+  const handleDeletePolicy = async (customTarget = null) => {
+    const policyToDelete = customTarget || policyForm;
+    const isSystem = policyToDelete.isSystem || policyToDelete.type === 'terms' || policyToDelete.type === 'privacy-policy' || policyToDelete.slug === 'terms' || policyToDelete.slug === 'privacy-policy';
+
+    if (isSystem) {
       triggerToast('System policies (Terms of Service / Privacy Policy) cannot be deleted.', 'error');
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to delete "${policyForm.title}"? This cannot be undone.`)) {
+    if (!window.confirm(`Are you sure you want to delete "${policyToDelete.title || 'this policy'}"? This cannot be undone.`)) {
       return;
     }
 
-    setIsDeleting(true);
-    try {
-      const targetId = policyForm._id || activeSlug;
-      const res = await API.delete(`/admin/legal/policies/${targetId}`);
+    const targetId = policyToDelete._id || policyToDelete.slug || policyToDelete.type || activeSlug;
+    const targetSlug = policyToDelete.slug || policyToDelete.type || activeSlug;
 
-      if (res.status === 200) {
-        triggerToast(`Policy deleted successfully.`);
-        await fetchPolicies('terms');
-      } else {
-        triggerToast(res.data?.message || 'Failed to delete policy.', 'error');
+    // Snapshot for rollback
+    const previousPoliciesSnapshot = [...policies];
+
+    // 1. INSTANT OPTIMISTIC REMOVAL (0ms UI Response)
+    const remainingPolicies = policies.filter(p => p.slug !== targetSlug && p.type !== targetSlug && p._id !== targetId && p._id !== policyToDelete._id);
+    setPolicies(remainingPolicies);
+    globalPoliciesCache = remainingPolicies;
+
+    const nextPolicy = remainingPolicies[0] || null;
+    if (nextPolicy) {
+      selectPolicyBySlug(nextPolicy.slug || nextPolicy.type, remainingPolicies);
+    } else {
+      handleStartAddNew();
+    }
+
+    setIsDeleting(true);
+    triggerToast(`"${policyToDelete.title || 'Policy'}" deleted successfully.`, 'success');
+
+    // 2. CONCURRENT BACKGROUND REMOVAL ON SERVER
+    try {
+      const res = await API.delete(`/admin/legal/policies/${targetId}`);
+      if (res.status !== 200) {
+        throw new Error(res.data?.message || 'Failed to delete policy from server.');
       }
     } catch (err) {
       console.error('Delete policy error:', err);
-      const errMsg = err.response?.data?.message || 'Failed to delete policy from server.';
+      // Rollback on failure
+      setPolicies(previousPoliciesSnapshot);
+      globalPoliciesCache = previousPoliciesSnapshot;
+      selectPolicyBySlug(targetSlug, previousPoliciesSnapshot);
+      const errMsg = err.response?.data?.message || 'Failed to delete policy on server. Changes reverted.';
       triggerToast(errMsg, 'error');
     } finally {
       setIsDeleting(false);
@@ -362,10 +482,10 @@ const LegalSettings = () => {
     const url = window.prompt('Enter link URL (e.g. https://... or /contact):');
     if (url === null) return;
     if (url === '') {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      editor?.chain().focus().extendMarkRange('link').unsetLink().run();
       return;
     }
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+    editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
   };
 
   return (
@@ -391,6 +511,12 @@ const LegalSettings = () => {
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/20">
               {policies.length} {policies.length === 1 ? 'Policy' : 'Policies'}
             </span>
+            {isRevalidating && (
+              <span className="text-[10px] text-[var(--text-muted)] flex items-center gap-1">
+                <Loader2 size={10} className="animate-spin text-brand" />
+                <span>Syncing live...</span>
+              </span>
+            )}
           </div>
           <p className="text-xs text-[var(--text-subtle)] mt-1">
             Manage Terms of Service, Privacy Policy, and create dynamic legal policies that publish to Web, Mobile App, or Both.
@@ -455,9 +581,11 @@ const LegalSettings = () => {
             const isSelected = !isCreatingNew && (activeSlug === p.slug || activeSlug === p.type);
             const isDraft = p.status === 'draft';
             const platform = p.platform || 'both';
+            const isSystem = p.isSystem || p.type === 'terms' || p.type === 'privacy-policy' || p.slug === 'terms' || p.slug === 'privacy-policy';
+
             return (
               <button
-                key={p._id || p.slug}
+                key={p._id || p.slug || p.type}
                 onClick={() => selectPolicyBySlug(p.slug || p.type)}
                 className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all relative rounded-t-xl cursor-pointer ${
                   isSelected

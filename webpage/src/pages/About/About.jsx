@@ -1,10 +1,10 @@
 import { BadgeCheck, Users, Building2, Shield, Target, Heart } from 'lucide-react';
 
 const values = [
-  { icon: BadgeCheck, title: 'Transparency', text: 'Every listing is verified. Every developer is reviewed. We believe in complete transparency.' },
-  { icon: Shield, title: 'Trust', text: 'We verify documents, ownership and identity so you can browse and transact with confidence.' },
-  { icon: Target, title: 'Simplicity', text: 'Real estate is complex enough. Our platform makes discovery, comparison and decision-making straightforward.' },
-  { icon: Heart, title: 'People First', text: 'Behind every property search is a family, a dream, or a business goal. We build for real people.' },
+  { icon: BadgeCheck, title: 'Complete Transparency', text: 'Clear commission structures across builders (~2%), direct resale/rentals, and pre-decided partner agent brokerage sharing.' },
+  { icon: Shield, title: 'Lead & Contact Privacy', text: 'Direct contact numbers are never publicly exposed. All enquiries are verified, filtered, and coordinated via GHARMB Admin.' },
+  { icon: Target, title: 'Simplicity & Trust', text: 'Real estate is complex enough. Our platform makes discovery, comparison, verification, and transaction management straightforward.' },
+  { icon: Heart, title: 'People First', text: 'Behind every property search is a family, a dream, or a business goal. We build verified, protected solutions for real people.' },
 ];
 
 export default function About() {

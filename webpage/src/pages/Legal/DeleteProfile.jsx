@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Trash2,
@@ -12,11 +12,15 @@ import {
   Mail,
   Clock,
   Send,
-  ArrowRight
+  ArrowRight,
+  FileText,
+  BookOpen
 } from 'lucide-react';
 import { API_BASE_URL } from '../../api/config';
+import { fetchPublicPolicies } from '../../api/legalApi';
 
 export default function DeleteProfile() {
+  const [allPolicies, setAllPolicies] = useState([]);
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
@@ -29,6 +33,14 @@ export default function DeleteProfile() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedRequest, setSubmittedRequest] = useState(null);
+
+  useEffect(() => {
+    fetchPublicPolicies(false).then((policies) => {
+      if (Array.isArray(policies) && policies.length > 0) {
+        setAllPolicies(policies);
+      }
+    });
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -143,6 +155,20 @@ export default function DeleteProfile() {
               <Scale size={16} />
               <span>Terms of Service</span>
             </Link>
+
+            {/* Dynamic custom policies created in admin */}
+            {allPolicies
+              .filter(p => p.slug !== 'terms' && p.slug !== 'privacy-policy' && p.type !== 'terms' && p.type !== 'privacy-policy')
+              .map(p => (
+                <Link
+                  key={p._id || p.slug}
+                  to={`/${p.slug || p.type}`}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-white border border-[#E7E7E5] text-[#667085] hover:text-[#17202A] hover:bg-gray-50 transition-all"
+                >
+                  <BookOpen size={16} />
+                  <span>{p.title}</span>
+                </Link>
+              ))}
 
             <Link
               to="/delete-profile"

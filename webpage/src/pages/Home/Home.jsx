@@ -1004,13 +1004,13 @@ const ecosystemNodes = [
     label: 'Developer Projects',
     shortLabel: 'Developers',
     category: 'DEVELOPER NETWORK',
-    title: 'Builder projects & inventory.',
+    title: 'Builder projects & verified inventory.',
     description:
-      'Verified developer project showcases, new launches, and under-construction inventory with structured commissions and admin coordination.',
+      'Commission-based builder tie-ups (generally around 2%, as mutually finalized). All buyer leads are verified and qualified through GHARMB Admin.',
     capabilities: [
+      'Commission-based (generally ~2%, as mutually finalized)',
+      'All enquiries verified & qualified by GHARMB Admin',
       'RERA-registered developer project showcases',
-      'Builder inventory & architectural floor plans',
-      'Milestone construction updates & phased delivery tracking',
     ],
     previewType: 'developers',
     angle: -45, // Top-Right
@@ -1021,13 +1021,13 @@ const ecosystemNodes = [
     label: 'Agents & Professionals',
     shortLabel: 'Professionals',
     category: 'VERIFIED PROFESSIONALS',
-    title: 'Certified agents you can actually trust.',
+    title: 'Certified partner agents & brokers.',
     description:
-      'Connect with high-reputation brokers, legal counsels, and property advisors with audited track records.',
+      'Agent Resale and Rental with brokerage shared between GHARMB and partner agents as per pre-decided percentages.',
     capabilities: [
-      'RERA certified Super Agents with 98%+ satisfaction score',
-      'Assisted on-site property inspection & documentation visits',
-      'Transparent advisory without cold calls or spam',
+      'Brokerage shared as per pre-decided percentage',
+      'Controlled lead flow through GHARMB Admin',
+      'RERA certified Super Agents with verified track records',
     ],
     previewType: 'professionals',
     angle: 0, // Right
@@ -1038,13 +1038,13 @@ const ecosystemNodes = [
     label: 'Property Owners',
     shortLabel: 'Property Owners',
     category: 'OWNER PLATFORM',
-    title: 'Simplified owner listing & management.',
+    title: 'Direct resale & rental listings.',
     description:
-      'Property listing, digital title verification, and admin-qualified lead management for individual property owners.',
+      'GHARMB earns applicable resale/rental commission (with policy discounts). Contact details remain private and strictly coordinated via Admin.',
     capabilities: [
-      'Owner resale & rental listings with policy commission',
-      'Instant title deed verification & trusted seller badge',
-      'Admin-coordinated inquiry management & visit scheduling',
+      'Direct Resale & Rental commission per company policy',
+      'Owner phone numbers never publicly shared or displayed',
+      'Admin coordinates every enquiry, visit & next step',
     ],
     previewType: 'owners',
     angle: 45, // Bottom-Right
@@ -1069,16 +1069,16 @@ const ecosystemNodes = [
   {
     id: 'verification',
     icon: ShieldCheck,
-    label: 'Verification System',
+    label: 'Lead & Title Verification',
     shortLabel: 'Verification',
-    category: 'TRUST & INTEGRITY',
-    title: 'Multi-stage property & title verification.',
+    category: 'TRUST & LEAD CONTROL',
+    title: 'Controlled lead flow & verification.',
     description:
-      'Document authentication, legal encumbrance checks, and RERA compliance before any listing goes live.',
+      'GHARMB does not share direct contact details of builders, owners, or agents. All leads are filtered, verified, and coordinated by Admin.',
     capabilities: [
-      'RERA compliance & government approvals audit',
-      'Digital encumbrance certificate & ownership title search',
-      'Physical on-site inspection & geocoded photo validation',
+      'All enquiries flow directly to GHARMB Admin panel',
+      'Admin verifies, filters & qualifies each lead',
+      'Contact numbers protected; communication centrally coordinated',
     ],
     previewType: 'verification',
     angle: 135, // Bottom-Left
@@ -2389,14 +2389,14 @@ const professionalRoles = [
     num: '01',
     icon: HomeIcon,
     title: 'Property Owners',
-    descriptor: 'Manage listings and enquiries',
-    tagline: 'Manage your property journey.',
+    descriptor: 'Direct Resale & Rental Listings',
+    tagline: 'Direct listings with complete contact privacy.',
     description:
-      'List your property with structured guidance, monitor real-time visitor interest, manage buyer enquiries, and approve secured token bookings directly from your owner dashboard.',
+      'List properties for direct resale or rental with applicable company policy commission. Contact details are never publicly shared; all buyer and tenant enquiries are filtered, verified and coordinated via GHARMB Admin.',
     capabilities: [
-      'Guided listing workflow',
-      'Property activity',
-      'Enquiries & token requests',
+      'Direct Resale & Rental commission policy',
+      'Protected contact details (never public)',
+      'Admin-verified buyer & tenant enquiries',
     ],
     ctaText: 'Explore for Property Owners',
     ctaLink: '#platform',
@@ -2406,48 +2406,48 @@ const professionalRoles = [
     num: '02',
     icon: Briefcase,
     title: 'Agents & Brokers',
-    descriptor: 'Work with clients and listings',
-    tagline: 'Work smarter across your listings.',
+    descriptor: 'Shared Brokerage & Verified Mandates',
+    tagline: 'Partner brokerage on Resale & Rental.',
     description:
-      'Manage verified client mandates, coordinate on-ground property viewings, access pre-screened buyer requests, and collaborate across an authorized broker network.',
+      'Agent Resale and Rental with brokerage shared between GHARMB and partner agents as per pre-decided percentages, with controlled and verified lead flow from Admin.',
     capabilities: [
-      'Client management',
-      'Property discovery',
-      'Enquiry tracking',
+      'Pre-decided shared brokerage percentage',
+      'Admin-qualified client enquiry flow',
+      'RERA authorized partner agent network',
     ],
     ctaText: 'Explore for Agents & Brokers',
-    ctaLink: '/agents',
+    ctaLink: '#platform',
   },
   {
     id: 'developers',
     num: '03',
     icon: Building2,
-    title: 'Developers',
-    descriptor: 'Showcase projects and inventory',
-    tagline: 'Bring projects into one connected platform.',
+    title: 'Developers & Builders',
+    descriptor: 'Commission-Based Project Tie-Ups',
+    tagline: 'Showcase projects with qualified lead control.',
     description:
-      'Present residential and commercial developments with verified RERA documentation, live unit inventory context, architectural media, and seamless channel partner alignment.',
+      'Builder / Developer partnerships on a commission basis (generally ~2%, as mutually finalized). All buyer enquiries are screened, qualified, and coordinated by GHARMB Admin.',
     capabilities: [
-      'Project presentation',
-      'Inventory context',
-      'Professional connections',
+      'Commission-based (~2% as mutually finalized)',
+      'All leads filtered & verified by Admin',
+      'Verified RERA documentation & showcases',
     ],
     ctaText: 'Explore for Developers',
-    ctaLink: '/developers',
+    ctaLink: '#developers',
   },
   {
     id: 'professionals',
     num: '04',
     icon: UserCheck,
-    title: 'Professionals',
-    descriptor: 'Build your real-estate network',
+    title: 'Professionals & Advisors',
+    descriptor: 'Legal, Valuation & Architecture',
     tagline: 'Build stronger real-estate connections.',
     description:
       'Connect with homeowners, developers, and brokers seeking specialized advisory in property law, structural architecture, real-estate valuation, and interior design.',
     capabilities: [
-      'Professional profile',
-      'Network discovery',
-      'Relevant opportunities',
+      'Verified professional advisor profile',
+      'Transparent advisory network',
+      'Admin-coordinated client consultations',
     ],
     ctaText: 'Explore for Professionals',
     ctaLink: '/contact',
@@ -5407,107 +5407,6 @@ function HowItWorks() {
           </AnimatePresence>
         </div>
       </div>
-
-      {/* ── 03 REVENUE MODEL & LEAD CONTROL (THE GHARMB STANDARD) ── */}
-      <div className="mb-10 sm:mb-14 text-left">
-        <div className="mb-6 sm:mb-8 text-left">
-          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#FF5A3C] mb-1.5 block text-left">
-            THE GHARMB STANDARD
-          </span>
-          <h3 className="text-[24px] sm:text-[28px] font-bold text-[#17202A] tracking-tight text-left">
-            Clear Policies & Controlled Operations
-          </h3>
-          <p className="text-[14px] text-[#64748B] mt-1 text-left">
-            Built-in transparency, verified commission structure, and strict lead control for every transaction.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Revenue Model Card */}
-          <div className="bg-white rounded-2xl border border-[#E7E7E5] p-6 sm:p-7 flex flex-col justify-between text-left shadow-xs hover:border-[#FF5A3C]/40 transition-all">
-            <div>
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#F0F0EE]">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#FFF1ED] text-[#FF5A3C] flex items-center justify-center">
-                    <Percent size={18} />
-                  </div>
-                  <h4 className="text-[18px] font-bold text-[#17202A]">Revenue Model</h4>
-                </div>
-                <span className="text-[10.5px] font-mono font-bold text-[#FF5A3C] bg-[#FFF1ED] px-2.5 py-1 rounded-full border border-[#FF5A3C]/20">
-                  Transparent Commission
-                </span>
-              </div>
-
-              <div className="space-y-3.5 text-[13.5px] text-[#475467]">
-                <div className="p-3 rounded-xl bg-[#FAFAF9] border border-[#ECECE9]">
-                  <p className="font-bold text-[#17202A] mb-0.5">• Builder / Developer:</p>
-                  <p className="text-[#64748B] leading-relaxed">Commission-based, generally around 2%, as mutually finalized.</p>
-                </div>
-                <div className="p-3 rounded-xl bg-[#FAFAF9] border border-[#ECECE9]">
-                  <p className="font-bold text-[#17202A] mb-0.5">• Direct Resale:</p>
-                  <p className="text-[#64748B] leading-relaxed">GHARMB earns the applicable resale commission; discounts may be offered as per company policy.</p>
-                </div>
-                <div className="p-3 rounded-xl bg-[#FAFAF9] border border-[#ECECE9]">
-                  <p className="font-bold text-[#17202A] mb-0.5">• Direct Rental:</p>
-                  <p className="text-[#64748B] leading-relaxed">GHARMB earns the applicable rental commission; discounts may be offered as per company policy.</p>
-                </div>
-                <div className="p-3 rounded-xl bg-[#FAFAF9] border border-[#ECECE9]">
-                  <p className="font-bold text-[#17202A] mb-0.5">• Agent Resale / Rental:</p>
-                  <p className="text-[#64748B] leading-relaxed">Brokerage is shared between GHARMB and the partner agent as per a pre-decided percentage.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Lead & Contact Control Card */}
-          <div className="bg-white rounded-2xl border border-[#E7E7E5] p-6 sm:p-7 flex flex-col justify-between text-left shadow-xs hover:border-[#16A36A]/40 transition-all">
-            <div>
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#F0F0EE]">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                    <Lock size={18} />
-                  </div>
-                  <h4 className="text-[18px] font-bold text-[#17202A]">Lead & Contact Control</h4>
-                </div>
-                <span className="text-[10.5px] font-mono font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                  Admin Verified
-                </span>
-              </div>
-
-              {/* Policy Header Banner */}
-              <div className="p-3.5 rounded-xl bg-[#FFF8F6] border border-[#FF5A3C]/20 text-[#17202A] mb-4">
-                <p className="text-[13px] font-bold text-[#C0351B] leading-snug">
-                  GHARMB will NOT provide direct contact details of any Builder/Developer, Property Owner, Landlord or Partner Agent to users.
-                </p>
-              </div>
-
-              <ul className="space-y-2.5 text-[13px] text-[#475467] leading-relaxed">
-                <li className="flex items-start gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A36A] mt-2 shrink-0" />
-                  <span>All enquiries/leads generated through the app will first come directly to the GHARMB Admin Panel.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A36A] mt-2 shrink-0" />
-                  <span>Admin will verify, filter and qualify each lead.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A36A] mt-2 shrink-0" />
-                  <span>After verification, GHARMB will coordinate the enquiry, communication and next steps.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A36A] mt-2 shrink-0" />
-                  <span>Direct phone numbers/contact details of builders, owners or agents will not be publicly displayed or shared through the app.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A36A] mt-2 shrink-0" />
-                  <span>All communication and lead flow will remain controlled through GHARMB Admin.</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* ── 04 EDITORIAL VISUAL BREAK BANNER (Contained + Rounded + Left-Aligned Typography) ── */}
       <div className="mb-14 sm:mb-18">
         <div className="relative rounded-[24px] sm:rounded-[28px] overflow-hidden aspect-[21/9] sm:aspect-[2.8/1] min-h-[220px] sm:min-h-[260px] flex items-center shadow-xs border border-[#E7E7E5] text-left">

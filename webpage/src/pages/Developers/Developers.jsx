@@ -14,7 +14,7 @@ export default function Developers() {
               Trusted builders and projects.
             </h1>
             <p className="text-base sm:text-lg text-text-secondary leading-relaxed">
-              Explore new launches, under-construction and ready-to-move projects from verified developers.
+              Explore new launches, under-construction and ready-to-move projects from verified developers with transparent commission structures and admin-qualified enquiry coordination.
             </p>
           </div>
         </div>
