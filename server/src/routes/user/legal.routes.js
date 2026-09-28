@@ -34,6 +34,8 @@ const router = express.Router();
  *       404:
  *         description: Content type not found
  */
+router.get('/policies', legalController.getAllPublicPolicies);
+router.get('/policy/:type', legalController.getLegalContent);
 router.get('/:type', legalController.getLegalContent);
 
 module.exports = router;

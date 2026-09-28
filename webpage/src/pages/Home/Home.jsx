@@ -10,7 +10,7 @@ import {
   Warehouse, Factory, Sparkles, Lock, Award, Check, Percent,
   SlidersHorizontal, Activity, FileText, Star, MessageSquare, Calendar,
   BookOpen, Clock, X, Info, Compass, ArrowDownRight, Layers,
-  Plus, Minus, Quote, Mail, Phone
+  Plus, Minus, Quote, Mail, Phone, AlertCircle
 } from 'lucide-react';
 import { fetchActiveCategories, fetchPublishedBlogs } from '../../api/blogApi';
 import { API_BASE_URL } from '../../api/config';
@@ -189,7 +189,7 @@ function Hero() {
   const slide = heroSlides[current];
 
   return (
-    <section id="hero" className="relative w-full h-[640px] sm:h-[700px] lg:h-[calc(100vh-72px)] min-h-[620px] max-h-[880px] overflow-hidden group bg-[#080C12]">
+    <section id="hero" className="relative w-full h-[560px] sm:h-[620px] lg:h-[calc(100vh-78px)] min-h-[520px] max-h-[760px] overflow-hidden group bg-[#080C12]">
       {/* Background Image Carousel with Scale/Fade Transition */}
       <AnimatePresence mode="wait">
         <motion.div
@@ -454,9 +454,9 @@ const builderLogos = [
 
 function TopBuildersSection() {
   return (
-    <section id="developers" className="relative py-20 sm:py-28 bg-[#FAF9F7] border-y border-[#ECECE9] overflow-hidden">
+    <section id="developers" className="relative py-10 sm:py-14 bg-[#FAF9F7] border-y border-[#ECECE9] overflow-hidden">
       {/* Section Header */}
-      <div className="max-w-[1280px] mx-auto px-5 sm:px-8 lg:px-12 mb-12 sm:mb-14 text-center">
+      <div className="max-w-[1280px] mx-auto px-5 sm:px-8 lg:px-12 mb-6 sm:mb-8 text-center">
         <Reveal>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
             <Building2 size={13} />
@@ -503,7 +503,7 @@ function TopBuildersSection() {
       </div>
 
       {/* Bottom Trust Indicators */}
-      <div className="max-w-[1280px] mx-auto px-5 sm:px-8 lg:px-12 mt-12 pt-6 border-t border-[#ECECE9]">
+      <div className="max-w-[1280px] mx-auto px-5 sm:px-8 lg:px-12 mt-8 pt-5 border-t border-[#ECECE9]">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#667085]">
           <div className="flex items-center gap-2 font-semibold text-[#17202A]">
             <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
@@ -512,7 +512,7 @@ function TopBuildersSection() {
           <div className="flex flex-wrap items-center justify-center gap-4 text-text-muted">
             <span>Direct Developer Pricing</span>
             <span>•</span>
-            <span>Zero Brokerage on New Launches</span>
+            <span>Commission-Based Developer Direct</span>
             <span>•</span>
             <span>Priority Site Visits</span>
           </div>
@@ -550,9 +550,9 @@ const aboutPrinciples = [
     label: 'CONNECT',
     title: 'Connect with clarity.',
     description:
-      'Connect directly with developers, certified agents and audited professionals who are part of the real-estate ecosystem.',
+      'Connect with verified developers, certified agents and audited professionals who are part of the real-estate ecosystem.',
     icon: Users,
-    tag: 'Direct Network',
+    tag: 'Verified Network',
   },
 ];
 
@@ -566,7 +566,7 @@ const approachPillars = [
   {
     num: '02',
     title: 'Visible Verification',
-    description: 'RERA legal cross-check, geo-tagged site survey photos and direct owner validation.',
+    description: 'RERA legal cross-check, geo-tagged site survey photos and property title validation.',
     icon: ShieldCheck,
   },
   {
@@ -578,7 +578,7 @@ const approachPillars = [
   {
     num: '04',
     title: 'Meaningful Connections',
-    description: 'Direct communication with verified developers, super agents and professionals with zero spam.',
+    description: 'Qualified communication coordinated through GHARMB Admin with complete contact privacy.',
     icon: Users,
   },
 ];
@@ -589,19 +589,19 @@ function AboutGharMB() {
   return (
     <section
       id="about"
-      className="relative py-20 sm:py-28 lg:py-32 overflow-hidden select-auto"
+      className="relative py-12 sm:py-16 lg:py-20 overflow-hidden select-auto"
       style={{
         background:
           'radial-gradient(circle at 65% 20%, rgba(255,90,60,0.035) 0%, transparent 45%), radial-gradient(circle at 25% 80%, rgba(22,163,106,0.025) 0%, transparent 45%), #FCFCFB',
       }}
     >
-      <div className="max-w-[1280px] mx-auto px-5 sm:px-8 lg:px-12 space-y-20 sm:space-y-28 lg:space-y-32">
+      <div className="max-w-[1280px] mx-auto px-5 sm:px-8 lg:px-12 space-y-12 sm:space-y-14 lg:space-y-16">
         
         {/* ─────────────────────────────────────────────────────────────
            BLOCK 1: HERO OPENING WITH SOPHISTICATED REAL-ESTATE IMAGE
            ───────────────────────────────────────────────────────────── */}
         <div>
-          <div className="max-w-3xl mb-10 sm:mb-14">
+          <div className="max-w-3xl mb-6 sm:mb-8">
             <Reveal>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
@@ -686,7 +686,7 @@ function AboutGharMB() {
                     Developers · Agents · Owners
                   </span>
                   <span className="text-[11px] text-[#667085] mt-0.5 block">
-                    Zero brokerage & verified profiles
+                    Transparent policies & verified profiles
                   </span>
                 </div>
               </div>
@@ -729,7 +729,7 @@ function AboutGharMB() {
            BLOCK 2: BRAND PHILOSOPHY (WHY GHARMB — 3 CORE PRINCIPLES)
            ───────────────────────────────────────────────────────────── */}
         <div className="pt-4 sm:pt-8 border-t border-border-soft">
-          <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 xl:gap-20 items-start mb-10 sm:mb-12">
+          <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-start mb-6 sm:mb-8">
             
             {/* Left Narrative */}
             <div className="lg:col-span-5 space-y-4">
@@ -868,7 +868,7 @@ function AboutGharMB() {
            BLOCK 3: OUR APPROACH (4 VALUE PILLARS + EDITORIAL SHOWCASE)
            ───────────────────────────────────────────────────────────── */}
         <div className="pt-4 sm:pt-8 border-t border-border-soft">
-          <div className="text-left max-w-3xl mb-10 sm:mb-14">
+          <div className="text-left max-w-3xl mb-6 sm:mb-8">
             <Reveal>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C]" />
@@ -1004,12 +1004,12 @@ const ecosystemNodes = [
     label: 'Developer Projects',
     shortLabel: 'Developers',
     category: 'DEVELOPER NETWORK',
-    title: 'Direct builder projects & inventory.',
+    title: 'Builder projects & inventory.',
     description:
-      'Connect directly with verified builders, new launch developments, and under-construction inventory without intermediaries.',
+      'Verified developer project showcases, new launches, and under-construction inventory with structured commissions and admin coordination.',
     capabilities: [
       'RERA-registered developer project showcases',
-      'Direct-from-builder inventory & architectural floor plans',
+      'Builder inventory & architectural floor plans',
       'Milestone construction updates & phased delivery tracking',
     ],
     previewType: 'developers',
@@ -1040,11 +1040,11 @@ const ecosystemNodes = [
     category: 'OWNER PLATFORM',
     title: 'Simplified owner listing & management.',
     description:
-      'Direct property listing, digital title verification, and guided lead management for individual property owners.',
+      'Property listing, digital title verification, and admin-qualified lead management for individual property owners.',
     capabilities: [
-      'Zero brokerage direct owner listings',
+      'Owner resale & rental listings with policy commission',
       'Instant title deed verification & trusted seller badge',
-      'Direct visit scheduling & digital inquiry dashboard',
+      'Admin-coordinated inquiry management & visit scheduling',
     ],
     previewType: 'owners',
     angle: 45, // Bottom-Right
@@ -1143,7 +1143,7 @@ function Ecosystem() {
   return (
     <section
       id="ecosystem"
-      className="relative py-24 sm:py-28 lg:py-36 overflow-hidden"
+      className="relative py-12 sm:py-16 lg:py-20 overflow-hidden"
       style={{
         background:
           'radial-gradient(circle at 50% 45%, rgba(255,90,60,0.045) 0%, transparent 46%), #FCFCFB',
@@ -1409,11 +1409,11 @@ function Ecosystem() {
                           </div>
                           <div>
                             <span className="font-bold text-text-primary block">Godrej & Prestige Projects</span>
-                            <span className="text-[11px] text-text-secondary">RERA Direct · 18 Active Sites</span>
+                            <span className="text-[11px] text-text-secondary">RERA Verified · 18 Active Sites</span>
                           </div>
                         </div>
                         <span className="text-[11px] font-bold text-text-primary bg-white border border-border px-2.5 py-1 rounded-lg">
-                          Direct Inventory
+                          Commission-Based (~2%)
                         </span>
                       </div>
                     )}
@@ -1445,11 +1445,11 @@ function Ecosystem() {
                           </div>
                           <div>
                             <span className="font-bold text-text-primary block">Owner Listing Console</span>
-                            <span className="text-[11px] text-text-secondary">Title Deed Verified · Direct Leads</span>
+                            <span className="text-[11px] text-text-secondary">Title Deed Verified · Qualified Leads</span>
                           </div>
                         </div>
                         <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
-                          0% Brokerage
+                          Company Policy Commission
                         </span>
                       </div>
                     )}
@@ -1611,11 +1611,11 @@ const platformJourneyStages = [
     eyebrow: 'PROFESSIONAL NETWORK',
     title: 'Connect with the right people.',
     description:
-      'Find developers, agents, direct owners and legal professionals relevant to your property journey without unsolicited calls or spam.',
+      'Find developers, agents, property owners and legal professionals relevant to your property journey through qualified admin coordination.',
     capabilities: [
-      'Direct connection with verified builders',
+      'Verified builder & project showcases with admin coordination',
       'RERA Super Agents with 98%+ trust rating',
-      'Direct property owners with zero brokerage',
+      'Property owners & transparent policy-based commission structure',
     ],
     ctaText: 'Explore ecosystem',
     ctaLink: '#ecosystem',
@@ -1625,7 +1625,7 @@ const platformJourneyStages = [
       title: 'Aarav Sharma & Prestige Partners',
       location: 'BKC & Gurgaon Hub Coordinators',
       specs: 'Super Agent #8912 · 4.9 ★ Rating',
-      tag: 'Direct Escorted Site Visits',
+      tag: 'Admin-Coordinated Site Visits',
     },
   },
   {
@@ -1688,7 +1688,7 @@ function ProductShowcase() {
   return (
     <section
       id="platform-journey"
-      className="relative py-24 sm:py-28 lg:py-36 overflow-hidden"
+      className="relative py-12 sm:py-16 lg:py-20 overflow-hidden"
       style={{
         background:
           'radial-gradient(circle at 70% 50%, rgba(255,90,60,0.045) 0%, transparent 45%), #FCFCFB',
@@ -2074,7 +2074,7 @@ const verificationItems = [
     id: 'ownership',
     icon: UserCheck,
     label: 'Ownership',
-    status: 'Direct Owner Identity Checked',
+    status: 'Owner Identity Checked',
     summary: 'Registered property owner identity and legal authority to transact verified.',
   },
   {
@@ -2113,7 +2113,7 @@ function Verification() {
     <section
       id="verification"
       ref={sectionRef}
-      className="relative py-24 sm:py-28 lg:py-36 overflow-hidden"
+      className="relative py-12 sm:py-16 lg:py-20 overflow-hidden"
       style={{
         background:
           'radial-gradient(circle at 75% 45%, rgba(22,163,106,0.035) 0%, transparent 45%), #FCFCFB',
@@ -2465,7 +2465,7 @@ function OwnerShowcaseUI() {
             My Properties
           </h4>
           <p className="text-[11px] sm:text-[12px] text-[#667085]">
-            1 Active Listing · Managed Directly
+            1 Active Listing · Admin Coordinated
           </p>
         </div>
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] sm:text-[11px] font-bold">
@@ -2923,7 +2923,7 @@ function ProfessionalShowcaseUI() {
               Title Deed Audit · Sector 128 Villa
             </span>
             <span className="text-[10px] text-[#667085]">
-              Direct Homeowner Consultation · Scheduled Tomorrow
+              Homeowner Consultation · Scheduled Tomorrow
             </span>
           </div>
           <span className="text-[10px] font-medium text-emerald-700 shrink-0">Confirmed</span>
@@ -2956,7 +2956,7 @@ function Professionals() {
   return (
     <section
       id="professionals"
-      className="relative py-20 sm:py-24 lg:py-32 overflow-hidden"
+      className="relative py-12 sm:py-16 lg:py-20 overflow-hidden"
       style={{
         background:
           'radial-gradient(circle at 65% 50%, rgba(255,90,60,0.045), transparent 45%), #FCFCFB',
@@ -3475,7 +3475,7 @@ function Commercial() {
   return (
     <section
       id="commercial"
-      className="relative py-24 sm:py-28 lg:py-36 overflow-hidden"
+      className="relative py-12 sm:py-16 lg:py-20 overflow-hidden"
       style={{
         background:
           'radial-gradient(circle at 70% 45%, rgba(255,90,60,0.035) 0%, transparent 45%), #FCFCFB',
@@ -4347,7 +4347,7 @@ function SmartTools() {
   return (
     <section
       id="tools"
-      className="relative py-24 sm:py-28 lg:py-36 overflow-hidden"
+      className="relative py-12 sm:py-16 lg:py-20 overflow-hidden"
       style={{
         background:
           'radial-gradient(circle at 35% 50%, rgba(255,90,60,0.035) 0%, transparent 45%), #FCFCFB',
@@ -4720,7 +4720,7 @@ function Insights() {
   };
 
   return (
-    <Section id="insights" className="py-20 sm:py-24 lg:py-32" bg="bg-[#FCFCFB]">
+    <Section id="insights" className="py-12 sm:py-16 lg:py-20" bg="bg-[#FCFCFB]">
       {/* ── 04 SECTION HEADER ── */}
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-10 lg:mb-12">
         <div className="max-w-2xl">
@@ -5090,27 +5090,27 @@ const journeyStages = [
     num: "04",
     id: "connect",
     title: "Connect",
-    subtitle: "Direct, transparent professional access.",
-    description: "Connect directly with authorized builders, vetted neighborhood specialists, and genuine owners without spam calls or unwanted middlemen.",
+    subtitle: "Admin-verified lead and contact coordination.",
+    description: "GHARMB will NOT provide direct contact details of any Builder/Developer, Property Owner, Landlord or Partner Agent to users. All enquiries and communications are qualified and coordinated directly through GHARMB Admin.",
     features: [
-      "Direct developer sales desks",
-      "Vetted, certified area specialists",
-      "Zero spam direct enquiry channels",
-      "Instant site visit appointment scheduling"
+      "All enquiries come directly to GHARMB Admin Panel",
+      "Admin verifies, filters and qualifies each lead",
+      "GHARMB coordinates enquiry, communication & next steps",
+      "Direct contact details protected & never shared publicly"
     ],
     image: "https://images.unsplash.com/photo-1577495508048-b635879837f1?w=1200&h=800&fit=crop",
     floatingBadges: [
       {
         pos: "top-right",
-        icon: "users",
-        title: "Authorized Developer Desk",
-        subtitle: "Direct Pricing · No Brokerage"
+        icon: "shield",
+        title: "Lead & Contact Control",
+        subtitle: "Admin-Verified Next Steps"
       },
       {
         pos: "bottom-left",
         icon: "calendar",
-        title: "Site Visit Scheduled",
-        subtitle: "Tomorrow at 11:00 AM"
+        title: "Controlled Communication",
+        subtitle: "Protected Contact Details"
       }
     ]
   },
@@ -5236,7 +5236,7 @@ function HowItWorks() {
   });
 
   return (
-    <Section id="how-it-works" className="py-20 sm:py-24 lg:py-32" bg="bg-[#FCFCFB]">
+    <Section id="how-it-works" className="py-12 sm:py-16 lg:py-20" bg="bg-[#FCFCFB]">
       {/* ── 01 SECTION HEADER (LEFT ALIGNED) ── */}
       <div className="mb-10 lg:mb-12 text-left max-w-2xl">
         <Reveal>
@@ -5408,72 +5408,103 @@ function HowItWorks() {
         </div>
       </div>
 
-      {/* ── 03 THE GHARMB STANDARD (LEFT ALIGNED) ── */}
-      <div className="mb-14 sm:mb-18 text-left">
+      {/* ── 03 REVENUE MODEL & LEAD CONTROL (THE GHARMB STANDARD) ── */}
+      <div className="mb-10 sm:mb-14 text-left">
         <div className="mb-6 sm:mb-8 text-left">
           <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#FF5A3C] mb-1.5 block text-left">
             THE GHARMB STANDARD
           </span>
           <h3 className="text-[24px] sm:text-[28px] font-bold text-[#17202A] tracking-tight text-left">
-            More clarity at every step.
+            Clear Policies & Controlled Operations
           </h3>
           <p className="text-[14px] text-[#64748B] mt-1 text-left">
-            Built-in transparency, verification and structured intelligence for every transaction.
+            Built-in transparency, verified commission structure, and strict lead control for every transaction.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {[
-            {
-              num: "01",
-              icon: ShieldCheck,
-              title: "Verified information",
-              desc: "Clear legal documentation, validated RERA numbers, and genuine project timelines with zero false claims."
-            },
-            {
-              num: "02",
-              icon: Users,
-              title: "Connected professionals",
-              desc: "Direct access to authenticated developers, vetted neighborhood specialists, and genuine property owners."
-            },
-            {
-              num: "03",
-              icon: Calculator,
-              title: "Useful property tools",
-              desc: "EMI loan calculators, unit area converters, stamp duty estimators, and side-by-side comparison tables."
-            },
-            {
-              num: "04",
-              icon: BookOpen,
-              title: "Real-world insights",
-              desc: "Editorial buying guides, micro-market trends, legal explainers, and real estate terminology without jargon."
-            }
-          ].map((item, idx) => {
-            const Icon = item.icon;
-            return (
-              <div
-                key={idx}
-                className="group bg-white rounded-2xl border border-[#E7E7E5] hover:border-[#FF5A3C]/40 p-5 sm:p-6 transition-all duration-250 hover:shadow-xs flex flex-col justify-between text-left"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-9 h-9 rounded-xl bg-[#FFF1ED] text-[#FF5A3C] group-hover:bg-[#FF5A3C] group-hover:text-white flex items-center justify-center transition-all duration-250 group-hover:-translate-y-0.5">
-                      <Icon size={17} />
-                    </div>
-                    <span className="font-mono text-[12px] font-bold text-[#64748B] group-hover:text-[#FF5A3C] transition-colors">
-                      {item.num}
-                    </span>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Revenue Model Card */}
+          <div className="bg-white rounded-2xl border border-[#E7E7E5] p-6 sm:p-7 flex flex-col justify-between text-left shadow-xs hover:border-[#FF5A3C]/40 transition-all">
+            <div>
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#F0F0EE]">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#FFF1ED] text-[#FF5A3C] flex items-center justify-center">
+                    <Percent size={18} />
                   </div>
-                  <h4 className="text-[16px] font-bold text-[#17202A] mb-1.5 group-hover:text-[#FF5A3C] transition-colors text-left">
-                    {item.title}
-                  </h4>
-                  <p className="text-[13px] text-[#64748B] leading-relaxed text-left">
-                    {item.desc}
-                  </p>
+                  <h4 className="text-[18px] font-bold text-[#17202A]">Revenue Model</h4>
+                </div>
+                <span className="text-[10.5px] font-mono font-bold text-[#FF5A3C] bg-[#FFF1ED] px-2.5 py-1 rounded-full border border-[#FF5A3C]/20">
+                  Transparent Commission
+                </span>
+              </div>
+
+              <div className="space-y-3.5 text-[13.5px] text-[#475467]">
+                <div className="p-3 rounded-xl bg-[#FAFAF9] border border-[#ECECE9]">
+                  <p className="font-bold text-[#17202A] mb-0.5">• Builder / Developer:</p>
+                  <p className="text-[#64748B] leading-relaxed">Commission-based, generally around 2%, as mutually finalized.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-[#FAFAF9] border border-[#ECECE9]">
+                  <p className="font-bold text-[#17202A] mb-0.5">• Direct Resale:</p>
+                  <p className="text-[#64748B] leading-relaxed">GHARMB earns the applicable resale commission; discounts may be offered as per company policy.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-[#FAFAF9] border border-[#ECECE9]">
+                  <p className="font-bold text-[#17202A] mb-0.5">• Direct Rental:</p>
+                  <p className="text-[#64748B] leading-relaxed">GHARMB earns the applicable rental commission; discounts may be offered as per company policy.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-[#FAFAF9] border border-[#ECECE9]">
+                  <p className="font-bold text-[#17202A] mb-0.5">• Agent Resale / Rental:</p>
+                  <p className="text-[#64748B] leading-relaxed">Brokerage is shared between GHARMB and the partner agent as per a pre-decided percentage.</p>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          </div>
+
+          {/* Lead & Contact Control Card */}
+          <div className="bg-white rounded-2xl border border-[#E7E7E5] p-6 sm:p-7 flex flex-col justify-between text-left shadow-xs hover:border-[#16A36A]/40 transition-all">
+            <div>
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#F0F0EE]">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <Lock size={18} />
+                  </div>
+                  <h4 className="text-[18px] font-bold text-[#17202A]">Lead & Contact Control</h4>
+                </div>
+                <span className="text-[10.5px] font-mono font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                  Admin Verified
+                </span>
+              </div>
+
+              {/* Policy Header Banner */}
+              <div className="p-3.5 rounded-xl bg-[#FFF8F6] border border-[#FF5A3C]/20 text-[#17202A] mb-4">
+                <p className="text-[13px] font-bold text-[#C0351B] leading-snug">
+                  GHARMB will NOT provide direct contact details of any Builder/Developer, Property Owner, Landlord or Partner Agent to users.
+                </p>
+              </div>
+
+              <ul className="space-y-2.5 text-[13px] text-[#475467] leading-relaxed">
+                <li className="flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A36A] mt-2 shrink-0" />
+                  <span>All enquiries/leads generated through the app will first come directly to the GHARMB Admin Panel.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A36A] mt-2 shrink-0" />
+                  <span>Admin will verify, filter and qualify each lead.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A36A] mt-2 shrink-0" />
+                  <span>After verification, GHARMB will coordinate the enquiry, communication and next steps.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A36A] mt-2 shrink-0" />
+                  <span>Direct phone numbers/contact details of builders, owners or agents will not be publicly displayed or shared through the app.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A36A] mt-2 shrink-0" />
+                  <span>All communication and lead flow will remain controlled through GHARMB Admin.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -6194,7 +6225,7 @@ function ContactSection() {
   };
 
   return (
-    <section id="contact-section" className="bg-[#FAF9F7] py-20 sm:py-24 lg:py-28 border-t border-[#E8E5E1]">
+    <section id="contact-section" className="bg-[#FAF9F7] py-12 sm:py-16 lg:py-20 border-t border-[#E8E5E1]">
       <div className="max-w-[1200px] mx-auto px-5 md:px-8 lg:px-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-start text-left">
           

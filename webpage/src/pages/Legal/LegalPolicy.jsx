@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import {
   FileText,
@@ -13,40 +13,92 @@ import {
   ChevronDown,
   Mail,
   Info,
-  Trash2
+  Trash2,
+  HelpCircle,
+  Home as HomeIcon,
+  BookOpen
 } from 'lucide-react';
-import { fetchLegalContent } from '../../api/legalApi';
+import { fetchLegalContent, fetchPublicPolicies } from '../../api/legalApi';
 
-export default function LegalPolicy({ type }) {
+const formatSlugTitle = (slug) => {
+  if (!slug) return 'Legal Policy';
+  if (slug === 'terms' || slug === 'terms-of-service') return 'Terms of Service';
+  if (slug === 'privacy' || slug === 'privacy-policy') return 'Privacy Policy';
+  return slug
+    .split('-')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+};
+
+export default function LegalPolicy({ type: propType }) {
+  const params = useParams();
+  const rawSlug = propType || params.slug || 'terms';
+
+  // Normalize slug
+  const normalizedSlug = (() => {
+    const s = rawSlug.toLowerCase().trim();
+    if (s === 'terms-of-service' || s === 'terms-conditions' || s === 'terms-and-conditions' || s === 'terms') return 'terms';
+    if (s === 'privacy' || s === 'privacy-policy' || s === 'privacy-and-policy') return 'privacy-policy';
+    return s;
+  })();
+
   const [content, setContent] = useState(null);
+  const [allPolicies, setAllPolicies] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isNotFound, setIsNotFound] = useState(false);
   const [toc, setToc] = useState([]);
   const [activeSection, setActiveSection] = useState('');
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [mobileTocOpen, setMobileTocOpen] = useState(false);
   const contentRef = useRef(null);
 
-  const isPrivacy = type === 'privacy-policy' || type === 'privacy';
-  const isTerms = type === 'terms' || type === 'terms-of-service';
+  const isPrivacy = normalizedSlug === 'privacy-policy';
+  const isTerms = normalizedSlug === 'terms';
 
-  const info = {
-    title: isTerms ? 'Terms of Service' : 'Privacy Policy',
-    badge: isTerms ? 'Legal Terms & Conditions' : 'Privacy & Data Protection',
-    desc: isTerms
+  // Fallback defaults
+  const pageTitle = content?.title || formatSlugTitle(normalizedSlug);
+  const categoryBadge = isPrivacy
+    ? 'Privacy & Data Protection'
+    : isTerms
+    ? 'Legal Terms & Conditions'
+    : 'Legal Policy';
+
+  const shortDesc = content?.shortDescription || (
+    isTerms
       ? 'Please review these terms carefully. They govern your access and use of the GharMB platform, mobile application, and all real estate services.'
-      : 'Learn how GharMB collects, utilizes, safeguards, and manages your personal data across our real estate ecosystem in compliance with applicable law.'
-  };
+      : isPrivacy
+      ? 'Learn how GharMB collects, utilizes, safeguards, and manages your personal data across our real estate ecosystem in compliance with applicable law.'
+      : `Official terms, rules, and guidelines regarding ${pageTitle} on the GharMB real-estate platform.`
+  );
+
+  const formattedDate = content?.updatedAt
+    ? new Date(content.updatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : 'September 28, 2026';
 
   // ── Data fetching ──
   const loadContent = async () => {
     setIsLoading(true);
     setError(null);
+    setIsNotFound(false);
     try {
-      const data = await fetchLegalContent(type);
-      setContent(data || null);
+      const [docData, policiesList] = await Promise.all([
+        fetchLegalContent(normalizedSlug),
+        fetchPublicPolicies(false)
+      ]);
+
+      if (!docData) {
+        setIsNotFound(true);
+        setContent(null);
+      } else {
+        setContent(docData);
+      }
+
+      if (Array.isArray(policiesList) && policiesList.length > 0) {
+        setAllPolicies(policiesList);
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Legal document fetch error:', err);
       setError('Unable to load this legal document.');
     } finally {
       setIsLoading(false);
@@ -54,10 +106,21 @@ export default function LegalPolicy({ type }) {
   };
 
   useEffect(() => {
-    document.title = `${info.title} | GharMB Real Estate`;
     window.scrollTo(0, 0);
     loadContent();
-  }, [type]);
+  }, [normalizedSlug]);
+
+  // ── Dynamic SEO Updates ──
+  useEffect(() => {
+    document.title = `${pageTitle} | GharMB Real Estate`;
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.name = 'description';
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.content = shortDesc;
+  }, [pageTitle, shortDesc]);
 
   // ── Back to top button ──
   useEffect(() => {
@@ -101,7 +164,7 @@ export default function LegalPolicy({ type }) {
     // 5. Convert bullet paragraphs (e.g. <p>●  Users must...</p>) to proper <ul><li>...</li></ul>
     text = text.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, (match, inner) => {
       const trimmed = inner.trim();
-      if (trimmed.startsWith('●') || trimmed.startsWith('•') || trimmed.startsWith('●') || trimmed.startsWith('&bull;')) {
+      if (trimmed.startsWith('●') || trimmed.startsWith('•') || trimmed.startsWith('&bull;')) {
         const items = trimmed
           .split(/(?:●|•|&bull;)\s*/)
           .map(s => s.trim())
@@ -441,25 +504,29 @@ export default function LegalPolicy({ type }) {
               <ChevronRight size={12} className="text-text-muted" />
               <span className="text-text-muted">Legal</span>
               <ChevronRight size={12} className="text-text-muted" />
-              <span className="text-brand font-semibold">{info.title}</span>
+              <span className="text-brand font-semibold">{pageTitle}</span>
             </div>
 
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[11px] font-bold text-[#FF5A3C] uppercase tracking-[0.16em] mb-4">
                 {isPrivacy ? <ShieldCheck size={13} /> : <Scale size={13} />}
-                <span>{info.badge}</span>
+                <span>{categoryBadge}</span>
               </div>
 
               <h1 className="text-[30px] sm:text-[38px] lg:text-[44px] font-bold text-[#17202A] leading-[1.1] tracking-[-0.03em] mb-3.5">
-                {info.title}
+                {pageTitle}
               </h1>
 
               <p className="text-[15px] sm:text-[16.5px] text-[#667085] leading-[1.65] font-normal max-w-2xl">
-                {info.desc}
+                {shortDesc}
               </p>
+
+              <div className="flex items-center gap-2 mt-4 text-xs text-text-muted font-medium">
+                <span>Last updated: {formattedDate}</span>
+              </div>
             </div>
 
-            {/* Document Switcher Tabs */}
+            {/* Document Switcher Tabs (Supports Terms, Privacy, Delete Profile, and other custom policies) */}
             <div className="flex flex-wrap items-center gap-2 mt-6 pt-5 border-t border-[#F0EBE7]">
               <Link
                 to="/privacy-policy"
@@ -485,6 +552,35 @@ export default function LegalPolicy({ type }) {
                 <span>Terms of Service</span>
               </Link>
 
+              {/* Render dynamic custom policies tabs if any exist */}
+              {allPolicies
+                .filter(p => p.slug !== 'terms' && p.slug !== 'privacy-policy' && p.type !== 'terms' && p.type !== 'privacy-policy')
+                .map(p => {
+                  const isActive = normalizedSlug === (p.slug || p.type);
+                  return (
+                    <Link
+                      key={p._id || p.slug}
+                      to={`/${p.slug || p.type}`}
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                        isActive
+                          ? 'bg-brand text-white shadow-xs'
+                          : 'bg-white border border-border text-text-secondary hover:text-text-primary hover:bg-gray-50'
+                      }`}
+                    >
+                      <BookOpen size={16} />
+                      <span>{p.title}</span>
+                    </Link>
+                  );
+                })}
+
+              {/* If current policy is custom and not yet in allPolicies list */}
+              {!isPrivacy && !isTerms && !allPolicies.some(p => p.slug === normalizedSlug) && (
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-brand text-white shadow-xs">
+                  <BookOpen size={16} />
+                  <span>{pageTitle}</span>
+                </div>
+              )}
+
               <Link
                 to="/delete-profile"
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-white border border-border text-text-secondary hover:text-text-primary hover:bg-gray-50 transition-all"
@@ -498,12 +594,12 @@ export default function LegalPolicy({ type }) {
         </section>
 
         {/* ═══════════════════════════════════════════
-            MAIN DOCUMENT CONTENT AREA (OPEN / NON-BOXED)
+            MAIN DOCUMENT CONTENT AREA
             ═══════════════════════════════════════════ */}
         <div className="max-w-[1240px] mx-auto px-5 sm:px-8 lg:px-12 py-10 lg:py-14">
 
           {/* ── Mobile TOC Accordion ── */}
-          {toc.length > 0 && (
+          {toc.length > 0 && !isNotFound && !error && (
             <div className="lg:hidden mb-8">
               <button
                 onClick={() => setMobileTocOpen(!mobileTocOpen)}
@@ -565,6 +661,33 @@ export default function LegalPolicy({ type }) {
                 </div>
               </div>
             </div>
+          ) : isNotFound ? (
+            /* ── 404 / NOT FOUND STATE ── */
+            <div className="flex flex-col items-center justify-center text-center py-20 px-4 max-w-lg mx-auto">
+              <div className="w-18 h-18 rounded-3xl bg-amber-50 border border-amber-200 flex items-center justify-center mb-5 text-amber-600 shadow-sm">
+                <HelpCircle size={36} />
+              </div>
+              <h3 className="text-2xl font-bold text-text-primary mb-2">Legal Document Not Found</h3>
+              <p className="text-sm text-text-secondary mb-8 leading-relaxed">
+                The requested policy document <strong>"/{rawSlug}"</strong> does not exist or has not been published by the administration.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <Link
+                  to="/"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand hover:bg-brand-dark text-white rounded-xl text-sm font-bold shadow-xs transition-colors"
+                >
+                  <HomeIcon size={16} />
+                  <span>Return Home</span>
+                </Link>
+                <Link
+                  to="/terms-of-service"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-border hover:bg-gray-50 text-text-primary rounded-xl text-sm font-bold shadow-xs transition-colors"
+                >
+                  <FileText size={16} />
+                  <span>View Terms</span>
+                </Link>
+              </div>
+            </div>
           ) : error ? (
             /* ── ERROR STATE ── */
             <div className="flex flex-col items-center justify-center text-center py-20 px-4 max-w-md mx-auto">
@@ -589,7 +712,7 @@ export default function LegalPolicy({ type }) {
               <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-border flex items-center justify-center mb-5 text-text-muted">
                 <FileText size={32} />
               </div>
-              <h3 className="text-xl font-bold text-text-primary mb-2">{info.title} Unavailable</h3>
+              <h3 className="text-xl font-bold text-text-primary mb-2">{pageTitle} Unavailable</h3>
               <p className="text-sm text-text-secondary leading-relaxed">
                 This document is being updated. Please check back shortly.
               </p>
@@ -669,7 +792,7 @@ export default function LegalPolicy({ type }) {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                       <div>
                         <h4 className="text-base font-bold text-text-primary mb-1">
-                          Have questions or privacy requests?
+                          Have questions regarding this policy?
                         </h4>
                         <p className="text-sm text-text-secondary leading-relaxed max-w-xl">
                           For data deletion requests, grievance redressal, or questions regarding these terms, reach out to our legal department.
@@ -707,3 +830,4 @@ export default function LegalPolicy({ type }) {
     </>
   );
 }
+

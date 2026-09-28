@@ -27,6 +27,7 @@ function App() {
             <Route path="/delete-profile" element={<DeleteProfile />} />
             <Route path="/delete-account" element={<DeleteProfile />} />
             <Route path="/account-deletion" element={<DeleteProfile />} />
+            <Route path="/:slug" element={<LegalPolicy />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

@@ -1,12 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, Mail } from 'lucide-react';
+import { Menu, X, Mail, ArrowUpRight } from 'lucide-react';
+import { PLAY_STORE_URL } from '../../api/config';
+
+function AndroidIcon({ className = "w-6 h-6" }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M17.52 15.34c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1m-11.04 0c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1m11.4-6.02l2-3.46c.16-.27.06-.62-.21-.77-.27-.16-.62-.06-.77.21l-2.02 3.5c-1.39-.64-2.94-.99-4.58-.99s-3.18.36-4.58.99L5.7 5.3c-.16-.27-.5-.37-.77-.21-.27.16-.36.5-.21.77l2 3.46C3.77 10.58 1.5 13.92 1.5 17.85h21c0-3.93-2.27-7.26-4.62-8.53" />
+    </svg>
+  );
+}
 
 const navLinks = [
   { label: 'Platform', href: '#platform' },
   { label: 'Ecosystem', href: '#ecosystem' },
   { label: 'How It Works', href: '#how-it-works' },
   { label: 'Insights', href: '/insights', isRoute: true },
+  { label: 'RERA', href: '#verification' },
   { label: 'About', href: '#about' },
 ];
 
@@ -125,14 +135,40 @@ export default function Navbar() {
             })}
           </nav>
 
-          {/* Right Action: Highlighted Contact Us Button */}
+          {/* Right Action: Get GHARMB App + Contact Us Buttons */}
           <div className="hidden lg:flex items-center gap-3">
+            <a
+              href={PLAY_STORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="relative group overflow-hidden inline-flex items-center gap-2.5 px-4 py-2 text-[13px] font-bold text-[#0F172A] bg-white hover:bg-white border border-[#E2E8F0] hover:border-[#FF5A45]/35 rounded-xl shadow-2xs hover:shadow-xs transition-all duration-200 hover:-translate-y-[2px] active:scale-[0.97] cursor-pointer"
+              title="Get GHARMB Android App on Google Play"
+            >
+              {/* Subtle light sweep across button on hover */}
+              <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-slate-100/60 to-transparent transition-transform duration-700 pointer-events-none" />
+
+              {/* Android Icon */}
+              <span className="shrink-0 text-[#22C55E] group-hover:-translate-y-0.5 transition-transform duration-200 flex items-center justify-center">
+                <AndroidIcon className="w-6 h-6 fill-[#22C55E]" />
+              </span>
+
+              {/* Button text */}
+              <span className="tracking-tight text-[#0F172A]">
+                Get <span className="font-extrabold text-[#0F172A]">GHARMB</span> App
+              </span>
+
+              {/* Subtle directional download/open indicator */}
+              <span className="text-[#94A3B8] group-hover:text-[#FF5A45] group-hover:translate-x-0.5 transition-all duration-200 flex items-center">
+                <ArrowUpRight size={14} strokeWidth={2.2} />
+              </span>
+            </a>
+
             <a
               href="#contact"
               onClick={(e) => handleNavClick(e, '#contact')}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-[13.5px] font-bold text-brand bg-brand-light hover:bg-brand hover:text-white border border-brand/25 rounded-xl transition-all duration-200 shadow-2xs hover:shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-bold text-brand bg-brand-light hover:bg-brand hover:text-white border border-brand/25 rounded-xl transition-all duration-200 shadow-2xs hover:shadow-xs cursor-pointer"
             >
-              <Mail size={15} />
+              <Mail size={14} />
               <span>Contact Us</span>
             </a>
           </div>
@@ -218,12 +254,38 @@ export default function Navbar() {
           })}
         </nav>
 
-        {/* Drawer Action Button */}
-        <div className="p-4 border-t border-border-soft bg-white">
+        {/* Drawer Action Buttons */}
+        <div className="p-4 border-t border-border-soft bg-white space-y-2.5">
+          <a
+            href={PLAY_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="relative group overflow-hidden flex items-center justify-center gap-2.5 w-full px-4 py-2.5 text-sm font-bold text-[#0F172A] bg-white border border-[#E2E8F0] hover:border-[#FF5A45]/40 rounded-xl shadow-2xs transition-all duration-200 active:scale-[0.97]"
+            title="Get GHARMB Android App on Google Play"
+          >
+            {/* Subtle light sweep across button on hover */}
+            <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-slate-100/70 to-transparent transition-transform duration-700 ease-in-out pointer-events-none" />
+
+            {/* Android Icon */}
+            <span className="shrink-0 text-[#22C55E] group-hover:-translate-y-0.5 transition-transform duration-200 flex items-center justify-center">
+              <AndroidIcon className="w-6 h-6 fill-[#22C55E]" />
+            </span>
+
+            {/* Button text */}
+            <span className="tracking-tight text-[#0F172A]">
+              Get <span className="font-extrabold text-[#0F172A]">GHARMB</span> App
+            </span>
+
+            {/* Subtle directional download/open indicator */}
+            <span className="text-[#94A3B8] group-hover:text-[#FF5A45] group-hover:translate-x-0.5 transition-all duration-200 flex items-center">
+              <ArrowUpRight size={15} strokeWidth={2.2} />
+            </span>
+          </a>
+
           <a
             href="#contact"
             onClick={(e) => handleNavClick(e, '#contact')}
-            className="flex items-center justify-center gap-2 w-full px-4 py-3 text-sm font-bold text-brand bg-brand-light border border-brand/25 hover:bg-brand hover:text-white rounded-xl transition-all cursor-pointer shadow-2xs"
+            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 text-sm font-bold text-brand bg-brand-light border border-brand/25 hover:bg-brand hover:text-white rounded-xl transition-all cursor-pointer shadow-2xs"
           >
             <Mail size={16} />
             <span>Contact Us</span>

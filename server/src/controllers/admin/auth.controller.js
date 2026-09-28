@@ -49,10 +49,12 @@ exports.adminLogin = async (req, res) => {
     await admin.save();
 
     // 6. Generate JWT Token
+    const secret = process.env.JWT_SECRET || "gharmb_secret_key_2026";
+    const expiresIn = process.env.ADMIN_JWT_EXPIRES_IN || process.env.JWT_EXPIRES_IN || "7d";
     const token = jwt.sign(
       { id: admin._id, role: admin.role },
-      process.env.JWT_SECRET || "fallback_secret_key", 
-      { expiresIn: "1d" }
+      secret, 
+      { expiresIn }
     );
 
     // 7. Send response

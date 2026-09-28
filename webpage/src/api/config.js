@@ -26,4 +26,5 @@ export const getBaseUrl = () => {
 
 export const BASE_URL = getBaseUrl();
 export const API_BASE_URL = `${BASE_URL}/api`;
+export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.gharmb';
 export default BASE_URL;

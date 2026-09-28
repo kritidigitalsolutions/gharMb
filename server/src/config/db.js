@@ -1,6 +1,14 @@
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const path = require("path");
+const dns = require("dns");
+
+// Ensure reliable DNS resolution for MongoDB Atlas SRV connection strings
+try {
+  dns.setServers(["8.8.8.8", "1.1.1.1"]);
+} catch (e) {
+  // Ignore in restricted environments
+}
 
 // Load environment variables reliably
 dotenv.config({ path: path.join(__dirname, "../../../.env") });

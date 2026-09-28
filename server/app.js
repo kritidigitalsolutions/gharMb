@@ -173,14 +173,23 @@ initAdmin().catch(() => {});
 
 // 6. Global API Rate Limiter
 const apiLimiter = rateLimit({
-  max: 200, // Limit each IP to 200 requests per window
+  max: Number(process.env.RATE_LIMIT_MAX) || (process.env.NODE_ENV === 'production' ? 1000 : 10000), // Generous limit in dev, configurable in prod
   windowMs: 15 * 60 * 1000, // 15 minutes
   message: {
     status: 'fail',
     message: 'Too many requests from this IP address, please try again in 15 minutes.'
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting in development or for localhost requests
+    if (process.env.NODE_ENV !== 'production') return true;
+    const ip = req.ip || req.connection?.remoteAddress || '';
+    if (ip.includes('127.0.0.1') || ip.includes('::1') || ip === 'localhost') return true;
+    // Skip rate limiting for authenticated admin endpoints
+    if (req.path.startsWith('/admin')) return true;
+    return false;
+  }
 });
 app.use('/api', apiLimiter);
 

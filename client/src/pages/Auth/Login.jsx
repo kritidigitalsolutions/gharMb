@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Home, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
-import API from "../../api/api";
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Home, Mail, Lock, Eye, EyeOff, Loader2, Info } from 'lucide-react';
+import API, { isTokenExpired, clearAuthSession } from "../../api/api";
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false); // Sirf ek loading state rakhi hai
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [sessionNotice, setSessionNotice] = useState("");
   const [success, setSuccess] = useState("");
 
   const [formData, setFormData] = useState({
@@ -16,11 +18,23 @@ const Login = () => {
   });
 
   useEffect(() => {
+    // Check if redirected due to expired session
+    const storedMsg = sessionStorage.getItem('adminSessionMessage');
+    const isExpiredUrl = location.search.includes('expired=1');
+    if (storedMsg || isExpiredUrl) {
+      setSessionNotice(storedMsg || 'Your admin session has expired. Please log in again to continue.');
+      sessionStorage.removeItem('adminSessionMessage');
+    }
+
     const token = localStorage.getItem('adminToken');
     if (token) {
-      navigate('/admin', { replace: true });
+      if (!isTokenExpired(token)) {
+        navigate('/admin', { replace: true });
+      } else {
+        clearAuthSession();
+      }
     }
-  }, [navigate]);
+  }, [navigate, location]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -29,33 +43,28 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+    setSessionNotice('');
     setSuccess('');
     setLoading(true);
 
     try {
       const { email, password } = formData;
 
-      // Note: Make sure yeh route aapke backend route se exact match karta ho
       const response = await API.post('/admin/auth/login', {
         email,
         password
       });
 
-      // FIX 1: Check for token instead of success
       if (response.data.token) {
-        // Save token to localStorage
         localStorage.setItem('adminToken', response.data.token);
-
-        // Save admin info
         localStorage.setItem('admin', JSON.stringify(response.data.admin));
         localStorage.setItem('adminUser', JSON.stringify(response.data.admin));
 
-        // Redirect to dashboard
-        navigate('/admin');
+        const destination = location.state?.from?.pathname || '/admin';
+        navigate(destination, { replace: true });
       }
     } catch (err) {
-      // Backend se aane wala error set hoga
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
       console.error('Login error:', err);
     } finally {
       setLoading(false);
@@ -79,7 +88,13 @@ const Login = () => {
           <p className="text-sm font-medium text-slate-500 mt-2">Enter your credentials to access the dashboard</p>
         </div>
 
-        {/* FIX 2: Error aur Success messages yahan show honge */}
+        {sessionNotice && (
+          <div className="mb-6 p-3.5 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xl flex items-center gap-2.5 font-semibold">
+            <Info size={16} className="text-amber-600 shrink-0" />
+            <span>{sessionNotice}</span>
+          </div>
+        )}
+
         {error && (
           <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl text-center font-medium">
             {error}

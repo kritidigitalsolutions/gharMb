@@ -9,7 +9,7 @@ const benefits = [
   {
     icon: Users,
     title: 'Trusted Professionals',
-    text: 'Connect with verified developers, registered agents and direct property owners — each vetted for credibility.',
+    text: 'Connect with verified developers, registered agents and property owners — each vetted for credibility with qualified admin coordination.',
   },
   {
     icon: BarChart3,

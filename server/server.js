@@ -6,6 +6,14 @@
 
 const dotenv = require('dotenv');
 const path = require('path');
+const dns = require('dns');
+
+// Fix for Windows / ISP DNS SRV resolution failures with MongoDB Atlas
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (e) {
+  // Ignore in environments where custom DNS is restricted
+}
 
 // Load environment variables from .env
 dotenv.config({ path: path.join(__dirname, '.env') });

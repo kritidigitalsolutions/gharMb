@@ -31,7 +31,7 @@ const protect = async (req, res, next) => {
 
     // 2. Verify Token
     try {
-      const secret = process.env.JWT_SECRET || 'fallback_secret_key';
+      const secret = process.env.JWT_SECRET || 'gharmb_secret_key_2026';
       const decoded = jwt.verify(token, secret);
       
       let user = null;
