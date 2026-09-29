@@ -18,10 +18,13 @@ export const getBaseUrl = () => {
     if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.')) {
       return 'http://localhost:5001';
     }
+    if (host.includes('gharmb.com')) {
+      return 'https://server.gharmb.com';
+    }
   }
 
   // 3. Live deployment backend URL
-  return 'https://ghar-mb-226x.vercel.app';
+  return 'https://server.gharmb.com';
 };
 
 export const BASE_URL = getBaseUrl();

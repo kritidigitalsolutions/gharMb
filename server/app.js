@@ -57,8 +57,16 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// 2. CORS Policy Configuration with Allow Origins
+// 2. CORS Policy Configuration with Comprehensive Allowed Origins
 const allowedOrigins = [
+  'https://gharmb.com',
+  'https://www.gharmb.com',
+  'https://admin.gharmb.com',
+  'https://server.gharmb.com',
+  'http://gharmb.com',
+  'http://www.gharmb.com',
+  'http://admin.gharmb.com',
+  'http://server.gharmb.com',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:3000',
@@ -66,34 +74,44 @@ const allowedOrigins = [
   'https://gharmb-web.vercel.app',
   'https://ghar-mb-226x.vercel.app',
   'https://frontend-ghar-mb.vercel.app',
-  ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()) : [])
+  ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean) : [])
 ];
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow non-browser requests (Postman, curl, server-to-server)
+    // 1. Allow non-browser requests (mobile apps, React Native, Flutter, curl, Postman, server-to-server)
     if (!origin) return callback(null, true);
 
-    // Allow localhost and 127.0.0.1 with any port
-    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+    // 2. Allow all gharmb.com subdomains and root domain (admin.gharmb.com, server.gharmb.com, gharmb.com, www.gharmb.com, etc.)
+    if (/^https?:\/\/([a-zA-Z0-9-]+\.)*gharmb\.com(:\d+)?$/.test(origin)) {
       return callback(null, true);
     }
 
-    // Allow all vercel preview & production domains
+    // 3. Allow localhost and local network IP addresses for development (any port)
+    if (/^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|192\.168\.\d+\.\d+)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+
+    // 4. Allow all vercel preview & production domains (*.vercel.app)
     if (/\.vercel\.app$/.test(origin)) {
       return callback(null, true);
     }
 
-    // Check specific allowed origins
+    // 5. Allow mobile app custom schemes & webview origins
+    if (origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin === 'null') {
+      return callback(null, true);
+    }
+
+    // 6. Check explicit allowed origins list or wildcard
     if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
       return callback(null, true);
     }
 
-    // Fallback: allow request
-    return callback(new Error('Not allowed by CORS'));
+    // Reject disallowed origins cleanly without crashing Express
+    return callback(null, false);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
   allowedHeaders: [
     'Content-Type',
     'Authorization',
@@ -101,10 +119,14 @@ const corsOptions = {
     'Accept',
     'Origin',
     'Access-Control-Request-Method',
-    'Access-Control-Request-Headers'
+    'Access-Control-Request-Headers',
+    'x-auth-token',
+    'x-client-platform',
+    'platform'
   ],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  optionsSuccessStatus: 200
+  exposedHeaders: ['Content-Range', 'X-Content-Range', 'Authorization'],
+  optionsSuccessStatus: 200,
+  maxAge: 86400 // 24 hours preflight caching
 };
 
 app.use(cors(corsOptions));

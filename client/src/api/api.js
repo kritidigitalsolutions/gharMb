@@ -38,8 +38,28 @@ export const clearAuthSession = (message = null) => {
   }
 };
 
+const getBaseUrl = () => {
+  let base = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
+
+  if (!base && typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.')) {
+      base = 'http://localhost:5001';
+    } else {
+      base = 'https://server.gharmb.com';
+    }
+  }
+
+  if (!base) {
+    base = 'https://server.gharmb.com';
+  }
+
+  // Ensure base URL cleanly resolves to /api endpoint for Axios calls
+  return base.endsWith('/api') ? base : `${base}/api`;
+};
+
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5001/api'
+  baseURL: getBaseUrl()
 });
 
 // Request interceptor: attach token & check expiration before dispatch
