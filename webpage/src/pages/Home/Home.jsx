@@ -10,7 +10,8 @@ import {
   Warehouse, Factory, Sparkles, Lock, Award, Check, Percent,
   SlidersHorizontal, Activity, FileText, Star, MessageSquare, Calendar,
   BookOpen, Clock, X, Info, Compass, ArrowDownRight, Layers,
-  Plus, Minus, Quote, Mail, Phone, AlertCircle
+  Plus, Minus, Quote, Mail, Phone, AlertCircle,
+  Landmark, Scale, Palette, Truck
 } from 'lucide-react';
 import { fetchActiveCategories, fetchPublishedBlogs } from '../../api/blogApi';
 import { API_BASE_URL } from '../../api/config';
@@ -1004,13 +1005,13 @@ const ecosystemNodes = [
     label: 'Developer Projects',
     shortLabel: 'Developers',
     category: 'DEVELOPER NETWORK',
-    title: 'Builder projects & verified inventory.',
+    title: 'Developer Projects & Opportunities',
     description:
-      'Commission-based builder tie-ups (generally around 2%, as mutually finalized). All buyer leads are verified and qualified through GHARMB Admin.',
+      'Explore property projects and opportunities from developers through the GHARMB platform.',
     capabilities: [
-      'Commission-based (generally ~2%, as mutually finalized)',
-      'All enquiries verified & qualified by GHARMB Admin',
-      'RERA-registered developer project showcases',
+      'Explore developer projects',
+      'View project information in one place',
+      'Discover available property opportunities',
     ],
     previewType: 'developers',
     angle: -45, // Top-Right
@@ -1408,12 +1409,12 @@ function Ecosystem() {
                             <Building2 size={18} />
                           </div>
                           <div>
-                            <span className="font-bold text-text-primary block">Godrej & Prestige Projects</span>
-                            <span className="text-[11px] text-text-secondary">RERA Verified · 18 Active Sites</span>
+                            <span className="font-bold text-text-primary block">Developer Projects</span>
+                            <span className="text-[11px] text-text-secondary">Explore projects & property opportunities</span>
                           </div>
                         </div>
                         <span className="text-[11px] font-bold text-text-primary bg-white border border-border px-2.5 py-1 rounded-lg">
-                          Commission-Based (~2%)
+                          Explore Projects
                         </span>
                       </div>
                     )}
@@ -2385,549 +2386,208 @@ function Verification() {
 
 const professionalRoles = [
   {
-    id: 'owners',
+    id: 'loan',
     num: '01',
-    icon: HomeIcon,
-    title: 'Property Owners',
-    descriptor: 'Direct Resale & Rental Listings',
-    tagline: 'Direct listings with complete contact privacy.',
-    description:
-      'List properties for direct resale or rental with applicable company policy commission. Contact details are never publicly shared; all buyer and tenant enquiries are filtered, verified and coordinated via GHARMB Admin.',
+    icon: Landmark,
+    title: 'Loan',
+    descriptor: 'Home Loans & Property Financing',
+    tagline: 'GHARMB Finance',
+    description: 'Explore home loan and property financing options.',
     capabilities: [
-      'Direct Resale & Rental commission policy',
-      'Protected contact details (never public)',
-      'Admin-verified buyer & tenant enquiries',
+      'Home loan assistance',
+      'Compare financing options',
+      'Calculate property EMI'
     ],
-    ctaText: 'Explore for Property Owners',
-    ctaLink: '#platform',
+    ctaText: 'Explore Home Loans',
+    ctaLink: '#',
+    uiData: {
+      header: 'GHARMB Finance',
+      subHeader: '· Home Loans',
+      title: 'Home Loan Support',
+      description: 'Explore financing options for your property journey.',
+      image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&h=500&fit=crop&q=80',
+      badgeText: 'Available',
+      items: [
+        { label: 'FINANCING', value: 'Home Purchase', icon: 'Building2' },
+        { label: 'DOCUMENTATION', value: 'Loan Assistance', icon: 'FileText' },
+        { label: 'PLANNING', value: 'EMI Guidance', icon: 'Calculator' }
+      ]
+    }
   },
   {
-    id: 'agents',
+    id: 'legal',
     num: '02',
-    icon: Briefcase,
-    title: 'Agents & Brokers',
-    descriptor: 'Shared Brokerage & Verified Mandates',
-    tagline: 'Partner brokerage on Resale & Rental.',
-    description:
-      'Agent Resale and Rental with brokerage shared between GHARMB and partner agents as per pre-decided percentages, with controlled and verified lead flow from Admin.',
+    icon: Scale,
+    title: 'Legal Services',
+    descriptor: 'Property Legal & Documentation Support',
+    tagline: 'Comprehensive Property Legal Support',
+    description: 'Get support for property documentation and legal requirements.',
     capabilities: [
-      'Pre-decided shared brokerage percentage',
-      'Admin-qualified client enquiry flow',
-      'RERA authorized partner agent network',
+      'Property title check',
+      'Documentation support',
+      'Legal verification'
     ],
-    ctaText: 'Explore for Agents & Brokers',
-    ctaLink: '#platform',
+    ctaText: 'Explore Legal Services',
+    ctaLink: '#',
+    uiData: {
+      header: 'GHARMB Legal',
+      subHeader: '· Property Services',
+      title: 'Property Legal Support',
+      description: 'Support for property documentation and legal requirements.',
+      image: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=800&h=500&fit=crop&q=80',
+      badgeText: 'Service Support',
+      items: [
+        { label: 'DOCUMENTS', value: 'Property Documents', icon: 'FileText' },
+        { label: 'LEGAL SUPPORT', value: 'Property Requirements', icon: 'Scale' },
+        { label: 'SALE & PURCHASE', value: 'Transaction Support', icon: 'ShieldCheck' }
+      ]
+    }
   },
   {
-    id: 'developers',
+    id: 'interior',
     num: '03',
-    icon: Building2,
-    title: 'Developers & Builders',
-    descriptor: 'Commission-Based Project Tie-Ups',
-    tagline: 'Showcase projects with qualified lead control.',
-    description:
-      'Builder / Developer partnerships on a commission basis (generally ~2%, as mutually finalized). All buyer enquiries are screened, qualified, and coordinated by GHARMB Admin.',
+    icon: Palette,
+    title: 'Interior',
+    descriptor: 'Interior Design & Home Improvement',
+    tagline: 'Interior & Home Improvement',
+    description: 'Explore interior solutions for your new or existing property.',
     capabilities: [
-      'Commission-based (~2% as mutually finalized)',
-      'All leads filtered & verified by Admin',
-      'Verified RERA documentation & showcases',
+      'Interior design planning',
+      'Furniture and styling',
+      'Home improvement execution'
     ],
-    ctaText: 'Explore for Developers',
-    ctaLink: '#developers',
+    ctaText: 'Explore Interiors',
+    ctaLink: '#',
+    uiData: {
+      header: 'GHARMB Interiors',
+      subHeader: '· Home Improvement',
+      title: 'Interior Design & Home Improvement',
+      description: 'Explore interior solutions for your new or existing property.',
+      image: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&h=500&fit=crop&q=80',
+      badgeText: 'Available',
+      items: [
+        { label: 'DESIGN', value: 'Interior Planning', icon: 'Palette' },
+        { label: 'SPACES', value: 'Home & Room Design', icon: 'HomeIcon' },
+        { label: 'SUPPORT', value: 'Interior Assistance', icon: 'Users' }
+      ]
+    }
   },
   {
-    id: 'professionals',
+    id: 'packers',
     num: '04',
-    icon: UserCheck,
-    title: 'Professionals & Advisors',
-    descriptor: 'Legal, Valuation & Architecture',
-    tagline: 'Build stronger real-estate connections.',
-    description:
-      'Connect with homeowners, developers, and brokers seeking specialized advisory in property law, structural architecture, real-estate valuation, and interior design.',
+    icon: Truck,
+    title: 'Packers & Movers',
+    descriptor: 'Moving & Relocation Services',
+    tagline: 'Packers & Movers',
+    description: 'Find moving and relocation support for your property journey.',
     capabilities: [
-      'Verified professional advisor profile',
-      'Transparent advisory network',
-      'Admin-coordinated client consultations',
+      'Safe packing and moving',
+      'Intracity and intercity relocation',
+      'Tracking and insurance'
     ],
-    ctaText: 'Explore for Professionals',
-    ctaLink: '/contact',
-  },
+    ctaText: 'Explore Relocation',
+    ctaLink: '#',
+    uiData: {
+      header: 'GHARMB Relocation',
+      subHeader: '· Moving Services',
+      title: 'Packers & Movers',
+      description: 'Moving and relocation support for your property journey.',
+      image: 'https://images.pexels.com/photos/7415049/pexels-photo-7415049.jpeg?auto=compress&cs=tinysrgb&w=800&h=500&fit=crop',
+      badgeText: 'Available',
+      items: [
+        { label: 'PACKING', value: 'Household Packing', icon: 'Layers' },
+        { label: 'MOVING', value: 'Furniture & Belongings', icon: 'Truck' },
+        { label: 'RELOCATION', value: 'Moving Assistance', icon: 'MapPin' }
+      ]
+    }
+  }
 ];
 
-/* ─── Role 01 UI: Property Owner Console ─── */
-function OwnerShowcaseUI() {
+function ServiceShowcaseUI({ uiData }) {
+  if (!uiData) return null;
+  
+  const renderIcon = (iconName) => {
+    switch (iconName) {
+      case 'Building2': return <Building2 size={16} className="text-[#FF5A3C]" />;
+      case 'Clock': return <Clock size={16} className="text-amber-500" />;
+      case 'ShieldCheck': return <ShieldCheck size={16} className="text-emerald-600" />;
+      case 'CheckCircle2': return <CheckCircle2 size={16} className="text-emerald-600" />;
+      case 'FileText': return <FileText size={16} className="text-blue-500" />;
+      case 'BadgeCheck': return <BadgeCheck size={16} className="text-indigo-500" />;
+      case 'Layers': return <Layers size={16} className="text-[#FF5A3C]" />;
+      case 'Users': return <Users size={16} className="text-amber-500" />;
+      case 'Sparkles': return <Sparkles size={16} className="text-emerald-600" />;
+      case 'MapPin': return <MapPin size={16} className="text-[#FF5A3C]" />;
+      case 'Shield': return <Shield size={16} className="text-emerald-600" />;
+      case 'Calculator': return <Calculator size={16} className="text-indigo-500" />;
+      case 'Scale': return <Scale size={16} className="text-blue-600" />;
+      case 'Palette': return <Palette size={16} className="text-pink-500" />;
+      case 'Truck': return <Truck size={16} className="text-amber-600" />;
+      case 'HomeIcon': return <HomeIcon size={16} className="text-emerald-600" />;
+      default: return <Check size={16} className="text-[#FF5A3C]" />;
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      {/* Top Console Status */}
-      <div className="flex items-center justify-between pb-3.5 border-b border-border-soft">
-        <div>
-          <h4 className="text-[15px] sm:text-[16px] font-bold text-[#17202A] leading-tight">
-            My Properties
-          </h4>
-          <p className="text-[11px] sm:text-[12px] text-[#667085]">
-            1 Active Listing · Admin Coordinated
-          </p>
-        </div>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] sm:text-[11px] font-bold">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-          Live & Verified
+    <div className="space-y-5 h-full flex flex-col">
+      {/* Top Header */}
+      <div className="flex items-center justify-between pb-4 border-b border-border-soft">
+        <h4 className="text-[15px] sm:text-[17px] font-bold text-[#17202A] leading-tight flex items-center gap-1">
+          {uiData.header} 
+          <span className="text-[#667085] font-medium text-[13px] hidden sm:inline">{uiData.subHeader}</span>
+        </h4>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] sm:text-[11px] font-bold">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          {uiData.badgeText}
         </span>
       </div>
 
-      {/* Property Showcase Card */}
+      {/* Main Visual Card - Made taller to fill the space nicely */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.05 }}
-        className="p-3 sm:p-4 rounded-2xl bg-[#FAFAF9] border border-[#E7E7E5] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4"
+        className="relative flex-1 min-h-[220px] sm:min-h-[260px] rounded-[20px] overflow-hidden border border-[#E7E7E5] shadow-sm group bg-[#FAFAF9]"
       >
-        <div className="flex items-center gap-3">
-          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden shrink-0 border border-border">
-            <img
-              src="https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?w=200&h=200&fit=crop&q=80"
-              alt="Skyline Heights"
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[14px] sm:text-[15px] font-bold text-[#17202A]">
-                Skyline Heights
-              </span>
-              <span className="text-[10px] font-mono text-[#667085] bg-white border border-[#E7E7E5] px-1.5 py-0.5 rounded">
-                Unit 402
-              </span>
-            </div>
-            <p className="text-[12px] text-[#667085] mt-0.5">
-              Sector 62, Noida · Expressway Corridor
-            </p>
-            <div className="flex items-center gap-2 text-[11px] font-semibold text-[#17202A] mt-1">
-              <span>3 BHK</span>
-              <span>·</span>
-              <span>1,480 sq ft</span>
-              <span>·</span>
-              <span className="text-[#FF5A3C] font-bold">₹1.25 Cr</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-border-soft">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-[#667085]">Status</span>
-          <span className="text-[12px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-            Active on Feed
-          </span>
-        </div>
-      </motion.div>
-
-      {/* Performance Metrics Row */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.12 }}
-        className="grid grid-cols-3 gap-2.5"
-      >
-        <div className="p-3 rounded-xl bg-white border border-[#E7E7E5] shadow-xs">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] font-medium text-[#667085]">Views</span>
-            <Eye size={12} className="text-[#FF5A3C]" />
-          </div>
-          <span className="text-[16px] sm:text-[18px] font-bold text-[#17202A] block leading-none">
-            1,420
-          </span>
-          <span className="text-[10px] text-emerald-700 font-semibold mt-1 block">
-            +18% this week
-          </span>
-        </div>
-
-        <div className="p-3 rounded-xl bg-white border border-[#E7E7E5] shadow-xs">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] font-medium text-[#667085]">Shortlisted</span>
-            <Sparkles size={12} className="text-amber-500" />
-          </div>
-          <span className="text-[16px] sm:text-[18px] font-bold text-[#17202A] block leading-none">
-            84
-          </span>
-          <span className="text-[10px] text-[#667085] font-medium mt-1 block">
-            High interest
-          </span>
-        </div>
-
-        <div className="p-3 rounded-xl bg-white border border-[#E7E7E5] shadow-xs">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] font-medium text-[#667085]">Enquiries</span>
-            <MessageSquare size={12} className="text-brand" />
-          </div>
-          <span className="text-[16px] sm:text-[18px] font-bold text-[#17202A] block leading-none">
-            18
-          </span>
-          <span className="text-[10px] text-[#FF5A3C] font-semibold mt-1 block">
-            3 pending review
-          </span>
-        </div>
-      </motion.div>
-
-      {/* Token Requests & Activity */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.18 }}
-        className="p-3.5 rounded-2xl bg-white border border-[#E7E7E5] space-y-2.5"
-      >
-        <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-[#667085]">
-          <span>Recent Token & Inquiry Activity</span>
-          <span className="text-[10px] text-[#FF5A3C] font-semibold">Live Feed</span>
-        </div>
-
-        <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-[#FFF0ED]/40 border border-[#FF5A3C]/15">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-[#FF5A3C] text-white flex items-center justify-center shrink-0">
-              <Ticket size={13} />
-            </div>
-            <div className="min-w-0">
-              <span className="text-[12px] font-bold text-[#17202A] block truncate leading-tight">
-                Token Request · ₹50,000 Escrow Initiated
-              </span>
-              <span className="text-[10px] text-[#667085]">
-                Buyer: Rahul S. · Unit 402 · 14m ago
-              </span>
-            </div>
-          </div>
-          <span className="text-[10px] font-bold text-[#FF5A3C] bg-white px-2 py-1 rounded-md border border-[#FF5A3C]/20 shrink-0">
-            Review Request
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-[#FAFAF9] border border-[#E7E7E5]">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-white border border-[#E7E7E5] text-[#17202A] flex items-center justify-center shrink-0">
-              <CheckCircle2 size={13} className="text-emerald-600" />
-            </div>
-            <div className="min-w-0">
-              <span className="text-[12px] font-semibold text-[#17202A] block truncate leading-tight">
-                Site Inspection Confirmed · Sunday 11:00 AM
-              </span>
-              <span className="text-[10px] text-[#667085]">
-                Verified Buyer with Pre-approved Loan
-              </span>
-            </div>
-          </div>
-          <span className="text-[10px] font-medium text-[#667085] shrink-0">1h ago</span>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-/* ─── Role 02 UI: Agent Workspace ─── */
-function AgentShowcaseUI() {
-  return (
-    <div className="space-y-4">
-      {/* Top Workspace Status */}
-      <div className="flex items-center justify-between pb-3.5 border-b border-border-soft">
-        <div>
-          <h4 className="text-[15px] sm:text-[16px] font-bold text-[#17202A] leading-tight">
-            Agent Workspace
-          </h4>
-          <p className="text-[11px] sm:text-[12px] text-[#667085]">
-            Authorized Broker Network · RERA #UP-AG-8821
+        <img
+          src={uiData.image}
+          alt={uiData.title}
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
+        
+        <div className="absolute inset-0 p-5 sm:p-6 flex flex-col justify-end pointer-events-none">
+          <h3 className="text-white font-bold text-[20px] sm:text-[24px] leading-tight mb-1.5 drop-shadow-md">
+            {uiData.title}
+          </h3>
+          <p className="text-white/95 text-[13.5px] sm:text-[14.5px] max-w-sm drop-shadow-sm leading-relaxed font-medium">
+            {uiData.description}
           </p>
         </div>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FFF0ED] border border-[#FF5A3C]/20 text-[#FF5A3C] text-[10px] sm:text-[11px] font-bold">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C] animate-pulse" />
-          Active Brokerage
-        </span>
-      </div>
-
-      {/* Summary Chips */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.05 }}
-        className="grid grid-cols-3 gap-2.5"
-      >
-        <div className="p-3 rounded-xl bg-[#FAFAF9] border border-[#E7E7E5]">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#667085] block mb-1">
-            Active Listings
-          </span>
-          <span className="text-[16px] sm:text-[18px] font-bold text-[#17202A]">12</span>
-        </div>
-        <div className="p-3 rounded-xl bg-[#FAFAF9] border border-[#E7E7E5]">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#667085] block mb-1">
-            Client Requests
-          </span>
-          <span className="text-[16px] sm:text-[18px] font-bold text-[#FF5A3C]">5 Pending</span>
-        </div>
-        <div className="p-3 rounded-xl bg-[#FAFAF9] border border-[#E7E7E5]">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#667085] block mb-1">
-            Site Visits
-          </span>
-          <span className="text-[16px] sm:text-[18px] font-bold text-emerald-700">3 Today</span>
-        </div>
       </motion.div>
 
-      {/* Client Request Card */}
+      {/* Compact Information Cards */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.12 }}
-        className="p-4 rounded-2xl bg-white border border-[#E7E7E5] shadow-xs space-y-3"
+        className="grid grid-cols-3 gap-3 sm:gap-4 mt-1 pt-1"
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-[#17202A] text-white flex items-center justify-center font-bold text-[12px]">
-              PS
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[13px] font-bold text-[#17202A]">Priya Sharma</span>
-                <BadgeCheck size={13} className="text-emerald-600" />
+        {uiData.items.map((item, idx) => (
+          <div key={idx} className="p-3.5 sm:p-4 rounded-xl bg-[#FAFAF9] border border-[#EAEAE8] hover:border-[#E7E7E5] hover:bg-white shadow-xs transition-colors flex flex-col justify-between">
+            <div className="mb-2.5">
+              <div className="w-8 h-8 rounded-lg bg-white border border-[#E7E7E5] shadow-xs flex items-center justify-center mb-2">
+                {renderIcon(item.icon)}
               </div>
-              <span className="text-[10px] text-[#667085]">Verified Buyer Mandate</span>
+              <span className="text-[10px] font-bold text-[#667085] uppercase tracking-[0.05em] block mb-0.5">
+                {item.label}
+              </span>
             </div>
-          </div>
-          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-            Budget: ₹1.5 – 1.8 Cr
-          </span>
-        </div>
-
-        <div className="p-2.5 rounded-xl bg-[#FAFAF9] border border-[#EAEAE8] text-[12px] text-[#17202A] leading-relaxed">
-          <p className="font-medium text-[#17202A]">
-            Requirement: 3 BHK Apartment in Sector 150 / 62 Noida
-          </p>
-          <span className="text-[11px] text-[#667085] block mt-0.5">
-            Matches 3 verified listings currently in your portfolio.
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between pt-1">
-          <span className="text-[11px] text-[#667085]">Received 22m ago</span>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#FF5A3C] hover:text-[#e04529] transition-colors"
-          >
-            <span>View client request</span>
-            <ArrowRight size={13} />
-          </button>
-        </div>
-      </motion.div>
-
-      {/* Operational Lead Row */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.18 }}
-        className="p-3 rounded-xl bg-[#FAFAF9] border border-[#E7E7E5] flex items-center justify-between text-[11px]"
-      >
-        <div className="flex items-center gap-2">
-          <Calendar size={13} className="text-[#FF5A3C]" />
-          <span className="font-semibold text-[#17202A]">Site Visit: The Grand Reserve, Gurgaon</span>
-        </div>
-        <span className="font-bold text-[#667085]">Tomorrow 11:30 AM</span>
-      </motion.div>
-    </div>
-  );
-}
-
-/* ─── Role 03 UI: Developer Enterprise Hub ─── */
-function DeveloperShowcaseUI() {
-  return (
-    <div className="space-y-4">
-      {/* Top Console Status */}
-      <div className="flex items-center justify-between pb-3.5 border-b border-border-soft">
-        <div>
-          <h4 className="text-[15px] sm:text-[16px] font-bold text-[#17202A] leading-tight">
-            Developer Projects
-          </h4>
-          <p className="text-[11px] sm:text-[12px] text-[#667085]">
-            Emerald Heights · Phase 1 Showcase
-          </p>
-        </div>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] sm:text-[11px] font-bold">
-          <ShieldCheck size={12} className="text-emerald-600" />
-          RERA Approved
-        </span>
-      </div>
-
-      {/* Project Card with Architectural Image */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.05 }}
-        className="rounded-2xl bg-white border border-[#E7E7E5] overflow-hidden shadow-xs"
-      >
-        <div className="relative h-28 sm:h-32 w-full overflow-hidden">
-          <img
-            src="https://images.unsplash.com/photo-1574362848149-11496d93a7c7?w=600&h=240&fit=crop&q=80"
-            alt="Emerald Heights"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-          <div className="absolute bottom-2.5 left-3 right-3 flex items-end justify-between text-white">
-            <div>
-              <h5 className="text-[15px] font-bold leading-tight">Emerald Heights</h5>
-              <p className="text-[11px] text-white/80">Sector 150 Expressway, Noida</p>
-            </div>
-            <span className="text-[10px] font-bold bg-white/20 backdrop-blur-md px-2 py-0.5 rounded border border-white/30 text-white">
-              Possession Q4 2026
+            <span className="text-[13px] sm:text-[14px] font-bold text-[#17202A] block leading-snug">
+              {item.value}
             </span>
           </div>
-        </div>
-
-        {/* Project Highlights & Inventory Breakdown */}
-        <div className="p-3.5 space-y-3">
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="p-2 rounded-xl bg-[#FAFAF9] border border-[#EAEAE8]">
-              <span className="text-[10px] text-[#667085] block">Total Units</span>
-              <span className="text-[13px] font-bold text-[#17202A]">240 Units</span>
-            </div>
-            <div className="p-2 rounded-xl bg-emerald-50/70 border border-emerald-200">
-              <span className="text-[10px] text-emerald-800 font-medium block">Sold / Booked</span>
-              <span className="text-[13px] font-bold text-emerald-900">184 (76%)</span>
-            </div>
-            <div className="p-2 rounded-xl bg-[#FFF0ED] border border-[#FF5A3C]/20">
-              <span className="text-[10px] text-[#FF5A3C] font-semibold block">Available</span>
-              <span className="text-[13px] font-bold text-[#FF5A3C]">56 Units</span>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border-soft text-[#667085]">
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-[#17202A]">RERA #UP-PRJ-90412</span>
-              <span>·</span>
-              <span>4.5 Acre Township</span>
-            </div>
-            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-              Construction: On Schedule
-            </span>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Partner & Buyer Enquiries Row */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.15 }}
-        className="p-3 rounded-xl bg-[#FAFAF9] border border-[#E7E7E5] flex items-center justify-between text-[11px]"
-      >
-        <div className="flex items-center gap-2">
-          <Users size={13} className="text-[#FF5A3C]" />
-          <span className="font-medium text-[#17202A]">
-            <strong className="font-bold">24 Authorized Channel Partners</strong> actively showcasing project
-          </span>
-        </div>
-        <span className="text-[10px] font-bold text-[#FF5A3C] shrink-0">680 Downloads</span>
-      </motion.div>
-    </div>
-  );
-}
-
-/* ─── Role 04 UI: Professional Network Hub ─── */
-function ProfessionalShowcaseUI() {
-  return (
-    <div className="space-y-4">
-      {/* Top Workspace Status */}
-      <div className="flex items-center justify-between pb-3.5 border-b border-border-soft">
-        <div>
-          <h4 className="text-[15px] sm:text-[16px] font-bold text-[#17202A] leading-tight">
-            Professional Network
-          </h4>
-          <p className="text-[11px] sm:text-[12px] text-[#667085]">
-            Legal, Valuation & Architectural Ecosystem
-          </p>
-        </div>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] sm:text-[11px] font-bold">
-          <BadgeCheck size={13} className="text-emerald-600" />
-          Verified Advisor
-        </span>
-      </div>
-
-      {/* Professional Profile Dossier */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.05 }}
-        className="p-4 rounded-2xl bg-[#FAFAF9] border border-[#E7E7E5] space-y-3"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-[#17202A] text-white flex items-center justify-center font-bold text-[14px] shadow-xs">
-              VM
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[14px] font-bold text-[#17202A]">
-                  Ar. Vikram Mehta & Associates
-                </span>
-              </div>
-              <p className="text-[12px] text-[#FF5A3C] font-semibold">
-                Architecture & Structural Auditing
-              </p>
-              <p className="text-[11px] text-[#667085] mt-0.5">
-                Delhi NCR · 14+ Yrs Professional Practice
-              </p>
-            </div>
-          </div>
-
-          <div className="text-right shrink-0">
-            <div className="inline-flex items-center gap-1 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded text-[11px] font-bold text-amber-800">
-              <Star size={11} className="fill-amber-500 text-amber-500" />
-              <span>4.9 / 5.0</span>
-            </div>
-            <span className="text-[10px] text-[#667085] block mt-1">68 Consultations</span>
-          </div>
-        </div>
-
-        <div className="pt-2 border-t border-border-soft flex flex-wrap items-center gap-2">
-          <span className="px-2.5 py-1 rounded-lg bg-white border border-[#E7E7E5] text-[10px] font-semibold text-[#17202A]">
-            RERA Accredited
-          </span>
-          <span className="px-2.5 py-1 rounded-lg bg-white border border-[#E7E7E5] text-[10px] font-semibold text-[#17202A]">
-            Structural Due Diligence
-          </span>
-          <span className="px-2.5 py-1 rounded-lg bg-white border border-[#E7E7E5] text-[10px] font-semibold text-[#17202A]">
-            Title Clearance Review
-          </span>
-        </div>
-      </motion.div>
-
-      {/* Connected Opportunities & Inquiries */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.12 }}
-        className="p-3.5 rounded-2xl bg-white border border-[#E7E7E5] space-y-2.5"
-      >
-        <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-[#667085]">
-          <span>Recent Advisory Inquiries</span>
-          <span className="text-[10px] text-emerald-700 font-semibold">2 Active</span>
-        </div>
-
-        <div className="p-2.5 rounded-xl bg-[#FAFAF9] border border-[#EAEAE8] flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <span className="text-[12px] font-bold text-[#17202A] block truncate">
-              Structural Feasibility Audit · Horizon Tower
-            </span>
-            <span className="text-[10px] text-[#667085]">
-              Requested by Prestige Developers · Commercial High-Rise
-            </span>
-          </div>
-          <span className="text-[10px] font-bold text-[#FF5A3C] bg-[#FFF0ED] px-2 py-1 rounded-md shrink-0">
-            Accept Project
-          </span>
-        </div>
-
-        <div className="p-2.5 rounded-xl bg-[#FAFAF9] border border-[#EAEAE8] flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <span className="text-[12px] font-semibold text-[#17202A] block truncate">
-              Title Deed Audit · Sector 128 Villa
-            </span>
-            <span className="text-[10px] text-[#667085]">
-              Homeowner Consultation · Scheduled Tomorrow
-            </span>
-          </div>
-          <span className="text-[10px] font-medium text-emerald-700 shrink-0">Confirmed</span>
-        </div>
+        ))}
       </motion.div>
     </div>
   );
@@ -3223,7 +2883,7 @@ function Professionals() {
               </div>
 
               {/* Dynamic Interactive Role UI Workspace */}
-              <div className="p-5 sm:p-7 min-h-[420px] flex flex-col justify-center">
+              <div className="p-5 sm:p-7 min-h-[520px] lg:min-h-[560px] flex flex-col">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={currentRole.id}
@@ -3232,10 +2892,7 @@ function Professionals() {
                     exit={{ opacity: 0, scale: 0.98, x: -16 }}
                     transition={{ duration: 0.45, ease: [0.25, 0.1, 0.25, 1] }}
                   >
-                    {activeTab === 0 && <OwnerShowcaseUI />}
-                    {activeTab === 1 && <AgentShowcaseUI />}
-                    {activeTab === 2 && <DeveloperShowcaseUI />}
-                    {activeTab === 3 && <ProfessionalShowcaseUI />}
+                    <ServiceShowcaseUI uiData={currentRole.uiData} />
                   </motion.div>
                 </AnimatePresence>
               </div>
