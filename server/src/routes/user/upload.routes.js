@@ -22,5 +22,15 @@ router.route('/project/:id')
   .post(upload.any(), uploadController.uploadProjectFiles)
   .patch(upload.any(), uploadController.uploadProjectFiles);
 
+// 3. General upload for multiple files (or with optional ?propertyId=... / ?projectId=...)
+// POST /api/user/upload/multiple or POST /api/upload/multiple
+router.route('/multiple')
+  .post(upload.any(), uploadController.uploadMultipleFiles);
+
+// 4. General upload for a single file
+// POST /api/user/upload/single or POST /api/upload/single
+router.route('/single')
+  .post(upload.any(), uploadController.uploadSingleFile);
+
 module.exports = router;
 

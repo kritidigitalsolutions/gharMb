@@ -244,3 +244,112 @@ exports.uploadProjectFiles = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * @desc    Upload multiple files (general upload or attached to Property/Project)
+ * @route   POST /api/user/upload/multiple
+ * @route   POST /api/upload/multiple
+ * @access  Public / Private
+ */
+exports.uploadMultipleFiles = async (req, res, next) => {
+  try {
+    const rawFiles = req.files || (req.file ? [req.file] : []);
+    if (!rawFiles || rawFiles.length === 0) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Please select at least one file to upload.',
+      });
+    }
+
+    const fileUrls = rawFiles.map((file) => getFileUrl(req, file.filename));
+    const fileMetas = rawFiles.map((file) => ({
+      fileUrl: getFileUrl(req, file.filename),
+      url: getFileUrl(req, file.filename),
+      filename: file.filename,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+    }));
+
+    // Optional: link to Property if propertyId was passed in query or body
+    const propertyId = req.query.propertyId || req.body.propertyId;
+    let property = null;
+    if (propertyId) {
+      property = await findPropertyById(propertyId);
+      if (property) {
+        property.images = property.images || [];
+        fileUrls.forEach((u) => {
+          if (!property.images.includes(u)) property.images.push(u);
+        });
+        await property.save();
+      }
+    }
+
+    // Optional: link to Project if projectId was passed in query or body
+    const projectId = req.query.projectId || req.body.projectId;
+    let project = null;
+    if (projectId) {
+      project = await findProjectById(projectId);
+      if (project) {
+        project.projectPhotos = project.projectPhotos || [];
+        fileUrls.forEach((u) => {
+          if (!project.projectPhotos.includes(u)) project.projectPhotos.push(u);
+        });
+        await project.save();
+      }
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: `${rawFiles.length} file(s) uploaded successfully.`,
+      data: {
+        fileUrls,
+        urls: fileUrls,
+        fileUrl: fileUrls[0],
+        url: fileUrls[0],
+        files: fileMetas,
+        count: rawFiles.length,
+        ...(property && { property }),
+        ...(project && { project }),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Upload a single file
+ * @route   POST /api/user/upload/single
+ * @route   POST /api/upload/single
+ * @access  Public / Private
+ */
+exports.uploadSingleFile = async (req, res, next) => {
+  try {
+    const file = req.file || (req.files && req.files[0]);
+    if (!file) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Please select a file to upload.',
+      });
+    }
+
+    const fileUrl = getFileUrl(req, file.filename);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'File uploaded successfully.',
+      data: {
+        fileUrl,
+        url: fileUrl,
+        filename: file.filename,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

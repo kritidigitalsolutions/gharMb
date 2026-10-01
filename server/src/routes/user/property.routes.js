@@ -23,6 +23,9 @@ router.use(userAuth);
 
 router.post('/', propertyController.createProperty);
 
+// Quick toggle / update for Key Handover
+router.patch('/:id/key-handover', propertyController.toggleKeyHandover);
+
 router.route('/:id')
   .put(propertyController.updateProperty)
   .delete(propertyController.deleteProperty);

@@ -22,6 +22,10 @@ exports.getAllProperties = async (req, res, next) => {
       lat,
       lng,
       distanceInKm,
+      keyHandover,
+      vastuCompliant,
+      openToAllBuyers,
+      loanAssistanceNeeded,
     } = req.query;
 
     const query = { approvalStatus: 'approved', isLive: true };
@@ -32,6 +36,20 @@ exports.getAllProperties = async (req, res, next) => {
     if (city) query.city = new RegExp(city, 'i');
     if (locality) query.locality = new RegExp(locality, 'i');
     if (bedrooms) query.bedrooms = bedrooms;
+
+    // Buyer & Property Preferences filters
+    if (keyHandover !== undefined) {
+      query.keyHandover = keyHandover === 'true' || keyHandover === true;
+    }
+    if (vastuCompliant !== undefined) {
+      query.vastuCompliant = vastuCompliant === 'true' || vastuCompliant === true;
+    }
+    if (openToAllBuyers !== undefined) {
+      query.openToAllBuyers = openToAllBuyers === 'true' || openToAllBuyers === true;
+    }
+    if (loanAssistanceNeeded !== undefined) {
+      query.loanAssistanceNeeded = loanAssistanceNeeded === 'true' || loanAssistanceNeeded === true;
+    }
 
     // Price range filters
     if (minPrice || maxPrice) {
@@ -339,17 +357,67 @@ exports.deleteProperty = async (req, res, next) => {
   }
 };
 
+// @desc    Toggle or set Key Handover status for a property
+// @route   PATCH /api/user/properties/:id/key-handover
+// @access  Private (Owner/Agent/Builder who owns the property or Admin)
+exports.toggleKeyHandover = async (req, res, next) => {
+  try {
+    const property = await Property.findById(req.params.id);
+
+    if (!property) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'Property listing not found.',
+      });
+    }
+
+    // Ownership check (Property owner or Admin)
+    const isOwner = property.owner.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin' || (req.user.constructor && req.user.constructor.modelName === 'Admin');
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        status: 'fail',
+        message: 'You do not have permission to modify this property listing.',
+      });
+    }
+
+    // If keyHandover is explicitly passed as boolean/string, set it; otherwise toggle current value
+    const newStatus = req.body.keyHandover !== undefined
+      ? (req.body.keyHandover === true || req.body.keyHandover === 'true')
+      : !property.keyHandover;
+
+    property.keyHandover = newStatus;
+    await property.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: `Key handover status updated to ${newStatus ? 'Ready for Handover' : 'Not Ready'}.`,
+      data: {
+        propertyId: property._id,
+        keyHandover: property.keyHandover,
+        property,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Retrieve properties near me (filtered by city)
 // @route   GET /api/user/properties/near-me
 // @access  Public
 exports.getNearMeProperties = async (req, res, next) => {
   try {
-    const { city, lat, lng, latitude, longitude, radius = 50, radiusUnit = 'km', limit = 10, page = 1 } = req.query;
+    const { city, lat, lng, latitude, longitude, radius = 50, radiusUnit = 'km', limit = 10, page = 1, keyHandover } = req.query;
 
     const query = {
       approvalStatus: 'approved',
       isLive: true,
     };
+
+    if (keyHandover !== undefined) {
+      query.keyHandover = keyHandover === 'true' || keyHandover === true;
+    }
 
     const targetLat = lat || latitude;
     const targetLng = lng || longitude;
