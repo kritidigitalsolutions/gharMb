@@ -10,13 +10,16 @@ const Property = require('../../models/property.model');
 // @access  Private (Admin only)
 exports.getAllProperties = async (req, res, next) => {
   try {
-    const { category, listingFor, approvalStatus, search, owner } = req.query;
+    const { category, listingFor, approvalStatus, search, owner, keyHandover } = req.query;
     const filter = {};
 
     if (category) filter.category = category;
     if (listingFor) filter.listingFor = listingFor;
     if (approvalStatus) filter.approvalStatus = approvalStatus;
     if (owner) filter.owner = owner;
+    if (keyHandover !== undefined) {
+      filter.keyHandover = keyHandover === 'true' || keyHandover === true;
+    }
 
     if (search) {
       const searchRegex = new RegExp(search.trim(), 'i');

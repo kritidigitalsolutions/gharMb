@@ -22,9 +22,32 @@ exports.getPageContent = async (req, res, next) => {
       });
     }
 
-    const pageContent = await PageContent.findOne({ type }).populate('lastUpdatedBy', 'name email');
+    let pageContent = await PageContent.findOne({ type }).populate('lastUpdatedBy', 'name email');
 
     if (!pageContent) {
+      const defaultPageContent = {
+        'about-us': {
+          title: 'About Us',
+          type: 'about-us',
+          content: 'Welcome to GHARMB, your trusted destination for premium real estate listings, connecting buyers, sellers, tenants, agents, and developers.'
+        },
+        'help-support': {
+          title: 'Help & Support',
+          type: 'help-support',
+          content: 'Need assistance? Reach out to GHARMB customer support at support@gharmb.com or call our toll-free support line.'
+        }
+      };
+
+      if (defaultPageContent[type]) {
+        return res.status(200).json({
+          status: 'success',
+          success: true,
+          data: {
+            pageContent: defaultPageContent[type]
+          }
+        });
+      }
+
       return res.status(404).json({
         status: 'fail',
         success: false,

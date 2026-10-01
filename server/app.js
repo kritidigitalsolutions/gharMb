@@ -41,7 +41,8 @@ const appProjectRoutes = require('./src/routes/user/project.routes');
 const appUploadRoutes = require('./src/routes/user/upload.routes');
 const appEnquiryRoutes = require('./src/routes/user/enquiry.routes');
 const appFavoriteRoutes = require('./src/routes/user/favorite.routes');
-// const appNotificationRoutes = require('./src/routes/user/notification.routes');
+const appNotificationRoutes = require('./src/routes/user/notification.routes');
+const appDeveloperRoutes = require('./src/routes/user/developer.routes');
 const appLegalRoutes = require('./src/routes/user/legal.routes');
 const appPageRoutes = require('./src/routes/user/page.routes');
 const appNewsRoutes = require('./src/routes/user/news.routes');
@@ -259,20 +260,29 @@ app.use('/api/admin/web-inquiries', adminWebInquiryRoutes);
 
 // 9. all USER API Routers
 app.use('/api/user/auth', appAuthRoutes);
+app.use('/api/auth', appAuthRoutes);
 
 app.use('/api/users', appUserRoutes);
+app.use('/api/user/users', appUserRoutes); // Supports $baseUrl/user/users/register-agent & register-developer
 
 app.use('/api/properties', appPropertyRoutes);
+app.use('/api/user/properties', appPropertyRoutes); // Supports $baseUrl/user/properties
 
 app.use('/api/projects', appProjectRoutes);
+app.use('/api/user/projects', appProjectRoutes);
+
+app.use('/api/developers', appDeveloperRoutes); // Supports $baseUrl/developers/$id
+app.use('/api/user/developers', appDeveloperRoutes);
 
 app.use('/api/upload', appUploadRoutes);
+app.use('/api/user/upload', appUploadRoutes); // Supports $baseUrl/user/upload/multiple
 
 app.use('/api/users/enquiries', appEnquiryRoutes);
 
 app.use('/api/favorites', appFavoriteRoutes);
 
-// app.use('/api/notifications', appNotificationRoutes);
+app.use('/api/notifications', appNotificationRoutes); // Notifications enabled
+app.use('/api/user/notifications', appNotificationRoutes);
 
 app.use('/api/legal', appLegalRoutes);
 app.use('/api/pages', appPageRoutes);

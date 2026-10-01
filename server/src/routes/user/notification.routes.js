@@ -56,7 +56,9 @@ router.get('/', notificationController.getMyNotifications);
  *       404:
  *         description: Notification not found
  */
-router.patch('/:id/read', notificationController.markAsRead);
+router.route('/:id/read')
+  .patch(notificationController.markAsRead)
+  .put(notificationController.markAsRead);
 
 /**
  * @swagger

@@ -204,6 +204,11 @@ const propertySchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    keyHandover: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     openToAllBuyers: {
       type: Boolean,
       default: true,

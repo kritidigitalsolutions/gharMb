@@ -1,6 +1,9 @@
 /**
- * Script to generate complete Postman Collection v2.1
- * with full request bodies, headers, auth tokens, variables, and comments.
+ * GharMB - Comprehensive Postman Collection Generator (v3.0)
+ * Generates an elegantly organized Postman collection structured into:
+ *   - 📁 User   (Buyer, Owner, Agent, Developer actions & dashboard)
+ *   - 📁 Admin  (Dashboard analytics, approvals, user management, CMS)
+ *   - 📁 Shared (Public property feeds, project directories, content, static pages, health)
  */
 
 const fs = require('fs');
@@ -8,1417 +11,2475 @@ const path = require('path');
 
 const collection = {
   info: {
-    _postman_id: "gharmb-api-full-suite-2026",
-    name: "GharMB - Complete API Suite (Roles, Moderation & Workflows)",
-    description: "Complete Postman API Collection for GharMB Platform.\nIncludes:\n- Owner, Agent/Broker, Developer/Builder & Admin Auth\n- RERA Document & Profile Verification\n- Upload Guards (Blocked until Admin Approval)\n- 5-Step Property & Project Uploads\n- Admin Moderation & Approval Flow\n- Public Filtered GET APIs",
+    _postman_id: "gharmb-api-suite-v3-2026",
+    name: "GharMB - Complete API Suite (Mobile & Web)",
+    description: "Complete Postman API Collection for GharMB Real Estate Platform.\nOrganized into 3 main root domains:\n1. 📁 User - User authentication, profile, property/project creation, enquiries, favorites, and uploads.\n2. 📁 Admin - Back-office control suite, user/agent verification, listing approvals, dashboard metrics, notifications, and CMS.\n3. 📁 Shared - Public search feeds, developer directory, news, blogs, legal documents, testimonials, and health checks.",
     schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   variable: [
     { key: "baseUrl", value: "http://localhost:5001/api", type: "string" },
     { key: "adminToken", value: "", type: "string" },
+    { key: "userToken", value: "", type: "string" },
+    { key: "ownerToken", value: "", type: "string" },
     { key: "agentToken", value: "", type: "string" },
     { key: "developerToken", value: "", type: "string" },
-    { key: "ownerToken", value: "", type: "string" },
+    { key: "userId", value: "", type: "string" },
     { key: "agentId", value: "", type: "string" },
-    { key: "developerId", value: "", type: "string" },
     { key: "propertyId", value: "", type: "string" },
-    { key: "projectId", value: "", type: "string" }
+    { key: "projectId", value: "", type: "string" },
+    { key: "developerId", value: "", type: "string" },
+    { key: "notificationId", value: "", type: "string" },
+    { key: "enquiryId", value: "", type: "string" },
+    { key: "newsId", value: "", type: "string" },
+    { key: "blogId", value: "", type: "string" },
+    { key: "policyId", value: "", type: "string" },
+    { key: "testimonialId", value: "", type: "string" },
+    { key: "inquiryId", value: "", type: "string" }
   ],
   item: [
-    // ---------------------------------------------------------
-    // 01. Authentication & User Setup
-    // ---------------------------------------------------------
+    // =========================================================================
+    // 📁 1. USER
+    // =========================================================================
     {
-      name: "01. Authentication & Setup",
+      name: "User",
+      description: "Endpoints for app users, buyers, tenants, property owners, agents, and builder developers.",
       item: [
+        // ---------------------------------------------------------------------
+        // 01. Authentication & Onboarding
+        // ---------------------------------------------------------------------
         {
-          name: "Admin Login",
-          event: [
+          name: "01. Authentication & Onboarding",
+          description: "Endpoints for OTP login, phone verification, and initial profile registration.",
+          item: [
             {
-              listen: "test",
-              script: {
-                exec: [
-                  "var jsonData = pm.response.json();",
-                  "if (jsonData.token) {",
-                  "    pm.collectionVariables.set('adminToken', jsonData.token);",
-                  "    console.log('adminToken set successfully');",
-                  "}"
-                ],
-                type: "text/javascript"
-              }
-            }
-          ],
-          request: {
-            method: "POST",
-            header: [{ key: "Content-Type", value: "application/json" }],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                email: "admin@gmail.com",
-                password: "admin123"
-              }, null, 2)
-            },
-            url: {
-              raw: "{{baseUrl}}/admin/auth/login",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "auth", "login"]
-            }
-          }
-        },
-        {
-          name: "Get Current Admin Profile",
-          request: {
-            method: "GET",
-            header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
-            url: {
-              raw: "{{baseUrl}}/admin/auth/me",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "auth", "me"]
-            }
-          }
-        },
-        {
-          name: "Owner / User Register (Send OTP)",
-          request: {
-            method: "POST",
-            header: [{ key: "Content-Type", value: "application/json" }],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                name: "Ramesh Sharma",
-                phone: "9876543210",
-                email: "ramesh@example.com",
-                address: "Flat 302, Palm Greens, Sector 62, Noida"
-              }, null, 2)
-            },
-            url: {
-              raw: "{{baseUrl}}/user/auth/register",
-              host: ["{{baseUrl}}"],
-              path: ["user", "auth", "register"]
-            }
-          }
-        },
-        {
-          name: "Owner / User Verify OTP",
-          event: [
-            {
-              listen: "test",
-              script: {
-                exec: [
-                  "var jsonData = pm.response.json();",
-                  "if (jsonData.token) {",
-                  "    pm.collectionVariables.set('ownerToken', jsonData.token);",
-                  "}"
-                ],
-                type: "text/javascript"
-              }
-            }
-          ],
-          request: {
-            method: "POST",
-            header: [{ key: "Content-Type", value: "application/json" }],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                phone: "9876543210",
-                otp: "123456"
-              }, null, 2)
-            },
-            url: {
-              raw: "{{baseUrl}}/user/auth/verify-otp",
-              host: ["{{baseUrl}}"],
-              path: ["user", "auth", "verify-otp"]
-            }
-          }
-        },
-        {
-          name: "Agent Register (Send OTP)",
-          request: {
-            method: "POST",
-            header: [{ key: "Content-Type", value: "application/json" }],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                name: "Rahul Verma (Agent)",
-                phone: "9876500001",
-                email: "rahul.agent@example.com"
-              }, null, 2)
-            },
-            url: {
-              raw: "{{baseUrl}}/user/auth/register",
-              host: ["{{baseUrl}}"],
-              path: ["user", "auth", "register"]
-            }
-          }
-        },
-        {
-          name: "Agent Verify OTP",
-          event: [
-            {
-              listen: "test",
-              script: {
-                exec: [
-                  "var jsonData = pm.response.json();",
-                  "if (jsonData.token) {",
-                  "    pm.collectionVariables.set('agentToken', jsonData.token);",
-                  "    pm.collectionVariables.set('agentId', jsonData.data.user.id);",
-                  "}"
-                ],
-                type: "text/javascript"
-              }
-            }
-          ],
-          request: {
-            method: "POST",
-            header: [{ key: "Content-Type", value: "application/json" }],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                phone: "9876500001",
-                otp: "123456"
-              }, null, 2)
-            },
-            url: {
-              raw: "{{baseUrl}}/user/auth/verify-otp",
-              host: ["{{baseUrl}}"],
-              path: ["user", "auth", "verify-otp"]
-            }
-          }
-        },
-        {
-          name: "Developer Register (Send OTP)",
-          request: {
-            method: "POST",
-            header: [{ key: "Content-Type", value: "application/json" }],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                name: "Vikram Singhania (Builder)",
-                phone: "9876500002",
-                email: "vikram@emeraldinfra.com"
-              }, null, 2)
-            },
-            url: {
-              raw: "{{baseUrl}}/user/auth/register",
-              host: ["{{baseUrl}}"],
-              path: ["user", "auth", "register"]
-            }
-          }
-        },
-        {
-          name: "Developer Verify OTP",
-          event: [
-            {
-              listen: "test",
-              script: {
-                exec: [
-                  "var jsonData = pm.response.json();",
-                  "if (jsonData.token) {",
-                  "    pm.collectionVariables.set('developerToken', jsonData.token);",
-                  "    pm.collectionVariables.set('developerId', jsonData.data.user.id);",
-                  "}"
-                ],
-                type: "text/javascript"
-              }
-            }
-          ],
-          request: {
-            method: "POST",
-            header: [{ key: "Content-Type", value: "application/json" }],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                phone: "9876500002",
-                otp: "123456"
-              }, null, 2)
-            },
-            url: {
-              raw: "{{baseUrl}}/user/auth/verify-otp",
-              host: ["{{baseUrl}}"],
-              path: ["user", "auth", "verify-otp"]
-            }
-          }
-        },
-        {
-          name: "Get My Profile",
-          request: {
-            method: "GET",
-            header: [{ key: "Authorization", value: "Bearer {{agentToken}}" }],
-            url: {
-              raw: "{{baseUrl}}/users/me",
-              host: ["{{baseUrl}}"],
-              path: ["users", "me"]
-            }
-          }
-        }
-      ]
-    },
-
-    // ---------------------------------------------------------
-    // 02. File & Document Uploads (Form-Data Attached to Property/Project)
-    // ---------------------------------------------------------
-    {
-      name: "02. File & Document Uploads",
-      item: [
-        {
-          name: "Upload Multiple Photos (Attach to Property ID)",
-          request: {
-            method: "POST",
-            header: [{ key: "Authorization", value: "Bearer {{agentToken}}" }],
-            body: {
-              mode: "formdata",
-              formdata: [
-                {
-                  key: "files",
-                  type: "file",
-                  src: []
-                }
-              ]
-            },
-            url: {
-              raw: "{{baseUrl}}/user/upload/multiple?propertyId={{propertyId}}",
-              host: ["{{baseUrl}}"],
-              path: ["user", "upload", "multiple"],
-              query: [{ key: "propertyId", value: "{{propertyId}}" }]
-            }
-          }
-        },
-        {
-          name: "Upload Multiple Photos (Attach to Project ID)",
-          request: {
-            method: "POST",
-            header: [{ key: "Authorization", value: "Bearer {{developerToken}}" }],
-            body: {
-              mode: "formdata",
-              formdata: [
-                {
-                  key: "files",
-                  type: "file",
-                  src: []
-                }
-              ]
-            },
-            url: {
-              raw: "{{baseUrl}}/user/upload/multiple?projectId={{projectId}}",
-              host: ["{{baseUrl}}"],
-              path: ["user", "upload", "multiple"],
-              query: [{ key: "projectId", value: "{{projectId}}" }]
-            }
-          }
-        },
-        {
-          name: "Upload Property Document (Title Deed / Electricity Bill / Tax Receipt / Khata)",
-          request: {
-            method: "POST",
-            header: [{ key: "Authorization", value: "Bearer {{ownerToken}}" }],
-            body: {
-              mode: "formdata",
-              formdata: [
-                {
-                  key: "file",
-                  type: "file",
-                  src: ""
-                }
-              ]
-            },
-            url: {
-              raw: "{{baseUrl}}/user/upload/single?propertyId={{propertyId}}&docType=titleDeed",
-              host: ["{{baseUrl}}"],
-              path: ["user", "upload", "single"],
-              query: [
-                { key: "propertyId", value: "{{propertyId}}" },
-                { key: "docType", value: "titleDeed" }
-              ]
-            }
-          }
-        },
-        {
-          name: "Upload Project Master Plan (Attach to Project ID)",
-          request: {
-            method: "POST",
-            header: [{ key: "Authorization", value: "Bearer {{developerToken}}" }],
-            body: {
-              mode: "formdata",
-              formdata: [
-                {
-                  key: "file",
-                  type: "file",
-                  src: ""
-                }
-              ]
-            },
-            url: {
-              raw: "{{baseUrl}}/user/upload/single?projectId={{projectId}}&field=masterPlan",
-              host: ["{{baseUrl}}"],
-              path: ["user", "upload", "single"],
-              query: [
-                { key: "projectId", value: "{{projectId}}" },
-                { key: "field", value: "masterPlan" }
-              ]
-            }
-          }
-        },
-        {
-          name: "Upload Project Floor Plan (Attach to Project ID)",
-          request: {
-            method: "POST",
-            header: [{ key: "Authorization", value: "Bearer {{developerToken}}" }],
-            body: {
-              mode: "formdata",
-              formdata: [
-                {
-                  key: "file",
-                  type: "file",
-                  src: ""
-                }
-              ]
-            },
-            url: {
-              raw: "{{baseUrl}}/user/upload/single?projectId={{projectId}}&field=floorPlan",
-              host: ["{{baseUrl}}"],
-              path: ["user", "upload", "single"],
-              query: [
-                { key: "projectId", value: "{{projectId}}" },
-                { key: "field", value: "floorPlan" }
-              ]
-            }
-          }
-        },
-        {
-          name: "Upload Project Brochure PDF (Attach to Project ID)",
-          request: {
-            method: "POST",
-            header: [{ key: "Authorization", value: "Bearer {{developerToken}}" }],
-            body: {
-              mode: "formdata",
-              formdata: [
-                {
-                  key: "file",
-                  type: "file",
-                  src: ""
-                }
-              ]
-            },
-            url: {
-              raw: "{{baseUrl}}/user/upload/single?projectId={{projectId}}&field=brochure",
-              host: ["{{baseUrl}}"],
-              path: ["user", "upload", "single"],
-              query: [
-                { key: "projectId", value: "{{projectId}}" },
-                { key: "field", value: "brochure" }
-              ]
-            }
-          }
-        },
-        {
-          name: "Upload Standalone Single File (RERA / PAN / Aadhaar / Logo)",
-          request: {
-            method: "POST",
-            header: [{ key: "Authorization", value: "Bearer {{agentToken}}" }],
-            body: {
-              mode: "formdata",
-              formdata: [
-                {
-                  key: "file",
-                  type: "file",
-                  src: ""
-                }
-              ]
-            },
-            url: {
-              raw: "{{baseUrl}}/user/upload/single",
-              host: ["{{baseUrl}}"],
-              path: ["user", "upload", "single"]
-            }
-          }
-        },
-        {
-          name: "Upload Standalone Multiple Files",
-          request: {
-            method: "POST",
-            header: [{ key: "Authorization", value: "Bearer {{agentToken}}" }],
-            body: {
-              mode: "formdata",
-              formdata: [
-                {
-                  key: "files",
-                  type: "file",
-                  src: []
-                }
-              ]
-            },
-            url: {
-              raw: "{{baseUrl}}/user/upload/multiple",
-              host: ["{{baseUrl}}"],
-              path: ["user", "upload", "multiple"]
-            }
-          }
-        }
-      ]
-    },
-
-    // ---------------------------------------------------------
-    // 03. Agent / Broker Workflow
-    // ---------------------------------------------------------
-    {
-      name: "03. Agent / Broker Workflow",
-      item: [
-        {
-          name: "Step 1 & 2: Submit Agent Registration & RERA Verification Docs",
-          event: [
-            {
-              listen: "test",
-              script: {
-                exec: [
-                  "var jsonData = pm.response.json();",
-                  "if (jsonData.token) {",
-                  "    pm.collectionVariables.set('agentToken', jsonData.token);",
-                  "}"
-                ],
-                type: "text/javascript"
-              }
-            }
-          ],
-          request: {
-            method: "POST",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{agentToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                name: "Rahul Sharma",
-                phone: "9876500001",
-                reraNumber: "UPRERA24AGT987654",
-                experience: "3-5 yrs",
-                cityOfOperation: "Noida",
-                reraCertificate: "uploads/rera_agent_cert.pdf",
-                aadhaarCard: "uploads/aadhaar_card.jpg",
-                profilePhoto: "uploads/agent_profile.jpg"
-              }, null, 2)
-            },
-            url: {
-              raw: "{{baseUrl}}/users/register-agent",
-              host: ["{{baseUrl}}"],
-              path: ["users", "register-agent"]
-            }
-          }
-        },
-        {
-          name: "[TEST GUARD] Agent Upload Property BEFORE Admin Approval (Expect 403)",
-          request: {
-            method: "POST",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{agentToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                listingAs: "Agent / Broker",
-                category: "Residential",
-                listingFor: "Sale",
-                propertyType: "Apartment",
-                title: "3 BHK Apartment in Sector 62",
-                city: "Noida",
-                locality: "Sector 62",
-                fullAddress: "Tower A, Skyline Heights",
-                pincode: "201301",
-                carpetArea: 1450,
-                price: 8500000
-              }, null, 2)
-            },
-            url: {
-              raw: "{{baseUrl}}/properties",
-              host: ["{{baseUrl}}"],
-              path: ["properties"]
-            }
-          }
-        },
-        {
-          name: "Agent Upload Property AFTER Admin Approval (5-Step Listing)",
-          event: [
-            {
-              listen: "test",
-              script: {
-                exec: [
-                  "var jsonData = pm.response.json();",
-                  "if (jsonData.data && jsonData.data.property) {",
-                  "    pm.collectionVariables.set('propertyId', jsonData.data.property._id);",
-                  "}"
-                ],
-                type: "text/javascript"
-              }
-            }
-          ],
-          request: {
-            method: "POST",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{agentToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                listingAs: "Agent / Broker",
-                category: "Residential",
-                listingFor: "Sale",
-                propertyType: "Apartment",
-                title: "Skyline Heights — 3 BHK Apartment",
-                city: "Noida",
-                locality: "Sector 62",
-                fullAddress: "A-304, Skyline Heights, Sector 62, Noida",
-                pincode: "201301",
-                description: "Spacious 3 BHK apartment with premium wooden flooring, modular kitchen, park view balcony.",
-                bedrooms: "3",
-                bathrooms: "3",
-                carpetArea: 1450,
-                builtUpArea: 1680,
-                floorNo: "8",
-                totalFloors: "18",
-                ageOfProperty: "0–3 yrs",
-                furnishing: "Semi-furnished",
-                facingDirection: "East",
-                parking: "1 covered",
-                amenities: ["Security", "Gym", "Lift", "Power backup", "Pool", "Wi-Fi", "Garden", "Clubhouse"],
-                price: 8500000,
-                listingTier: "Featured",
-                vastuCompliant: true,
-                openToAllBuyers: true,
-                loanAssistanceNeeded: true,
-                images: [
-                  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c",
-                  "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9"
-                ],
-                propertyDocuments: {
-                  titleDeed: "uploads/title_deed.pdf",
-                  electricityBill: "uploads/electricity_bill.pdf",
-                  taxReceipt: "uploads/tax_receipt.pdf",
-                  khataExtract: "uploads/khata_cert.pdf"
+              name: "01. Send OTP (Login / Initial Signup)",
+              request: {
+                method: "POST",
+                header: [{ key: "Content-Type", value: "application/json" }],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ phone: "9876543210" }, null, 2)
                 },
-                longitude: 77.3649,
-                latitude: 28.6280
-              }, null, 2)
-            },
-            url: {
-              raw: "{{baseUrl}}/properties",
-              host: ["{{baseUrl}}"],
-              path: ["properties"]
-            }
-          }
-        },
-        {
-          name: "Agent View My Dashboard",
-          request: {
-            method: "GET",
-            header: [{ key: "Authorization", value: "Bearer {{agentToken}}" }],
-            url: {
-              raw: "{{baseUrl}}/properties/my-dashboard",
-              host: ["{{baseUrl}}"],
-              path: ["properties", "my-dashboard"]
-            }
-          }
-        },
-        {
-          name: "Agent Update Owned Property",
-          request: {
-            method: "PUT",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{agentToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                price: 8200000,
-                description: "Price reduced! Urgent sale for 3 BHK in Skyline Heights Sector 62."
-              }, null, 2)
-            },
-            url: {
-              raw: "{{baseUrl}}/properties/{{propertyId}}",
-              host: ["{{baseUrl}}"],
-              path: ["properties", "{{propertyId}}"]
-            }
-          }
-        },
-        {
-          name: "Agent Delete Owned Property",
-          request: {
-            method: "DELETE",
-            header: [{ key: "Authorization", value: "Bearer {{agentToken}}" }],
-            url: {
-              raw: "{{baseUrl}}/properties/{{propertyId}}",
-              host: ["{{baseUrl}}"],
-              path: ["properties", "{{propertyId}}"]
-            }
-          }
-        }
-      ]
-    },
-
-    // ---------------------------------------------------------
-    // 04. Developer / Builder Workflow
-    // ---------------------------------------------------------
-    {
-      name: "04. Developer / Builder Workflow",
-      item: [
-        {
-          name: "Step 1, 2 & 3: Submit Developer Registration & Company Docs",
-          event: [
-            {
-              listen: "test",
-              script: {
-                exec: [
-                  "var jsonData = pm.response.json();",
-                  "if (jsonData.token) {",
-                  "    pm.collectionVariables.set('developerToken', jsonData.token);",
-                  "}"
-                ],
-                type: "text/javascript"
-              }
-            }
-          ],
-          request: {
-            method: "POST",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{developerToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                companyName: "Emerald Builders Pvt Ltd",
-                reraNumber: "UPREAREG24DEV8899",
-                gstNumber: "07AAAAA0000A1Z5",
-                yearsInBusiness: "5-10 yrs",
-                cityOfOperation: "Noida",
-                reraCertificate: "uploads/developer_rera_cert.pdf",
-                panCard: "uploads/company_pan.jpg",
-                companyLogo: "uploads/emerald_logo.png",
-                bio: "Emerald Builders is an ISO-certified real estate development group specializing in sustainable luxury condominiums and townships.",
-                unitsDelivered: "500",
-                isIsoCertified: true,
-                submitForVerification: true
-              }, null, 2)
-            },
-            url: {
-              raw: "{{baseUrl}}/users/register-developer",
-              host: ["{{baseUrl}}"],
-              path: ["users", "register-developer"]
-            }
-          }
-        },
-        {
-          name: "[TEST GUARD] Developer Upload Project BEFORE Admin Approval (Expect 403)",
-          request: {
-            method: "POST",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{developerToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                projectName: "Emerald Heights Phase 2",
-                reraProjectNumber: "UPRERAPRJ249911",
-                city: "Noida",
-                locality: "Sector 150",
-                fullAddress: "Plot GH-01, Sector 150, Noida Express Highway",
-                pincode: "201310"
-              }, null, 2)
-            },
-            url: {
-              raw: "{{baseUrl}}/projects",
-              host: ["{{baseUrl}}"],
-              path: ["projects"]
-            }
-          }
-        },
-        {
-          name: "Developer Upload 5-Step Project AFTER Admin Approval",
-          event: [
-            {
-              listen: "test",
-              script: {
-                exec: [
-                  "var jsonData = pm.response.json();",
-                  "if (jsonData.data && jsonData.data.project) {",
-                  "    pm.collectionVariables.set('projectId', jsonData.data.project._id);",
-                  "}"
-                ],
-                type: "text/javascript"
-              }
-            }
-          ],
-          request: {
-            method: "POST",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{developerToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                projectName: "Emerald Heights Phase 2",
-                developerName: "Emerald Builders Pvt Ltd",
-                reraProjectNumber: "UPREAREG24PRJ0015",
-                reraExpiryDate: "31/12/2028",
-                launchDate: "15/01/2024",
-                projectType: "Residential",
-                projectStatus: "Under construction",
-                city: "Meerut",
-                locality: "Shastri Nagar",
-                fullAddress: "Plot No. 45, Sector 4, Near NH-58, Shastri Nagar, Meerut",
-                pincode: "250002",
-                possessionDate: "Dec 2026",
-                projectWebsite: "https://emeraldheights.in",
-                projectTagline: "Where luxury meets nature",
-                shortDescription: "Premium gated project near NH-58 with 70% open green space, high-end amenities and RERA approval.",
-                totalUnits: 240,
-                openSpacePercentage: 70,
-                floors: "G + 14",
-                towers: 3,
-                bhkConfigurations: [
-                  {
-                    bhkType: "2 BHK",
-                    carpetArea: 1150,
-                    minPrice: 4500000,
-                    maxPrice: 5800000,
-                    priceRangeText: "₹45 L - ₹58 L",
-                    availableUnits: 80
-                  },
-                  {
-                    bhkType: "3 BHK",
-                    carpetArea: 1620,
-                    minPrice: 7200000,
-                    maxPrice: 9000000,
-                    priceRangeText: "₹72 L - ₹90 L",
-                    availableUnits: 120
-                  },
-                  {
-                    bhkType: "4 BHK",
-                    carpetArea: 2200,
-                    minPrice: 11000000,
-                    maxPrice: 13500000,
-                    priceRangeText: "₹1.10 Cr - ₹1.35 Cr",
-                    availableUnits: 40
-                  }
-                ],
-                amenities: [
-                  "RERA approved", "Gated society", "24/7 security", "Lift",
-                  "Clubhouse", "Swimming pool", "Gym", "Garden", "Kids play area",
-                  "Jogging track", "Amphitheatre", "Cricket pitch", "Tennis court",
-                  "Badminton court", "Metro nearby", "Power backup", "WiFi ready", "EV charging"
-                ],
-                nearbyLandmarks: [
-                  { locationName: "NH-58 Highway", distance: "1.2 km" },
-                  { locationName: "Metro Station", distance: "3.5 km" },
-                  { locationName: "City Hospital", distance: "2.0 km" }
-                ],
-                vastuCompliant: true,
-                projectPhotos: [
-                  "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00",
-                  "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab"
-                ],
-                masterPlanUrl: "uploads/emerald_master_plan.jpg",
-                floorPlanUrl: "uploads/emerald_3bhk_floorplan.jpg",
-                brochureUrl: "uploads/emerald_heights_brochure.pdf",
-                longitude: 77.7064,
-                latitude: 28.9845
-              }, null, 2)
-            },
-            url: {
-              raw: "{{baseUrl}}/projects",
-              host: ["{{baseUrl}}"],
-              path: ["projects"]
-            }
-          }
-        },
-        {
-          name: "Developer View My Projects",
-          request: {
-            method: "GET",
-            header: [{ key: "Authorization", value: "Bearer {{developerToken}}" }],
-            url: {
-              raw: "{{baseUrl}}/projects/my-projects",
-              host: ["{{baseUrl}}"],
-              path: ["projects", "my-projects"]
-            }
-          }
-        },
-        {
-          name: "Developer Update Owned Project",
-          request: {
-            method: "PUT",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{developerToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                possessionDate: "March 2027",
-                totalUnits: 260
-              }, null, 2)
-            },
-            url: {
-              raw: "{{baseUrl}}/projects/{{projectId}}",
-              host: ["{{baseUrl}}"],
-              path: ["projects", "{{projectId}}"]
-            }
-          }
-        }
-      ]
-    },
-
-    // ---------------------------------------------------------
-    // 05. Owner Workflow
-    // ---------------------------------------------------------
-    {
-      name: "05. Owner Workflow",
-      item: [
-        {
-          name: "Owner Upload Residential Property For Sale",
-          request: {
-            method: "POST",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{ownerToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                listingAs: "Owner",
-                category: "Residential",
-                listingFor: "Sale",
-                propertyType: "Apartment",
-                title: "2 BHK Flat in Sector 18 Noida",
-                city: "Noida",
-                locality: "Sector 18",
-                fullAddress: "Flat 402, Lotus Greens, Sector 18, Noida",
-                pincode: "201301",
-                description: "Direct from owner. Very close to Metro station and Mall.",
-                bedrooms: "2",
-                bathrooms: "2",
-                carpetArea: 1050,
-                price: 6500000,
-                furnishing: "Semi-furnished",
-                parking: "1 covered",
-                listingTier: "Standard",
-                propertyDocuments: {
-                  titleDeed: "uploads/owner_title_deed.pdf",
-                  electricityBill: "uploads/owner_electricity_bill.pdf"
+                url: {
+                  raw: "{{baseUrl}}/user/auth/send-otp",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "auth", "send-otp"]
                 }
-              }, null, 2)
+              }
             },
-            url: {
-              raw: "{{baseUrl}}/properties",
-              host: ["{{baseUrl}}"],
-              path: ["properties"]
-            }
-          }
-        },
-        {
-          name: "Owner Upload Residential Property For Rent",
-          request: {
-            method: "POST",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{ownerToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                listingAs: "Owner",
-                category: "Residential",
-                listingFor: "Rent",
-                propertyType: "Apartment",
-                title: "3 BHK Apartment for Rent in Sector 62",
-                city: "Noida",
-                locality: "Sector 62",
-                fullAddress: "Flat B-501, Stellar Kings Court, Sector 62, Noida",
-                pincode: "201301",
-                description: "Fully furnished flat with high speed broadband and power backup.",
-                bedrooms: "3",
-                bathrooms: "3",
-                carpetArea: 1350,
-                price: 25000,
-                securityDeposit: 50000,
-                securityDepositDuration: "2 months",
-                maintenanceCharges: 2500,
-                maintenanceIncludedInRent: false,
-                preferredTenants: ["Family", "Working professionals"],
-                petsAllowed: true,
-                smokingAllowed: false,
-                noticePeriod: "1 month",
-                availableFrom: "Immediate",
-                listingTier: "Standard"
-              }, null, 2)
+            {
+              name: "02. Verify OTP (Auto-saves userToken & ownerToken)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.token) {",
+                      "    pm.collectionVariables.set('userToken', jsonData.token);",
+                      "    pm.collectionVariables.set('ownerToken', jsonData.token);",
+                      "    console.log('✅ userToken & ownerToken set successfully');",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [{ key: "Content-Type", value: "application/json" }],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ phone: "9876543210", otp: "123456" }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/user/auth/verify-otp",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "auth", "verify-otp"]
+                }
+              }
             },
-            url: {
-              raw: "{{baseUrl}}/properties",
-              host: ["{{baseUrl}}"],
-              path: ["properties"]
-            }
-          }
-        },
-        {
-          name: "Owner Upload Commercial Property For Rent/Lease",
-          request: {
-            method: "POST",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{ownerToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                listingAs: "Owner",
-                category: "Commercial",
-                listingFor: "Rent",
-                propertyType: "Office space",
-                title: "Furnished Office Space in Commercial Hub",
-                city: "Noida",
-                locality: "Sector 62",
-                fullAddress: "Unit 305, Logix Cyber Park, Sector 62, Noida",
-                pincode: "201301",
-                description: "Plug and play office space with 25 workstations, conference room, pantry.",
-                carpetArea: 2200,
-                price: 110000,
-                securityDeposit: 330000,
-                maintenanceCharges: 15000,
-                ceilingHeight: "10–14 ft",
-                powerLoad: 15,
-                lockInPeriod: "3 years",
-                camIncluded: "No",
-                rentEscalationPercentage: 5,
-                listingTier: "Featured"
-              }, null, 2)
+            {
+              name: "03. Resend OTP",
+              request: {
+                method: "POST",
+                header: [{ key: "Content-Type", value: "application/json" }],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ phone: "9876543210" }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/user/auth/resend-otp",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "auth", "resend-otp"]
+                }
+              }
             },
-            url: {
-              raw: "{{baseUrl}}/properties",
-              host: ["{{baseUrl}}"],
-              path: ["properties"]
+            {
+              name: "04. Complete Registration Details",
+              request: {
+                method: "POST",
+                header: [{ key: "Content-Type", value: "application/json" }],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    name: "Ramesh Sharma",
+                    phone: "9876543210",
+                    email: "ramesh@example.com",
+                    address: "Flat 302, Palm Greens, Sector 62, Noida"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/user/auth/register",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "auth", "register"]
+                }
+              }
             }
-          }
+          ]
         },
+
+        // ---------------------------------------------------------------------
+        // 02. Profile & Role Verification
+        // ---------------------------------------------------------------------
         {
-          name: "Owner View My Dashboard",
-          request: {
-            method: "GET",
-            header: [{ key: "Authorization", value: "Bearer {{ownerToken}}" }],
-            url: {
-              raw: "{{baseUrl}}/properties/my-dashboard",
-              host: ["{{baseUrl}}"],
-              path: ["properties", "my-dashboard"]
+          name: "02. Profile & Role Verification",
+          description: "Manage user account details, avatar, and submit partner upgrades (Agent RERA / Developer Company).",
+          item: [
+            {
+              name: "01. Get My Profile (GET /users/me)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/users/me",
+                  host: ["{{baseUrl}}"],
+                  path: ["users", "me"]
+                }
+              }
+            },
+            {
+              name: "02. Update My Profile (PATCH /users/update-me)",
+              request: {
+                method: "PATCH",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                body: {
+                  mode: "formdata",
+                  formdata: [
+                    { key: "name", value: "Ramesh K. Sharma", type: "text" },
+                    { key: "address", value: "Sector 62, Noida, Uttar Pradesh", type: "text" },
+                    { key: "city", value: "Noida", type: "text" }
+                  ]
+                },
+                url: {
+                  raw: "{{baseUrl}}/users/update-me",
+                  host: ["{{baseUrl}}"],
+                  path: ["users", "update-me"]
+                }
+              }
+            },
+            {
+              name: "03. Agent Registration (Submit RERA & Verification)",
+              request: {
+                method: "POST",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                body: {
+                  mode: "formdata",
+                  formdata: [
+                    { key: "agencyName", value: "Apex Realty Partners", type: "text" },
+                    { key: "reraNumber", value: "UPRERAAGT123456", type: "text" },
+                    { key: "city", value: "Noida", type: "text" },
+                    { key: "operatingLocalities", value: "Sector 62, Sector 128, Expressway", type: "text" },
+                    { key: "experienceYears", value: "8", type: "text" }
+                  ]
+                },
+                url: {
+                  raw: "{{baseUrl}}/users/register-agent",
+                  host: ["{{baseUrl}}"],
+                  path: ["users", "register-agent"]
+                }
+              }
+            },
+            {
+              name: "04. Developer Registration (Submit Company & Verification)",
+              request: {
+                method: "POST",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                body: {
+                  mode: "formdata",
+                  formdata: [
+                    { key: "companyName", value: "Emerald Sky Developers Ltd", type: "text" },
+                    { key: "cinNumber", value: "U45200DL2018PTC123456", type: "text" },
+                    { key: "panNumber", value: "AAACE1234F", type: "text" },
+                    { key: "experienceYears", value: "14", type: "text" },
+                    { key: "officeAddress", value: "Emerald Tower, Golf Course Road, Gurgaon", type: "text" }
+                  ]
+                },
+                url: {
+                  raw: "{{baseUrl}}/users/register-developer",
+                  host: ["{{baseUrl}}"],
+                  path: ["users", "register-developer"]
+                }
+              }
             }
-          }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 03. Property Listings (Owner / Agent)
+        // ---------------------------------------------------------------------
+        {
+          name: "03. Property Listings (Owner / Agent)",
+          description: "Owner and Agent dashboard, property creation, editing, and listing removal.",
+          item: [
+            {
+              name: "01. My Property Dashboard (Stats & Submitted Listings)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/properties/my-dashboard",
+                  host: ["{{baseUrl}}"],
+                  path: ["properties", "my-dashboard"]
+                }
+              }
+            },
+            {
+              name: "02. Create Property Listing (Auto-saves propertyId)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.property) {",
+                      "    pm.collectionVariables.set('propertyId', jsonData.data.property._id);",
+                      "    console.log('✅ propertyId set to: ' + jsonData.data.property._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    title: "Luxurious 3 BHK Apartment in Sector 62",
+                    description: "Spacious 3 bedroom apartment with modular kitchen, corner balcony with park view, and covered parking.",
+                    listingFor: "sale",
+                    category: "residential",
+                    propertyType: "apartment",
+                    price: 8500000,
+                    carpetArea: 1650,
+                    builtUpArea: 1950,
+                    bedrooms: 3,
+                    bathrooms: 3,
+                    balconies: 2,
+                    furnishingStatus: "semi-furnished",
+                    possessionStatus: "ready-to-move",
+                    address: "Flat 402, Tower 4, Express Greens",
+                    city: "Noida",
+                    state: "Uttar Pradesh",
+                    pincode: "201301",
+                    location: {
+                      type: "Point",
+                      coordinates: [77.3910, 28.5355]
+                    },
+                    amenities: ["Gymnasium", "Swimming Pool", "24/7 Power Backup", "Clubhouse", "Security"],
+                    vastuCompliant: true,
+                    keyHandover: true,
+                    openToAllBuyers: true,
+                    loanAssistanceNeeded: true
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/properties",
+                  host: ["{{baseUrl}}"],
+                  path: ["properties"]
+                }
+              }
+            },
+            {
+              name: "03. Update Property Listing",
+              request: {
+                method: "PUT",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    price: 8200000,
+                    keyHandover: true,
+                    furnishingStatus: "fully-furnished",
+                    description: "Price reduced! Beautiful 3 BHK apartment ready to move in with imported marble flooring."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/properties/{{propertyId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["properties", "{{propertyId}}"]
+                }
+              }
+            },
+            {
+              name: "04. Toggle / Set Key Handover Status",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    keyHandover: true
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/properties/{{propertyId}}/key-handover",
+                  host: ["{{baseUrl}}"],
+                  path: ["properties", "{{propertyId}}", "key-handover"]
+                }
+              }
+            },
+            {
+              name: "05. Delete Property Listing",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/properties/{{propertyId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["properties", "{{propertyId}}"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 04. Developer Projects (Builder / Developer)
+        // ---------------------------------------------------------------------
+        {
+          name: "04. Developer Projects (Builder / Developer)",
+          description: "Developer management for new residential townships and commercial complexes.",
+          item: [
+            {
+              name: "01. My Projects (Developer Dashboard)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{developerToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/projects/my-projects",
+                  host: ["{{baseUrl}}"],
+                  path: ["projects", "my-projects"]
+                }
+              }
+            },
+            {
+              name: "02. Create Project (Auto-saves projectId)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.project) {",
+                      "    pm.collectionVariables.set('projectId', jsonData.data.project._id);",
+                      "    console.log('✅ projectId set to: ' + jsonData.data.project._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{developerToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    name: "Emerald Heights Residential Township",
+                    tagline: "Eco-Friendly Living by the Waterfront",
+                    description: "Spread over 15 acres of lush greenery with world-class clubhouse, Olympic pool, and smart home automation.",
+                    projectType: "residential",
+                    configurations: ["2 BHK", "3 BHK", "4 BHK"],
+                    priceRange: {
+                      minPrice: 6500000,
+                      maxPrice: 22000000
+                    },
+                    reraId: "UPRERAPRJ998877",
+                    possessionDate: "2027-12-31",
+                    address: "Sector 150, Noida-Greater Noida Expressway",
+                    city: "Noida",
+                    state: "Uttar Pradesh",
+                    pincode: "201310",
+                    location: {
+                      type: "Point",
+                      coordinates: [77.4700, 28.4500]
+                    },
+                    totalTowers: 8,
+                    totalUnits: 650
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/projects",
+                  host: ["{{baseUrl}}"],
+                  path: ["projects"]
+                }
+              }
+            },
+            {
+              name: "03. Update Project by ID",
+              request: {
+                method: "PUT",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{developerToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    tagline: "Exclusive Waterfront Luxury Residences",
+                    priceRange: {
+                      minPrice: 7000000,
+                      maxPrice: 24000000
+                    }
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/projects/{{projectId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["projects", "{{projectId}}"]
+                }
+              }
+            },
+            {
+              name: "04. Delete Project by ID",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{developerToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/projects/{{projectId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["projects", "{{projectId}}"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 05. File & Document Uploads
+        // ---------------------------------------------------------------------
+        {
+          name: "05. File & Document Uploads",
+          description: "Upload endpoints for photos, blueprints, title deeds, brochures, and documents.",
+          item: [
+            {
+              name: "01. Upload Single File",
+              request: {
+                method: "POST",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                body: {
+                  mode: "formdata",
+                  formdata: [
+                    { key: "file", type: "file", src: [] }
+                  ]
+                },
+                url: {
+                  raw: "{{baseUrl}}/upload/single",
+                  host: ["{{baseUrl}}"],
+                  path: ["upload", "single"]
+                }
+              }
+            },
+            {
+              name: "02. Upload Multiple Files (General)",
+              request: {
+                method: "POST",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                body: {
+                  mode: "formdata",
+                  formdata: [
+                    { key: "files", type: "file", src: [] },
+                    { key: "files", type: "file", src: [] }
+                  ]
+                },
+                url: {
+                  raw: "{{baseUrl}}/upload/multiple",
+                  host: ["{{baseUrl}}"],
+                  path: ["upload", "multiple"]
+                }
+              }
+            },
+            {
+              name: "03. Upload Property Documents by ID",
+              request: {
+                method: "POST",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                body: {
+                  mode: "formdata",
+                  formdata: [
+                    { key: "images", type: "file", src: [] },
+                    { key: "titleDeed", type: "file", src: [] },
+                    { key: "electricityBill", type: "file", src: [] }
+                  ]
+                },
+                url: {
+                  raw: "{{baseUrl}}/upload/property/{{propertyId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["upload", "property", "{{propertyId}}"]
+                }
+              }
+            },
+            {
+              name: "04. Upload Project Brochures & Plans by ID",
+              request: {
+                method: "POST",
+                header: [{ key: "Authorization", value: "Bearer {{developerToken}}" }],
+                body: {
+                  mode: "formdata",
+                  formdata: [
+                    { key: "photos", type: "file", src: [] },
+                    { key: "masterPlan", type: "file", src: [] },
+                    { key: "brochure", type: "file", src: [] }
+                  ]
+                },
+                url: {
+                  raw: "{{baseUrl}}/upload/project/{{projectId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["upload", "project", "{{projectId}}"]
+                }
+              }
+            },
+            {
+              name: "05. Upload Multiple Files Linked to Property",
+              request: {
+                method: "POST",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                body: {
+                  mode: "formdata",
+                  formdata: [
+                    { key: "files", type: "file", src: [] }
+                  ]
+                },
+                url: {
+                  raw: "{{baseUrl}}/upload/multiple?propertyId={{propertyId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["upload", "multiple"],
+                  query: [{ key: "propertyId", value: "{{propertyId}}" }]
+                }
+              }
+            },
+            {
+              name: "06. Upload Multiple Files Linked to Project",
+              request: {
+                method: "POST",
+                header: [{ key: "Authorization", value: "Bearer {{developerToken}}" }],
+                body: {
+                  mode: "formdata",
+                  formdata: [
+                    { key: "files", type: "file", src: [] }
+                  ]
+                },
+                url: {
+                  raw: "{{baseUrl}}/upload/multiple?projectId={{projectId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["upload", "multiple"],
+                  query: [{ key: "projectId", value: "{{projectId}}" }]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 06. Leads & Enquiries
+        // ---------------------------------------------------------------------
+        {
+          name: "06. Leads & Enquiries",
+          description: "Submit customer inquiries, view submitted inquiries, and manage leads for owners/agents.",
+          item: [
+            {
+              name: "01. Submit Property / Project Enquiry (Auto-saves enquiryId)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.enquiry) {",
+                      "    pm.collectionVariables.set('enquiryId', jsonData.data.enquiry._id);",
+                      "    console.log('✅ enquiryId set to: ' + jsonData.data.enquiry._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    propertyId: "{{propertyId}}",
+                    message: "Hello, I am interested in visiting this property this Sunday. Is it available for inspection?"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/users/enquiries",
+                  host: ["{{baseUrl}}"],
+                  path: ["users", "enquiries"]
+                }
+              }
+            },
+            {
+              name: "02. Submit Developer Lead / Enquiry",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    developerId: "{{developerId}}",
+                    message: "I am interested in bulk booking 2 units in your upcoming project. Please connect with sales."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/users/enquiries/developer",
+                  host: ["{{baseUrl}}"],
+                  path: ["users", "enquiries", "developer"]
+                }
+              }
+            },
+            {
+              name: "03. Get My Sent Enquiries (Buyer / Tenant)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/users/enquiries/my-enquiries",
+                  host: ["{{baseUrl}}"],
+                  path: ["users", "enquiries", "my-enquiries"]
+                }
+              }
+            },
+            {
+              name: "04. Get Received Enquiries (Owner / Agent / Builder)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{ownerToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/users/enquiries/received",
+                  host: ["{{baseUrl}}"],
+                  path: ["users", "enquiries", "received"]
+                }
+              }
+            },
+            {
+              name: "05. Update Enquiry Status (contacted / closed)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{ownerToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ status: "contacted" }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/users/enquiries/{{enquiryId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["users", "enquiries", "{{enquiryId}}"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 07. Favorites / Saved Listings
+        // ---------------------------------------------------------------------
+        {
+          name: "07. Favorites / Saved Listings",
+          description: "Manage shortlisted properties for buyers and tenants.",
+          item: [
+            {
+              name: "01. Get All Favorite Properties",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/favorites",
+                  host: ["{{baseUrl}}"],
+                  path: ["favorites"]
+                }
+              }
+            },
+            {
+              name: "02. Toggle Favorite Property (Add / Remove)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    propertyId: "{{propertyId}}"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/favorites/toggle",
+                  host: ["{{baseUrl}}"],
+                  path: ["favorites", "toggle"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 08. In-App Notifications
+        // ---------------------------------------------------------------------
+        {
+          name: "08. In-App Notifications",
+          description: "User inbox notifications for status updates, reviews, and admin approvals.",
+          item: [
+            {
+              name: "01. Get My Notifications (Auto-saves notificationId)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.notifications && jsonData.data.notifications.length > 0) {",
+                      "    pm.collectionVariables.set('notificationId', jsonData.data.notifications[0]._id);",
+                      "    console.log('✅ notificationId set to: ' + jsonData.data.notifications[0]._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/notifications",
+                  host: ["{{baseUrl}}"],
+                  path: ["notifications"]
+                }
+              }
+            },
+            {
+              name: "02. Mark Notification as Read",
+              request: {
+                method: "PATCH",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/notifications/{{notificationId}}/read",
+                  host: ["{{baseUrl}}"],
+                  path: ["notifications", "{{notificationId}}", "read"]
+                }
+              }
+            },
+            {
+              name: "03. Mark All Notifications as Read",
+              request: {
+                method: "POST",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/notifications/mark-all-read",
+                  host: ["{{baseUrl}}"],
+                  path: ["notifications", "mark-all-read"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 09. Reviews & Ratings
+        // ---------------------------------------------------------------------
+        {
+          name: "09. Reviews & Ratings",
+          description: "Submit client reviews and ratings for verified developers.",
+          item: [
+            {
+              name: "01. Submit Developer Review",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    rating: 5,
+                    review: "Top notch construction quality, delivered clubhouse amenities ahead of possession deadline!"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/developers/{{developerId}}/reviews",
+                  host: ["{{baseUrl}}"],
+                  path: ["developers", "{{developerId}}", "reviews"]
+                }
+              }
+            }
+          ]
         }
       ]
     },
 
-    // ---------------------------------------------------------
-    // 06. Admin Moderation & Approval Workflow
-    // ---------------------------------------------------------
+    // =========================================================================
+    // 📁 2. ADMIN
+    // =========================================================================
     {
-      name: "06. Admin Moderation & Approval Workflow",
+      name: "Admin",
+      description: "Complete Admin Control Suite: Moderation, Approvals, Dashboard Analytics, User Verification, and Content CMS.",
       item: [
+        // ---------------------------------------------------------------------
+        // 01. Authentication & Profile
+        // ---------------------------------------------------------------------
         {
-          name: "Get All Registered Users",
-          request: {
-            method: "GET",
-            header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
-            url: {
-              raw: "{{baseUrl}}/admin/users",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "users"]
-            }
-          }
-        },
-        {
-          name: "Get Pending Agents Queue",
-          request: {
-            method: "GET",
-            header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
-            url: {
-              raw: "{{baseUrl}}/admin/users/pending-agents",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "users", "pending-agents"]
-            }
-          }
-        },
-        {
-          name: "Admin Approve Agent RERA & Docs",
-          request: {
-            method: "PATCH",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{adminToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                agentVerificationStatus: "approved"
-              }, null, 2)
+          name: "01. Authentication & Profile",
+          description: "Admin login and profile retrieval.",
+          item: [
+            {
+              name: "01. Admin Login (Auto-saves adminToken)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.token) {",
+                      "    pm.collectionVariables.set('adminToken', jsonData.token);",
+                      "    console.log('✅ adminToken set successfully');",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [{ key: "Content-Type", value: "application/json" }],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ email: "admin@gmail.com", password: "admin123" }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/auth/login",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "auth", "login"]
+                }
+              }
             },
-            url: {
-              raw: "{{baseUrl}}/admin/users/{{agentId}}/verify-agent",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "users", "{{agentId}}", "verify-agent"]
+            {
+              name: "02. Admin Profile (GET /users/me)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/users/me",
+                  host: ["{{baseUrl}}"],
+                  path: ["users", "me"]
+                }
+              }
             }
-          }
+          ]
         },
+
+        // ---------------------------------------------------------------------
+        // 02. Dashboard & Analytics
+        // ---------------------------------------------------------------------
         {
-          name: "Admin Reject Agent (with reason)",
-          request: {
-            method: "PATCH",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{adminToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                agentVerificationStatus: "rejected",
-                rejectionReason: "RERA certificate document is unreadable. Please upload a clear PDF copy."
-              }, null, 2)
+          name: "02. Dashboard & Analytics",
+          description: "KPI statistics, revenue charts, and platform lead overview.",
+          item: [
+            {
+              name: "01. Admin Dashboard Analytics",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/dashboard/stats",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "dashboard", "stats"]
+                }
+              }
             },
-            url: {
-              raw: "{{baseUrl}}/admin/users/{{agentId}}/verify-agent",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "users", "{{agentId}}", "verify-agent"]
-            }
-          }
-        },
-        {
-          name: "Get Pending Developers Queue",
-          request: {
-            method: "GET",
-            header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
-            url: {
-              raw: "{{baseUrl}}/admin/users/pending-developers",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "users", "pending-developers"]
-            }
-          }
-        },
-        {
-          name: "Admin Approve Developer Company & RERA Docs",
-          request: {
-            method: "PATCH",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{adminToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                builderVerificationStatus: "approved"
-              }, null, 2)
+            {
+              name: "02. Admin Revenue Statistics",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/dashboard/revenue",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "dashboard", "revenue"]
+                }
+              }
             },
-            url: {
-              raw: "{{baseUrl}}/admin/users/{{developerId}}/verify-developer",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "users", "{{developerId}}", "verify-developer"]
-            }
-          }
-        },
-        {
-          name: "Admin Reject Developer (with reason)",
-          request: {
-            method: "PATCH",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{adminToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                builderVerificationStatus: "rejected",
-                rejectionReason: "PAN card company name does not match RERA registration document."
-              }, null, 2)
+            {
+              name: "03. Admin - List All Enquiries",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/dashboard/enquiries?page=1&limit=20",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "dashboard", "enquiries"],
+                  query: [
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "20" }
+                  ]
+                }
+              }
             },
-            url: {
-              raw: "{{baseUrl}}/admin/users/{{developerId}}/verify-developer",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "users", "{{developerId}}", "verify-developer"]
-            }
-          }
-        },
-        {
-          name: "Get Pending Properties Queue",
-          request: {
-            method: "GET",
-            header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
-            url: {
-              raw: "{{baseUrl}}/admin/properties?approvalStatus=pending",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "properties"],
-              query: [{ key: "approvalStatus", value: "pending" }]
-            }
-          }
-        },
-        {
-          name: "Admin Approve Property (Goes Live)",
-          request: {
-            method: "PATCH",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{adminToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                approvalStatus: "approved"
-              }, null, 2)
+            {
+              name: "04. Admin - Update Enquiry Status",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ status: "contacted" }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/dashboard/enquiries/{{enquiryId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "dashboard", "enquiries", "{{enquiryId}}"]
+                }
+              }
             },
-            url: {
-              raw: "{{baseUrl}}/admin/properties/{{propertyId}}/status",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "properties", "{{propertyId}}", "status"]
+            {
+              name: "05. Admin - Delete Enquiry",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/dashboard/enquiries/{{enquiryId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "dashboard", "enquiries", "{{enquiryId}}"]
+                }
+              }
             }
-          }
+          ]
         },
+
+        // ---------------------------------------------------------------------
+        // 03. User Moderation & Approvals
+        // ---------------------------------------------------------------------
         {
-          name: "Admin Reject Property (with reason)",
-          request: {
-            method: "PATCH",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{adminToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                approvalStatus: "rejected",
-                rejectionReason: "Property ownership document / Electricity bill missing."
-              }, null, 2)
+          name: "03. User Moderation & Approvals",
+          description: "Manage platform accounts, review Agent RERA certifications, and approve Developer companies.",
+          item: [
+            {
+              name: "01. Admin - List All Users (Auto-saves userId)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.users && jsonData.data.users.length > 0) {",
+                      "    pm.collectionVariables.set('userId', jsonData.data.users[0]._id);",
+                      "    console.log('✅ userId set to: ' + jsonData.data.users[0]._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/users?role=agent&limit=20",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "users"],
+                  query: [
+                    { key: "role", value: "agent" },
+                    { key: "limit", value: "20" }
+                  ]
+                }
+              }
             },
-            url: {
-              raw: "{{baseUrl}}/admin/properties/{{propertyId}}/status",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "properties", "{{propertyId}}", "status"]
-            }
-          }
-        },
-        {
-          name: "Admin Toggle Featured Tier on Property",
-          request: {
-            method: "PATCH",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{adminToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                listingTier: "Premium"
-              }, null, 2)
+            {
+              name: "02. Admin - Create User / Staff Account",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    name: "Operations Associate",
+                    email: "ops@gharmb.com",
+                    phone: "9876500000",
+                    role: "agent"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/users",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "users"]
+                }
+              }
             },
-            url: {
-              raw: "{{baseUrl}}/admin/properties/{{propertyId}}/featured",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "properties", "{{propertyId}}", "featured"]
-            }
-          }
-        },
-        {
-          name: "Get Pending Projects Queue",
-          request: {
-            method: "GET",
-            header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
-            url: {
-              raw: "{{baseUrl}}/admin/projects?approvalStatus=pending",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "projects"],
-              query: [{ key: "approvalStatus", value: "pending" }]
-            }
-          }
-        },
-        {
-          name: "Admin Approve Developer Project (Goes Live)",
-          request: {
-            method: "PATCH",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{adminToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                approvalStatus: "approved"
-              }, null, 2)
+            {
+              name: "03. Admin - Get User Details by ID",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/users/{{userId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "users", "{{userId}}"]
+                }
+              }
             },
-            url: {
-              raw: "{{baseUrl}}/admin/projects/{{projectId}}/status",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "projects", "{{projectId}}", "status"]
-            }
-          }
-        },
-        {
-          name: "Admin Reject Developer Project (with reason)",
-          request: {
-            method: "PATCH",
-            header: [
-              { key: "Content-Type", value: "application/json" },
-              { key: "Authorization", value: "Bearer {{adminToken}}" }
-            ],
-            body: {
-              mode: "raw",
-              raw: JSON.stringify({
-                approvalStatus: "rejected",
-                rejectionReason: "RERA project number expired or invalid."
-              }, null, 2)
+            {
+              name: "04. Admin - List Pending Agents (Auto-saves agentId)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.agents && jsonData.data.agents.length > 0) {",
+                      "    pm.collectionVariables.set('agentId', jsonData.data.agents[0]._id);",
+                      "    console.log('✅ agentId set to: ' + jsonData.data.agents[0]._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/users/pending-agents",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "users", "pending-agents"]
+                }
+              }
             },
-            url: {
-              raw: "{{baseUrl}}/admin/projects/{{projectId}}/status",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "projects", "{{projectId}}", "status"]
+            {
+              name: "05. Admin - Verify Agent RERA (Approve Agent)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    status: "approved",
+                    notes: "RERA Certificate verified against official state registry."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/users/{{agentId}}/verify-agent",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "users", "{{agentId}}", "verify-agent"]
+                }
+              }
+            },
+            {
+              name: "06. Admin - List Pending Developers (Auto-saves developerId)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.developers && jsonData.data.developers.length > 0) {",
+                      "    pm.collectionVariables.set('developerId', jsonData.data.developers[0]._id);",
+                      "    console.log('✅ developerId set to: ' + jsonData.data.developers[0]._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/users/pending-developers",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "users", "pending-developers"]
+                }
+              }
+            },
+            {
+              name: "07. Admin - Verify Developer Company (Approve Developer)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    status: "approved",
+                    notes: "CIN and PAN corporate records verified successfully."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/users/{{developerId}}/verify-developer",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "users", "{{developerId}}", "verify-developer"]
+                }
+              }
+            },
+            {
+              name: "08. Admin - Get User Enquiries",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/users/{{userId}}/enquiries",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "users", "{{userId}}", "enquiries"]
+                }
+              }
+            },
+            {
+              name: "09. Admin - Suspend / Deactivate User",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/users/{{userId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "users", "{{userId}}"]
+                }
+              }
             }
-          }
+          ]
         },
+
+        // ---------------------------------------------------------------------
+        // 04. Property Moderation
+        // ---------------------------------------------------------------------
         {
-          name: "Admin Dashboard Statistics",
-          request: {
-            method: "GET",
-            header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
-            url: {
-              raw: "{{baseUrl}}/admin/dashboard/stats",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "dashboard", "stats"]
+          name: "04. Property Moderation",
+          description: "Moderation queue for owner/agent properties, status approval, and featured spotlight toggling.",
+          item: [
+            {
+              name: "01. Admin - List All Properties for Moderation",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/properties?approvalStatus=pending&limit=20",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "properties"],
+                  query: [
+                    { key: "approvalStatus", value: "pending" },
+                    { key: "limit", value: "20" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "02. Admin - Approve Property Listing",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    status: "approved",
+                    adminNotes: "Title deed and utility bill verified. Approved for public feed."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/properties/{{propertyId}}/status",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "properties", "{{propertyId}}", "status"]
+                }
+              }
+            },
+            {
+              name: "03. Admin - Toggle Spotlight / Featured Property",
+              request: {
+                method: "PATCH",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/properties/{{propertyId}}/featured",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "properties", "{{propertyId}}", "featured"]
+                }
+              }
+            },
+            {
+              name: "04. Admin - Delete Property Listing",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/properties/{{propertyId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "properties", "{{propertyId}}"]
+                }
+              }
             }
-          }
+          ]
         },
+
+        // ---------------------------------------------------------------------
+        // 05. Project Moderation
+        // ---------------------------------------------------------------------
         {
-          name: "Admin Notification List",
-          request: {
-            method: "GET",
-            header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
-            url: {
-              raw: "{{baseUrl}}/admin/notifications",
-              host: ["{{baseUrl}}"],
-              path: ["admin", "notifications"]
+          name: "05. Project Moderation",
+          description: "Moderation and validation for new builder developments and townships.",
+          item: [
+            {
+              name: "01. Admin - List All Projects for Moderation",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/projects?status=pending&limit=20",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "projects"],
+                  query: [
+                    { key: "status", value: "pending" },
+                    { key: "limit", value: "20" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "02. Admin - Approve Project Listing",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    status: "approved",
+                    remarks: "Project RERA registration and master plans validated."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/projects/{{projectId}}/status",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "projects", "{{projectId}}", "status"]
+                }
+              }
+            },
+            {
+              name: "03. Admin - Delete Project Listing",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/projects/{{projectId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "projects", "{{projectId}}"]
+                }
+              }
             }
-          }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 06. Notifications & Broadcast
+        // ---------------------------------------------------------------------
+        {
+          name: "06. Notifications & Broadcast",
+          description: "Send push and in-app system broadcasts to users across the platform.",
+          item: [
+            {
+              name: "01. Admin - Broadcast System Notification",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    title: "Diwali Property Festival 2026",
+                    message: "Zero brokerage deals and special developer subvention schemes live now!",
+                    targetRole: "all",
+                    priority: "high"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/notifications/broadcast",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "notifications", "broadcast"]
+                }
+              }
+            },
+            {
+              name: "02. Admin - Mark Single Notification Read",
+              request: {
+                method: "PATCH",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/notifications/{{notificationId}}/read",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "notifications", "{{notificationId}}", "read"]
+                }
+              }
+            },
+            {
+              name: "03. Admin - Mark All Notifications Read",
+              request: {
+                method: "POST",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/notifications/mark-all-read",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "notifications", "mark-all-read"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 07. CMS - News & Articles
+        // ---------------------------------------------------------------------
+        {
+          name: "07. CMS - News & Articles",
+          description: "Publish, edit, and moderate real estate news articles.",
+          item: [
+            {
+              name: "01. Admin - List All News (Auto-saves newsId)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.news && jsonData.data.news.length > 0) {",
+                      "    pm.collectionVariables.set('newsId', jsonData.data.news[0]._id);",
+                      "    console.log('✅ newsId set to: ' + jsonData.data.news[0]._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/news?page=1&limit=10",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "news"],
+                  query: [
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "10" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "02. Admin - Create News Article",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    title: "Noida-Greater Noida Expressway Metro Extension Approved",
+                    category: "Infrastructure",
+                    content: "The state cabinet has approved the detailed project report for the new metro corridor connecting Sector 142 with Botanical Garden.",
+                    isPublished: true,
+                    isFeatured: true
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/news",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "news"]
+                }
+              }
+            },
+            {
+              name: "03. Admin - Get News by ID",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/news/{{newsId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "news", "{{newsId}}"]
+                }
+              }
+            },
+            {
+              name: "04. Admin - Update News Article",
+              request: {
+                method: "PUT",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    title: "Noida-Greater Noida Expressway Metro Extension: Work Begins 2026",
+                    content: "Updated DPR indicates 8 elevated stations planned with complete multimodal interchange."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/news/{{newsId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "news", "{{newsId}}"]
+                }
+              }
+            },
+            {
+              name: "05. Admin - Publish News Article",
+              request: {
+                method: "PATCH",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/news/{{newsId}}/publish",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "news", "{{newsId}}", "publish"]
+                }
+              }
+            },
+            {
+              name: "06. Admin - Unpublish News Article",
+              request: {
+                method: "PATCH",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/news/{{newsId}}/unpublish",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "news", "{{newsId}}", "unpublish"]
+                }
+              }
+            },
+            {
+              name: "07. Admin - Delete News Article",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/news/{{newsId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "news", "{{newsId}}"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 08. CMS - Blogs & Categories
+        // ---------------------------------------------------------------------
+        {
+          name: "08. CMS - Blogs & Categories",
+          description: "Author and publish editorial blog posts and topics.",
+          item: [
+            {
+              name: "01. Admin - List All Blogs (Auto-saves blogId)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.blogs && jsonData.data.blogs.length > 0) {",
+                      "    pm.collectionVariables.set('blogId', jsonData.data.blogs[0]._id);",
+                      "    console.log('✅ blogId set to: ' + jsonData.data.blogs[0]._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/blogs?page=1&limit=10",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "blogs"],
+                  query: [
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "10" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "02. Admin - Create Blog Article",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    title: "Top 7 Tips for First-Time Home Buyers in 2026",
+                    excerpt: "A complete guide on home loan interest rates, registry fees, and RERA due diligence.",
+                    content: "Buying a home is one of life's biggest milestones. Here is our expert guide on credit score planning, carpet area verification, and legal checklist.",
+                    category: "Guides",
+                    isPublished: true
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/blogs",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "blogs"]
+                }
+              }
+            },
+            {
+              name: "03. Admin - Publish Blog",
+              request: {
+                method: "PATCH",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/blogs/{{blogId}}/publish",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "blogs", "{{blogId}}", "publish"]
+                }
+              }
+            },
+            {
+              name: "04. Admin - Unpublish Blog",
+              request: {
+                method: "PATCH",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/blogs/{{blogId}}/unpublish",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "blogs", "{{blogId}}", "unpublish"]
+                }
+              }
+            },
+            {
+              name: "05. Admin - Delete Blog",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/blogs/{{blogId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "blogs", "{{blogId}}"]
+                }
+              }
+            },
+            {
+              name: "06. Admin - List Blog Categories",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/blog-categories",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "blog-categories"]
+                }
+              }
+            },
+            {
+              name: "07. Admin - Create Blog Category",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    name: "Home Loans & Finance",
+                    slug: "finance",
+                    description: "Articles on home loan subsidies, interest rate cycles, and EMIs."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/blog-categories",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "blog-categories"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 09. CMS - Legal Policies & Static Pages
+        // ---------------------------------------------------------------------
+        {
+          name: "09. CMS - Legal Policies & Static Pages",
+          description: "Update platform policies, Terms of Service, Privacy Policy, and informational web pages.",
+          item: [
+            {
+              name: "01. Admin - List Legal Policies (Auto-saves policyId)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.policies && jsonData.data.policies.length > 0) {",
+                      "    pm.collectionVariables.set('policyId', jsonData.data.policies[0]._id);",
+                      "    console.log('✅ policyId set to: ' + jsonData.data.policies[0]._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/legal/policies",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "legal", "policies"]
+                }
+              }
+            },
+            {
+              name: "02. Admin - Create Legal Policy",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    title: "Platform Refund and Subscription Policy",
+                    type: "refund-policy",
+                    content: "Subscription payments and featured listing promotional packs are non-refundable once activated.",
+                    platform: "app"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/legal/policies",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "legal", "policies"]
+                }
+              }
+            },
+            {
+              name: "03. Admin - Update Terms of Service Policy",
+              request: {
+                method: "PUT",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    title: "Terms and Conditions of Use",
+                    content: "1. Acceptance of Terms\nBy accessing GharMB, you agree to comply with our real estate portal guidelines and verification standards."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/legal/terms",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "legal", "terms"]
+                }
+              }
+            },
+            {
+              name: "04. Admin - Delete Legal Policy",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/legal/policies/{{policyId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "legal", "policies", "{{policyId}}"]
+                }
+              }
+            },
+            {
+              name: "05. Admin - Get Static Page (About Us)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/pages/about-us",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "pages", "about-us"]
+                }
+              }
+            },
+            {
+              name: "06. Admin - Update Static Page (About Us)",
+              request: {
+                method: "PUT",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    title: "About GharMB",
+                    content: "GharMB is India's premier real estate ecosystem connecting verified owners, licensed agents, and tier-1 builders with home seekers."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/pages/about-us",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "pages", "about-us"]
+                }
+              }
+            },
+            {
+              name: "07. Admin - Update Static Page (Help & Support)",
+              request: {
+                method: "PUT",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    title: "Help & Customer Support",
+                    content: "For assistance regarding listings, KYC verification, or developer partnerships, reach out to help@gharmb.com."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/pages/help-support",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "pages", "help-support"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 10. CMS - FAQs & Categories
+        // ---------------------------------------------------------------------
+        {
+          name: "10. CMS - FAQs & Categories",
+          description: "Manage frequently asked questions and user guidance.",
+          item: [
+            {
+              name: "01. Admin - List All FAQs",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/faqs",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "faqs"]
+                }
+              }
+            },
+            {
+              name: "02. Admin - Create FAQ",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    question: "How does GharMB verify RERA credentials?",
+                    answer: "Our compliance team cross-checks state RERA portals and uploaded certificates before badge issuance.",
+                    category: "Verification"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/faqs",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "faqs"]
+                }
+              }
+            },
+            {
+              name: "03. Admin - List FAQ Categories",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/faq-categories",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "faq-categories"]
+                }
+              }
+            },
+            {
+              name: "04. Admin - Create FAQ Category",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    name: "Property Listings",
+                    slug: "listings"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/faq-categories",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "faq-categories"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 11. CMS - Testimonials
+        // ---------------------------------------------------------------------
+        {
+          name: "11. CMS - Testimonials",
+          description: "Manage client testimonials and endorsements.",
+          item: [
+            {
+              name: "01. Admin - List All Testimonials (Auto-saves testimonialId)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.testimonials && jsonData.data.testimonials.length > 0) {",
+                      "    pm.collectionVariables.set('testimonialId', jsonData.data.testimonials[0]._id);",
+                      "    console.log('✅ testimonialId set to: ' + jsonData.data.testimonials[0]._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/testimonials",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "testimonials"]
+                }
+              }
+            },
+            {
+              name: "02. Admin - Create Testimonial",
+              request: {
+                method: "POST",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                body: {
+                  mode: "formdata",
+                  formdata: [
+                    { key: "name", value: "Sunil Verma", type: "text" },
+                    { key: "role", value: "Buyer (Noida Sector 76)", type: "text" },
+                    { key: "rating", value: "5", type: "text" },
+                    { key: "content", value: "Found our dream home within 2 weeks of searching on GharMB. The zero brokerage direct owner connect was seamless.", type: "text" }
+                  ]
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/testimonials",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "testimonials"]
+                }
+              }
+            },
+            {
+              name: "03. Admin - Update Testimonial",
+              request: {
+                method: "PUT",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                body: {
+                  mode: "formdata",
+                  formdata: [
+                    { key: "rating", value: "5", type: "text" },
+                    { key: "content", value: "Found our dream home in Sector 76. The direct owner contact and prompt agent assistance was world class!", type: "text" }
+                  ]
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/testimonials/{{testimonialId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "testimonials", "{{testimonialId}}"]
+                }
+              }
+            },
+            {
+              name: "04. Admin - Delete Testimonial",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/testimonials/{{testimonialId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "testimonials", "{{testimonialId}}"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 12. Web Inquiries & Contacts
+        // ---------------------------------------------------------------------
+        {
+          name: "12. Web Inquiries & Contacts",
+          description: "Inspect partnership and contact form messages submitted from the public portal.",
+          item: [
+            {
+              name: "01. Admin - Web Inquiry Stats",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/web-inquiries/stats",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "web-inquiries", "stats"]
+                }
+              }
+            },
+            {
+              name: "02. Admin - List All Web Inquiries (Auto-saves inquiryId)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.inquiries && jsonData.data.inquiries.length > 0) {",
+                      "    pm.collectionVariables.set('inquiryId', jsonData.data.inquiries[0]._id);",
+                      "    console.log('✅ inquiryId set to: ' + jsonData.data.inquiries[0]._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/web-inquiries?page=1&limit=20",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "web-inquiries"],
+                  query: [
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "20" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "03. Admin - Delete Web Inquiry",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/web-inquiries/{{inquiryId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "web-inquiries", "{{inquiryId}}"]
+                }
+              }
+            }
+          ]
         }
       ]
     },
 
-    // ---------------------------------------------------------
-    // 07. Public GET APIs (Verified & Live Items Only)
-    // ---------------------------------------------------------
+    // =========================================================================
+    // 📁 3. SHARED
+    // =========================================================================
     {
-      name: "07. Public GET APIs (Verified & Live Only)",
+      name: "Shared",
+      description: "Public and shared APIs accessible by websites, mobile apps, and unauthenticated guests.",
       item: [
+        // ---------------------------------------------------------------------
+        // 01. System & Health
+        // ---------------------------------------------------------------------
         {
-          name: "Get All Approved Properties (with filters)",
-          request: {
-            method: "GET",
-            url: {
-              raw: "{{baseUrl}}/properties?category=Residential&listingFor=Sale&city=Noida",
-              host: ["{{baseUrl}}"],
-              path: ["properties"],
-              query: [
-                { key: "category", value: "Residential" },
-                { key: "listingFor", value: "Sale" },
-                { key: "city", value: "Noida" }
-              ]
+          name: "01. System & Health",
+          description: "Service connectivity, ping, and root status.",
+          item: [
+            {
+              name: "01. Root Service Info",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "http://localhost:5001/",
+                  host: ["http://localhost:5001"],
+                  path: [""]
+                }
+              }
+            },
+            {
+              name: "02. Server Health Check",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "http://localhost:5001/health",
+                  host: ["http://localhost:5001"],
+                  path: ["health"]
+                }
+              }
             }
-          }
+          ]
         },
+
+        // ---------------------------------------------------------------------
+        // 02. Properties & Listings (Public Feed)
+        // ---------------------------------------------------------------------
         {
-          name: "Get Live Property by ID",
-          request: {
-            method: "GET",
-            url: {
-              raw: "{{baseUrl}}/properties/{{propertyId}}",
-              host: ["{{baseUrl}}"],
-              path: ["properties", "{{propertyId}}"]
+          name: "02. Properties & Listings (Public Feed)",
+          description: "Search, filter, geospatial proximity query, and view approved properties.",
+          item: [
+            {
+              name: "01. Get All Live Properties (Public Feed & Filters)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/properties?listingFor=sale&category=residential&propertyType=apartment&city=Noida&minPrice=5000000&maxPrice=15000000",
+                  host: ["{{baseUrl}}"],
+                  path: ["properties"],
+                  query: [
+                    { key: "listingFor", value: "sale" },
+                    { key: "category", value: "residential" },
+                    { key: "propertyType", value: "apartment" },
+                    { key: "city", value: "Noida" },
+                    { key: "minPrice", value: "5000000" },
+                    { key: "maxPrice", value: "15000000" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "02. Get Near-Me Properties (Geospatial Coordinates)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/properties/near-me?city=Noida&lat=28.5355&lng=77.3910&radius=50&radiusUnit=km",
+                  host: ["{{baseUrl}}"],
+                  path: ["properties", "near-me"],
+                  query: [
+                    { key: "city", value: "Noida" },
+                    { key: "lat", value: "28.5355" },
+                    { key: "lng", value: "77.3910" },
+                    { key: "radius", value: "50" },
+                    { key: "radiusUnit", value: "km" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "03. Get Detailed Property by ID",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/properties/{{propertyId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["properties", "{{propertyId}}"]
+                }
+              }
+            },
+            {
+              name: "04. Filter Properties Ready for Immediate Key Handover",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/properties?keyHandover=true",
+                  host: ["{{baseUrl}}"],
+                  path: ["properties"],
+                  query: [
+                    { key: "keyHandover", value: "true" }
+                  ]
+                }
+              }
             }
-          }
+          ]
         },
+
+        // ---------------------------------------------------------------------
+        // 03. Developer Projects (Public Directory)
+        // ---------------------------------------------------------------------
         {
-          name: "Get Properties Near Me (Geospatial / City)",
-          request: {
-            method: "GET",
-            url: {
-              raw: "{{baseUrl}}/properties/near-me?city=Noida&radius=25",
-              host: ["{{baseUrl}}"],
-              path: ["properties", "near-me"],
-              query: [
-                { key: "city", value: "Noida" },
-                { key: "radius", value: "25" }
-              ]
+          name: "03. Developer Projects (Public Directory)",
+          description: "Browse approved builder developments and township project showcases.",
+          item: [
+            {
+              name: "01. Get All Approved Projects (Public Directory)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/projects?city=Noida&projectType=residential&page=1&limit=10",
+                  host: ["{{baseUrl}}"],
+                  path: ["projects"],
+                  query: [
+                    { key: "city", value: "Noida" },
+                    { key: "projectType", value: "residential" },
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "10" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "02. Get Project Details by ID",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/projects/{{projectId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["projects", "{{projectId}}"]
+                }
+              }
             }
-          }
+          ]
         },
+
+        // ---------------------------------------------------------------------
+        // 04. Developers & Agency Directory
+        // ---------------------------------------------------------------------
         {
-          name: "Get All Approved Developer Projects",
-          request: {
-            method: "GET",
-            url: {
-              raw: "{{baseUrl}}/projects?city=Meerut&projectType=Residential",
-              host: ["{{baseUrl}}"],
-              path: ["projects"],
-              query: [
-                { key: "city", value: "Meerut" },
-                { key: "projectType", value: "Residential" }
-              ]
+          name: "04. Developers & Agency Directory",
+          description: "Public directory of verified builders and client reviews.",
+          item: [
+            {
+              name: "01. Get All Verified Developers (Auto-saves developerId)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.developers && jsonData.data.developers.length > 0) {",
+                      "    pm.collectionVariables.set('developerId', jsonData.data.developers[0]._id);",
+                      "    console.log('✅ developerId set to: ' + jsonData.data.developers[0]._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/developers?city=Noida&page=1&limit=10",
+                  host: ["{{baseUrl}}"],
+                  path: ["developers"],
+                  query: [
+                    { key: "city", value: "Noida" },
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "10" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "02. Get Developer Detail by ID",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/developers/{{developerId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["developers", "{{developerId}}"]
+                }
+              }
+            },
+            {
+              name: "03. Get Developer Reviews",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/developers/{{developerId}}/reviews",
+                  host: ["{{baseUrl}}"],
+                  path: ["developers", "{{developerId}}", "reviews"]
+                }
+              }
             }
-          }
+          ]
         },
+
+        // ---------------------------------------------------------------------
+        // 05. News, Articles & Blogs
+        // ---------------------------------------------------------------------
         {
-          name: "Get Live Developer Project Details by ID",
-          request: {
-            method: "GET",
-            url: {
-              raw: "{{baseUrl}}/projects/{{projectId}}",
-              host: ["{{baseUrl}}"],
-              path: ["projects", "{{projectId}}"]
+          name: "05. News, Articles & Blogs",
+          description: "Public feeds for real estate market news and informative articles.",
+          item: [
+            {
+              name: "01. Get All Published News (GET /news)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/news?page=1&limit=10",
+                  host: ["{{baseUrl}}"],
+                  path: ["news"],
+                  query: [
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "10" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "02. Get Featured News (GET /news/featured)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/news/featured",
+                  host: ["{{baseUrl}}"],
+                  path: ["news", "featured"]
+                }
+              }
+            },
+            {
+              name: "03. Get News by Category (GET /news/category/:category)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/news/category/Market?page=1&limit=10",
+                  host: ["{{baseUrl}}"],
+                  path: ["news", "category", "Market"],
+                  query: [
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "10" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "04. Get News Detail by ID (GET /news/:id)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/news/{{newsId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["news", "{{newsId}}"]
+                }
+              }
+            },
+            {
+              name: "05. Get All Published Blogs (GET /blogs)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/blogs?page=1&limit=10",
+                  host: ["{{baseUrl}}"],
+                  path: ["blogs"],
+                  query: [
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "10" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "06. Get Blog Categories (GET /blogs/categories)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/blogs/categories",
+                  host: ["{{baseUrl}}"],
+                  path: ["blogs", "categories"]
+                }
+              }
             }
-          }
+          ]
         },
+
+        // ---------------------------------------------------------------------
+        // 06. Policies & Static Content
+        // ---------------------------------------------------------------------
         {
-          name: "Get All Verified Developers Directory",
-          request: {
-            method: "GET",
-            url: {
-              raw: "{{baseUrl}}/users/developers?city=Noida",
-              host: ["{{baseUrl}}"],
-              path: ["users", "developers"],
-              query: [{ key: "city", value: "Noida" }]
+          name: "06. Policies & Static Content",
+          description: "Read legal disclosures, Terms of Service, Privacy Policy, and company information.",
+          item: [
+            {
+              name: "01. Get All Published Legal Policies",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/legal/policies?platform=app",
+                  host: ["{{baseUrl}}"],
+                  path: ["legal", "policies"],
+                  query: [{ key: "platform", value: "app" }]
+                }
+              }
+            },
+            {
+              name: "02. Get Terms of Service",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/legal/terms",
+                  host: ["{{baseUrl}}"],
+                  path: ["legal", "terms"]
+                }
+              }
+            },
+            {
+              name: "03. Get Privacy Policy",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/legal/privacy-policy",
+                  host: ["{{baseUrl}}"],
+                  path: ["legal", "privacy-policy"]
+                }
+              }
+            },
+            {
+              name: "04. Get About Us Content",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/pages/about-us",
+                  host: ["{{baseUrl}}"],
+                  path: ["pages", "about-us"]
+                }
+              }
+            },
+            {
+              name: "05. Get Help & Support Content",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/pages/help-support",
+                  host: ["{{baseUrl}}"],
+                  path: ["pages", "help-support"]
+                }
+              }
             }
-          }
+          ]
         },
+
+        // ---------------------------------------------------------------------
+        // 07. FAQs, Testimonials & Contact
+        // ---------------------------------------------------------------------
         {
-          name: "Get Detailed Developer Profile by ID",
-          request: {
-            method: "GET",
-            url: {
-              raw: "{{baseUrl}}/users/developers/{{developerId}}",
-              host: ["{{baseUrl}}"],
-              path: ["users", "developers", "{{developerId}}"]
+          name: "07. FAQs, Testimonials & Contact",
+          description: "Frequently Asked Questions, client reviews, and direct web portal inquiries.",
+          item: [
+            {
+              name: "01. Get All FAQs (GET /faqs)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/faqs",
+                  host: ["{{baseUrl}}"],
+                  path: ["faqs"]
+                }
+              }
+            },
+            {
+              name: "02. Get All Testimonials (GET /testimonials)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/testimonials",
+                  host: ["{{baseUrl}}"],
+                  path: ["testimonials"]
+                }
+              }
+            },
+            {
+              name: "03. Submit Contact / Web Inquiry (POST /web-inquiries)",
+              request: {
+                method: "POST",
+                header: [{ key: "Content-Type", value: "application/json" }],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    name: "Amitabh Sen",
+                    email: "amitabh@example.com",
+                    phone: "9876599999",
+                    subject: "Partnership Opportunity",
+                    message: "Interested in featuring our upcoming township project on GharMB."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/web-inquiries",
+                  host: ["{{baseUrl}}"],
+                  path: ["web-inquiries"]
+                }
+              }
             }
-          }
-        },
-        {
-          name: "Get Developer Reviews & Ratings",
-          request: {
-            method: "GET",
-            url: {
-              raw: "{{baseUrl}}/users/developers/{{developerId}}/reviews",
-              host: ["{{baseUrl}}"],
-              path: ["users", "developers", "{{developerId}}", "reviews"]
-            }
-          }
+          ]
         }
       ]
     }
   ]
 };
 
-const outputPath = path.join(__dirname, '../gharmb.postman_collection.json');
-fs.writeFileSync(outputPath, JSON.stringify(collection, null, 2), 'utf-8');
-console.log('✅ Successfully generated Postman Collection at:', outputPath);
+// Generate Postman Collection files in both root and server directories
+const rootOutputPath = path.join(__dirname, '../gharmb.postman_collection.json');
+const serverOutputPath = path.join(__dirname, 'gharmb.postman_collection.json');
+
+const jsonString = JSON.stringify(collection, null, 2);
+
+fs.writeFileSync(rootOutputPath, jsonString, 'utf-8');
+console.log('✅ Successfully updated root Postman Collection at:', rootOutputPath);
+
+try {
+  fs.writeFileSync(serverOutputPath, jsonString, 'utf-8');
+  console.log('✅ Successfully updated server Postman Collection at:', serverOutputPath);
+} catch (err) {
+  // Ignored if server directory is current directory
+}
