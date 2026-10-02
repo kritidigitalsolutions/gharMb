@@ -5,6 +5,7 @@
 
 const express = require('express');
 const userController = require('../../controllers/user/user.controller');
+const propertyController = require('../../controllers/user/property.controller');
 const developerReviewController = require('../../controllers/user/developer-review.controller');
 const userAuth = require('../../middlewares/userAuth.middleware');
 const restrictTo = require('../../middlewares/role.middleware');
@@ -21,10 +22,12 @@ router.get('/developers/:id/reviews', developerReviewController.getDeveloperRevi
 // All routes require login
 router.use(userAuth);
 
-router.post('/developers/:id/reviews', restrictTo('buyer', 'tenant'), developerReviewController.createDeveloperReview);
-
+router.post('/developers/:id/reviews', developerReviewController.createDeveloperReview);
+router.post('/developers/:id/review', developerReviewController.createDeveloperReview);
 
 router.get('/me', userController.getMe);
+router.get('/dashboard', propertyController.getMyDashboard);
+router.get('/my-dashboard', propertyController.getMyDashboard);
 
 router.patch('/update-me', upload.any(), userController.updateMe);
 

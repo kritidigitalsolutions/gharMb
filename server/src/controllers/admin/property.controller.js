@@ -33,13 +33,29 @@ exports.getAllProperties = async (req, res, next) => {
       ];
     }
 
-    const properties = await Property.find(filter)
-      .sort({ createdAt: -1 })
-      .populate('owner', 'name email phone role isVerified companyName');
+    const pageNum = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limitNum = Math.max(1, Math.min(100, parseInt(req.query.limit, 10) || 20));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [properties, total] = await Promise.all([
+      Property.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .populate('owner', 'name email phone role isVerified companyName'),
+      Property.countDocuments(filter),
+    ]);
+
+    const totalPages = Math.ceil(total / limitNum) || 1;
 
     res.status(200).json({
       status: 'success',
       results: properties.length,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages,
+      hasMore: pageNum < totalPages,
       data: {
         properties,
       },

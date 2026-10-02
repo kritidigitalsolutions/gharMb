@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Search, RefreshCw, MapPin, Building, Building2,
   Clock, CheckCircle2, XCircle, ChevronRight, ChevronLeft,
@@ -7,33 +7,80 @@ import {
   Maximize, Home, Sparkles, Filter, Eye, Check,
   ExternalLink, Layers, FileText, Phone, Mail,
   Calendar, Award, CheckSquare, Compass, ShieldAlert,
-  ArrowRight, Download, FileCheck, HardHat
+  ArrowRight, Download, FileCheck, HardHat, CheckCircle,
+  HelpCircle, ArrowUpRight, CheckCheck, MessageSquare,
+  FileSpreadsheet, ClipboardCheck, Info, Copy, AlertTriangle,
+  PhoneCall, RotateCcw
 } from 'lucide-react';
 
 const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
 const API_URL = `${API_BASE}/api`;
 
+const QUICK_REJECTION_REASONS = [
+  'Documents incomplete or missing',
+  'Price or area specifications discrepancy',
+  'Low quality or misleading photographs',
+  'Physical address or location could not be verified',
+  'RERA registration missing or unverified',
+  'Duplicate property listing'
+];
+
+const STANDARD_DOCUMENT_TYPES = [
+  { key: 'identityProof', label: 'Identity / PAN Proof' },
+  { key: 'reraCertificate', label: 'RERA Registration Certificate' },
+  { key: 'electricityBill', label: 'Electricity / Utility Bill' },
+  { key: 'taxReceipt', label: 'Property Tax Receipt' },
+  { key: 'saleDeed', label: 'Title Deed / Sale Deed' },
+  { key: 'khataCertificate', label: 'Khata / Mutation Certificate' },
+  { key: 'encumbranceCertificate', label: 'Encumbrance Certificate (EC)' }
+];
+
 const PropertyVerification = () => {
-  // --- States ---
-  const [activePipeline, setActivePipeline] = useState('properties'); // 'properties' or 'projects'
+  // --- Core States ---
+  const [activePipeline, setActivePipeline] = useState('properties'); // 'properties' | 'projects'
   const [properties, setProperties] = useState([]);
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  
+  const [lastSyncTime, setLastSyncTime] = useState(new Date());
+
+  // Navigation & Tabs inside detail pane
+  const [activeDetailTab, setActiveDetailTab] = useState('specs'); // 'specs' | 'docs' | 'audit'
+
   // Filters & Category
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('ALL'); // ALL, Residential, Commercial, Industrial, Land
-  const [statusFilter, setStatusFilter] = useState('All'); // All, Pending, Approved, Rejected
+  const [activeCategory, setActiveCategory] = useState('ALL'); // ALL, Residential, Commercial, Land
+  const [statusFilter, setStatusFilter] = useState('Pending'); // Default to Pending for efficient workflow!
   const [conditionFilter, setConditionFilter] = useState('All');
-  
+
   // Selection & Editing
-  const [selectedItem, setSelectedItem] = useState(null); // Property or Project
+  const [selectedItem, setSelectedItem] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(null);
   const [remarks, setRemarks] = useState('');
-  const [rejectionReason, setRejectionReason] = useState('Documents incomplete');
+  const [isSubmittingAction, setIsSubmittingAction] = useState(false);
+
+  // Modals (Shown ONLY when explicitly needed!)
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [selectedRejectReason, setSelectedRejectReason] = useState(QUICK_REJECTION_REASONS[0]);
+  const [customRejectNote, setCustomRejectNote] = useState('');
+  
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // In-app Toast Notification (Non-blocking replacement for browser alerts)
+  const [toast, setToast] = useState(null); // { message, type: 'success' | 'error' | 'info' }
+  const toastTimeoutRef = useRef(null);
+
+  const showToast = (message, type = 'success') => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast({ message, type });
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast(null);
+    }, 3800);
+  };
 
   // Lightbox Modal state
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -48,6 +95,22 @@ const PropertyVerification = () => {
     amenitiesConfirmed: false
   });
 
+  // Keyboard navigation for lightbox
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!lightboxOpen || !selectedItem) return;
+      if (e.key === 'Escape') setLightboxOpen(false);
+      if (e.key === 'ArrowLeft') {
+        setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : selectedItem.images.length - 1));
+      }
+      if (e.key === 'ArrowRight') {
+        setActiveImageIndex((prev) => (prev < selectedItem.images.length - 1 ? prev + 1 : 0));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxOpen, selectedItem]);
+
   const getAuthHeaders = () => {
     const token = localStorage.getItem('adminToken');
     return {
@@ -60,16 +123,22 @@ const PropertyVerification = () => {
   const formatCurrency = (val) => {
     if (!val || isNaN(val)) return '0';
     const num = Number(val);
-    if (num >= 10000000) return `${(num / 10000000).toFixed(2)} Cr`;
-    if (num >= 100000) return `${(num / 100000).toFixed(2)} L`;
+    if (num >= 10000000) return `${(num / 10000000).toFixed(2).replace(/\.00$/, '')} Cr`;
+    if (num >= 100000) return `${(num / 100000).toFixed(2).replace(/\.00$/, '')} L`;
     return num.toLocaleString('en-IN');
   };
 
-  // Map Backend Property to UI model
+  // Helper to copy text to clipboard
+  const copyToClipboard = (text, label) => {
+    if (!text || text === 'N/A') return;
+    navigator.clipboard?.writeText(text);
+    showToast(`${label} copied to clipboard!`, 'info');
+  };
+
+  // Map Backend Property to UI model — 100% real data, no hardcoded fallbacks
   const mapPropertyToUi = (p) => {
-    const images = Array.isArray(p.images) && p.images.length > 0
-      ? p.images
-      : ['https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&auto=format&fit=crop&q=80'];
+    // Only use real uploaded images; empty array if none uploaded yet
+    const images = Array.isArray(p.images) && p.images.length > 0 ? p.images : [];
 
     const carpet = Number(p.carpetArea) || 0;
     const priceNum = Number(p.price) || 0;
@@ -82,99 +151,161 @@ const PropertyVerification = () => {
       id: p.submissionId || `PROP-${p._id.slice(-4).toUpperCase()}`,
       title: p.title || 'Untitled Property',
       category: p.category || 'Residential',
-      subCategory: p.propertyType || 'Apartment',
-      configuration: `${p.bedrooms ? p.bedrooms + ' BHK ' : ''}${p.propertyType || 'Property'}`,
-      ownerName: p.owner?.companyName || p.owner?.name || 'Property Lister',
+      subCategory: p.propertyType || '',
+      // Configuration from real bedrooms & propertyType fields
+      configuration: [
+        p.bedrooms ? `${p.bedrooms} BHK` : null,
+        p.bathrooms ? `${p.bathrooms} Bath` : null,
+        p.propertyType || null
+      ].filter(Boolean).join(' · ') || p.propertyType || 'N/A',
+      listingFor: p.listingFor || 'N/A',
+      ownerName: p.owner?.companyName || p.owner?.name || 'N/A',
       ownerRole: p.listingAs || (p.owner?.role === 'builder' ? 'Builder' : p.owner?.role === 'agent' ? 'Agent' : 'Owner'),
       ownerPhone: p.owner?.phone || 'N/A',
       ownerEmail: p.owner?.email || 'N/A',
-      location: `${p.fullAddress || ''} ${p.locality ? p.locality + ', ' : ''}${p.city || ''}${p.pincode ? ' - ' + p.pincode : ''}`.trim() || 'Location not specified',
+      ownerVerified: p.owner?.isVerified || false,
+      location: [
+        p.fullAddress,
+        p.locality ? `${p.locality},` : null,
+        p.city,
+        p.pincode ? `- ${p.pincode}` : null
+      ].filter(Boolean).join(' ').trim() || 'Location not specified',
       locality: p.locality || '',
       city: p.city || '',
       pincode: p.pincode || '',
       price: formatCurrency(p.price),
       priceVal: priceNum,
       pricePerSqFt,
-      maintenanceCharges: p.maintenanceCharges ? `₹${Number(p.maintenanceCharges).toLocaleString('en-IN')}/month` : 'N/A',
-      tokenAmount: p.securityDeposit ? `₹${Number(p.securityDeposit).toLocaleString('en-IN')}` : '₹1,00,000',
-      area: `${p.builtUpArea || p.carpetArea || 0} sq.ft`,
-      carpetArea: `${p.carpetArea || 0} sq.ft`,
-      condition: p.ageOfProperty || 'Ready to Move',
-      possessionDate: p.ageOfProperty || 'Immediate',
-      floorInfo: p.floorNo ? `${p.floorNo} of ${p.totalFloors || 'N/A'} Floors` : 'N/A',
-      facing: p.facingDirection ? `${p.facingDirection} Facing` : 'East Facing',
-      furnishing: p.furnishing || 'Unfurnished',
+      // Real maintenance charges from DB
+      maintenanceCharges: p.maintenanceCharges > 0 ? `₹${Number(p.maintenanceCharges).toLocaleString('en-IN')}/mo` : 'N/A',
+      // Real security deposit from DB — no hardcoded default
+      tokenAmount: p.securityDeposit > 0 ? `₹${Number(p.securityDeposit).toLocaleString('en-IN')}` : 'N/A',
+      area: p.builtUpArea ? `${p.builtUpArea} sq.ft` : p.carpetArea ? `${p.carpetArea} sq.ft` : 'N/A',
+      carpetArea: p.carpetArea ? `${p.carpetArea} sq.ft` : 'N/A',
+      // Real age/condition from DB
+      condition: p.ageOfProperty || 'N/A',
+      possessionDate: p.availableFrom || p.ageOfProperty || 'N/A',
+      floorInfo: p.floorNo ? `Floor ${p.floorNo}${p.totalFloors ? ` of ${p.totalFloors}` : ''}` : 'N/A',
+      // Real facing direction — no fallback
+      facing: p.facingDirection ? `${p.facingDirection} Facing` : 'N/A',
+      furnishing: p.furnishing || 'N/A',
+      parking: p.parking || 'N/A',
       reraNumber: p.propertyDocuments?.reraCertificate || '',
       reraStatus: p.approvalStatus === 'approved' ? 'Verified' : 'Pending Verification',
-      amenities: Array.isArray(p.amenities) && p.amenities.length > 0 ? p.amenities : ['24/7 Security', 'Power Backup'],
+      // Real amenities only — no dummy fallback array
+      amenities: Array.isArray(p.amenities) ? p.amenities : [],
+      preferredTenants: Array.isArray(p.preferredTenants) ? p.preferredTenants : [],
+      brokerageFree: p.brokerageFree || false,
+      rentNegotiable: p.rentNegotiable || false,
+      noticePeriod: p.noticePeriod || 'N/A',
+      petsAllowed: p.petsAllowed || false,
       status: p.approvalStatus === 'approved' ? 'Approved' : p.approvalStatus === 'rejected' ? 'Rejected' : 'Pending',
       approvalStatus: p.approvalStatus || 'pending',
+      rejectionReason: p.rejectionReason || '',
       isLive: p.isLive || false,
-      submittedDate: p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent',
+      listingTier: p.listingTier || 'Standard',
+      submittedDate: p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
       images,
       propertyDocuments: p.propertyDocuments || {},
       documents: Array.isArray(p.documents) ? p.documents : [],
       description: p.description || '',
+      // Commercial-specific real fields — no hardcoded strings
       commercialTerms: {
         lockInPeriod: p.lockInPeriod || 'N/A',
-        securityDeposit: p.securityDeposit ? `₹${Number(p.securityDeposit).toLocaleString('en-IN')}` : 'N/A',
-        powerLoad: p.powerLoad ? `${p.powerLoad} kVA` : 'N/A',
-        parkingRatio: 'Dedicated Slots Available',
-        acType: 'Central Chiller / Split',
-        zoning: 'Commercial Approved'
+        securityDeposit: p.securityDeposit > 0 ? `₹${Number(p.securityDeposit).toLocaleString('en-IN')}` : 'N/A',
+        powerLoad: p.powerLoad ? `${p.powerLoad} kW` : 'N/A',
+        frontage: p.frontage ? `${p.frontage} ft` : 'N/A',
+        ceilingHeight: p.ceilingHeight || 'N/A',
+        camIncluded: p.camIncluded || 'N/A',
+        rentEscalation: p.rentEscalationPercentage ? `${p.rentEscalationPercentage}% p.a.` : 'N/A'
       },
+      // Analytics from DB
+      viewsCount: p.viewsCount || 0,
+      shortlistedCount: p.shortlistedCount || 0,
+      inquiriesCount: p.inquiriesCount || 0,
       itemType: 'property'
     };
   };
 
-  // Map Backend Project to UI model
+  // Map Backend Project to UI model — 100% real data, no hardcoded fallbacks
   const mapProjectToUi = (p) => {
-    const images = Array.isArray(p.projectPhotos) && p.projectPhotos.length > 0
-      ? p.projectPhotos
-      : ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=1200&auto=format&fit=crop&q=80'];
+    // Only use real uploaded project photos; empty array if none
+    const images = Array.isArray(p.projectPhotos) && p.projectPhotos.length > 0 ? p.projectPhotos : [];
+
+    // Price from real BHK configurations, no hardcoded fallback
+    const firstBhk = Array.isArray(p.bhkConfigurations) && p.bhkConfigurations.length > 0 ? p.bhkConfigurations[0] : null;
+    const priceDisplay = firstBhk?.minPrice > 0
+      ? `${formatCurrency(firstBhk.minPrice)} onwards`
+      : 'Price on Request';
 
     return {
       _id: p._id,
       id: p.submissionId || `PRJ-${p._id.slice(-4).toUpperCase()}`,
-      title: p.projectName || 'Developer Project',
-      category: 'Residential',
+      title: p.projectName || 'Untitled Project',
+      category: p.projectType || 'Residential',
       subCategory: p.projectType || 'Project',
-      configuration: `${p.towers ? p.towers + ' Towers • ' : ''}${p.totalUnits ? p.totalUnits + ' Total Units' : 'Gated Township'}`,
-      ownerName: p.developerName || p.developer?.companyName || p.developer?.name || 'Developer',
-      ownerRole: 'Builder',
+      // Real towers & units — no hardcoded fallback string
+      configuration: [
+        p.towers ? `${p.towers} Tower${p.towers > 1 ? 's' : ''}` : null,
+        p.totalUnits ? `${p.totalUnits} Units` : null,
+        p.floors ? `${p.floors} Floors` : null
+      ].filter(Boolean).join(' · ') || 'N/A',
+      ownerName: p.developerName || p.developer?.companyName || p.developer?.name || 'N/A',
+      ownerRole: 'Builder / Developer',
       ownerPhone: p.developer?.phone || 'N/A',
       ownerEmail: p.developer?.email || 'N/A',
-      location: `${p.fullAddress || ''} ${p.locality ? p.locality + ', ' : ''}${p.city || ''}${p.pincode ? ' - ' + p.pincode : ''}`.trim() || 'Location not specified',
+      ownerVerified: p.developer?.isVerified || false,
+      location: [
+        p.fullAddress,
+        p.locality ? `${p.locality},` : null,
+        p.city,
+        p.pincode ? `- ${p.pincode}` : null
+      ].filter(Boolean).join(' ').trim() || 'Location not specified',
       locality: p.locality || '',
       city: p.city || '',
       pincode: p.pincode || '',
-      price: p.bhkConfigurations?.[0] ? formatCurrency(p.bhkConfigurations[0].minPrice) + ' onw.' : 'Price on Request',
-      priceVal: p.bhkConfigurations?.[0]?.minPrice || 0,
-      pricePerSqFt: 'N/A',
+      price: priceDisplay,
+      priceVal: firstBhk?.minPrice || 0,
+      pricePerSqFt: firstBhk?.carpetArea && firstBhk?.minPrice
+        ? `₹${Math.round(firstBhk.minPrice / firstBhk.carpetArea).toLocaleString('en-IN')}/sq.ft`
+        : 'N/A',
       maintenanceCharges: 'N/A',
-      tokenAmount: '₹2,50,000',
-      area: `${p.openSpacePercentage || 70}% Open Green Area`,
-      carpetArea: `${p.bhkConfigurations?.[0]?.carpetArea || 0} sq.ft onw.`,
-      condition: p.projectStatus || 'Under construction',
-      possessionDate: p.possessionDate || 'Dec 2026',
-      floorInfo: p.floors || 'G + 14 Floors',
-      facing: 'Vastu Compliant Layout',
-      furnishing: 'Bare Shell / Semi-Furnished',
-      reraNumber: p.reraProjectNumber || 'Pending RERA',
+      // No hardcoded token amount for projects
+      tokenAmount: 'N/A',
+      area: p.openSpacePercentage > 0 ? `${p.openSpacePercentage}% Open Area` : 'N/A',
+      carpetArea: firstBhk?.carpetArea ? `${firstBhk.carpetArea} sq.ft onwards` : 'N/A',
+      // Real project status from DB
+      condition: p.projectStatus || 'N/A',
+      possessionDate: p.possessionDate || 'N/A',
+      floorInfo: p.floors || 'N/A',
+      // No hardcoded 'Vastu Compliant' — from real field
+      facing: p.vastuCompliant ? 'Vastu Compliant' : 'N/A',
+      furnishing: 'N/A',
+      parking: 'N/A',
+      // Real RERA number from DB — no 'Pending RERA' fallback
+      reraNumber: p.reraProjectNumber || '',
+      reraExpiryDate: p.reraExpiryDate || 'N/A',
+      launchDate: p.launchDate || 'N/A',
       reraStatus: p.approvalStatus === 'approved' ? 'Verified' : 'Pending Verification',
-      amenities: Array.isArray(p.amenities) && p.amenities.length > 0 ? p.amenities : ['Clubhouse', 'Swimming Pool', 'Gym', '24/7 Security'],
+      // Real amenities only — no dummy fallback array
+      amenities: Array.isArray(p.amenities) ? p.amenities : [],
+      nearbyLandmarks: Array.isArray(p.nearbyLandmarks) ? p.nearbyLandmarks : [],
       status: p.approvalStatus === 'approved' ? 'Approved' : p.approvalStatus === 'rejected' ? 'Rejected' : 'Pending',
       approvalStatus: p.approvalStatus || 'pending',
+      rejectionReason: p.rejectionReason || '',
       isLive: p.isLive || false,
-      submittedDate: p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent',
+      submittedDate: p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
       images,
       bhkConfigurations: Array.isArray(p.bhkConfigurations) ? p.bhkConfigurations : [],
-      masterPlanUrl: p.masterPlanUrl,
-      floorPlanUrl: p.floorPlanUrl,
-      brochureUrl: p.brochureUrl,
-      projectWebsite: p.projectWebsite,
-      projectTagline: p.projectTagline,
+      masterPlanUrl: p.masterPlanUrl || null,
+      floorPlanUrl: p.floorPlanUrl || null,
+      brochureUrl: p.brochureUrl || null,
+      projectWebsite: p.projectWebsite || null,
+      projectTagline: p.projectTagline || '',
       description: p.shortDescription || '',
+      // Analytics from DB
+      viewsCount: p.viewsCount || 0,
+      inquiriesCount: p.inquiriesCount || 0,
       itemType: 'project'
     };
   };
@@ -184,7 +315,6 @@ const PropertyVerification = () => {
     setIsLoading(true);
     setError(null);
     try {
-      // 1. Fetch Properties
       const propRes = await fetch(`${API_URL}/admin/properties`, {
         headers: getAuthHeaders()
       });
@@ -194,7 +324,6 @@ const PropertyVerification = () => {
         setProperties(mapped);
       }
 
-      // 2. Fetch Projects
       const projRes = await fetch(`${API_URL}/admin/projects`, {
         headers: getAuthHeaders()
       });
@@ -203,6 +332,7 @@ const PropertyVerification = () => {
         const mappedProj = (projData.data?.projects || []).map(mapProjectToUi);
         setProjects(mappedProj);
       }
+      setLastSyncTime(new Date());
     } catch (err) {
       console.error('Error fetching admin moderation data:', err);
       setError('Could not connect to backend server. Please verify backend is running on port 5001.');
@@ -215,8 +345,30 @@ const PropertyVerification = () => {
     fetchData();
   }, []);
 
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchData();
+    setIsRefreshing(false);
+    showToast('Listing pipeline refreshed successfully.', 'info');
+  };
+
+  const switchPipeline = (pipeline) => {
+    if (isEditing) {
+      showToast('Please save or cancel your corrections before switching.', 'info');
+      return;
+    }
+    setActivePipeline(pipeline);
+    setSelectedItem(null);
+    setFormData(null);
+  };
+
   // --- Handlers ---
   const handleSelectItem = (item) => {
+    if (!item) {
+      setSelectedItem(null);
+      setFormData(null);
+      return;
+    }
     setSelectedItem(item);
     setFormData({ ...item });
     setIsEditing(false);
@@ -235,21 +387,31 @@ const PropertyVerification = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleCommercialChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      commercialTerms: {
-        ...prev.commercialTerms,
-        [name]: value
-      }
-    }));
+  const handleCheckAll = () => {
+    const allChecked = Object.values(reviewChecklist).every(Boolean);
+    const nextState = !allChecked;
+    setReviewChecklist({
+      priceValid: nextState,
+      photosApproved: nextState,
+      addressVerified: nextState,
+      reraChecked: nextState,
+      amenitiesConfirmed: nextState
+    });
+    showToast(nextState ? 'All 5 checklist parameters verified.' : 'Checklist reset.', 'info');
   };
 
-  // Save Edits to backend
+  // Save Edits to backend (NO browser alerts)
   const saveEdits = async () => {
-    if (!formData.title || !formData.price || !formData.location) {
-      alert('Please ensure Title, Price, and Location are filled in.');
+    if (!formData.title?.trim()) {
+      showToast('Listing title cannot be empty.', 'error');
+      return;
+    }
+    if (!formData.priceVal && !formData.price) {
+      showToast('Please provide a valid listing price.', 'error');
+      return;
+    }
+    if (!formData.location?.trim()) {
+      showToast('Listing address / location is required.', 'error');
       return;
     }
 
@@ -269,35 +431,45 @@ const PropertyVerification = () => {
           locality: formData.locality,
           category: formData.category,
           condition: formData.condition,
+          furnishing: formData.furnishing,
           reraNumber: formData.reraNumber
         })
       });
 
-      if (res.ok) {
-        alert(`Corrections successfully saved for ${formData.id}.`);
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
         setIsEditing(false);
-        fetchData();
+        showToast(`Listing ${formData.id} updated successfully!`, 'success');
+        await fetchData();
+
+        const updated = formData.itemType === 'project'
+          ? (data.data?.project ? mapProjectToUi(data.data.project) : null)
+          : (data.data?.property ? mapPropertyToUi(data.data.property) : null);
+        if (updated) {
+          setSelectedItem(updated);
+          setFormData(updated);
+        }
       } else {
-        const data = await res.json();
-        alert(data.message || 'Failed to save edits to server.');
+        showToast(data.message || 'Failed to save edits to server.', 'error');
       }
     } catch (err) {
       console.error(err);
-      alert('Network error while saving edits.');
+      showToast('Network error while saving edits.', 'error');
     }
   };
 
-  // Real-time Update Status (Approve / Reject) in MongoDB
-  const updateStatus = async (newStatus) => {
+  // Real-time Update Status (Approve / Reject / Reset) in MongoDB (NO browser alerts)
+  const updateStatus = async (newStatus, explicitReason = null) => {
     if (!selectedItem) return;
 
     if (isEditing) {
-      alert("Please save your corrections before taking moderation action.");
+      showToast('Please save or cancel your corrections before updating status.', 'info');
       return;
     }
 
+    setIsSubmittingAction(true);
     const apiStatus = newStatus === 'Approved' ? 'approved' : newStatus === 'Rejected' ? 'rejected' : 'pending';
-    const activeRemarks = remarks || (newStatus === 'Rejected' ? rejectionReason : 'Verified & Approved by Admin');
+    const activeRemarks = explicitReason || remarks || (newStatus === 'Rejected' ? selectedRejectReason : 'Verified & Approved by Admin');
 
     try {
       const endpoint = selectedItem.itemType === 'project'
@@ -315,11 +487,19 @@ const PropertyVerification = () => {
 
       const data = await res.json();
       if (res.ok && data.status === 'success') {
-        alert(`Listing ${selectedItem.id} marked as ${newStatus} (${newStatus === 'Approved' ? 'LIVE on platform' : 'Hidden from public'}).`);
         setRemarks('');
+        setShowRejectModal(false);
+        setCustomRejectNote('');
+
+        const actionLabel = newStatus === 'Approved' 
+          ? 'approved and published live! 🏡' 
+          : newStatus === 'Rejected' 
+          ? 'marked as rejected.' 
+          : 'reset to pending audit.';
+        showToast(`Listing ${selectedItem.id} ${actionLabel}`, newStatus === 'Approved' ? 'success' : newStatus === 'Rejected' ? 'error' : 'info');
+
         await fetchData();
 
-        // Update active selection view
         if (selectedItem.itemType === 'project') {
           const updated = (data.data?.project) ? mapProjectToUi(data.data.project) : null;
           if (updated) {
@@ -334,21 +514,20 @@ const PropertyVerification = () => {
           }
         }
       } else {
-        alert(data.message || 'Failed to update approval status.');
+        showToast(data.message || 'Failed to update approval status.', 'error');
       }
     } catch (err) {
       console.error('Error updating status:', err);
-      alert('Connection error while updating status.');
+      showToast('Connection error while updating status.', 'error');
+    } finally {
+      setIsSubmittingAction(false);
     }
   };
 
-  // Permanently Delete from DB
-  const deleteItem = async () => {
+  // Permanently Delete from DB (Controlled via in-app confirmation modal)
+  const confirmDelete = async () => {
     if (!selectedItem) return;
-
-    if (!window.confirm(`Are you sure you want to permanently delete listing ${selectedItem.id} from the database?`)) {
-      return;
-    }
+    setIsDeleting(true);
 
     try {
       const endpoint = selectedItem.itemType === 'project'
@@ -361,17 +540,21 @@ const PropertyVerification = () => {
       });
 
       if (res.ok) {
-        alert(`Listing ${selectedItem.id} permanently deleted.`);
+        const deletedId = selectedItem.id;
+        setShowDeleteModal(false);
         setSelectedItem(null);
         setFormData(null);
-        fetchData();
+        showToast(`Listing ${deletedId} permanently deleted from database.`, 'success');
+        await fetchData();
       } else {
         const data = await res.json();
-        alert(data.message || 'Failed to delete listing.');
+        showToast(data.message || 'Failed to delete listing.', 'error');
       }
     } catch (err) {
       console.error(err);
-      alert('Error connecting to server.');
+      showToast('Error connecting to server while deleting.', 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -384,214 +567,250 @@ const PropertyVerification = () => {
   const currentList = activePipeline === 'properties' ? properties : projects;
 
   // Filtering Logic
-  const filteredItems = currentList.filter(p => {
-    const matchesSearch = 
-      p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      p.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.ownerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.city.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesCategory = activeCategory === 'ALL' || p.category === activeCategory;
-    const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
-    const matchesCondition = conditionFilter === 'All' || p.condition.toLowerCase().includes(conditionFilter.toLowerCase());
+  const filteredItems = useMemo(() => {
+    return currentList.filter(p => {
+      const matchesSearch = 
+        !searchQuery.trim() ||
+        p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        p.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.ownerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.city.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesCategory = activeCategory === 'ALL' || p.category === activeCategory;
+      const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
+      const matchesCondition = conditionFilter === 'All' || p.condition.toLowerCase().includes(conditionFilter.toLowerCase());
 
-    return matchesSearch && matchesCategory && matchesStatus && matchesCondition;
-  });
+      return matchesSearch && matchesCategory && matchesStatus && matchesCondition;
+    });
+  }, [currentList, searchQuery, activeCategory, statusFilter, conditionFilter]);
 
-  const categories = ['ALL', 'Residential', 'Commercial', 'Industrial', 'Land'];
-  const isCurrentBuilderOrNew = formData && (formData.ownerRole === 'Builder' || formData.condition === 'Under Construction' || formData.itemType === 'project');
+  // Auto-select first item when list loads or changes to avoid empty right pane
+  useEffect(() => {
+    if (filteredItems.length > 0) {
+      const isStillSelected = selectedItem && filteredItems.some(i => i._id === selectedItem._id);
+      if (!isStillSelected) {
+        const firstPending = filteredItems.find(i => i.status === 'Pending') || filteredItems[0];
+        handleSelectItem(firstPending);
+      }
+    } else {
+      setSelectedItem(null);
+      setFormData(null);
+    }
+  }, [filteredItems]);
+
+  const categories = ['ALL', 'Residential', 'Commercial', 'Land'];
+
+  // Global counts for quick moderation filter pills
+  const totalPending = currentList.filter(p => p.status === 'Pending').length;
+  const totalApproved = currentList.filter(p => p.status === 'Approved').length;
+  const totalRejected = currentList.filter(p => p.status === 'Rejected').length;
+  const totalAll = currentList.length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3.5 pb-8 relative">
       
-      {/* ─── HEADER KPI CARDS ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xs flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[10px] font-extrabold uppercase text-[var(--text-muted)] tracking-wider">Pending Moderation</span>
-            <h3 className="text-xl font-black text-amber-500">
-              {properties.filter(p => p.status === 'Pending').length + projects.filter(p => p.status === 'Pending').length} Listings
-            </h3>
-            <p className="text-[10px] text-[var(--text-subtle)]">Requires admin audit</p>
+      {/* ─── 01. UNIFIED, HIGH-EFFICIENCY CONTROL STRIP (Compact & Action-Oriented) ─── */}
+      <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl px-4 py-2.5 shadow-2xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        
+        {/* Left: Section identity + Pipeline Switcher */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-brand" />
+            <h1 className="text-xs sm:text-[13px] font-bold tracking-tight text-[var(--text-primary)]">
+              Listing Verification
+            </h1>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold">
-            <Clock size={20} />
+
+          <span className="text-[var(--border)]">|</span>
+
+          {/* Properties vs Developer Projects Toggle */}
+          <div className="inline-flex items-center rounded-lg bg-[var(--bg-muted)]/70 p-0.5 border border-[var(--border)] text-[11px]">
+            <button
+              type="button"
+              onClick={() => switchPipeline('properties')}
+              className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${
+                activePipeline === 'properties'
+                  ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-2xs font-semibold'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <Home size={12} className={activePipeline === 'properties' ? 'text-brand' : ''} />
+              <span>Properties ({properties.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => switchPipeline('projects')}
+              className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${
+                activePipeline === 'projects'
+                  ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-2xs font-semibold'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <Building2 size={12} className={activePipeline === 'projects' ? 'text-brand' : ''} />
+              <span>Projects ({projects.length})</span>
+            </button>
           </div>
         </div>
 
-        <div className="p-4 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xs flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[10px] font-extrabold uppercase text-[var(--text-muted)] tracking-wider">Live & Approved</span>
-            <h3 className="text-xl font-black text-emerald-500">
-              {properties.filter(p => p.status === 'Approved').length + projects.filter(p => p.status === 'Approved').length} Live
-            </h3>
-            <p className="text-[10px] text-[var(--text-subtle)]">Published on GharMB</p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold">
-            <CheckCircle2 size={20} />
-          </div>
+        {/* Right: Interactive Moderation Filter Pills */}
+        <div className="flex items-center gap-1.5 flex-wrap w-full md:w-auto justify-end text-[11px]">
+          <button
+            type="button"
+            onClick={() => setStatusFilter('Pending')}
+            className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 border cursor-pointer ${
+              statusFilter === 'Pending'
+                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-semibold shadow-2xs'
+                : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border)] hover:bg-[var(--bg-muted)]'
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <span>Needs Audit</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 font-bold">
+              {totalPending}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter('Approved')}
+            className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 border cursor-pointer ${
+              statusFilter === 'Approved'
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-semibold shadow-2xs'
+                : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border)] hover:bg-[var(--bg-muted)]'
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span>Live Approved</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/15 font-bold">
+              {totalApproved}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter('Rejected')}
+            className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 border cursor-pointer ${
+              statusFilter === 'Rejected'
+                ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 font-semibold shadow-2xs'
+                : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border)] hover:bg-[var(--bg-muted)]'
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+            <span>Rejected</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/15 font-bold">
+              {totalRejected}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter('All')}
+            className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 border cursor-pointer ${
+              statusFilter === 'All'
+                ? 'bg-[var(--text-primary)] text-[var(--bg-surface)] border-[var(--text-primary)] font-semibold shadow-2xs'
+                : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border)] hover:bg-[var(--bg-muted)]'
+            }`}
+          >
+            <span>All ({totalAll})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            disabled={isLoading || isRefreshing}
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] border border-[var(--border)] transition-colors cursor-pointer ml-1"
+            title="Refresh database records"
+          >
+            <RefreshCw size={12} className={isLoading || isRefreshing ? 'animate-spin text-brand' : ''} />
+          </button>
         </div>
 
-        <div className="p-4 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xs flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[10px] font-extrabold uppercase text-[var(--text-muted)] tracking-wider">Developer Projects</span>
-            <h3 className="text-xl font-black text-blue-500">{projects.length} Projects</h3>
-            <p className="text-[10px] text-[var(--text-subtle)]">Builder townships & towers</p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center font-bold">
-            <Building2 size={20} />
-          </div>
-        </div>
-
-        <div className="p-4 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xs flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[10px] font-extrabold uppercase text-[var(--text-muted)] tracking-wider">Total in Database</span>
-            <h3 className="text-xl font-black text-brand">{properties.length + projects.length} Listings</h3>
-            <p className="text-[10px] text-[var(--text-subtle)]">Live MongoDB records</p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-brand-light text-brand flex items-center justify-center font-bold">
-            <ShieldCheck size={20} />
-          </div>
-        </div>
       </div>
 
-      {/* ─── MAIN VERIFICATION WORKFLOW CONTAINER ─── */}
-      <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-3xl shadow-sm overflow-hidden flex flex-col lg:flex-row min-h-[750px]">
+      {/* ─── 02. CLEAN TWO-PANEL WORKBENCH CONTAINER ─── */}
+      <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-2xs overflow-hidden flex flex-col lg:flex-row h-[calc(100vh-160px)] min-h-[640px]">
         
-        {/* ─── LEFT PANEL: PIPELINE & SEARCH ─── */}
-        <div className="w-full lg:w-[42%] xl:w-[38%] border-b lg:border-b-0 lg:border-r border-[var(--border)] flex flex-col bg-[var(--bg-muted)]/40">
+        {/* ─── LEFT STREAM: FOCUSED LISTING LIST (360px) ─── */}
+        <div className="w-full lg:w-[360px] border-b lg:border-b-0 lg:border-r border-[var(--border)] flex flex-col bg-[var(--bg-surface)] shrink-0">
           
-          {/* Top Pipeline Switcher & Search Bar */}
-          <div className="p-4 sm:p-5 border-b border-[var(--border)] space-y-4 bg-[var(--bg-surface)]">
-            
-            {/* Pipeline Switcher: Properties vs Developer Projects */}
-            <div className="flex items-center gap-2 p-1 bg-[var(--bg-muted)] rounded-2xl border border-[var(--border)]">
-              <button
-                onClick={() => {
-                  setActivePipeline('properties');
-                  setSelectedItem(null);
-                }}
-                className={`flex-1 py-2 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  activePipeline === 'properties'
-                    ? 'bg-brand text-white shadow-sm'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                <Home size={14} /> Properties ({properties.length})
-              </button>
-
-              <button
-                onClick={() => {
-                  setActivePipeline('projects');
-                  setSelectedItem(null);
-                }}
-                className={`flex-1 py-2 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  activePipeline === 'projects'
-                    ? 'bg-brand text-white shadow-sm'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                <Building2 size={14} /> Projects ({projects.length})
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-extrabold text-[var(--text-primary)]">
-                  {activePipeline === 'properties' ? 'Property Moderation Pipeline' : 'Developer Projects Pipeline'}
-                </h2>
-                <p className="text-[11px] text-[var(--text-muted)]">Select listing to inspect full details, photos & documents</p>
-              </div>
-              <button 
-                onClick={fetchData}
-                className="p-2 rounded-xl text-[var(--text-muted)] hover:text-brand hover:bg-[var(--bg-muted)] transition-all cursor-pointer"
-                title="Refresh Live Data"
-              >
-                <RefreshCw size={15} className={isLoading ? 'animate-spin' : ''} />
-              </button>
-            </div>
-
-            {/* Search Input */}
+          {/* Search & Category Filter */}
+          <div className="p-3 border-b border-[var(--border)] space-y-2.5 bg-[var(--bg-surface)]">
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={13} />
               <input
                 type="text"
-                placeholder="Search by ID, Title, City, Owner..."
+                placeholder="Search ID, title, locality, submitter..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-muted)] rounded-xl border border-[var(--border)] focus:outline-none focus:border-brand transition-all"
+                className="w-full pl-7.5 pr-7 py-1.5 bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-surface)] text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] rounded-lg border border-[var(--border)] focus:border-brand focus:ring-1 focus:ring-brand/20 outline-none transition-all"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] p-0.5 rounded cursor-pointer"
+                  title="Clear search"
+                >
+                  <X size={12} />
+                </button>
+              )}
             </div>
 
-            {/* Category Pills (Residential vs Commercial vs ALL) */}
+            {/* Compact Category Segment */}
             {activePipeline === 'properties' && (
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+              <div className="flex items-center gap-1 overflow-x-auto pb-0.5 custom-scrollbar text-[10.5px]">
                 {categories.map((cat) => {
-                  const count = cat === 'ALL' ? properties.length : properties.filter(p => p.category === cat).length;
+                  const count = cat === 'ALL'
+                    ? properties.length
+                    : properties.filter(p => p.category === cat).length;
+                  const isActive = activeCategory === cat;
+
                   return (
                     <button
                       key={cat}
+                      type="button"
                       onClick={() => setActiveCategory(cat)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
-                        activeCategory === cat
-                          ? 'bg-brand text-white shadow-xs shadow-brand/20'
-                          : 'bg-[var(--bg-muted)] text-[var(--text-subtle)] hover:bg-[var(--bg-hover)]'
+                      className={`px-2 py-0.5 rounded-md font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                        isActive
+                          ? 'bg-brand text-white font-semibold shadow-2xs'
+                          : 'bg-[var(--bg-muted)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                       }`}
                     >
-                      <span>{cat}</span>
-                      <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-black ${
-                        activeCategory === cat ? 'bg-white/25 text-white' : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
-                      }`}>
-                        {count}
-                      </span>
+                      {cat} ({count})
                     </button>
                   );
                 })}
               </div>
             )}
-
-            {/* Status & Condition Dropdowns */}
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <div>
-                <label className="text-[9px] font-extrabold text-[var(--text-muted)] uppercase tracking-wider block mb-1">Approval Status</label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full p-2 bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-primary)] rounded-xl border border-[var(--border)] focus:outline-none focus:border-brand cursor-pointer"
-                >
-                  <option value="All">All ({currentList.length})</option>
-                  <option value="Pending">Pending Review ({currentList.filter(p => p.status === 'Pending').length})</option>
-                  <option value="Approved">Approved / Live ({currentList.filter(p => p.status === 'Approved').length})</option>
-                  <option value="Rejected">Rejected ({currentList.filter(p => p.status === 'Rejected').length})</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[9px] font-extrabold text-[var(--text-muted)] uppercase tracking-wider block mb-1">Stage / Condition</label>
-                <select
-                  value={conditionFilter}
-                  onChange={(e) => setConditionFilter(e.target.value)}
-                  className="w-full p-2 bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-primary)] rounded-xl border border-[var(--border)] focus:outline-none focus:border-brand cursor-pointer"
-                >
-                  <option value="All">All Types</option>
-                  <option value="Under Construction">Under Construction</option>
-                  <option value="Ready to Move">Ready to Move</option>
-                  <option value="Resale">Resale</option>
-                </select>
-              </div>
-            </div>
           </div>
 
-          {/* Listing Cards Feed */}
-          <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 max-h-[600px] lg:max-h-none">
+          {/* Listing Cards Stream */}
+          <div className="flex-1 overflow-y-auto p-2 space-y-1.5 custom-scrollbar">
             {isLoading ? (
-              <div className="p-8 text-center text-xs text-[var(--text-muted)] font-semibold flex flex-col items-center gap-2">
-                <RefreshCw size={20} className="animate-spin text-brand" />
-                Loading live database records...
+              <div className="p-8 text-center text-xs text-[var(--text-muted)] flex flex-col items-center gap-2">
+                <RefreshCw size={16} className="animate-spin text-brand" />
+                <span>Loading listings...</span>
               </div>
             ) : filteredItems.length === 0 ? (
-              <div className="p-8 text-center text-xs text-[var(--text-muted)] font-semibold">
-                No {activePipeline} match the selected filters.
+              <div className="p-8 text-center space-y-2">
+                <div className="w-8 h-8 rounded-full bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)] mx-auto">
+                  <Filter size={14} />
+                </div>
+                <p className="text-xs font-semibold text-[var(--text-primary)]">No listings match filters</p>
+                <p className="text-[11px] text-[var(--text-muted)]">Try adjusting search or status criteria.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setStatusFilter('All');
+                    setActiveCategory('ALL');
+                  }}
+                  className="mt-1 px-3 py-1 bg-[var(--bg-muted)] hover:bg-[var(--bg-hover)] text-brand border border-brand/30 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Reset All Filters
+                </button>
               </div>
             ) : (
               filteredItems.map((p) => {
@@ -602,64 +821,104 @@ const PropertyVerification = () => {
                   <div
                     key={p._id}
                     onClick={() => handleSelectItem(p)}
-                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative ${
+                    className={`group relative p-2.5 rounded-xl border transition-all duration-200 cursor-pointer select-none ${
                       isSelected
-                        ? 'bg-[var(--bg-surface)] border-brand shadow-md shadow-brand/10 ring-2 ring-brand/15'
-                        : 'bg-[var(--bg-surface)] border-[var(--border)] hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xs'
+                        ? 'bg-brand/[0.04] dark:bg-brand/[0.08] border-brand/60 ring-1.5 ring-brand/30 shadow-xs hover:-translate-y-0.5 hover:shadow-md'
+                        : 'bg-[var(--bg-surface)] border-[var(--border)] hover:-translate-y-0.5 hover:shadow-md hover:border-brand/40 hover:bg-[var(--bg-muted)]/50'
                     }`}
                   >
-                    <div className="flex items-start gap-3">
-                      {/* Image Thumbnail */}
-                      <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0 border border-[var(--border)] bg-[var(--bg-muted)]">
-                        <img 
-                          src={p.images[0]} 
-                          alt={p.title} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
-                          onError={(e) => {
-                            e.target.src = 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400';
-                          }}
-                        />
-                        <span className="absolute bottom-1 right-1 bg-black/60 backdrop-blur-xs text-white text-[8px] font-bold px-1 rounded flex items-center gap-0.5">
-                          <ImageIcon size={8} /> {p.images.length}
-                        </span>
+                    <div className="flex items-start gap-2.5">
+                      {/* Photo Thumbnail — only real uploaded images */}
+                      <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-[var(--border)] bg-[var(--bg-muted)] flex items-center justify-center">
+                        {p.images.length > 0 ? (
+                          <>
+                            <img 
+                              src={p.images[0]} 
+                              alt={p.title} 
+                              className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-300"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                              }}
+                            />
+                            <span className="absolute bottom-0.5 right-0.5 bg-black/75 backdrop-blur-xs text-white text-[7.5px] font-semibold px-1 rounded flex items-center gap-0.5">
+                              <ImageIcon size={6} /> {p.images.length}
+                            </span>
+                          </>
+                        ) : (
+                          <ImageIcon size={18} className="text-[var(--text-muted)]/40" />
+                        )}
                       </div>
 
-                      {/* Content Overview */}
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="text-[10px] font-black text-brand tracking-tight">{p.id}</span>
-                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                            p.status === 'Approved'
-                              ? 'bg-emerald-500/10 text-emerald-600'
-                              : p.status === 'Rejected'
-                              ? 'bg-red-500/10 text-red-500'
-                              : 'bg-amber-500/10 text-amber-600'
-                          }`}>
-                            {p.status}
-                          </span>
-                        </div>
-
-                        <h4 className="text-xs font-bold text-[var(--text-primary)] truncate">{p.title}</h4>
-                        
-                        <p className="text-[10px] text-[var(--text-muted)] flex items-center gap-1 truncate">
-                          <MapPin size={10} className="text-slate-400 shrink-0" />
-                          <span className="truncate">{p.location}</span>
-                        </p>
-
-                        <div className="flex items-center justify-between pt-1 border-t border-[var(--border-muted)]">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-[var(--bg-muted)] text-[var(--text-subtle)]">
-                              {p.ownerRole}
+                      {/* Content Summary */}
+                      <div className="flex-1 min-w-0">
+                        {/* ID + Status */}
+                        <div className="flex items-center justify-between gap-1 mb-0.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className={`text-[10px] font-mono font-bold tracking-tight transition-colors ${
+                              isSelected
+                                ? 'bg-brand text-white px-1.5 py-0.2 rounded shadow-2xs'
+                                : 'text-brand'
+                            }`}>
+                              {p.id}
                             </span>
-                            {isCommercial && (
-                              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600">
-                                Commercial
+                            {isSelected && (
+                              <span className="text-[8px] font-bold px-1.5 py-0.2 rounded bg-brand/15 text-brand border border-brand/25 flex items-center gap-1">
+                                <span className="w-1 h-1 rounded-full bg-brand animate-pulse" />
+                                <span>Inspecting</span>
                               </span>
                             )}
                           </div>
-                          <span className="text-xs font-extrabold text-[var(--text-primary)]">
-                            ₹{p.price}
+
+                          <span className={`text-[8.5px] font-semibold px-1.5 py-0.2 rounded uppercase tracking-wider flex items-center gap-1 shrink-0 ${
+                            p.status === 'Approved'
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                              : p.status === 'Rejected'
+                              ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                          }`}>
+                            <span className={`w-1 h-1 rounded-full ${
+                              p.status === 'Approved' ? 'bg-emerald-500' : p.status === 'Rejected' ? 'bg-rose-500' : 'bg-amber-500 animate-pulse'
+                            }`} />
+                            <span>{p.status}</span>
                           </span>
+                        </div>
+
+                        {/* Title */}
+                        <h4 className={`text-xs font-semibold truncate transition-colors ${
+                          isSelected ? 'text-brand' : 'text-[var(--text-primary)] group-hover:text-brand'
+                        }`}>
+                          {p.title}
+                        </h4>
+
+                        {/* Locality */}
+                        <p className="text-[10px] text-[var(--text-muted)] truncate flex items-center gap-0.5 mt-0.5">
+                          <MapPin size={9} className="shrink-0 text-[var(--text-muted)]/70" />
+                          <span className="truncate">{p.location}</span>
+                        </p>
+
+                        {/* Bottom: Tags + Price + Active/Hover Indicator */}
+                        <div className="flex items-center justify-between pt-1 mt-1 border-t border-[var(--border)]/50 text-[10px]">
+                          <div className="flex items-center gap-1 truncate">
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-medium bg-[var(--bg-muted)] text-[var(--text-subtle)]">
+                              {p.ownerRole}
+                            </span>
+                            {isCommercial && (
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                                Comm
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <span className="text-[11.5px] font-bold text-[var(--text-primary)] whitespace-nowrap">
+                              ₹{p.price}
+                            </span>
+                            {isSelected ? (
+                              <ChevronRight size={13} className="text-brand shrink-0" />
+                            ) : (
+                              <ChevronRight size={13} className="text-[var(--text-muted)] opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-200 shrink-0" />
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -670,469 +929,857 @@ const PropertyVerification = () => {
           </div>
         </div>
 
-        {/* ─── RIGHT PANEL: COMPLETE LISTING INSPECTION & ADMIN ACTIONS ─── */}
-        <div className="flex-1 flex flex-col bg-[var(--bg-surface)] overflow-y-auto">
+        {/* ─── RIGHT PANE: FOCUSED WORKBENCH WITH STICKY DECISION HEADER ─── */}
+        <div className="flex-1 flex flex-col bg-[var(--bg-surface)] overflow-hidden">
           {!selectedItem ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-4">
-              <div className="w-16 h-16 rounded-3xl bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)]">
-                {activePipeline === 'properties' ? <Building size={32} /> : <Building2 size={32} />}
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-2">
+              <div className="w-10 h-10 rounded-xl bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)]">
+                <CheckSquare size={20} />
               </div>
-              <div className="space-y-1 max-w-sm">
-                <h3 className="text-base font-extrabold text-[var(--text-primary)]">Select Item for Complete Moderation</h3>
-                <p className="text-xs text-[var(--text-muted)]">
-                  Review complete listing details, inspect photos & verification documents uploaded via Postman/Web, edit fields, and approve or reject listings.
-                </p>
-              </div>
+              <p className="text-xs font-semibold text-[var(--text-primary)]">Select a listing to inspect</p>
+              <p className="text-[11px] text-[var(--text-muted)]">Choose any submission from the left queue.</p>
             </div>
           ) : (
-            <div className="p-5 sm:p-6 lg:p-8 space-y-6">
+            <div className="flex-1 flex flex-col h-full overflow-hidden">
               
-              {/* ─── ACTION HEADER ─── */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-5 border-b border-[var(--border)]">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-brand bg-brand-light px-2.5 py-1 rounded-lg">
+              {/* 1. STICKY TOP ACTION BAR (Decision Controls Right in View!) */}
+              <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-surface)] shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                
+                {/* Title & Key Identifier */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                    <span className="text-[11px] font-mono font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.2 rounded">
                       {formData.id}
                     </span>
-                    <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider ${
+                    <span className={`text-[9.5px] font-semibold px-2 py-0.2 rounded uppercase tracking-wider flex items-center gap-1 ${
                       formData.status === 'Approved'
-                        ? 'bg-emerald-500/10 text-emerald-600'
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                         : formData.status === 'Rejected'
-                        ? 'bg-red-500/10 text-red-500'
-                        : 'bg-amber-500/10 text-amber-600'
+                        ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
                     }`}>
-                      Status: {formData.status} {formData.isLive ? '(Live)' : '(Hidden)'}
+                      <span className={`w-1 h-1 rounded-full ${
+                        formData.status === 'Approved' ? 'bg-emerald-500' : formData.status === 'Rejected' ? 'bg-rose-500' : 'bg-amber-500 animate-pulse'
+                      }`} />
+                      <span>{formData.status} {formData.isLive ? '· Live' : '· Unlisted'}</span>
                     </span>
-                    <span className="text-[10px] font-bold text-[var(--text-muted)]">
-                      Submitted on {formData.submittedDate}
+                    <span className="text-[10px] text-[var(--text-muted)]">
+                      Submitted {formData.submittedDate}
                     </span>
                   </div>
-                  <h2 className="text-lg font-black text-[var(--text-primary)] tracking-tight">
-                    {formData.title}
-                  </h2>
-                </div>
 
-                {/* Edit & Quick Action Buttons */}
-                <div className="flex items-center gap-2.5 self-end sm:self-auto">
                   {isEditing ? (
-                    <button
-                      onClick={saveEdits}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
-                    >
-                      <Save size={14} /> Save Corrections
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-[var(--bg-muted)] hover:bg-[var(--bg-hover)] border border-[var(--border)] text-[var(--text-primary)] rounded-xl text-xs font-extrabold transition-all cursor-pointer"
-                    >
-                      <Edit3 size={14} className="text-brand" /> Edit Details
-                    </button>
-                  )}
-                  <button
-                    onClick={deleteItem}
-                    className="p-2 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
-                    title="Permanently Delete Listing"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-
-              {/* ─── PHOTOS & MEDIA GALLERY (LIGHTBOX TRIGGER) ─── */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ImageIcon size={16} className="text-brand" />
-                    <h3 className="text-xs font-extrabold text-[var(--text-primary)] uppercase tracking-wider">
-                      Uploaded Photos & Media ({formData.images.length})
-                    </h3>
-                  </div>
-                  <span className="text-[10px] text-[var(--text-muted)] font-bold">Click photo to view high-res full lightbox</span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {formData.images.map((imgUrl, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => openLightbox(idx)}
-                      className="group relative aspect-video rounded-2xl overflow-hidden border border-[var(--border)] cursor-pointer shadow-xs hover:shadow-md transition-all bg-[var(--bg-muted)]"
-                    >
-                      <img 
-                        src={imgUrl} 
-                        alt={`Photo ${idx + 1}`} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          e.target.src = 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400';
-                        }}
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="text"
+                        name="title"
+                        value={formData.title || ''}
+                        onChange={handleInputChange}
+                        placeholder="Listing Title..."
+                        className="flex-1 px-2.5 py-1 bg-[var(--bg-muted)] text-xs font-bold text-[var(--text-primary)] border border-brand/40 rounded-lg outline-none focus:ring-1 focus:ring-brand"
                       />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                        <Eye size={18} />
+                      <div className="flex items-center gap-1 shrink-0 bg-[var(--bg-muted)] px-2 py-1 rounded-lg border border-[var(--border)]">
+                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">₹</span>
+                        <input
+                          type="number"
+                          value={formData.priceVal || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setFormData(prev => ({
+                              ...prev,
+                              priceVal: val,
+                              price: formatCurrency(val)
+                            }));
+                          }}
+                          placeholder="Price..."
+                          className="w-28 bg-transparent text-xs font-extrabold text-emerald-600 dark:text-emerald-400 outline-none"
+                        />
                       </div>
-                      {idx === 0 && (
-                        <span className="absolute top-2 left-2 bg-brand text-white text-[8px] font-black px-2 py-0.5 rounded-md shadow-xs">
-                          Cover Photo
-                        </span>
-                      )}
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* ─── SECTION 1: CORE SPECIFICATIONS ─── */}
-              <div className="p-5 bg-[var(--bg-muted)]/60 rounded-2xl border border-[var(--border)] space-y-4">
-                <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-                  <h3 className="text-xs font-extrabold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1.5">
-                    <Home size={14} className="text-brand" /> Specifications & Configuration
-                  </h3>
-                  {isEditing && (
-                    <span className="text-[10px] font-extrabold text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                      Admin Edit Mode Active
-                    </span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {/* Title */}
-                  <div className="sm:col-span-2 space-y-1">
-                    <label className="text-[10px] font-extrabold text-[var(--text-muted)] uppercase">Title</label>
-                    {isEditing ? (
-                      <input 
-                        type="text" 
-                        name="title" 
-                        value={formData.title} 
-                        onChange={handleInputChange} 
-                        className="w-full p-2.5 bg-[var(--bg-surface)] text-xs font-bold text-[var(--text-primary)] border border-[var(--border)] rounded-xl focus:border-brand focus:outline-none" 
-                      />
-                    ) : (
-                      <p className="text-xs font-bold text-[var(--text-primary)]">{formData.title}</p>
-                    )}
-                  </div>
-
-                  {/* Category */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold text-[var(--text-muted)] uppercase">Category / Type</label>
-                    {isEditing ? (
-                      <select 
-                        name="category" 
-                        value={formData.category} 
-                        onChange={handleInputChange} 
-                        className="w-full p-2.5 bg-[var(--bg-surface)] text-xs font-bold text-[var(--text-primary)] border border-[var(--border)] rounded-xl focus:border-brand focus:outline-none"
-                      >
-                        <option value="Residential">Residential</option>
-                        <option value="Commercial">Commercial</option>
-                        <option value="Industrial">Industrial</option>
-                        <option value="Land">Plots / Land</option>
-                      </select>
-                    ) : (
-                      <p className="text-xs font-bold text-[var(--text-primary)]">{formData.category} ({formData.subCategory})</p>
-                    )}
-                  </div>
-
-                  {/* Configuration */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold text-[var(--text-muted)] uppercase">Configuration</label>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">{formData.configuration}</p>
-                  </div>
-
-                  {/* Area */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold text-[var(--text-muted)] uppercase">Carpet & Built-up Area</label>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">{formData.area} (Carpet: {formData.carpetArea})</p>
-                  </div>
-
-                  {/* Condition / Stage */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold text-[var(--text-muted)] uppercase">Condition / Stage</label>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">{formData.condition}</p>
-                  </div>
-
-                  {/* Floor & Facing */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold text-[var(--text-muted)] uppercase">Floor & Facing</label>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">{formData.floorInfo} • {formData.facing}</p>
-                  </div>
-
-                  {/* Furnishing */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold text-[var(--text-muted)] uppercase">Furnishing</label>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">{formData.furnishing}</p>
-                  </div>
-
-                  {/* Price */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold text-[var(--text-muted)] uppercase">Price</label>
-                    <p className="text-sm font-black text-emerald-600">₹{formData.price}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* ─── SECTION 2: DEVELOPER PROJECT BHK PLANS (IF PROJECT) ─── */}
-              {formData.itemType === 'project' && Array.isArray(formData.bhkConfigurations) && formData.bhkConfigurations.length > 0 && (
-                <div className="p-5 bg-blue-500/5 rounded-2xl border border-blue-500/20 space-y-4">
-                  <h3 className="text-xs font-extrabold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
-                    <Layers size={14} /> BHK Unit Configurations & Price Ranges ({formData.bhkConfigurations.length} Unit Types)
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {formData.bhkConfigurations.map((bhk, idx) => (
-                      <div key={idx} className="p-3.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl space-y-1">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-black text-brand">{bhk.bhkType}</span>
-                          <span className="text-[10px] font-bold text-[var(--text-muted)]">{bhk.carpetArea} sq.ft</span>
-                        </div>
-                        <p className="text-xs font-extrabold text-emerald-600">{bhk.priceRangeText || `₹${formatCurrency(bhk.minPrice)} - ₹${formatCurrency(bhk.maxPrice)}`}</p>
-                        {bhk.availableUnits && (
-                          <span className="text-[9px] text-[var(--text-muted)]">{bhk.availableUnits} units available</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* ─── SECTION 3: DOCUMENTS & VERIFICATION ATTACHMENTS ─── */}
-              <div className="p-5 bg-amber-500/5 rounded-2xl border border-amber-500/20 space-y-4">
-                <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
-                  <h3 className="text-xs font-extrabold text-amber-600 uppercase tracking-wider flex items-center gap-1.5">
-                    <FileText size={14} /> Uploaded Property Documents & Plans
-                  </h3>
-                  <span className="text-[9px] font-bold bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full">
-                    Auto-attached via Upload API
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {/* Property Documents */}
-                  {formData.propertyDocuments && Object.entries(formData.propertyDocuments).map(([docKey, docUrl]) => {
-                    if (!docUrl) return null;
-                    return (
-                      <a
-                        key={docKey}
-                        href={docUrl.startsWith('http') ? docUrl : `${API_BASE}/${docUrl}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-3 bg-[var(--bg-surface)] border border-[var(--border)] hover:border-brand rounded-xl flex items-center justify-between transition-all group cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <FileCheck size={16} className="text-emerald-500 shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold text-[var(--text-primary)] capitalize truncate">{docKey.replace(/([A-Z])/g, ' $1')}</p>
-                            <span className="text-[9px] text-[var(--text-muted)]">Click to open document</span>
-                          </div>
-                        </div>
-                        <ExternalLink size={14} className="text-slate-400 group-hover:text-brand transition-colors shrink-0" />
-                      </a>
-                    );
-                  })}
-
-                  {/* Project Plans & Brochure */}
-                  {formData.masterPlanUrl && (
-                    <a
-                      href={formData.masterPlanUrl.startsWith('http') ? formData.masterPlanUrl : `${API_BASE}/${formData.masterPlanUrl}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="p-3 bg-[var(--bg-surface)] border border-[var(--border)] hover:border-brand rounded-xl flex items-center justify-between transition-all group cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Compass size={16} className="text-blue-500 shrink-0" />
-                        <div>
-                          <p className="text-xs font-bold text-[var(--text-primary)]">Master Plan</p>
-                          <span className="text-[9px] text-[var(--text-muted)]">View master layout</span>
-                        </div>
-                      </div>
-                      <ExternalLink size={14} className="text-slate-400 group-hover:text-brand" />
-                    </a>
-                  )}
-
-                  {formData.floorPlanUrl && (
-                    <a
-                      href={formData.floorPlanUrl.startsWith('http') ? formData.floorPlanUrl : `${API_BASE}/${formData.floorPlanUrl}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="p-3 bg-[var(--bg-surface)] border border-[var(--border)] hover:border-brand rounded-xl flex items-center justify-between transition-all group cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Layers size={16} className="text-indigo-500 shrink-0" />
-                        <div>
-                          <p className="text-xs font-bold text-[var(--text-primary)]">Floor Plan</p>
-                          <span className="text-[9px] text-[var(--text-muted)]">View floor blueprint</span>
-                        </div>
-                      </div>
-                      <ExternalLink size={14} className="text-slate-400 group-hover:text-brand" />
-                    </a>
-                  )}
-
-                  {formData.brochureUrl && (
-                    <a
-                      href={formData.brochureUrl.startsWith('http') ? formData.brochureUrl : `${API_BASE}/${formData.brochureUrl}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="p-3 bg-[var(--bg-surface)] border border-[var(--border)] hover:border-brand rounded-xl flex items-center justify-between transition-all group cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Download size={16} className="text-purple-500 shrink-0" />
-                        <div>
-                          <p className="text-xs font-bold text-[var(--text-primary)]">Project Brochure</p>
-                          <span className="text-[9px] text-[var(--text-muted)]">Download PDF</span>
-                        </div>
-                      </div>
-                      <ExternalLink size={14} className="text-slate-400 group-hover:text-brand" />
-                    </a>
-                  )}
-                </div>
-              </div>
-
-              {/* ─── SECTION 4: LOCATION & ADDRESS ─── */}
-              <div className="p-5 bg-[var(--bg-muted)]/60 rounded-2xl border border-[var(--border)] space-y-3">
-                <h3 className="text-xs font-extrabold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1.5">
-                  <MapPin size={14} className="text-brand" /> Physical Location & Address
-                </h3>
-                <p className="text-xs font-bold text-[var(--text-primary)]">{formData.location}</p>
-              </div>
-
-              {/* ─── SECTION 5: LISTER IDENTITY & RERA ─── */}
-              <div className={`p-5 rounded-2xl border space-y-4 ${
-                isCurrentBuilderOrNew ? 'bg-blue-500/5 border-blue-500/20' : 'bg-slate-500/5 border-[var(--border)]'
-              }`}>
-                <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck size={16} className={isCurrentBuilderOrNew ? 'text-blue-500' : 'text-slate-400'} />
-                    <h3 className="text-xs font-extrabold text-[var(--text-primary)] uppercase tracking-wider">
-                      Lister Identity & RERA Compliance
-                    </h3>
-                  </div>
-                  {isCurrentBuilderOrNew ? (
-                    <span className="text-[9px] font-black bg-blue-500 text-white px-2 py-0.5 rounded-md uppercase">
-                      RERA Checked for Builder / Project
-                    </span>
                   ) : (
-                    <span className="text-[9px] font-bold bg-slate-200 dark:bg-slate-800 text-[var(--text-subtle)] px-2 py-0.5 rounded-md">
-                      {formData.ownerRole} Resale
-                    </span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold text-[var(--text-muted)] uppercase">Listed By</label>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-extrabold text-[var(--text-primary)]">{formData.ownerName}</span>
-                      <span className="text-[9px] font-black px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-brand">
-                        {formData.ownerRole}
+                    <div className="flex items-baseline gap-2.5">
+                      <h2 className="text-sm sm:text-base font-bold text-[var(--text-primary)] truncate">
+                        {formData.title}
+                      </h2>
+                      <span className="text-sm sm:text-base font-extrabold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                        ₹{formData.price}
                       </span>
                     </div>
-                    <p className="text-[10px] text-[var(--text-muted)]">{formData.ownerPhone} • {formData.ownerEmail}</p>
-                  </div>
-
-                  <div className="sm:col-span-2 space-y-1">
-                    <label className="text-[10px] font-extrabold text-[var(--text-muted)] uppercase">RERA Registration</label>
-                    <p className="text-xs font-mono font-black text-blue-600 bg-blue-500/10 px-3 py-1 rounded-lg border border-blue-500/20 inline-block">
-                      {formData.reraNumber || 'EXEMPTED / NOT APPLICABLE'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* ─── SECTION 6: AMENITIES ─── */}
-              <div className="p-5 bg-[var(--bg-muted)]/60 rounded-2xl border border-[var(--border)] space-y-3">
-                <h3 className="text-xs font-extrabold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles size={14} className="text-brand" /> Confirmed Amenities ({formData.amenities.length})
-                </h3>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {formData.amenities.map((amenity, idx) => (
-                    <span 
-                      key={idx} 
-                      className="px-3 py-1 bg-[var(--bg-surface)] text-[11px] font-bold text-[var(--text-subtle)] rounded-xl border border-[var(--border)] shadow-2xs flex items-center gap-1.5"
-                    >
-                      <Check size={11} className="text-emerald-500" /> {amenity}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* ─── SECTION 7: ADMIN REVIEW & APPROVAL DECISION ─── */}
-              <div className="p-6 bg-[var(--bg-surface)] rounded-3xl border-2 border-brand/20 shadow-md space-y-5">
-                <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-                  <div className="flex items-center gap-2">
-                    <Award size={18} className="text-brand" />
-                    <div>
-                      <h3 className="text-xs font-black text-[var(--text-primary)] uppercase tracking-wider">
-                        Admin Moderation Review & Approval Decision
-                      </h3>
-                      <p className="text-[10px] text-[var(--text-muted)]">Verify parameters prior to approving the listing to live public feed</p>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
-                {/* Interactive Checklist */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {[
-                    { key: 'priceValid', label: 'Price & Area Validated' },
-                    { key: 'photosApproved', label: 'All Photos Authenticated' },
-                    { key: 'addressVerified', label: 'Physical Location Verified' },
-                    { key: 'reraChecked', label: isCurrentBuilderOrNew ? 'Builder RERA Checked' : 'Resale Ownership Deed Checked' },
-                    { key: 'amenitiesConfirmed', label: 'Amenities & Specs Confirmed' }
-                  ].map((item) => (
+                {/* Primary Moderation Action Buttons (Immediate Execution) */}
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                  {formData.status !== 'Approved' && (
                     <button
-                      key={item.key}
                       type="button"
-                      onClick={() => setReviewChecklist(prev => ({ ...prev, [item.key]: !prev[item.key] }))}
-                      className={`p-2.5 rounded-xl border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
-                        reviewChecklist[item.key]
-                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold'
-                          : 'bg-[var(--bg-muted)] border-[var(--border)] text-[var(--text-muted)]'
-                      }`}
+                      disabled={isSubmittingAction}
+                      onClick={() => updateStatus('Approved')}
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-98"
                     >
-                      <div className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 ${
-                        reviewChecklist[item.key] ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-400'
-                      }`}>
-                        {reviewChecklist[item.key] && <Check size={10} strokeWidth={3} />}
-                      </div>
-                      <span className="text-[10px]">{item.label}</span>
+                      <CheckCircle2 size={13} />
+                      <span>Approve & Publish</span>
                     </button>
-                  ))}
-                </div>
+                  )}
 
-                {/* Rejection / Remarks Input */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-extrabold text-[var(--text-muted)] uppercase">Admin Review Notes / Rejection Reason</label>
-                  <textarea
-                    rows={2}
-                    value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
-                    placeholder="Enter review remarks or reason for rejection if declining..."
-                    className="w-full p-3 bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-muted)] rounded-2xl border border-[var(--border)] focus:outline-none focus:border-brand resize-none"
-                  />
-                </div>
-
-                {/* Final Decision Action Buttons */}
-                <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => updateStatus('Approved')}
-                    className="w-full sm:flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-                  >
-                    <CheckCircle2 size={16} /> Approve & Publish Listing (Go Live)
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => updateStatus('Rejected')}
-                    className="w-full sm:w-auto py-3 px-6 bg-red-500/10 hover:bg-red-500/20 text-red-600 border border-red-500/20 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <XCircle size={16} /> Reject Listing
-                  </button>
+                  {formData.status !== 'Rejected' && (
+                    <button
+                      type="button"
+                      disabled={isSubmittingAction}
+                      onClick={() => setShowRejectModal(true)}
+                      className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <XCircle size={13} />
+                      <span>Reject</span>
+                    </button>
+                  )}
 
                   {formData.status !== 'Pending' && (
                     <button
                       type="button"
+                      disabled={isSubmittingAction}
                       onClick={() => updateStatus('Pending')}
-                      className="w-full sm:w-auto py-3 px-4 bg-[var(--bg-muted)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] rounded-xl text-xs font-extrabold transition-all cursor-pointer"
+                      className="px-2.5 py-1.5 bg-[var(--bg-muted)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] rounded-lg text-xs font-medium border border-[var(--border)] transition-colors cursor-pointer flex items-center gap-1"
+                      title="Reset status back to Pending Review"
                     >
-                      Move to Pending Queue
+                      <RotateCcw size={11} />
+                      <span>Reset</span>
                     </button>
                   )}
+
+                  {isEditing ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={saveEdits}
+                        className="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors cursor-pointer text-xs font-bold flex items-center gap-1 shadow-2xs"
+                        title="Save Corrections"
+                      >
+                        <Save size={13} />
+                        <span>Save</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData({ ...selectedItem });
+                          setIsEditing(false);
+                          showToast('Corrections discarded.', 'info');
+                        }}
+                        className="p-1.5 bg-[var(--bg-muted)] hover:bg-[var(--bg-hover)] border border-[var(--border)] text-[var(--text-secondary)] rounded-lg transition-colors cursor-pointer"
+                        title="Cancel Editing"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      className="p-1.5 bg-[var(--bg-muted)] hover:bg-[var(--bg-hover)] border border-[var(--border)] text-[var(--text-secondary)] rounded-lg transition-colors cursor-pointer"
+                      title="Edit listing details"
+                    >
+                      <Edit3 size={13} />
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(true)}
+                    className="p-1.5 text-rose-600 hover:bg-rose-500/10 border border-rose-200 dark:border-rose-900/40 rounded-lg transition-colors cursor-pointer"
+                    title="Delete listing permanently"
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 </div>
+
+              </div>
+
+              {/* 2. TAB NAVIGATION BAR (Organized Hierarchy) */}
+              <div className="px-4 border-b border-[var(--border)] bg-[var(--bg-surface)] shrink-0 flex items-center gap-4 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setActiveDetailTab('specs')}
+                  className={`py-2 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeDetailTab === 'specs'
+                      ? 'border-brand text-brand font-bold'
+                      : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <Home size={13} />
+                  <span>Specs & Visuals</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveDetailTab('docs')}
+                  className={`py-2 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeDetailTab === 'docs'
+                      ? 'border-brand text-brand font-bold'
+                      : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <FileText size={13} />
+                  <span>Documents & Lister</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveDetailTab('audit')}
+                  className={`py-2 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeDetailTab === 'audit'
+                      ? 'border-brand text-brand font-bold'
+                      : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <ClipboardCheck size={13} />
+                  <span>Audit & Checklist</span>
+                </button>
+              </div>
+
+              {/* 3. TAB CONTENT WORKSPACE (Clean, Scrollable, Organized) */}
+              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4">
+                
+                {/* ─── TAB 1: SPECS & VISUALS ─── */}
+                {activeDetailTab === 'specs' && (
+                  <div className="space-y-4">
+                    
+                    {/* Media Strip — Only real uploaded images, no placeholders */}
+                    <div className="flex items-center gap-3">
+                      {/* Featured Preview — only if images exist */}
+                      {formData.images.length > 0 ? (
+                        <div 
+                          onClick={() => openLightbox(0)}
+                          className="relative w-44 sm:w-56 aspect-video rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--bg-muted)] shrink-0 group cursor-pointer"
+                          title="Click to view full photo gallery"
+                        >
+                          <img 
+                            src={formData.images[0]} 
+                            alt="Featured" 
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <span className="absolute top-1.5 left-1.5 bg-brand text-white text-[8px] font-bold px-1.5 py-0.2 rounded shadow-2xs">
+                            Cover
+                          </span>
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                            <Eye size={16} />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="relative w-44 sm:w-56 aspect-video rounded-xl overflow-hidden border border-dashed border-[var(--border)] bg-[var(--bg-muted)]/40 shrink-0 flex flex-col items-center justify-center gap-1">
+                          <ImageIcon size={22} className="text-[var(--text-muted)]/50" />
+                          <span className="text-[9.5px] text-[var(--text-muted)] font-medium">No Photos Uploaded</span>
+                        </div>
+                      )}
+
+                      {/* Thumbnail List — only if images exist */}
+                      {formData.images.length > 0 ? (
+                        <div className="flex-1 flex items-center gap-2 overflow-x-auto py-1 custom-scrollbar">
+                          {formData.images.map((imgUrl, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => openLightbox(idx)}
+                              className="relative w-24 aspect-video rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--bg-muted)] shrink-0 hover:border-brand transition-all cursor-pointer"
+                              title={`View Photo ${idx + 1}`}
+                            >
+                              <img src={imgUrl} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex-1 flex items-center justify-center">
+                          <span className="text-[10px] text-[var(--text-muted)] italic">Lister has not uploaded any photos yet.</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 4 Key Highlight Metric Tiles */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      <div className="p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/30">
+                        <span className="text-[9.5px] uppercase font-semibold text-[var(--text-muted)] block">Rate / Sq.Ft</span>
+                        <span className="text-xs font-bold text-[var(--text-primary)] block mt-0.5">{formData.pricePerSqFt}</span>
+                      </div>
+                      <div className="p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/30">
+                        <span className="text-[9.5px] uppercase font-semibold text-[var(--text-muted)] block">Carpet Area</span>
+                        <span className="text-xs font-bold text-[var(--text-primary)] block mt-0.5">{formData.carpetArea}</span>
+                      </div>
+                      <div className="p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/30">
+                        <span className="text-[9.5px] uppercase font-semibold text-[var(--text-muted)] block">Condition</span>
+                        <span className="text-xs font-bold text-[var(--text-primary)] block mt-0.5">{formData.condition}</span>
+                      </div>
+                      <div className="p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/30">
+                        <span className="text-[9.5px] uppercase font-semibold text-[var(--text-muted)] block">Floor & Facing</span>
+                        <span className="text-xs font-bold text-[var(--text-primary)] block mt-0.5 truncate">{formData.floorInfo} · {formData.facing}</span>
+                      </div>
+                    </div>
+
+                    {/* Detailed Key-Value Grid */}
+                    <div className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] space-y-3">
+                      <h3 className="text-xs font-bold text-[var(--text-primary)] flex items-center justify-between pb-2 border-b border-[var(--border)]">
+                        <span>Property Attributes</span>
+                        <span className="text-[10px] text-[var(--text-muted)] font-normal">{formData.category} · {formData.subCategory}</span>
+                      </h3>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                        <div>
+                          <span className="text-[10px] text-[var(--text-muted)] uppercase block">Configuration</span>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              name="configuration"
+                              value={formData.configuration || ''}
+                              onChange={handleInputChange}
+                              className="w-full mt-1 p-1.5 bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-primary)] border border-[var(--border)] rounded focus:border-brand outline-none"
+                            />
+                          ) : (
+                            <span className="font-semibold text-[var(--text-primary)]">{formData.configuration}</span>
+                          )}
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-[var(--text-muted)] uppercase block">Furnishing Status</span>
+                          {isEditing ? (
+                            <select
+                              name="furnishing"
+                              value={formData.furnishing || 'Unfurnished'}
+                              onChange={handleInputChange}
+                              className="w-full mt-1 p-1.5 bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-primary)] border border-[var(--border)] rounded focus:border-brand outline-none"
+                            >
+                              <option value="Unfurnished">Unfurnished</option>
+                              <option value="Semi-Furnished">Semi-Furnished</option>
+                              <option value="Fully Furnished">Fully Furnished</option>
+                            </select>
+                          ) : (
+                            <span className="font-semibold text-[var(--text-primary)]">{formData.furnishing}</span>
+                          )}
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-[var(--text-muted)] uppercase block">Monthly Maintenance</span>
+                          <span className="font-semibold text-[var(--text-primary)]">{formData.maintenanceCharges}</span>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-[var(--text-muted)] uppercase block">Token / Deposit</span>
+                          <span className="font-semibold text-[var(--text-primary)]">{formData.tokenAmount}</span>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-[var(--text-muted)] uppercase block">Category & Condition</span>
+                          {isEditing ? (
+                            <div className="grid grid-cols-2 gap-1 mt-1">
+                              <select
+                                name="category"
+                                value={formData.category || 'Residential'}
+                                onChange={handleInputChange}
+                                className="p-1 bg-[var(--bg-muted)] text-[11px] font-semibold text-[var(--text-primary)] border border-[var(--border)] rounded outline-none"
+                              >
+                                <option value="Residential">Residential</option>
+                                <option value="Commercial">Commercial</option>
+                                <option value="Land">Land</option>
+                              </select>
+                              <select
+                                name="condition"
+                                value={formData.condition || 'Ready to Move'}
+                                onChange={handleInputChange}
+                                className="p-1 bg-[var(--bg-muted)] text-[11px] font-semibold text-[var(--text-primary)] border border-[var(--border)] rounded outline-none"
+                              >
+                                <option value="Ready to Move">Ready to Move</option>
+                                <option value="Under Construction">Under Construction</option>
+                                <option value="Resale">Resale</option>
+                              </select>
+                            </div>
+                          ) : (
+                            <span className="font-semibold text-[var(--text-primary)]">{formData.category} ({formData.condition})</span>
+                          )}
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-[var(--text-muted)] uppercase block">City & Locality</span>
+                          {isEditing ? (
+                            <div className="grid grid-cols-2 gap-1 mt-1">
+                              <input
+                                type="text"
+                                name="locality"
+                                placeholder="Locality"
+                                value={formData.locality || ''}
+                                onChange={handleInputChange}
+                                className="p-1 bg-[var(--bg-muted)] text-[11px] font-semibold text-[var(--text-primary)] border border-[var(--border)] rounded outline-none"
+                              />
+                              <input
+                                type="text"
+                                name="city"
+                                placeholder="City"
+                                value={formData.city || ''}
+                                onChange={handleInputChange}
+                                className="p-1 bg-[var(--bg-muted)] text-[11px] font-semibold text-[var(--text-primary)] border border-[var(--border)] rounded outline-none"
+                              />
+                            </div>
+                          ) : (
+                            <span className="font-semibold text-[var(--text-primary)]">{formData.locality ? `${formData.locality}, ` : ''}{formData.city || 'N/A'}</span>
+                          )}
+                        </div>
+
+                        <div className="sm:col-span-3">
+                          <span className="text-[10px] text-[var(--text-muted)] uppercase block">Physical Address</span>
+                          {isEditing ? (
+                            <input 
+                              type="text" 
+                              name="location" 
+                              value={formData.location} 
+                              onChange={handleInputChange} 
+                              className="w-full mt-1 p-1.5 bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-primary)] border border-[var(--border)] rounded focus:border-brand outline-none" 
+                            />
+                          ) : (
+                            <span className="font-semibold text-[var(--text-primary)] flex items-center gap-1 mt-0.5">
+                              <MapPin size={11} className="text-brand shrink-0" />
+                              <span>{formData.location}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Commercial specifics — real fields from DB only */}
+                    {formData.category === 'Commercial' && (
+                      <div className="p-3.5 rounded-xl border border-blue-500/20 bg-blue-500/5 space-y-2">
+                        <span className="text-xs font-bold text-blue-600 dark:text-blue-400 block">
+                          Commercial Lease Specifications
+                        </span>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                          <div>
+                            <span className="text-[10px] text-[var(--text-muted)] block">Lock-In Period</span>
+                            <span className="font-semibold">{formData.commercialTerms?.lockInPeriod}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-[var(--text-muted)] block">Power Load</span>
+                            <span className="font-semibold">{formData.commercialTerms?.powerLoad}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-[var(--text-muted)] block">Frontage</span>
+                            <span className="font-semibold">{formData.commercialTerms?.frontage}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-[var(--text-muted)] block">Ceiling Height</span>
+                            <span className="font-semibold">{formData.commercialTerms?.ceilingHeight}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-[var(--text-muted)] block">CAM Charges</span>
+                            <span className="font-semibold">{formData.commercialTerms?.camIncluded}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-[var(--text-muted)] block">Rent Escalation</span>
+                            <span className="font-semibold">{formData.commercialTerms?.rentEscalation}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-[var(--text-muted)] block">Security Deposit</span>
+                            <span className="font-semibold">{formData.commercialTerms?.securityDeposit}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-[var(--text-muted)] block">Parking</span>
+                            <span className="font-semibold">{formData.parking}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Developer Project BHK Configurations */}
+                    {formData.itemType === 'project' && Array.isArray(formData.bhkConfigurations) && formData.bhkConfigurations.length > 0 && (
+                      <div className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] space-y-2.5">
+                        <span className="text-xs font-bold text-[var(--text-primary)] block">
+                          BHK Unit Plans ({formData.bhkConfigurations.length})
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          {formData.bhkConfigurations.map((bhk, idx) => (
+                            <div key={idx} className="p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/30 space-y-0.5">
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="font-bold text-brand">{bhk.bhkType}</span>
+                                <span className="text-[10px] text-[var(--text-muted)]">{bhk.carpetArea} sq.ft</span>
+                              </div>
+                              <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                {bhk.priceRangeText || `₹${formatCurrency(bhk.minPrice)} - ₹${formatCurrency(bhk.maxPrice)}`}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Confirmed Amenities — real data only, empty state if none */}
+                    <div className="p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] space-y-1.5">
+                      <span className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
+                        Confirmed Amenities ({formData.amenities.length})
+                      </span>
+                      {formData.amenities.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {formData.amenities.map((amenity, idx) => (
+                            <span 
+                              key={idx} 
+                              className="px-2 py-0.5 bg-[var(--bg-muted)]/70 text-[10.5px] font-medium text-[var(--text-secondary)] rounded border border-[var(--border)]/70 flex items-center gap-1"
+                            >
+                              <Check size={9} className="text-emerald-500" />
+                              <span>{amenity}</span>
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-[var(--text-muted)] italic">No amenities specified by lister.</p>
+                      )}
+                    </div>
+
+                    {/* Nearby Landmarks — Projects only, real data */}
+                    {formData.itemType === 'project' && Array.isArray(formData.nearbyLandmarks) && formData.nearbyLandmarks.length > 0 && (
+                      <div className="p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] space-y-1.5">
+                        <span className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
+                          Nearby Landmarks ({formData.nearbyLandmarks.length})
+                        </span>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {formData.nearbyLandmarks.map((lm, idx) => (
+                            <div key={idx} className="flex items-center gap-1.5 text-xs">
+                              <MapPin size={10} className="text-brand shrink-0" />
+                              <span className="font-medium text-[var(--text-primary)]">{lm.locationName}</span>
+                              {lm.distance && <span className="text-[var(--text-muted)]">{lm.distance}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                )}
+
+                {/* ─── TAB 2: DOCUMENTS & LISTER COMPLIANCE ─── */}
+                {activeDetailTab === 'docs' && (
+                  <div className="space-y-4">
+                    
+                    {/* RERA Registry Card */}
+                    <div className="p-3.5 rounded-xl border border-blue-500/20 bg-blue-500/5 flex items-center justify-between gap-3">
+                      <div>
+                        <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">
+                          RERA License & Registration
+                        </span>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="font-mono text-xs font-bold text-[var(--text-primary)]">
+                            {formData.reraNumber || 'EXEMPTED / NOT APPLICABLE'}
+                          </span>
+                          {formData.reraNumber && (
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(formData.reraNumber, 'RERA Number')}
+                              className="text-[var(--text-muted)] hover:text-brand transition-colors p-0.5 cursor-pointer"
+                              title="Copy RERA Number"
+                            >
+                              <Copy size={11} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
+                        formData.reraNumber
+                          ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
+                          : 'bg-[var(--bg-muted)] text-[var(--text-muted)] border-[var(--border)]'
+                      }`}>
+                        {formData.reraNumber ? 'Registered' : 'Not Provided'}
+                      </span>
+                    </div>
+
+                    {/* Uploaded Documents List */}
+                    <div className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+                        <h3 className="text-xs font-bold text-[var(--text-primary)]">
+                          Attached Verification Documents
+                        </h3>
+                        <span className="text-[10px] text-[var(--text-muted)]">
+                          Click any file to review attachment
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {/* Standard Property Documents */}
+                        {STANDARD_DOCUMENT_TYPES.map((docDef) => {
+                          const docUrl = formData.propertyDocuments?.[docDef.key];
+                          const isUploaded = !!docUrl;
+
+                          if (isUploaded) {
+                            return (
+                              <a
+                                key={docDef.key}
+                                href={docUrl.startsWith('http') ? docUrl : `${API_BASE}/${docUrl}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="p-2.5 rounded-lg border border-[var(--border)] hover:border-brand bg-[var(--bg-muted)]/20 hover:bg-[var(--bg-muted)]/60 flex items-center justify-between transition-colors group cursor-pointer"
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <FileCheck size={14} className="text-emerald-500 shrink-0" />
+                                  <div className="min-w-0">
+                                    <p className="text-[11px] font-semibold text-[var(--text-primary)] truncate">
+                                      {docDef.label}
+                                    </p>
+                                    <span className="text-[9.5px] text-emerald-600 dark:text-emerald-400 font-medium">Uploaded & Available</span>
+                                  </div>
+                                </div>
+                                <ArrowUpRight size={13} className="text-[var(--text-muted)] group-hover:text-brand shrink-0" />
+                              </a>
+                            );
+                          }
+
+                          return (
+                            <div
+                              key={docDef.key}
+                              className="p-2.5 rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-muted)]/10 flex items-center justify-between opacity-60"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <FileText size={14} className="text-[var(--text-muted)] shrink-0" />
+                                <span className="text-[11px] text-[var(--text-muted)] truncate">{docDef.label}</span>
+                              </div>
+                              <span className="text-[9.5px] text-[var(--text-muted)] font-medium">Not Uploaded</span>
+                            </div>
+                          );
+                        })}
+
+                        {/* Project specific files */}
+                        {formData.masterPlanUrl && (
+                          <a
+                            href={formData.masterPlanUrl.startsWith('http') ? formData.masterPlanUrl : `${API_BASE}/${formData.masterPlanUrl}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-2.5 rounded-lg border border-[var(--border)] hover:border-brand bg-[var(--bg-muted)]/20 flex items-center justify-between transition-colors group cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Compass size={14} className="text-blue-500 shrink-0" />
+                              <span className="text-[11px] font-semibold text-[var(--text-primary)]">Master Plan Document</span>
+                            </div>
+                            <ArrowUpRight size={13} className="text-[var(--text-muted)] group-hover:text-brand" />
+                          </a>
+                        )}
+
+                        {formData.floorPlanUrl && (
+                          <a
+                            href={formData.floorPlanUrl.startsWith('http') ? formData.floorPlanUrl : `${API_BASE}/${formData.floorPlanUrl}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-2.5 rounded-lg border border-[var(--border)] hover:border-brand bg-[var(--bg-muted)]/20 flex items-center justify-between transition-colors group cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Layers size={14} className="text-indigo-500 shrink-0" />
+                              <span className="text-[11px] font-semibold text-[var(--text-primary)]">Unit Floor Plan</span>
+                            </div>
+                            <ArrowUpRight size={13} className="text-[var(--text-muted)] group-hover:text-brand" />
+                          </a>
+                        )}
+
+                        {formData.brochureUrl && (
+                          <a
+                            href={formData.brochureUrl.startsWith('http') ? formData.brochureUrl : `${API_BASE}/${formData.brochureUrl}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-2.5 rounded-lg border border-[var(--border)] hover:border-brand bg-[var(--bg-muted)]/20 flex items-center justify-between transition-colors group cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Download size={14} className="text-purple-500 shrink-0" />
+                              <span className="text-[11px] font-semibold text-[var(--text-primary)]">Project Brochure</span>
+                            </div>
+                            <ArrowUpRight size={13} className="text-[var(--text-muted)] group-hover:text-brand" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Submitter Profile Card with Instant Contact Actions */}
+                    <div className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] space-y-2.5">
+                      <span className="text-xs font-bold text-[var(--text-primary)] block pb-1 border-b border-[var(--border)]">
+                        Lister & Submitter Identity
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                        <div>
+                          <span className="text-[10px] text-[var(--text-muted)] uppercase block">Name / Entity</span>
+                          <span className="font-semibold text-[var(--text-primary)] block mt-0.5">{formData.ownerName}</span>
+                          <span className="text-[10px] font-mono text-brand font-semibold">{formData.ownerRole}</span>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-[var(--text-muted)] uppercase block">Phone Contact</span>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="font-semibold text-[var(--text-primary)]">{formData.ownerPhone}</span>
+                            {formData.ownerPhone && formData.ownerPhone !== 'N/A' && (
+                              <div className="flex items-center gap-1">
+                                <a
+                                  href={`tel:${formData.ownerPhone}`}
+                                  className="p-1 rounded bg-[var(--bg-muted)] hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors"
+                                  title="Call Lister"
+                                >
+                                  <PhoneCall size={11} />
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(formData.ownerPhone, 'Phone')}
+                                  className="p-1 rounded bg-[var(--bg-muted)] hover:bg-brand/10 hover:text-brand transition-colors cursor-pointer"
+                                  title="Copy Phone"
+                                >
+                                  <Copy size={11} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-[var(--text-muted)] uppercase block">Email Address</span>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="font-semibold text-[var(--text-primary)] truncate">{formData.ownerEmail}</span>
+                            {formData.ownerEmail && formData.ownerEmail !== 'N/A' && (
+                              <div className="flex items-center gap-1 shrink-0">
+                                <a
+                                  href={`mailto:${formData.ownerEmail}`}
+                                  className="p-1 rounded bg-[var(--bg-muted)] hover:bg-blue-500/10 hover:text-blue-600 transition-colors"
+                                  title="Send Email"
+                                >
+                                  <Mail size={11} />
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(formData.ownerEmail, 'Email')}
+                                  className="p-1 rounded bg-[var(--bg-muted)] hover:bg-brand/10 hover:text-brand transition-colors cursor-pointer"
+                                  title="Copy Email"
+                                >
+                                  <Copy size={11} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+
+                {/* ─── TAB 3: AUDIT CHECKLIST & DECISION NOTES ─── */}
+                {activeDetailTab === 'audit' && (
+                  <div className="space-y-4">
+                    
+                    {/* 5-Point Interactive Checklist with Check All */}
+                    <div className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+                        <div>
+                          <h3 className="text-xs font-bold text-[var(--text-primary)]">
+                            Moderator Verification Checklist
+                          </h3>
+                          <p className="text-[10px] text-[var(--text-muted)]">Check off parameters verified during audit</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleCheckAll}
+                          className="text-[10.5px] font-semibold text-brand hover:underline cursor-pointer flex items-center gap-1"
+                        >
+                          <CheckCheck size={12} />
+                          <span>Toggle All</span>
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        {[
+                          { key: 'priceValid', label: 'Price & Area Validated' },
+                          { key: 'photosApproved', label: 'Photographs Authenticated' },
+                          { key: 'addressVerified', label: 'Physical Address & Pin Verified' },
+                          { key: 'reraChecked', label: 'Title Deed / RERA Checked' },
+                          { key: 'amenitiesConfirmed', label: 'Specifications & Amenities Confirmed' }
+                        ].map((item) => (
+                          <button
+                            key={item.key}
+                            type="button"
+                            onClick={() => {
+                              setReviewChecklist(prev => {
+                                const next = !prev[item.key];
+                                return { ...prev, [item.key]: next };
+                              });
+                            }}
+                            className={`p-2.5 rounded-lg border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
+                              reviewChecklist[item.key]
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-semibold'
+                                : 'bg-[var(--bg-muted)]/40 border-[var(--border)] text-[var(--text-secondary)]'
+                            }`}
+                          >
+                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                              reviewChecklist[item.key] ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-[var(--text-muted)]'
+                            }`}>
+                              {reviewChecklist[item.key] && <Check size={9} strokeWidth={3} />}
+                            </div>
+                            <span className="text-[11px]">{item.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Review Notes / Rejection Remarks */}
+                    <div className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-semibold text-[var(--text-primary)] block">
+                          Internal Moderator Notes & Audit Feedback
+                        </label>
+                        <span className="text-[10px] text-[var(--text-muted)]">{remarks.length} characters</span>
+                      </div>
+
+                      <textarea
+                        rows={3}
+                        value={remarks}
+                        onChange={(e) => setRemarks(e.target.value)}
+                        placeholder="Add review notes, comments for submitter, or reasons if requesting fixes..."
+                        className="w-full p-2.5 bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-surface)] text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] rounded-lg border border-[var(--border)] focus:border-brand outline-none resize-none transition-all"
+                      />
+
+                      {/* Quick-Fill Chips */}
+                      <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                        <span className="text-[10px] text-[var(--text-muted)] font-medium">Quick reason:</span>
+                        {QUICK_REJECTION_REASONS.slice(0, 3).map((r, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => {
+                              setRemarks(r);
+                              showToast('Quick reason added to notes.', 'info');
+                            }}
+                            className="text-[9.5px] px-2 py-0.5 bg-[var(--bg-muted)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] rounded-md border border-[var(--border)] transition-colors cursor-pointer"
+                          >
+                            {r}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!remarks.trim()) {
+                              showToast('Please enter review notes first.', 'info');
+                              return;
+                            }
+                            showToast(`Review notes recorded for ${selectedItem.id}.`, 'success');
+                          }}
+                          className="px-3 py-1.5 bg-[var(--bg-muted)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] rounded-lg text-xs font-semibold border border-[var(--border)] transition-colors cursor-pointer"
+                        >
+                          Save Internal Notes
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (remarks.trim()) {
+                              setCustomRejectNote(remarks);
+                            }
+                            setShowRejectModal(true);
+                          }}
+                          className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <XCircle size={12} />
+                          <span>Reject with Notes</span>
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+
               </div>
 
             </div>
@@ -1141,59 +1788,248 @@ const PropertyVerification = () => {
 
       </div>
 
-      {/* ─── FULL LIGHTBOX IMAGE GALLERY MODAL ─── */}
+      {/* ─── 03. PERMANENT DELETE CONFIRMATION MODAL (Needed Only!) ─── */}
+      {showDeleteModal && selectedItem && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text-primary)]">Delete Listing Permanently?</h3>
+                <p className="text-xs text-[var(--text-muted)]">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-[var(--bg-muted)]/50 rounded-xl border border-[var(--border)] text-xs text-[var(--text-secondary)] space-y-1">
+              <p>
+                You are about to remove <strong className="text-[var(--text-primary)] font-mono">{selectedItem.id}</strong> ({selectedItem.title}).
+              </p>
+              <p className="text-[11px] text-[var(--text-muted)]">
+                All uploaded images, RERA documentation, and listing associations will be permanently erased.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border)]">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setShowDeleteModal(false)}
+                className="px-3.5 py-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] rounded-lg transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={confirmDelete}
+                className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <RefreshCw size={13} className="animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={13} />
+                    <span>Confirm Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── 04. CLEAN REJECTION REASON MODAL (Needed Only!) ─── */}
+      {showRejectModal && selectedItem && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xl p-5 space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+              <div className="flex items-center gap-2">
+                <XCircle size={16} className="text-rose-500" />
+                <h3 className="text-sm font-bold text-[var(--text-primary)]">Reject Listing Submission</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRejectModal(false)}
+                className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <p className="text-xs text-[var(--text-muted)]">
+              Specify the primary reason for rejecting <span className="font-bold text-[var(--text-primary)] font-mono">{selectedItem.id}</span>. This feedback will be recorded and delivered to the lister.
+            </p>
+
+            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+              {QUICK_REJECTION_REASONS.map((reason, idx) => (
+                <label 
+                  key={idx}
+                  className={`flex items-center gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
+                    selectedRejectReason === reason
+                      ? 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-400 font-semibold'
+                      : 'bg-[var(--bg-muted)]/40 border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="rejectReason"
+                    checked={selectedRejectReason === reason}
+                    onChange={() => setSelectedRejectReason(reason)}
+                    className="accent-rose-500"
+                  />
+                  <span>{reason}</span>
+                </label>
+              ))}
+            </div>
+
+            {/* Custom Notes / Addition */}
+            <div className="space-y-1 pt-1">
+              <label className="text-[11px] font-semibold text-[var(--text-secondary)] block">
+                Additional moderator remarks (optional):
+              </label>
+              <textarea
+                rows={2}
+                value={customRejectNote}
+                onChange={(e) => setCustomRejectNote(e.target.value)}
+                placeholder="Specific guidance for the lister to fix before resubmitting..."
+                className="w-full p-2 bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-surface)] text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] rounded-lg border border-[var(--border)] focus:border-rose-500 outline-none resize-none transition-all"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border)]">
+              <button
+                type="button"
+                onClick={() => setShowRejectModal(false)}
+                className="px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingAction}
+                onClick={() => {
+                  const finalReason = customRejectNote?.trim() 
+                    ? `${selectedRejectReason} - Notes: ${customRejectNote.trim()}`
+                    : selectedRejectReason;
+                  updateStatus('Rejected', finalReason);
+                }}
+                className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-colors flex items-center gap-1.5"
+              >
+                {isSubmittingAction ? (
+                  <>
+                    <RefreshCw size={12} className="animate-spin" />
+                    <span>Rejecting...</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle size={13} />
+                    <span>Confirm Rejection</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── 05. LIGHTBOX IMAGE GALLERY MODAL (Needed Only When Clicking Photos!) ─── */}
       {lightboxOpen && selectedItem && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-between p-4 sm:p-8 animate-in fade-in duration-200">
+        <div 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setLightboxOpen(false);
+          }}
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-between p-4 sm:p-8 animate-in fade-in duration-200"
+        >
           <div className="w-full flex items-center justify-between text-white max-w-5xl">
             <div className="space-y-0.5">
-              <span className="text-xs font-black text-brand tracking-wide">{selectedItem.id} - PHOTO GALLERY</span>
-              <p className="text-sm font-extrabold">{selectedItem.title} ({activeImageIndex + 1} of {selectedItem.images.length})</p>
+              <span className="text-xs font-mono font-bold text-brand tracking-wide">{selectedItem.id} · MEDIA GALLERY</span>
+              <p className="text-sm font-semibold">{selectedItem.title} ({activeImageIndex + 1} of {selectedItem.images.length})</p>
             </div>
             <button
+              type="button"
               onClick={() => setLightboxOpen(false)}
               className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
+              title="Close (Esc)"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
 
           <div className="relative w-full max-w-5xl flex-1 flex items-center justify-center p-4">
             <button
+              type="button"
               onClick={() => setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : selectedItem.images.length - 1))}
-              className="absolute left-2 sm:left-6 p-3 rounded-full bg-black/50 hover:bg-black/80 text-white transition-all cursor-pointer z-10"
+              className="absolute left-2 sm:left-6 p-2.5 rounded-full bg-black/60 hover:bg-black/80 text-white transition-all cursor-pointer z-10"
+              title="Previous photo (Left Arrow)"
             >
-              <ChevronLeft size={24} />
+              <ChevronLeft size={20} />
             </button>
 
             <img
               src={selectedItem.images[activeImageIndex]}
               alt={`Photo ${activeImageIndex + 1}`}
-              className="max-h-[68vh] max-w-full object-contain rounded-2xl shadow-2xl border border-white/10"
+              className="max-h-[68vh] max-w-full object-contain rounded-xl shadow-2xl border border-white/10 select-none"
               onError={(e) => {
-                e.target.src = 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800';
+                e.target.style.display = 'none';
               }}
             />
 
             <button
+              type="button"
               onClick={() => setActiveImageIndex((prev) => (prev < selectedItem.images.length - 1 ? prev + 1 : 0))}
-              className="absolute right-2 sm:right-6 p-3 rounded-full bg-black/50 hover:bg-black/80 text-white transition-all cursor-pointer z-10"
+              className="absolute right-2 sm:right-6 p-2.5 rounded-full bg-black/60 hover:bg-black/80 text-white transition-all cursor-pointer z-10"
+              title="Next photo (Right Arrow)"
             >
-              <ChevronRight size={24} />
+              <ChevronRight size={20} />
             </button>
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto max-w-2xl p-2 bg-white/10 rounded-2xl backdrop-blur-md">
+          <div className="flex items-center gap-2 overflow-x-auto max-w-2xl p-2 bg-white/10 rounded-xl backdrop-blur-md">
             {selectedItem.images.map((img, i) => (
               <button
                 key={i}
+                type="button"
                 onClick={() => setActiveImageIndex(i)}
-                className={`w-16 h-12 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
+                className={`w-14 h-11 rounded-lg overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
                   activeImageIndex === i ? 'border-brand scale-105 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'
                 }`}
               >
                 <img src={img} alt="thumb" className="w-full h-full object-cover" />
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ─── 06. IN-APP TOAST NOTIFICATION (Sleek, Auto-dismiss, Non-intrusive) ─── */}
+      {toast && (
+        <div className="fixed bottom-5 right-5 z-50 animate-in slide-in-from-bottom-5 duration-200">
+          <div className={`flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-xl border backdrop-blur-md text-xs font-semibold ${
+            toast.type === 'success'
+              ? 'bg-emerald-950/90 text-emerald-100 border-emerald-500/40 shadow-emerald-950/30'
+              : toast.type === 'error'
+              ? 'bg-rose-950/90 text-rose-100 border-rose-500/40 shadow-rose-950/30'
+              : 'bg-slate-900/90 text-slate-100 border-slate-700 shadow-slate-950/30'
+          }`}>
+            {toast.type === 'success' && <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />}
+            {toast.type === 'error' && <AlertCircle size={16} className="text-rose-400 shrink-0" />}
+            {toast.type === 'info' && <Info size={16} className="text-blue-400 shrink-0" />}
+            
+            <span className="leading-snug">{toast.message}</span>
+
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              className="ml-2 p-1 rounded-md hover:bg-white/10 text-white/70 hover:text-white transition-colors cursor-pointer"
+              title="Dismiss notification"
+            >
+              <X size={13} />
+            </button>
           </div>
         </div>
       )}

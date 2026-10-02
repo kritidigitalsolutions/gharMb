@@ -1,6 +1,6 @@
 /**
  * Developer Review Model
- * Stores buyer/tenant ratings and comments for verified developers/builders.
+ * Stores user ratings, comments, and rating aspects (Quality, Timely Delivery, etc.) for developers/builders.
  */
 
 const mongoose = require('mongoose');
@@ -32,17 +32,25 @@ const developerReviewSchema = new mongoose.Schema(
       maxlength: [1000, 'Comment cannot exceed 1000 characters.'],
     },
     tag: {
-      type: String, // e.g. "Bought a premium project", "Verified Buyer"
+      type: String, // e.g. "Quality", "Timely Delivery", "Verified Buyer"
       trim: true,
       default: '',
     },
+    tags: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
-// Compound unique index to make sure a buyer can only review a developer once
+// Compound unique index to make sure a user has one primary review per developer
 developerReviewSchema.index({ developer: 1, reviewer: 1 }, { unique: true });
 
 const DeveloperReview = mongoose.model('DeveloperReview', developerReviewSchema);

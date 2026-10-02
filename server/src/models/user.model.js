@@ -32,6 +32,20 @@ const userSchema = new mongoose.Schema(
       index: true,
       trim: true,
     },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
+      trim: true,
+    },
+    firebaseUid: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
+      trim: true,
+    },
     role: {
       type: String,
       enum: {
@@ -163,6 +177,10 @@ const userSchema = new mongoose.Schema(
     },
 
     isOnboardingCompleted: {
+      type: Boolean,
+      default: false,
+    },
+    isBasicInfoCompleted: {
       type: Boolean,
       default: false,
     },

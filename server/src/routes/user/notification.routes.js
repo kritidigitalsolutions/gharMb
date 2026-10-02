@@ -74,7 +74,48 @@ router.route('/:id/read')
  *       401:
  *         description: Unauthorized
  */
-router.post('/mark-all-read', notificationController.markAllAsRead);
+/**
+ * @swagger
+ * /api/notifications/clear-all:
+ *   delete:
+ *     summary: Delete all notifications of the current user
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All notifications deleted successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.delete('/clear-all', notificationController.deleteAllNotifications);
+router.delete('/', notificationController.deleteAllNotifications);
+
+/**
+ * @swagger
+ * /api/notifications/{id}:
+ *   delete:
+ *     summary: Delete a specific notification by ID
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Notification deleted successfully
+ *       400:
+ *         description: Invalid notification ID format
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Notification not found or access denied
+ */
+router.delete('/:id', notificationController.deleteNotification);
 
 module.exports = router;
 

@@ -158,10 +158,10 @@ const RevenueDashboard = () => {
     : tokens.filter(t => t.status === tokenFilter);
 
   const revenueStats = [
-    { title: 'Featured Showcase Rev', value: stats ? `₹${stats.featuredRev.toLocaleString('en-IN')}` : '₹0', change: '+18.2%', trend: 'up', color: 'text-amber-600 bg-amber-50 dark:bg-amber-500/10' },
-    { title: 'Premium Subs Rev', value: stats ? `₹${stats.premiumRev.toLocaleString('en-IN')}` : '₹0', change: '+24.5%', trend: 'up', color: 'text-purple-600 bg-purple-50 dark:bg-purple-500/10' },
-    { title: 'Boost Listings Rev', value: stats ? `₹${stats.boostRev.toLocaleString('en-IN')}` : '₹0', change: '+8.1%', trend: 'up', color: 'text-orange-600 bg-orange-50 dark:bg-orange-500/10' },
-    { title: 'Escrow Booking Rev', value: stats ? `₹${stats.escrowCommission.toLocaleString('en-IN')}` : '₹0', change: '+32.4%', trend: 'up', color: 'text-blue-600 bg-blue-500/10 dark:bg-blue-500/15' }
+    { title: 'Featured Showcase Rev', value: stats?.featuredRev ? `₹${stats.featuredRev.toLocaleString('en-IN')}` : '₹0', change: '+18.2%', trend: 'up', color: 'text-amber-600 bg-amber-50 dark:bg-amber-500/10' },
+    { title: 'Premium Subs Rev', value: stats?.premiumRev ? `₹${stats.premiumRev.toLocaleString('en-IN')}` : '₹0', change: '+24.5%', trend: 'up', color: 'text-purple-600 bg-purple-50 dark:bg-purple-500/10' },
+    { title: 'Boost Listings Rev', value: stats?.boostRev ? `₹${stats.boostRev.toLocaleString('en-IN')}` : '₹0', change: '+8.1%', trend: 'up', color: 'text-orange-600 bg-orange-50 dark:bg-orange-500/10' },
+    { title: 'Escrow Booking Rev', value: stats?.escrowCommission ? `₹${stats.escrowCommission.toLocaleString('en-IN')}` : '₹0', change: '+32.4%', trend: 'up', color: 'text-blue-600 bg-blue-500/10 dark:bg-blue-500/15' }
   ];
 
   return (

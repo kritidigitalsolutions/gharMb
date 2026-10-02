@@ -294,12 +294,12 @@ exports.verifyDeveloper = async (req, res, next) => {
   }
 };
 
-// @desc    Deactivate user account
+// @desc    Delete user account and all associated data (cascade delete)
 // @route   DELETE /api/admin/users/:id
 // @access  Private (Admin only)
 exports.deactivateUser = async (req, res, next) => {
   try {
-    const user = await User.findByIdAndDelete(req.params.id);
+    const user = await User.findById(req.params.id);
 
     if (!user) {
       return res.status(404).json({
@@ -308,9 +308,54 @@ exports.deactivateUser = async (req, res, next) => {
       });
     }
 
+    // Cascade delete all data belonging to this user
+    try {
+      const Property = require('../../models/property.model');
+      const Project = require('../../models/project.model');
+      const Notification = require('../../models/notification.model');
+      const PropertyEnquiry = require('../../models/property-enquiry.model');
+      const DeveloperEnquiry = require('../../models/developer-enquiry.model');
+
+      // Delete all properties owned by this user
+      const userProperties = await Property.find({ owner: user._id }).select('_id');
+      const userPropertyIds = userProperties.map(p => p._id);
+
+      // Delete all enquiries received on those properties
+      if (userPropertyIds.length > 0) {
+        await PropertyEnquiry.deleteMany({ property: { $in: userPropertyIds } });
+      }
+
+      // Delete user's own properties
+      await Property.deleteMany({ owner: user._id });
+
+      // Delete user's projects (if builder/developer)
+      if (user.role === 'builder') {
+        const userProjects = await Project.find({ developer: user._id }).select('_id');
+        const userProjectIds = userProjects.map(p => p._id);
+        if (userProjectIds.length > 0) {
+          await DeveloperEnquiry.deleteMany({ project: { $in: userProjectIds } });
+        }
+        await Project.deleteMany({ developer: user._id });
+      }
+
+      // Delete all enquiries sent by this user (as buyer/client)
+      await PropertyEnquiry.deleteMany({ client: user._id });
+      await DeveloperEnquiry.deleteMany({ client: user._id });
+
+      // Delete all notifications for this user
+      await Notification.deleteMany({ recipient: user._id });
+
+    } catch (cascadeErr) {
+      console.error('Warning: Error during cascade delete for user:', cascadeErr.message);
+      // Continue with user deletion even if cascade partially fails
+    }
+
+    // Finally delete the user document itself
+    await User.findByIdAndDelete(req.params.id);
+
     res.status(200).json({
       status: 'success',
-      message: 'User account has been deleted successfully.',
+      message: 'User account and all associated data have been permanently deleted.',
     });
   } catch (error) {
     next(error);

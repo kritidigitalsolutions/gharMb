@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Users,
   UserCheck,
@@ -8,18 +8,11 @@ import {
   Filter,
   ShieldAlert,
   ShieldCheck,
-  MoreVertical,
-  Activity,
   Trash2,
   Lock,
+  Unlock,
   Eye,
-  KeyRound,
-  ArrowUpDown,
-  ChevronLeft,
-  ChevronRight,
-  UserMinus,
-  Sparkles,
-  Edit,
+  Edit3,
   X,
   XCircle,
   Copy,
@@ -28,41 +21,120 @@ import {
   FileText,
   Clock,
   Building2,
-  Briefcase,
+  Building,
   MapPin,
   Award,
   Phone,
   Mail,
   Calendar,
   AlertTriangle,
-  Download,
-  Image as ImageIcon
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
+  Info,
+  ChevronLeft,
+  ChevronRight,
+  UserMinus,
+  Sparkles,
+  Home,
+  CheckCheck
 } from 'lucide-react';
 
+const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
+const API_URL = `${API_BASE}/api`;
+
 const UserManagement = () => {
+  // Core Directory State
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
-  const [realProperties, setRealProperties] = useState([]);
-  const [realEnquiries, setRealEnquiries] = useState({ sent: { property: [], developer: [] }, received: { property: [], developer: [] } });
-  const [isDrawerLoading, setIsDrawerLoading] = useState(false);
-
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRole, setSelectedRole] = useState('All');
+  // Inspector Drawer State
   const [selectedUser, setSelectedUser] = useState(null);
   const [userDrawerTab, setUserDrawerTab] = useState('Overview');
+  const [realProperties, setRealProperties] = useState([]);
+  const [realEnquiries, setRealEnquiries] = useState({
+    sent: { property: [], developer: [] },
+    received: { property: [], developer: [] }
+  });
+  const [isDrawerLoading, setIsDrawerLoading] = useState(false);
 
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  // Search & Filter Controls
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedRole, setSelectedRole] = useState('All'); // 'All' | 'Buyer' | 'Seller' | 'Agent' | 'Builder'
+  const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'Active' | 'Blocked' | 'Unverified'
 
-  const triggerToast = (message, type = 'success') => {
-    setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast({ show: false, message: '', type: 'success' });
-    }, 3000);
+  // Sorting & Pagination
+  const [sortField, setSortField] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+
+  // Modals (Rendered strictly when requested)
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectingUser, setRejectingUser] = useState(null);
+  const [rejectReason, setRejectReason] = useState('Document verification incomplete or mismatch');
+  const [isSubmittingReject, setIsSubmittingReject] = useState(false);
+
+  // Non-blocking Toast Feedback (Replaces browser alert/confirm)
+  const [toast, setToast] = useState(null);
+  const toastTimeoutRef = useRef(null);
+
+  const showToast = (message, type = 'success') => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast({ message, type });
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast(null);
+    }, 3800);
   };
 
-  const isMockMode = !localStorage.getItem('adminToken') || localStorage.getItem('adminToken') === 'mock_admin_token_2026';
+  // Add User Form State
+  const [newUser, setNewUser] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: 'Buyer',
+    status: 'Active',
+    isVerified: false
+  });
+
+  // Edit User Form State
+  const [editUserData, setEditUserData] = useState({
+    id: '',
+    name: '',
+    email: '',
+    phone: '',
+    role: 'Buyer',
+    status: 'Active',
+    isVerified: false,
+    reraNumber: '',
+    companyName: '',
+    gstNumber: '',
+    agentVerificationStatus: 'unverified',
+    builderVerificationStatus: 'unverified'
+  });
+
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('adminToken');
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    };
+  };
+
+  const copyToClipboard = (text, label) => {
+    if (!text || text === 'N/A') return;
+    navigator.clipboard?.writeText(text);
+    showToast(`${label} copied to clipboard!`, 'info');
+  };
 
   const mapApiToUiRole = (apiRole) => {
     switch (apiRole) {
@@ -82,25 +154,17 @@ const UserManagement = () => {
       case 'Agent': return 'agent';
       case 'Builder': return 'builder';
       case 'Tenant': return 'tenant';
-      default: return uiRole.toLowerCase();
+      default: return uiRole ? uiRole.toLowerCase() : 'buyer';
     }
   };
 
+  // --- Fetch Users (always from real API) ---
   const fetchUsers = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('adminToken');
-      if (isMockMode) {
-        loadMockData();
-        setIsLoading(false);
-        return;
-      }
-
-      const response = await fetch('http://localhost:5001/api/admin/users', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await fetch(`${API_URL}/admin/users`, {
+        headers: getAuthHeaders()
       });
       const data = await response.json();
       if (response.ok && data.status === 'success') {
@@ -109,76 +173,57 @@ const UserManagement = () => {
           id: u._id,
           role: mapApiToUiRole(u.role),
           status: u.status || 'Active',
-          date: u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Unknown'
+          date: u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'
         }));
         setUsers(mappedUsers);
       } else {
         setError(data.message || 'Failed to fetch users.');
       }
     } catch (err) {
-      console.error('Error fetching users, falling back to mock:', err);
-      loadMockData();
+      console.error('Error fetching users:', err);
+      setError('Could not connect to backend. Please ensure the server is running.');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const loadMockData = () => {
-    const saved = localStorage.getItem('gharmb_users');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.some(u => u.date && u.date.includes('Jun 2026'))) {
-          localStorage.removeItem('gharmb_users');
-        } else {
-          setUsers(parsed);
-          return;
-        }
-      } catch (err) {}
-    }
-    const defaultMock = [
-      { id: 'USR-8902', name: 'Alok Mishra', email: 'alok.mishra@gmail.com', phone: '+91 98765 43210', role: 'Buyer', status: 'Active', isVerified: true, listings: 0, date: '28 Jul 2026', createdAt: '2026-07-28T10:00:00Z' },
-      { id: 'USR-3120', name: 'Simran Jeet', email: 'simran.jeet@outlook.com', phone: '+91 99887 76655', role: 'Seller', status: 'Active', isVerified: false, listings: 3, date: '29 Jul 2026', createdAt: '2026-07-29T10:00:00Z' },
-      { id: 'USR-4811', name: 'Vikram Developers', email: 'info@vikramdev.com', phone: '+91 88776 65544', role: 'Builder', status: 'Active', isVerified: true, builderVerificationStatus: 'approved', listings: 14, date: '20 Jul 2026', createdAt: '2026-07-20T10:00:00Z' },
-      { id: 'USR-0922', name: 'Deepak Estates', email: 'deepak.estates@gmail.com', phone: '+91 77665 54433', role: 'Agent', status: 'Active', isVerified: false, agentVerificationStatus: 'pending', reraNumber: 'UPRERA-AGT-8821', cityOfOperation: 'Noida', experience: '3-5 yrs', listings: 8, date: '15 Jul 2026', createdAt: '2026-07-15T10:00:00Z' },
-      { id: 'USR-7731', name: 'Sanjay Aggarwal', email: 'sanjay.ag@gmail.com', phone: '+91 98112 23344', role: 'Buyer', status: 'Active', isVerified: true, listings: 0, date: '25 Jul 2026', createdAt: '2026-07-25T10:00:00Z' }
-    ];
-    setUsers(defaultMock);
-    localStorage.setItem('gharmb_users', JSON.stringify(defaultMock));
   };
 
   useEffect(() => {
     fetchUsers();
   }, []);
 
-  useEffect(() => {
-    if (isMockMode && users.length > 0) {
-      localStorage.setItem('gharmb_users', JSON.stringify(users));
-    }
-  }, [users, isMockMode]);
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchUsers();
+    setIsRefreshing(false);
+    showToast('User directory refreshed successfully.', 'info');
+  };
 
+  // Fetch Drawer properties & enquiries when drawer opens (always real API)
   useEffect(() => {
-    if (!selectedUser || isMockMode) return;
+    if (!selectedUser) return;
 
     const fetchDrawerData = async () => {
       setIsDrawerLoading(true);
       try {
-        const token = localStorage.getItem('adminToken');
         if (userDrawerTab === 'Listings') {
-          const response = await fetch(`http://localhost:5001/api/admin/properties?owner=${selectedUser.id}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+          const response = await fetch(`${API_URL}/admin/properties?owner=${selectedUser.id}`, {
+            headers: getAuthHeaders()
           });
           const data = await response.json();
           if (response.ok && data.status === 'success') {
             setRealProperties(data.data.properties || []);
+          } else {
+            setRealProperties([]);
           }
         } else if (userDrawerTab === 'Enquiries') {
-          const response = await fetch(`http://localhost:5001/api/admin/users/${selectedUser.id}/enquiries`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+          const response = await fetch(`${API_URL}/admin/users/${selectedUser.id}/enquiries`, {
+            headers: getAuthHeaders()
           });
           const data = await response.json();
           if (response.ok && data.status === 'success') {
             setRealEnquiries(data.data || { sent: { property: [], developer: [] }, received: { property: [], developer: [] } });
+          } else {
+            setRealEnquiries({ sent: { property: [], developer: [] }, received: { property: [], developer: [] } });
           }
         }
       } catch (err) {
@@ -189,637 +234,9 @@ const UserManagement = () => {
     };
 
     fetchDrawerData();
-  }, [selectedUser, userDrawerTab, isMockMode]);
+  }, [selectedUser, userDrawerTab]);
 
-  // Modals & form states
-  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
-  const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
-  const [newUser, setNewUser] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    role: 'Buyer',
-    status: 'Active',
-    isVerified: false
-  });
-  const [editUserData, setEditUserData] = useState({
-    id: '',
-    name: '',
-    email: '',
-    phone: '',
-    role: 'Buyer',
-    status: 'Active',
-    isVerified: false,
-    agentVerificationStatus: 'unverified',
-    builderVerificationStatus: 'unverified'
-  });
-
-  // Verify Agent Action Handler
-  const handleVerifyAgent = async (userId, targetStatus, rejectionReason = '') => {
-    if (isMockMode) {
-      const updatedUsers = users.map(u => {
-        if (u.id === userId) {
-          const updated = {
-            ...u,
-            isVerified: targetStatus === 'approved',
-            agentVerificationStatus: targetStatus,
-            agentRejectionReason: targetStatus === 'rejected' ? rejectionReason : undefined
-          };
-          if (selectedUser && selectedUser.id === userId) setSelectedUser(updated);
-          return updated;
-        }
-        return u;
-      });
-      setUsers(updatedUsers);
-      triggerToast(`Agent verification status updated to ${targetStatus}`);
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:5001/api/admin/users/${userId}/verify-agent`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          agentVerificationStatus: targetStatus,
-          agentRejectionReason: rejectionReason
-        })
-      });
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
-        triggerToast(`Agent status updated to ${targetStatus}!`);
-        if (selectedUser && selectedUser.id === userId) {
-          setSelectedUser(prev => ({
-            ...prev,
-            isVerified: targetStatus === 'approved',
-            agentVerificationStatus: targetStatus,
-            agentRejectionReason: targetStatus === 'rejected' ? rejectionReason : undefined
-          }));
-        }
-        await fetchUsers();
-      } else {
-        triggerToast(data.message || 'Failed to update agent verification.', 'error');
-      }
-    } catch (err) {
-      console.error('Error verifying agent:', err);
-      triggerToast('Network connection error.', 'error');
-    }
-  };
-
-  // Verify Developer Action Handler
-  const handleVerifyDeveloper = async (userId, targetStatus, rejectionReason = '') => {
-    if (isMockMode) {
-      const updatedUsers = users.map(u => {
-        if (u.id === userId) {
-          const updated = {
-            ...u,
-            isVerified: targetStatus === 'approved',
-            builderVerificationStatus: targetStatus,
-            builderRejectionReason: targetStatus === 'rejected' ? rejectionReason : undefined
-          };
-          if (selectedUser && selectedUser.id === userId) setSelectedUser(updated);
-          return updated;
-        }
-        return u;
-      });
-      setUsers(updatedUsers);
-      triggerToast(`Developer status updated to ${targetStatus}`);
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:5001/api/admin/users/${userId}/verify-developer`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          builderVerificationStatus: targetStatus,
-          builderRejectionReason: rejectionReason
-        })
-      });
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
-        triggerToast(`Developer status updated to ${targetStatus}!`);
-        if (selectedUser && selectedUser.id === userId) {
-          setSelectedUser(prev => ({
-            ...prev,
-            isVerified: targetStatus === 'approved',
-            builderVerificationStatus: targetStatus,
-            builderRejectionReason: targetStatus === 'rejected' ? rejectionReason : undefined
-          }));
-        }
-        await fetchUsers();
-      } else {
-        triggerToast(data.message || 'Failed to update developer verification.', 'error');
-      }
-    } catch (err) {
-      console.error('Error verifying developer:', err);
-      triggerToast('Network connection error.', 'error');
-    }
-  };
-
-  // Toggle KYC / Verification for any user
-  const toggleKycVerification = async (u) => {
-    if (u.role === 'Agent') {
-      const isApproved = u.agentVerificationStatus === 'approved' || (u.isVerified && u.agentVerificationStatus !== 'rejected');
-      const newStatus = isApproved ? 'unverified' : 'approved';
-      await handleVerifyAgent(u.id, newStatus);
-    } else if (u.role === 'Builder') {
-      const isApproved = u.builderVerificationStatus === 'approved' || (u.isVerified && u.builderVerificationStatus !== 'rejected');
-      const newStatus = isApproved ? 'unverified' : 'approved';
-      await handleVerifyDeveloper(u.id, newStatus);
-    } else {
-      const newVerified = !u.isVerified;
-      if (isMockMode) {
-        const updatedUsers = users.map(user => user.id === u.id ? { ...user, isVerified: newVerified } : user);
-        setUsers(updatedUsers);
-        if (selectedUser && selectedUser.id === u.id) setSelectedUser({ ...selectedUser, isVerified: newVerified });
-        triggerToast(`KYC status updated to ${newVerified ? 'Verified' : 'Unverified'}`);
-        return;
-      }
-      try {
-        const token = localStorage.getItem('adminToken');
-        const response = await fetch(`http://localhost:5001/api/admin/users/${u.id}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ isVerified: newVerified })
-        });
-        if (response.ok) {
-          triggerToast(`KYC status updated!`);
-          if (selectedUser && selectedUser.id === u.id) {
-            setSelectedUser(prev => ({ ...prev, isVerified: newVerified }));
-          }
-          await fetchUsers();
-        }
-      } catch (err) {
-        console.error('Error toggling KYC verification:', err);
-      }
-    }
-  };
-  
-  // Sorting & Pagination States
-  const [sortField, setSortField] = useState('name');
-  const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
-  // Bulk Selection States
-  const [selectedIds, setSelectedIds] = useState([]);
-
-  // Handle row sorting
-  const handleSort = (field) => {
-    const isAsc = sortField === field && sortOrder === 'asc';
-    setSortOrder(isAsc ? 'desc' : 'asc');
-    setSortField(field);
-
-    const sortedUsers = [...users].sort((a, b) => {
-      const aVal = a[field];
-      const bVal = b[field];
-      if (typeof aVal === 'string') {
-        return isAsc ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
-      } else {
-        return isAsc ? bVal - aVal : aVal - bVal;
-      }
-    });
-    setUsers(sortedUsers);
-  };
-
-  // Toggle single row checkbox
-  const toggleSelectRow = (id) => {
-    if (selectedIds.includes(id)) {
-      setSelectedIds(selectedIds.filter(item => item !== id));
-    } else {
-      setSelectedIds([...selectedIds, id]);
-    }
-  };
-
-  // Select/Unselect All
-  const toggleSelectAll = () => {
-    if (selectedIds.length === filteredUsers.length) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(filteredUsers.map(u => u.id));
-    }
-  };
-
-  // Bulk actions trigger
-  const triggerBulkBlock = async () => {
-    if (isMockMode) {
-      const updatedUsers = users.map(u => selectedIds.includes(u.id) ? { ...u, status: 'Blocked' } : u);
-      setUsers(updatedUsers);
-      setSelectedIds([]);
-      alert('Selected accounts have been suspended successfully.');
-    } else {
-      try {
-        const token = localStorage.getItem('adminToken');
-        await Promise.all(selectedIds.map(async (id) => {
-          await fetch(`http://localhost:5001/api/admin/users/${id}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ status: 'Blocked' })
-          });
-        }));
-        setSelectedIds([]);
-        alert('Selected accounts suspended successfully.');
-        await fetchUsers();
-      } catch (err) {
-        console.error('Error in bulk block:', err);
-        alert('Some accounts could not be updated.');
-      }
-    }
-  };
-
-  const triggerBulkDelete = async () => {
-    const confirmDelete = window.confirm('Are you sure you want to delete the selected accounts?');
-    if (!confirmDelete) return;
-
-    if (isMockMode) {
-      const updatedUsers = users.filter(u => !selectedIds.includes(u.id));
-      setUsers(updatedUsers);
-      setSelectedIds([]);
-      alert('Selected accounts deleted from the directory.');
-    } else {
-      try {
-        const token = localStorage.getItem('adminToken');
-        await Promise.all(selectedIds.map(async (id) => {
-          await fetch(`http://localhost:5001/api/admin/users/${id}`, {
-            method: 'DELETE',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-        }));
-        setSelectedIds([]);
-        alert('Selected accounts deleted successfully.');
-        await fetchUsers();
-      } catch (err) {
-        console.error('Error in bulk delete:', err);
-        alert('Some accounts could not be deleted.');
-      }
-    }
-  };
-
-  // Toggle user status (Block / Unblock)
-  const toggleUserStatus = async (id) => {
-    const userToToggle = users.find(u => u.id === id);
-    if (!userToToggle) return;
-    const newStatus = userToToggle.status === 'Active' ? 'Blocked' : 'Active';
-
-    if (isMockMode) {
-      const updatedUsers = users.map(u => {
-        if (u.id === id) {
-          const updated = { ...u, status: newStatus };
-          if (selectedUser && selectedUser.id === id) {
-            setSelectedUser(updated);
-          }
-          return updated;
-        }
-        return u;
-      });
-      setUsers(updatedUsers);
-    } else {
-      try {
-        const token = localStorage.getItem('adminToken');
-        const response = await fetch(`http://localhost:5001/api/admin/users/${id}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            status: newStatus
-          })
-        });
-        const data = await response.json();
-        if (response.ok && data.status === 'success') {
-          if (selectedUser && selectedUser.id === id) {
-            setSelectedUser({ ...selectedUser, status: newStatus });
-          }
-          await fetchUsers();
-        } else {
-          alert(data.message || 'Failed to toggle account status.');
-        }
-      } catch (err) {
-        console.error('Error toggling status:', err);
-        alert('Network connection error.');
-      }
-    }
-  };
-
-  const handleAddUserSubmit = async (e) => {
-    e.preventDefault();
-    if (!newUser.name || !newUser.email || !newUser.phone) {
-      alert('Please fill in Name, Email, and Phone fields.');
-      return;
-    }
-
-    if (isMockMode) {
-      const newId = `USR-${Math.floor(1000 + Math.random() * 9000)}`;
-      const userRecord = {
-        id: newId,
-        name: newUser.name,
-        email: newUser.email,
-        phone: newUser.phone,
-        role: newUser.role,
-        status: newUser.status,
-        isVerified: newUser.isVerified,
-        listings: 0,
-        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-      };
-      setUsers([userRecord, ...users]);
-      setIsAddUserModalOpen(false);
-      setNewUser({
-        name: '',
-        email: '',
-        phone: '',
-        role: 'Buyer',
-        status: 'Active',
-        isVerified: false
-      });
-    } else {
-      try {
-        const token = localStorage.getItem('adminToken');
-        const response = await fetch('http://localhost:5001/api/admin/users', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            name: newUser.name,
-            email: newUser.email,
-            phone: newUser.phone,
-            role: newUser.role,
-            status: newUser.status,
-            isVerified: newUser.isVerified
-          })
-        });
-        const data = await response.json();
-        if (response.ok && data.status === 'success') {
-          setIsAddUserModalOpen(false);
-          setNewUser({
-            name: '',
-            email: '',
-            phone: '',
-            role: 'Buyer',
-            status: 'Active',
-            isVerified: false
-          });
-          await fetchUsers();
-        } else {
-          alert(data.message || 'Failed to create user profile.');
-        }
-      } catch (err) {
-        console.error('Error creating user:', err);
-        alert('Network connection error.');
-      }
-    }
-  };
-
-  const handleEditUserSubmit = async (e) => {
-    e.preventDefault();
-    if (!editUserData.name || !editUserData.email || !editUserData.phone) {
-      alert('Please fill in Name, Email, and Phone fields.');
-      return;
-    }
-
-    if (isMockMode) {
-      setUsers(users.map(u => u.id === editUserData.id ? { ...u, ...editUserData } : u));
-      if (selectedUser && selectedUser.id === editUserData.id) {
-        setSelectedUser({ ...selectedUser, ...editUserData });
-      }
-      setIsEditUserModalOpen(false);
-      triggerToast('User details updated successfully!');
-    } else {
-      try {
-        const token = localStorage.getItem('adminToken');
-        const response = await fetch(`http://localhost:5001/api/admin/users/${editUserData.id}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            name: editUserData.name,
-            email: editUserData.email,
-            phone: editUserData.phone,
-            role: editUserData.role,
-            status: editUserData.status,
-            isVerified: editUserData.isVerified,
-            agentVerificationStatus: editUserData.role === 'Agent' ? editUserData.agentVerificationStatus : undefined,
-            builderVerificationStatus: editUserData.role === 'Builder' ? editUserData.builderVerificationStatus : undefined,
-          })
-        });
-        const data = await response.json();
-        if (response.ok && data.status === 'success') {
-          setIsEditUserModalOpen(false);
-          triggerToast('User details updated successfully!');
-          if (selectedUser && selectedUser.id === editUserData.id) {
-            setSelectedUser({
-              ...selectedUser,
-              name: editUserData.name,
-              email: editUserData.email,
-              phone: editUserData.phone,
-              role: editUserData.role,
-              status: editUserData.status,
-              isVerified: editUserData.isVerified,
-              agentVerificationStatus: editUserData.agentVerificationStatus,
-              builderVerificationStatus: editUserData.builderVerificationStatus,
-            });
-          }
-          await fetchUsers();
-        } else {
-          alert(data.message || 'Failed to update user.');
-        }
-      } catch (err) {
-        console.error('Error updating user:', err);
-        alert('Network connection error.');
-      }
-    }
-  };
-
-  const openEditUserModal = (user) => {
-    const isApproved = user.isVerified || user.agentVerificationStatus === 'approved' || user.builderVerificationStatus === 'approved';
-    setEditUserData({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      status: user.status,
-      isVerified: isApproved,
-      agentVerificationStatus: user.agentVerificationStatus || (isApproved ? 'approved' : 'unverified'),
-      builderVerificationStatus: user.builderVerificationStatus || (isApproved ? 'approved' : 'unverified'),
-    });
-    setIsEditUserModalOpen(true);
-  };
-
-  const deleteUser = async (id) => {
-    const confirmDelete = window.confirm('Are you sure you want to permanently delete this user account?');
-    if (!confirmDelete) return;
-
-    if (isMockMode) {
-      setUsers(users.filter(u => u.id !== id));
-      setSelectedUser(null);
-    } else {
-      try {
-        const token = localStorage.getItem('adminToken');
-        const response = await fetch(`http://localhost:5001/api/admin/users/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        const data = await response.json();
-        if (response.ok && data.status === 'success') {
-          setSelectedUser(null);
-          await fetchUsers();
-        } else {
-          alert(data.message || 'Failed to delete user.');
-        }
-      } catch (err) {
-        console.error('Error deleting user:', err);
-        alert('Network connection error.');
-      }
-    }
-  };
-
-  // Filters
-  const filteredUsers = users.filter(u => {
-    const name = u.name || '';
-    const email = u.email || '';
-    const id = u.id || u._id || '';
-    const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = selectedRole === 'All' || u.role === selectedRole;
-    return matchesSearch && matchesRole;
-  });
-
-  // Paginated records
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage) || 1;
-  const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  const userProperties = (() => {
-    if (!selectedUser) return [];
-    const saved = localStorage.getItem('gharmb_properties');
-    let list = [];
-    if (saved) {
-      try {
-        list = JSON.parse(saved);
-      } catch (err) {}
-    }
-    const filtered = list.filter(p => p.owner && p.owner.toLowerCase().includes(selectedUser.name.toLowerCase()));
-    if (filtered.length > 0) return filtered;
-    
-    if (selectedUser.role !== 'Buyer') {
-      return [
-        { id: 'PROP-9821', title: 'Godrej Woods Sector 43', location: 'Noida, Sector 43', price: '₹2.45 Cr', photoUrl: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=100&q=80', status: 'Pending' },
-        { id: 'PROP-4920', title: 'Premium 3 BHK Builder Floor', location: 'DLF Phase 2, Gurugram', price: '₹1.85 Cr', photoUrl: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=100&q=80', status: 'Approved' }
-      ].slice(0, selectedUser.listings || 1);
-    }
-    return [];
-  })();
-
-  const userLeads = (() => {
-    if (!selectedUser) return [];
-    const saved = localStorage.getItem('gharmb_leads');
-    let list = [];
-    if (saved) {
-      try {
-        list = JSON.parse(saved);
-      } catch (err) {}
-    }
-    const filtered = list.filter(l => l.client && l.client.toLowerCase().includes(selectedUser.name.toLowerCase()));
-    if (filtered.length > 0) return filtered;
-
-    return [
-      { id: 'LED-3210', property: 'Godrej Woods Phase 2', type: 'WhatsApp', date: '16 Jun 2026', status: 'Pending' },
-      { id: 'LED-4921', property: 'DLF Skycourt Penthouse', type: 'Call Request', date: '16 Jun 2026', status: 'Contacted' }
-    ].slice(0, selectedUser.role === 'Buyer' ? 2 : 1);
-  })();
-
-  const listingsList = isMockMode ? userProperties : (realProperties || []).map(p => ({
-    id: p._id,
-    title: p.title || 'Untitled Property',
-    location: `${p.locality || ''}, ${p.city || ''}`,
-    price: p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : 'N/A',
-    photoUrl: p.images && p.images[0] ? p.images[0] : 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=100&q=80',
-    status: p.approvalStatus ? p.approvalStatus.charAt(0).toUpperCase() + p.approvalStatus.slice(1) : 'Pending'
-  }));
-
-  const enquiriesList = (() => {
-    if (isMockMode) return userLeads;
-    const list = [];
-    const sentProps = realEnquiries?.sent?.property || [];
-    const sentDevs = realEnquiries?.sent?.developer || [];
-    const recProps = realEnquiries?.received?.property || [];
-    const recDevs = realEnquiries?.received?.developer || [];
-
-    sentProps.forEach(enq => {
-      list.push({
-        id: enq._id,
-        property: enq.property ? enq.property.title : 'Deleted Property',
-        type: 'Property Enquiry',
-        date: enq.createdAt ? new Date(enq.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
-        status: enq.status ? enq.status.charAt(0).toUpperCase() + enq.status.slice(1) : 'Pending'
-      });
-    });
-
-    sentDevs.forEach(enq => {
-      list.push({
-        id: enq._id,
-        property: enq.developer ? (enq.developer.companyName || enq.developer.name) : 'Developer Contact',
-        type: 'Developer Enquiry',
-        date: enq.createdAt ? new Date(enq.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
-        status: enq.status ? enq.status.charAt(0).toUpperCase() + enq.status.slice(1) : 'Pending'
-      });
-    });
-
-    recProps.forEach(enq => {
-      list.push({
-        id: enq._id,
-        property: enq.property ? enq.property.title : 'Deleted Property',
-        type: `Received (From: ${enq.client ? enq.client.name : 'Unknown'})`,
-        date: enq.createdAt ? new Date(enq.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
-        status: enq.status ? enq.status.charAt(0).toUpperCase() + enq.status.slice(1) : 'Pending'
-      });
-    });
-
-    recDevs.forEach(enq => {
-      list.push({
-        id: enq._id,
-        property: 'Developer Enquiry',
-        type: `Received (From: ${enq.client ? enq.client.name : 'Unknown'})`,
-        date: enq.createdAt ? new Date(enq.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
-        status: enq.status ? enq.status.charAt(0).toUpperCase() + enq.status.slice(1) : 'Pending'
-      });
-    });
-
-    return list;
-  })();
-
-  const newRegistrationsCount = users.filter(u => {
-    const dateToCheck = u.createdAt ? new Date(u.createdAt) : (u.date ? new Date(u.date) : null);
-    if (!dateToCheck) return false;
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    return dateToCheck >= sevenDaysAgo;
-  }).length;
-
-  // Helper to determine verification badge details
+  // Verification Helper
   const getVerificationState = (u) => {
     if (u.role === 'Agent') {
       const status = u.agentVerificationStatus || (u.isVerified ? 'approved' : 'unverified');
@@ -845,290 +262,833 @@ const UserManagement = () => {
       isApproved: !!u.isVerified,
       isPending: false,
       isRejected: false,
-      label: u.isVerified ? 'Verified' : 'Unverified',
+      label: u.isVerified ? 'Verified Profile' : 'Unverified',
       status: u.isVerified ? 'approved' : 'unverified'
     };
   };
 
-  return (
-    <div className="h-[calc(100vh-120px)] flex flex-col space-y-6 overflow-hidden relative">
+  // --- Handlers: Verification Actions (always real API) ---
+  const handleVerifyAgent = async (userId, targetStatus, explicitReason = '') => {
+    try {
+      const response = await fetch(`${API_URL}/admin/users/${userId}/verify-agent`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          agentVerificationStatus: targetStatus,
+          agentRejectionReason: explicitReason
+        })
+      });
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        showToast(`Agent status updated to ${targetStatus}!`, targetStatus === 'approved' ? 'success' : 'info');
+        if (selectedUser && selectedUser.id === userId) {
+          setSelectedUser(prev => ({
+            ...prev,
+            isVerified: targetStatus === 'approved',
+            agentVerificationStatus: targetStatus,
+            agentRejectionReason: targetStatus === 'rejected' ? explicitReason : undefined
+          }));
+        }
+        await fetchUsers();
+      } else {
+        showToast(data.message || 'Failed to update agent verification.', 'error');
+      }
+    } catch (err) {
+      console.error('Error verifying agent:', err);
+      showToast('Network connection error.', 'error');
+    }
+  };
+
+  const handleVerifyDeveloper = async (userId, targetStatus, explicitReason = '') => {
+    try {
+      const response = await fetch(`${API_URL}/admin/users/${userId}/verify-developer`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          builderVerificationStatus: targetStatus,
+          builderRejectionReason: explicitReason
+        })
+      });
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        showToast(`Developer status updated to ${targetStatus}!`, targetStatus === 'approved' ? 'success' : 'info');
+        if (selectedUser && selectedUser.id === userId) {
+          setSelectedUser(prev => ({
+            ...prev,
+            isVerified: targetStatus === 'approved',
+            builderVerificationStatus: targetStatus,
+            builderRejectionReason: targetStatus === 'rejected' ? explicitReason : undefined
+          }));
+        }
+        await fetchUsers();
+      } else {
+        showToast(data.message || 'Failed to update developer verification.', 'error');
+      }
+    } catch (err) {
+      console.error('Error verifying developer:', err);
+      showToast('Network connection error.', 'error');
+    }
+  };
+
+  // Toggle KYC status cleanly (always real API)
+  const toggleKycVerification = async (u) => {
+    if (u.role === 'Agent') {
+      const isApproved = u.agentVerificationStatus === 'approved' || (u.isVerified && u.agentVerificationStatus !== 'rejected');
+      const newStatus = isApproved ? 'unverified' : 'approved';
+      await handleVerifyAgent(u.id, newStatus);
+    } else if (u.role === 'Builder') {
+      const isApproved = u.builderVerificationStatus === 'approved' || (u.isVerified && u.builderVerificationStatus !== 'rejected');
+      const newStatus = isApproved ? 'unverified' : 'approved';
+      await handleVerifyDeveloper(u.id, newStatus);
+    } else {
+      const newVerified = !u.isVerified;
+      try {
+        const response = await fetch(`${API_URL}/admin/users/${u.id}`, {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ isVerified: newVerified })
+        });
+        if (response.ok) {
+          showToast(`KYC status updated to ${newVerified ? 'Verified' : 'Unverified'}!`);
+          if (selectedUser && selectedUser.id === u.id) {
+            setSelectedUser(prev => ({ ...prev, isVerified: newVerified }));
+          }
+          await fetchUsers();
+        }
+      } catch (err) {
+        console.error('Error toggling KYC verification:', err);
+        showToast('Failed to update verification status.', 'error');
+      }
+    }
+  };
+
+  // Toggle Single User Status (Active <-> Blocked) - always real API
+  const toggleUserStatus = async (id) => {
+    const userToToggle = users.find(u => u.id === id);
+    if (!userToToggle) return;
+    const newStatus = userToToggle.status === 'Active' ? 'Blocked' : 'Active';
+    try {
+      const response = await fetch(`${API_URL}/admin/users/${id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status: newStatus })
+      });
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        showToast(`Account status updated to ${newStatus}`);
+        if (selectedUser && selectedUser.id === id) {
+          setSelectedUser({ ...selectedUser, status: newStatus });
+        }
+        await fetchUsers();
+      } else {
+        showToast(data.message || 'Failed to toggle account status.', 'error');
+      }
+    } catch (err) {
+      console.error('Error toggling status:', err);
+      showToast('Network connection error.', 'error');
+    }
+  };
+
+  // Sorting Handler
+  const handleSort = (field) => {
+    const isAsc = sortField === field && sortOrder === 'asc';
+    const nextOrder = isAsc ? 'desc' : 'asc';
+    setSortOrder(nextOrder);
+    setSortField(field);
+
+    const sortedUsers = [...users].sort((a, b) => {
+      const aVal = a[field] ?? '';
+      const bVal = b[field] ?? '';
+      if (typeof aVal === 'string') {
+        return nextOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      } else {
+        return nextOrder === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+    });
+    setUsers(sortedUsers);
+  };
+
+  // Add User Handler (always real API)
+  const handleAddUserSubmit = async (e) => {
+    e.preventDefault();
+    if (!newUser.name?.trim() || !newUser.phone?.trim()) {
+      showToast('Please complete Name and Phone fields.', 'error');
+      return;
+    }
+    try {
+      const response = await fetch(`${API_URL}/admin/users`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: newUser.name,
+          email: newUser.email,
+          phone: newUser.phone,
+          role: mapUiToApiRole(newUser.role),
+          status: newUser.status,
+          isVerified: newUser.isVerified
+        })
+      });
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        setIsAddUserModalOpen(false);
+        showToast(`User profile created successfully!`, 'success');
+        setNewUser({ name: '', email: '', phone: '', role: 'Buyer', status: 'Active', isVerified: false });
+        await fetchUsers();
+      } else {
+        showToast(data.message || 'Failed to create user profile.', 'error');
+      }
+    } catch (err) {
+      console.error('Error creating user:', err);
+      showToast('Network connection error.', 'error');
+    }
+  };
+
+  // Edit User Handler
+  const openEditUserModal = (user) => {
+    const isApproved = user.isVerified || user.agentVerificationStatus === 'approved' || user.builderVerificationStatus === 'approved';
+    setEditUserData({
+      id: user.id,
+      name: user.name || '',
+      email: user.email || '',
+      phone: user.phone || '',
+      role: user.role || 'Buyer',
+      status: user.status || 'Active',
+      isVerified: isApproved,
+      reraNumber: user.reraNumber || '',
+      companyName: user.companyName || '',
+      gstNumber: user.gstNumber || '',
+      agentVerificationStatus: user.agentVerificationStatus || (isApproved ? 'approved' : 'unverified'),
+      builderVerificationStatus: user.builderVerificationStatus || (isApproved ? 'approved' : 'unverified')
+    });
+    setIsEditUserModalOpen(true);
+  };
+
+  const handleEditUserSubmit = async (e) => {
+    e.preventDefault();
+    if (!editUserData.name?.trim()) {
+      showToast('Please fill in the Name field.', 'error');
+      return;
+    }
+    try {
+      const response = await fetch(`${API_URL}/admin/users/${editUserData.id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: editUserData.name,
+          email: editUserData.email,
+          phone: editUserData.phone,
+          role: mapUiToApiRole(editUserData.role),
+          status: editUserData.status,
+          isVerified: editUserData.isVerified,
+          reraNumber: editUserData.reraNumber,
+          companyName: editUserData.companyName,
+          gstNumber: editUserData.gstNumber,
+          agentVerificationStatus: editUserData.role === 'Agent' ? editUserData.agentVerificationStatus : undefined,
+          builderVerificationStatus: editUserData.role === 'Builder' ? editUserData.builderVerificationStatus : undefined
+        })
+      });
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        setIsEditUserModalOpen(false);
+        showToast('User details updated successfully!', 'success');
+        if (selectedUser && selectedUser.id === editUserData.id) {
+          setSelectedUser(prev => ({ ...prev, ...editUserData }));
+        }
+        await fetchUsers();
+      } else {
+        showToast(data.message || 'Failed to update user.', 'error');
+      }
+    } catch (err) {
+      console.error('Error updating user:', err);
+      showToast('Network connection error.', 'error');
+    }
+  };
+
+  // Delete User - always real API
+  const confirmDeleteExecution = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`${API_URL}/admin/users/${userToDelete.id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (response.ok) {
+        if (selectedUser?.id === userToDelete.id) setSelectedUser(null);
+        showToast(`User profile deleted permanently.`, 'success');
+        await fetchUsers();
+      } else {
+        const data = await response.json();
+        showToast(data.message || 'Failed to delete user.', 'error');
+      }
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      showToast('Network connection error.', 'error');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Rejection Submission
+  const confirmRejectionSubmit = async () => {
+    if (!rejectingUser) return;
+    setIsSubmittingReject(true);
+    try {
+      if (rejectingUser.role === 'Agent') {
+        await handleVerifyAgent(rejectingUser.id, 'rejected', rejectReason);
+      } else {
+        await handleVerifyDeveloper(rejectingUser.id, 'rejected', rejectReason);
+      }
+      setShowRejectModal(false);
+      setRejectingUser(null);
+    } finally {
+      setIsSubmittingReject(false);
+    }
+  };
+
+  // Filtering Logic
+  const filteredUsers = useMemo(() => {
+    return users.filter(u => {
+      const name = (u.name || '').toLowerCase();
+      const email = (u.email || '').toLowerCase();
+      const id = (u.id || u._id || '').toLowerCase();
+      const phone = (u.phone || '').toLowerCase();
+      const query = searchQuery.toLowerCase().trim();
+
+      const matchesSearch = !query || name.includes(query) || email.includes(query) || id.includes(query) || phone.includes(query);
+      const matchesRole = selectedRole === 'All' || u.role === selectedRole;
       
-      {/* Stats cards Banner */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
-        <div className="p-4 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[9px] font-semibold text-[var(--text-muted)] block uppercase">Total Users</span>
-            <h4 className="text-lg font-bold text-[var(--text-primary)]">{users.length}</h4>
+      let matchesStatus = true;
+      if (statusFilter === 'Active') matchesStatus = u.status === 'Active';
+      else if (statusFilter === 'Blocked') matchesStatus = u.status === 'Blocked';
+      else if (statusFilter === 'Unverified') {
+        const v = getVerificationState(u);
+        matchesStatus = !v.isApproved;
+      }
+
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [users, searchQuery, selectedRole, statusFilter]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage) || 1;
+  const paginatedUsers = useMemo(() => {
+    return filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, [filteredUsers, currentPage, itemsPerPage]);
+
+  // Statistics
+  const activeCount = useMemo(() => users.filter(u => u.status === 'Active').length, [users]);
+  const verifiedCount = useMemo(() => users.filter(u => u.isVerified || u.agentVerificationStatus === 'approved' || u.builderVerificationStatus === 'approved').length, [users]);
+  const suspendedCount = useMemo(() => users.filter(u => u.status === 'Blocked').length, [users]);
+
+  const roleCounts = useMemo(() => ({
+    All: users.length,
+    Buyer: users.filter(u => u.role === 'Buyer').length,
+    Seller: users.filter(u => u.role === 'Seller').length,
+    Agent: users.filter(u => u.role === 'Agent').length,
+    Builder: users.filter(u => u.role === 'Builder').length,
+  }), [users]);
+
+  return (
+    <div className="space-y-3.5 pb-8 relative text-[var(--text-primary)]">
+
+      {/* ─── 01. UNIFIED TOP CONTROL STRIP (Editorial, Clean, Minimal) ─── */}
+      <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl px-4 py-2.5 shadow-2xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        
+        {/* Left: Section Identity */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-brand animate-pulse" />
+            <h1 className="text-xs sm:text-[13px] font-bold tracking-tight text-[var(--text-primary)]">
+              User Directory & Accounts
+            </h1>
           </div>
-          <div className="w-9 h-9 rounded-xl bg-orange-50 text-brand flex items-center justify-center shrink-0">
-            <Users size={18} />
-          </div>
+
+          <span className="text-[var(--border)] hidden sm:inline">|</span>
+
+          {/* Directory Count Tag */}
+          <span className="text-[11px] font-medium text-[var(--text-muted)] hidden sm:inline">
+            {users.length} registered profiles
+          </span>
         </div>
-        <div className="p-4 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[9px] font-semibold text-[var(--text-muted)] block uppercase">New Registrations</span>
-            <h4 className="text-lg font-bold text-[var(--text-primary)]">
-              {newRegistrationsCount} {newRegistrationsCount === 1 ? 'User' : 'Users'}
-            </h4>
-          </div>
-          <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <UserCheck size={18} />
-          </div>
-        </div>
-        <div className="p-4 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[9px] font-semibold text-[var(--text-muted)] block uppercase">Suspended</span>
-            <h4 className="text-lg font-bold text-[var(--text-primary)]">
-              {users.filter(u => u.status === 'Blocked').length}
-            </h4>
-          </div>
-          <div className="w-9 h-9 rounded-xl bg-red-500/10 text-red-600 flex items-center justify-center shrink-0">
-            <UserX size={18} />
-          </div>
-        </div>
-        <div className="p-4 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[9px] font-semibold text-[var(--text-muted)] block uppercase">Verified Profiles</span>
-            <h4 className="text-lg font-bold text-[var(--text-primary)]">
-              {users.filter(u => u.isVerified || u.agentVerificationStatus === 'approved' || u.builderVerificationStatus === 'approved').length}
-            </h4>
-          </div>
-          <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
-            <ShieldCheck size={18} />
-          </div>
+
+        {/* Right: Quick Status Filter Pills & Actions */}
+        <div className="flex items-center gap-1.5 flex-wrap w-full md:w-auto justify-end text-[11px]">
+          
+          <button
+            type="button"
+            onClick={() => { setStatusFilter('All'); setCurrentPage(1); }}
+            className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 border cursor-pointer ${
+              statusFilter === 'All'
+                ? 'bg-[var(--text-primary)] text-[var(--bg-surface)] border-[var(--text-primary)] font-semibold shadow-2xs'
+                : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border)] hover:bg-[var(--bg-muted)]'
+            }`}
+          >
+            <span>All ({users.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setStatusFilter('Active'); setCurrentPage(1); }}
+            className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 border cursor-pointer ${
+              statusFilter === 'Active'
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-semibold shadow-2xs'
+                : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border)] hover:bg-[var(--bg-muted)]'
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span>Active</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/15 font-bold">
+              {activeCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setStatusFilter('Unverified'); setCurrentPage(1); }}
+            className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 border cursor-pointer ${
+              statusFilter === 'Unverified'
+                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-semibold shadow-2xs'
+                : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border)] hover:bg-[var(--bg-muted)]'
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <span>Unverified</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 font-bold">
+              {users.length - verifiedCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setStatusFilter('Blocked'); setCurrentPage(1); }}
+            className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 border cursor-pointer ${
+              statusFilter === 'Blocked'
+                ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 font-semibold shadow-2xs'
+                : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border)] hover:bg-[var(--bg-muted)]'
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+            <span>Suspended</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/15 font-bold">
+              {suspendedCount}
+            </span>
+          </button>
+
+          {/* Sync Button */}
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            disabled={isLoading || isRefreshing}
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] border border-[var(--border)] transition-colors cursor-pointer ml-1"
+            title="Refresh database records"
+          >
+            <RefreshCw size={12} className={isLoading || isRefreshing ? 'animate-spin text-brand' : ''} />
+          </button>
+
+          {/* Add User Primary Action */}
+          <button
+            type="button"
+            onClick={() => setIsAddUserModalOpen(true)}
+            className="py-1 px-3 bg-brand hover:bg-brand-dark text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer active:scale-98 ml-1"
+          >
+            <Plus size={13} />
+            <span>Add User</span>
+          </button>
+
         </div>
       </div>
 
-      {/* Main Datatable */}
-      <div className="flex-1 min-h-0 p-4 md:p-6 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm flex flex-col space-y-5">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 shrink-0">
-          
-          {/* Search bar */}
-          <div className="relative max-w-sm w-full">
-            <Search className="absolute top-2.5 left-3.5 text-[var(--text-muted)]" size={14} />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by name, email, or user ID..."
-              className="w-full pl-9 pr-4 py-2 border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
-            />
-          </div>
-
-          {/* Role Filters & Add Action */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 bg-[var(--bg-muted)] p-1 rounded-xl border border-[var(--border)]">
-              {['All', 'Buyer', 'Seller', 'Agent', 'Builder'].map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => setSelectedRole(role)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    selectedRole === role
-                      ? 'bg-brand text-white shadow-xs'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  {role}
-                </button>
-              ))}
+      {/* ─── 02. CLEAN, ALIGNED 4-METRIC ROW ─── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        
+        {/* Metric 1: Total Users */}
+        <div className="p-3.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-2xs flex items-center justify-between hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
+              Total Users
+            </span>
+            <div className="flex items-baseline gap-1.5">
+              <h4 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+                {users.length}
+              </h4>
+              <span className="text-[10px] text-[var(--text-muted)] font-medium">accounts</span>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setIsAddUserModalOpen(true)}
-              className="py-2 px-3 bg-brand hover:bg-brand-dark text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-            >
-              <Plus size={14} /> Add User
-            </button>
+          </div>
+          <div className="w-9 h-9 rounded-xl bg-orange-500/10 text-brand flex items-center justify-center shrink-0 border border-orange-500/15">
+            <Users size={17} />
           </div>
         </div>
 
-        {/* Content Area */}
+        {/* Metric 2: Active Accounts */}
+        <div className="p-3.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-2xs flex items-center justify-between hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
+              Active Accounts
+            </span>
+            <div className="flex items-baseline gap-1.5">
+              <h4 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+                {activeCount}
+              </h4>
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                {users.length > 0 ? `${Math.round((activeCount / users.length) * 100)}%` : '0%'}
+              </span>
+            </div>
+          </div>
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/15">
+            <UserCheck size={17} />
+          </div>
+        </div>
+
+        {/* Metric 3: Verified Profiles */}
+        <div className="p-3.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-2xs flex items-center justify-between hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
+              Verified Profiles
+            </span>
+            <div className="flex items-baseline gap-1.5">
+              <h4 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+                {verifiedCount}
+              </h4>
+              <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+                KYC passed
+              </span>
+            </div>
+          </div>
+          <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/15">
+            <ShieldCheck size={17} />
+          </div>
+        </div>
+
+        {/* Metric 4: Suspended Accounts */}
+        <div className="p-3.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-2xs flex items-center justify-between hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
+              Suspended
+            </span>
+            <div className="flex items-baseline gap-1.5">
+              <h4 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+                {suspendedCount}
+              </h4>
+              <span className="text-[10px] text-rose-600 dark:text-rose-400 font-medium">
+                restricted
+              </span>
+            </div>
+          </div>
+          <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 border border-rose-500/15">
+            <UserX size={17} />
+          </div>
+        </div>
+
+      </div>
+
+      {/* ─── 03. MAIN DIRECTORY WORKBENCH CONTAINER ─── */}
+      <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-2xs overflow-hidden flex flex-col">
+        
+        {/* Controls Header: Search & Role Tabs */}
+        <div className="p-3 border-b border-[var(--border)] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-[var(--bg-surface)]">
+          
+          {/* Search bar */}
+          <div className="relative max-w-sm w-full">
+            <Search className="absolute top-1/2 -translate-y-1/2 left-3 text-[var(--text-muted)]" size={13} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              placeholder="Search user by name, email, or phone..."
+              className="w-full pl-8.5 pr-8 py-1.5 border border-[var(--border)] bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-lg text-xs outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] p-0.5 cursor-pointer"
+                title="Clear search"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          {/* Role Segmented Pills */}
+          <div className="inline-flex items-center gap-1 bg-[var(--bg-muted)]/70 p-0.5 rounded-lg border border-[var(--border)] text-[11px] self-start md:self-auto overflow-x-auto max-w-full">
+            {['All', 'Buyer', 'Seller', 'Agent', 'Builder'].map((role) => {
+              const count = roleCounts[role] || 0;
+              const isActive = selectedRole === role;
+              return (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => {
+                    setSelectedRole(role);
+                    setCurrentPage(1);
+                  }}
+                  className={`px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                    isActive
+                      ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-2xs font-semibold'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <span>{role}</span>
+                  <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
+                    isActive ? 'bg-brand/10 text-brand' : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+        </div>
+
+        {/* Directory Content Area */}
         {isLoading ? (
-          <div className="py-20 text-center text-xs text-[var(--text-muted)] flex flex-col items-center justify-center gap-3">
-            <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin"></div>
-            <span className="font-bold">Loading registered accounts...</span>
+          <div className="py-24 text-center text-xs text-[var(--text-muted)] flex flex-col items-center justify-center gap-2.5">
+            <RefreshCw size={20} className="animate-spin text-brand" />
+            <span className="font-semibold">Loading user directory...</span>
           </div>
         ) : filteredUsers.length === 0 ? (
-          <div className="py-16 text-center border border-dashed border-[var(--border)] rounded-2xl space-y-4">
-            <div className="w-12 h-12 rounded-full bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)] mx-auto">
-              <UserMinus size={24} />
+          <div className="py-20 text-center space-y-3 px-4">
+            <div className="w-10 h-10 rounded-full bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)] mx-auto">
+              <UserMinus size={18} />
             </div>
             <div className="space-y-1">
-              <h4 className="text-xs font-bold text-[var(--text-primary)]">No matching user records found</h4>
-              <p className="text-[10px] text-[var(--text-muted)]">Try modifying search criteria or adjusting role filters.</p>
+              <h4 className="text-xs font-bold text-[var(--text-primary)]">No matching user records</h4>
+              <p className="text-[11px] text-[var(--text-muted)]">No users found matching your active filter criteria.</p>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedRole('All');
+                setStatusFilter('All');
+              }}
+              className="px-3 py-1 bg-[var(--bg-muted)] hover:bg-[var(--bg-hover)] text-brand border border-brand/30 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+            >
+              Reset Filters
+            </button>
           </div>
         ) : (
           <>
-            {/* Desktop Table View */}
-            <div className="hidden md:block flex-1 overflow-auto relative border border-[var(--border)]/40 rounded-xl min-h-[200px]">
-              <table className="w-full text-left border-collapse min-w-[1050px]">
+            {/* Desktop Table: Clean, Minimal, Strictly Aligned (No multi-select checkboxes) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead>
-                  <tr className="sticky top-0 z-10 bg-[var(--bg-surface)] border-b border-[var(--border)] text-[var(--text-muted)] text-[9px] font-bold uppercase tracking-wider">
-                    <th className="py-3 px-4 w-12">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.length === filteredUsers.length}
-                        onChange={toggleSelectAll}
-                        className="rounded border-slate-300 text-brand focus:ring-brand w-4 h-4 cursor-pointer"
-                      />
+                  <tr className="bg-[var(--bg-muted)]/40 border-b border-[var(--border)] text-[var(--text-muted)] text-[9.5px] font-semibold uppercase tracking-wider select-none">
+                    <th className="py-2 px-3.5 cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => handleSort('name')}>
+                      User Profile
                     </th>
-                    <th className="py-3 px-4 cursor-pointer hover:text-[var(--text-subtle)]" onClick={() => handleSort('id')}>
-                      <span className="flex items-center gap-1">User ID <ArrowUpDown size={10} /></span>
+                    <th className="py-2 px-3.5 cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => handleSort('email')}>
+                      Email
                     </th>
-                    <th className="py-3 px-4 cursor-pointer hover:text-[var(--text-subtle)]" onClick={() => handleSort('name')}>
-                      <span className="flex items-center gap-1">User name <ArrowUpDown size={10} /></span>
+                    <th className="py-2 px-3.5 cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => handleSort('phone')}>
+                      Phone No.
                     </th>
-                    <th className="py-3 px-4">Contact Detail</th>
-                    <th className="py-3 px-4">Account Type</th>
-                    <th className="py-3 px-4">KYC / Verification Status</th>
-                    <th className="py-3 px-4 text-center cursor-pointer hover:text-[var(--text-subtle)]" onClick={() => handleSort('listings')}>
-                      <span className="flex items-center gap-1 justify-center">Listings <ArrowUpDown size={10} /></span>
+                    <th className="py-2 px-3.5 cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => handleSort('role')}>
+                      Role
                     </th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                    <th className="py-2 px-3.5">
+                      KYC Status
+                    </th>
+                    <th className="py-2 px-3.5 text-center cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => handleSort('listings')}>
+                      Listings
+                    </th>
+                    <th className="py-2 px-3.5">
+                      Status
+                    </th>
+                    <th className="py-2 px-3.5 text-right">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--border-muted)] text-xs">
+                <tbody className="divide-y divide-[var(--border)]/70 text-xs">
                   {paginatedUsers.map((u) => {
                     const vState = getVerificationState(u);
+
                     return (
-                      <tr key={u.id} className="hover:bg-[var(--bg-muted)] transition-colors">
-                        <td className="py-3 px-4">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.includes(u.id)}
-                            onChange={() => toggleSelectRow(u.id)}
-                            className="rounded border-slate-300 text-brand focus:ring-brand w-4 h-4 cursor-pointer"
-                          />
+                      <tr 
+                        key={u.id} 
+                        className="transition-colors duration-150 align-middle hover:bg-[var(--bg-muted)]/30"
+                      >
+                        {/* User Profile (Avatar + Name) */}
+                        <td className="py-1.5 px-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-6.5 h-6.5 rounded-full bg-brand/10 text-brand font-bold text-[10.5px] flex items-center justify-center shrink-0 border border-brand/20">
+                              {(u.name || 'U').charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-semibold text-xs text-[var(--text-primary)] truncate block leading-tight">
+                                {u.name}
+                              </span>
+                              {u.companyName && (
+                                <span className="text-[9.5px] text-[var(--text-muted)] font-normal truncate block leading-tight">
+                                  {u.companyName}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </td>
-                        <td className="py-3 px-4 font-bold text-[var(--text-subtle)] font-mono">
-                          <div className="flex items-center gap-1 group">
+
+                        {/* Email Column */}
+                        <td className="py-1.5 px-3.5">
+                          <div className="flex items-center gap-1.5 text-[var(--text-primary)] text-xs">
+                            <Mail size={11} className="text-[var(--text-muted)] shrink-0" />
                             <span 
-                              onClick={() => {
-                                navigator.clipboard.writeText(u.id);
-                                triggerToast('Copied ID to clipboard!');
-                              }}
-                              className="cursor-pointer hover:text-brand px-1.5 py-0.5 bg-[var(--bg-muted)] hover:bg-[var(--border)] rounded transition-colors flex items-center gap-1 select-all"
-                              title="Click to copy ID"
+                              onClick={() => copyToClipboard(u.email, 'Email')}
+                              className="truncate max-w-[200px] hover:text-brand cursor-pointer transition-colors"
+                              title="Click to copy email"
                             >
-                              {u.id.length > 12 ? `${u.id.substring(0, 8)}...${u.id.substring(u.id.length - 4)}` : u.id}
-                              <Copy size={10} className="text-[var(--text-muted)] hover:text-brand opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                              {u.email}
                             </span>
                           </div>
                         </td>
-                        <td className="py-3 px-4">
-                          <div className="font-bold text-[var(--text-primary)]">{u.name}</div>
-                          {u.companyName && (
-                            <div className="text-[10px] text-[var(--text-muted)] font-semibold flex items-center gap-1">
-                              <Building2 size={10} /> {u.companyName}
-                            </div>
-                          )}
+
+                        {/* Phone Number Column */}
+                        <td className="py-1.5 px-3.5">
+                          <div className="flex items-center gap-1.5 text-[var(--text-secondary)] font-mono text-[11px]">
+                            <Phone size={10.5} className="text-[var(--text-muted)] shrink-0" />
+                            <span 
+                              onClick={() => copyToClipboard(u.phone, 'Phone')}
+                              className="hover:text-brand cursor-pointer transition-colors whitespace-nowrap"
+                              title="Click to copy phone"
+                            >
+                              {u.phone}
+                            </span>
+                          </div>
                         </td>
-                        <td className="py-3 px-4">
-                          <p className="text-[var(--text-subtle)] font-semibold">{u.email}</p>
-                          <p className="text-[9px] text-[var(--text-muted)]">{u.phone}</p>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`inline-flex px-2 py-0.5 rounded-lg text-[9px] font-extrabold ${
-                            u.role === 'Builder' ? 'bg-purple-50 text-purple-700 dark:bg-purple-900/10 dark:text-purple-400' :
-                            u.role === 'Agent' ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400' :
-                            u.role === 'Seller' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/10 dark:text-emerald-400' : 'bg-orange-50 text-brand'
+
+                        {/* Role Pill */}
+                        <td className="py-1.5 px-3.5">
+                          <span className={`inline-flex px-1.5 py-0.5 rounded text-[9.5px] font-semibold uppercase tracking-wide border ${
+                            u.role === 'Builder' ? 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20' :
+                            u.role === 'Agent' ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20' :
+                            u.role === 'Seller' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' : 
+                            'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20'
                           }`}>
                             {u.role}
                           </span>
                         </td>
-                        <td className="py-3 px-4">
+
+                        {/* KYC / Verification Status & Toggle */}
+                        <td className="py-1.5 px-3.5">
                           <div className="flex items-center gap-2">
-                            {/* Verification Badge */}
                             {vState.isApproved ? (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
-                                <ShieldCheck size={11} /> {vState.label}
+                              <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                                <ShieldCheck size={10.5} />
+                                <span>Verified</span>
                               </span>
                             ) : vState.isPending ? (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg animate-pulse">
-                                <Clock size={11} /> Pending Review
+                              <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded animate-pulse">
+                                <Clock size={10.5} />
+                                <span>Pending</span>
                               </span>
                             ) : vState.isRejected ? (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-red-600 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-lg">
-                                <ShieldAlert size={11} /> Rejected
+                              <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded">
+                                <XCircle size={10.5} />
+                                <span>Rejected</span>
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--text-muted)] bg-[var(--bg-muted)] px-2 py-0.5 rounded-lg">
-                                <ShieldAlert size={11} /> Unverified
+                              <span className="inline-flex items-center gap-1 text-[9.5px] font-medium text-[var(--text-muted)] bg-[var(--bg-muted)] border border-[var(--border)] px-1.5 py-0.5 rounded">
+                                <ShieldAlert size={10.5} />
+                                <span>Unverified</span>
                               </span>
                             )}
 
-                            {/* Direct Verification Toggle Switch */}
+                            {/* Minimal Toggle Switch */}
                             <button
                               type="button"
                               onClick={() => toggleKycVerification(u)}
-                              className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                              className={`relative inline-flex h-3.5 w-6 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
                                 vState.isApproved ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
                               }`}
-                              title={vState.isApproved ? 'Click to Revoke Verification' : 'Click to Verify & Approve Profile'}
+                              title={vState.isApproved ? 'Click to mark unverified' : 'Click to verify profile'}
                             >
                               <span
-                                className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                                  vState.isApproved ? 'translate-x-3' : 'translate-x-0'
+                                className={`pointer-events-none inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                                  vState.isApproved ? 'translate-x-2.5' : 'translate-x-0'
                                 }`}
                               />
                             </button>
                           </div>
                         </td>
-                        <td className="py-3 px-4 text-center font-bold text-[var(--text-subtle)]">{u.listings}</td>
-                        <td className="py-3 px-4">
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-extrabold ${
-                            u.status === 'Active' ? 'bg-green-500/10 text-green-700' : 'bg-red-500/10 text-red-700'
+
+                        {/* Listings */}
+                        <td className="py-1.5 px-3.5 text-center font-semibold text-[var(--text-primary)]">
+                          {u.listings ? (
+                            <span className="px-1.5 py-0.5 bg-[var(--bg-muted)] rounded text-[10.5px]">
+                              {u.listings}
+                            </span>
+                          ) : (
+                            <span className="text-[var(--text-muted)] text-[11px]">—</span>
+                          )}
+                        </td>
+
+                        {/* Status (Active / Suspended) */}
+                        <td className="py-1.5 px-3.5">
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9.5px] font-semibold ${
+                            u.status === 'Active' 
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
+                              : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                           }`}>
-                            {u.status}
+                            <span className={`w-1.5 h-1.5 rounded-full ${u.status === 'Active' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                            <span>{u.status}</span>
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex justify-end gap-1 items-center">
-                            {/* Quick Approve button if pending */}
-                            {vState.isPending && (
-                              <button
-                                type="button"
-                                onClick={() => u.role === 'Agent' ? handleVerifyAgent(u.id, 'approved') : handleVerifyDeveloper(u.id, 'approved')}
-                                className="p-1.5 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-lg transition-colors"
-                                title="Approve Verification Application"
-                              >
-                                <Check size={14} />
-                              </button>
-                            )}
+
+                        {/* Actions Group (Aligned & Minimal) */}
+                        <td className="py-1.5 px-3.5 text-right">
+                          <div className="flex items-center justify-end gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedUser(u);
+                                setUserDrawerTab(u.role === 'Agent' || u.role === 'Builder' ? 'Documents' : 'Overview');
+                              }}
+                              className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] rounded-md transition-colors cursor-pointer"
+                              title="Inspect profile"
+                            >
+                              <Eye size={12.5} />
+                            </button>
+
                             <button
                               type="button"
                               onClick={() => openEditUserModal(u)}
-                              className="p-1.5 hover:bg-[var(--bg-muted)] rounded-lg text-[var(--text-subtle)] hover:text-[var(--text-primary)]"
+                              className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] rounded-md transition-colors cursor-pointer"
                               title="Edit user details"
                             >
-                              <Edit size={14} />
+                              <Edit3 size={12.5} />
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => { setSelectedUser(u); setUserDrawerTab(u.role === 'Agent' || u.role === 'Builder' ? 'Documents' : 'Overview'); }}
-                              className="p-1.5 hover:bg-[var(--bg-muted)] rounded-lg text-[var(--text-subtle)] hover:text-[var(--text-primary)]"
-                              title="Inspect profile & verification documents"
-                            >
-                              <Eye size={14} />
-                            </button>
+
                             <button
                               type="button"
                               onClick={() => toggleUserStatus(u.id)}
-                              className={`p-1.5 rounded-lg border ${
+                              className={`p-1 rounded-md transition-colors cursor-pointer ${
                                 u.status === 'Active'
-                                  ? 'border-red-500/20 text-red-600 hover:bg-red-500/10'
-                                  : 'border-green-500/20 text-green-600 hover:bg-green-500/10'
+                                  ? 'text-[var(--text-muted)] hover:text-rose-600 hover:bg-rose-500/10'
+                                  : 'text-emerald-600 hover:bg-emerald-500/10'
                               }`}
-                              title={u.status === 'Active' ? 'Suspend Account' : 'Activate Account'}
+                              title={u.status === 'Active' ? 'Suspend account' : 'Activate account'}
                             >
-                              {u.status === 'Active' ? <UserX size={14} /> : <UserCheck size={14} />}
+                              {u.status === 'Active' ? <Lock size={12.5} /> : <Unlock size={12.5} />}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUserToDelete(u);
+                                setShowDeleteModal(true);
+                              }}
+                              className="p-1 text-[var(--text-muted)] hover:text-rose-600 hover:bg-rose-500/10 rounded-md transition-colors cursor-pointer"
+                              title="Delete user"
+                            >
+                              <Trash2 size={12.5} />
                             </button>
                           </div>
                         </td>
+
                       </tr>
                     );
                   })}
@@ -1136,151 +1096,69 @@ const UserManagement = () => {
               </table>
             </div>
 
-            {/* Mobile Card List View */}
-            <div className="block md:hidden flex-1 overflow-y-auto space-y-3 min-h-[200px] pr-1">
+            {/* Mobile Responsive Cards */}
+            <div className="block md:hidden divide-y divide-[var(--border)]/70">
               {paginatedUsers.map((u) => {
                 const vState = getVerificationState(u);
                 return (
-                  <div 
-                    key={u.id} 
-                    className="p-4 bg-[var(--bg-surface)] border border-[var(--border)] hover:border-brand/40 rounded-xl shadow-xs space-y-3 transition-colors relative text-left"
-                  >
-                    {/* Header: Checkbox, ID, Role & Status */}
+                  <div key={u.id} className="p-3.5 space-y-2.5">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(u.id)}
-                          onChange={() => toggleSelectRow(u.id)}
-                          className="rounded border-slate-300 text-brand focus:ring-brand w-4 h-4 cursor-pointer"
-                        />
-                        <div className="flex items-center gap-1 group">
-                          <span 
-                            onClick={() => {
-                              navigator.clipboard.writeText(u.id);
-                              triggerToast('Copied ID to clipboard!');
-                            }}
-                            className="font-mono text-[10px] bg-[var(--bg-muted)] text-[var(--text-subtle)] px-2 py-0.5 rounded cursor-pointer hover:bg-[var(--border)] transition-colors flex items-center gap-1 select-all"
-                            title="Click to copy User ID"
-                          >
-                            {u.id.length > 12 ? `${u.id.substring(0, 6)}...${u.id.substring(u.id.length - 4)}` : u.id}
-                            <Copy size={8} className="text-[var(--text-muted)] hover:text-brand" />
-                          </span>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-brand/10 text-brand font-bold text-xs flex items-center justify-center shrink-0 border border-brand/20">
+                          {(u.name || 'U').charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-semibold text-xs text-[var(--text-primary)] truncate">{u.name}</h4>
+                          {u.companyName && (
+                            <span className="text-[10px] text-[var(--text-muted)] truncate block">{u.companyName}</span>
+                          )}
                         </div>
                       </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <span className={`inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-extrabold tracking-wide uppercase ${
-                          u.role === 'Builder' ? 'bg-purple-50 text-purple-700 dark:bg-purple-900/10 dark:text-purple-400' :
-                          u.role === 'Agent' ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400' :
-                          u.role === 'Seller' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/10 dark:text-emerald-400' : 
-                          'bg-orange-50 text-brand dark:bg-orange-950/10'
-                        }`}>
-                          {u.role}
-                        </span>
-                        <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[8px] font-extrabold uppercase ${
-                          u.status === 'Active' ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-red-500/10 text-red-700 dark:text-red-400'
-                        }`}>
-                          {u.status}
-                        </span>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded uppercase border ${
+                        u.role === 'Builder' ? 'bg-purple-500/10 text-purple-700 border-purple-500/20' :
+                        u.role === 'Agent' ? 'bg-blue-500/10 text-blue-700 border-blue-500/20' :
+                        u.role === 'Seller' ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20' : 
+                        'bg-slate-500/10 text-slate-700 border-slate-500/20'
+                      }`}>
+                        {u.role}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1 text-[11px] text-[var(--text-muted)] pt-1">
+                      <div className="flex items-center gap-1.5 text-[var(--text-primary)]">
+                        <Mail size={11} className="text-[var(--text-muted)] shrink-0" />
+                        <span className="truncate">{u.email}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 font-mono text-[10.5px]">
+                          <Phone size={10} className="text-[var(--text-muted)] shrink-0" />
+                          <span>{u.phone}</span>
+                        </div>
+                        <span className="font-semibold text-[var(--text-primary)]">{u.listings || 0} listings</span>
                       </div>
                     </div>
 
-                    {/* Body: Name & Verification */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h5 className="font-bold text-sm text-[var(--text-primary)]">{u.name}</h5>
-                        {u.companyName && (
-                          <p className="text-[10px] text-[var(--text-muted)] font-semibold">{u.companyName}</p>
-                        )}
-                      </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]/50">
                       <div className="flex items-center gap-1.5">
-                        {vState.isApproved ? (
-                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
-                            <ShieldCheck size={11} /> {vState.label}
-                          </span>
-                        ) : vState.isPending ? (
-                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-md animate-pulse">
-                            <Clock size={11} /> Pending Review
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-[var(--text-muted)] bg-[var(--bg-muted)] px-1.5 py-0.5 rounded-md">
-                            <ShieldAlert size={11} /> Unverified
-                          </span>
-                        )}
-
+                        <span className={`w-1.5 h-1.5 rounded-full ${u.status === 'Active' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                        <span className="text-[10px] font-semibold text-[var(--text-secondary)]">{u.status}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => toggleKycVerification(u)}
-                          className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                            vState.isApproved ? 'bg-emerald-500' : 'bg-slate-300'
-                          }`}
+                          onClick={() => { setSelectedUser(u); setUserDrawerTab('Overview'); }}
+                          className="px-2 py-1 bg-[var(--bg-muted)] text-[var(--text-secondary)] rounded-md text-[11px] font-semibold"
                         >
-                          <span className={`inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${vState.isApproved ? 'translate-x-3' : 'translate-x-0'}`} />
+                          Inspect
                         </button>
-                      </div>
-                    </div>
-
-                    {/* Details Grid: Contact, Listings */}
-                    <div className="grid grid-cols-1 gap-2 text-xs border-t border-[var(--border)]/40 pt-2 text-[var(--text-subtle)]">
-                      <div className="flex flex-col gap-0.5">
-                        <p className="text-[9px] text-[var(--text-muted)] uppercase font-bold tracking-wider">Contact Details</p>
-                        <p className="font-semibold break-all text-[11px]">{u.email}</p>
-                        <p className="text-[10px] text-[var(--text-muted)] font-medium">{u.phone}</p>
-                      </div>
-                      <div className="flex justify-between items-center bg-[var(--bg-muted)]/50 p-2 rounded-lg border border-[var(--border)]/30 mt-1">
-                        <span className="text-[10px] text-[var(--text-subtle)] font-semibold">Total Listings Uploaded</span>
-                        <span className="font-bold text-xs bg-brand/10 text-brand px-2 py-0.5 rounded-md">{u.listings} listings</span>
-                      </div>
-                    </div>
-
-                    {/* Actions Bar */}
-                    <div className="flex justify-end gap-1.5 border-t border-[var(--border)]/40 pt-2 mt-1">
-                      {vState.isPending && (
                         <button
                           type="button"
-                          onClick={() => u.role === 'Agent' ? handleVerifyAgent(u.id, 'approved') : handleVerifyDeveloper(u.id, 'approved')}
-                          className="py-1.5 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+                          onClick={() => openEditUserModal(u)}
+                          className="px-2 py-1 bg-brand text-white rounded-md text-[11px] font-semibold"
                         >
-                          <Check size={12} /> Approve
+                          Edit
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => openEditUserModal(u)}
-                        className="flex-1 py-1.5 bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-subtle)] hover:text-[var(--text-primary)] rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                      >
-                        <Edit size={12} />
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setSelectedUser(u); setUserDrawerTab(u.role === 'Agent' || u.role === 'Builder' ? 'Documents' : 'Overview'); }}
-                        className="flex-1 py-1.5 bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-subtle)] hover:text-[var(--text-primary)] rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                      >
-                        <Eye size={12} />
-                        <span>Inspect</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => toggleUserStatus(u.id)}
-                        className={`flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer border ${
-                          u.status === 'Active'
-                            ? 'border-red-500/20 text-red-600 bg-red-500/5 hover:bg-red-500/10'
-                            : 'border-green-500/20 text-green-600 bg-green-500/5 hover:bg-green-500/10'
-                        }`}
-                      >
-                        {u.status === 'Active' ? (
-                          <>
-                            <UserX size={12} />
-                            <span>Suspend</span>
-                          </>
-                        ) : (
-                          <>
-                            <UserCheck size={12} />
-                            <span>Activate</span>
-                          </>
-                        )}
-                      </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1289,38 +1167,44 @@ const UserManagement = () => {
           </>
         )}
 
-        {/* Pagination Footer controls */}
+        {/* Directory Footer & Pagination */}
         {filteredUsers.length > 0 && (
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-4 border-t border-[var(--border)] text-xs shrink-0">
-            <span className="text-[var(--text-subtle)] font-semibold">
+          <div className="p-3 border-t border-[var(--border)] flex flex-col sm:flex-row justify-between items-center gap-3 bg-[var(--bg-surface)] text-xs">
+            <span className="text-[var(--text-muted)] font-medium text-[11px]">
               Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredUsers.length)} of {filteredUsers.length} profiles
             </span>
-            <div className="flex gap-1.5">
+
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-1.5 border border-[var(--border)] rounded-xl hover:bg-[var(--bg-muted)] disabled:opacity-40 disabled:hover:bg-white cursor-pointer"
+                className="p-1.5 border border-[var(--border)] rounded-lg hover:bg-[var(--bg-muted)] text-[var(--text-secondary)] disabled:opacity-40 cursor-pointer transition-colors"
+                title="Previous page"
               >
-                <ChevronLeft size={14} />
+                <ChevronLeft size={13} />
               </button>
-              <span className="px-3 py-1.5 bg-[var(--bg-muted)] border border-[var(--border)] rounded-xl font-bold">
+
+              <span className="px-2.5 py-1 bg-[var(--bg-muted)]/60 border border-[var(--border)] rounded-lg text-[11px] font-semibold text-[var(--text-primary)]">
                 Page {currentPage} of {totalPages}
               </span>
+
               <button
                 type="button"
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="p-1.5 border border-[var(--border)] rounded-xl hover:bg-[var(--bg-muted)] disabled:opacity-40 disabled:hover:bg-white cursor-pointer"
+                className="p-1.5 border border-[var(--border)] rounded-lg hover:bg-[var(--bg-muted)] text-[var(--text-secondary)] disabled:opacity-40 cursor-pointer transition-colors"
+                title="Next page"
               >
-                <ChevronRight size={14} />
+                <ChevronRight size={13} />
               </button>
             </div>
           </div>
         )}
+
       </div>
 
-      {/* Detailed user inspector drawer */}
+      {/* ─── 04. DETAILED USER PROFILE INSPECTOR MODAL ─── */}
       {selectedUser && (() => {
         const vState = getVerificationState(selectedUser);
         const isAgentOrBuilder = selectedUser.role === 'Agent' || selectedUser.role === 'Builder';
@@ -1329,442 +1213,226 @@ const UserManagement = () => {
           : ['Overview', 'Listings', 'Enquiries'];
 
         return (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-            <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-3xl max-w-lg w-full shadow-2xl border border-[var(--border)] p-6 space-y-5 relative max-h-[90vh] overflow-y-auto">
+          <div 
+            onClick={(e) => { if (e.target === e.currentTarget) setSelectedUser(null); }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+          >
+            <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-2xl max-w-lg w-full shadow-2xl border border-[var(--border)] p-5 space-y-4 relative max-h-[90vh] overflow-y-auto">
+              
+              {/* Close Button */}
               <button
                 type="button"
                 onClick={() => setSelectedUser(null)}
-                className="absolute top-4 right-4 p-1.5 bg-[var(--bg-muted)] hover:bg-[var(--bg-muted)] rounded-lg text-[var(--text-muted)] hover:text-[var(--text-subtle)] transition-colors cursor-pointer"
+                className="absolute top-4 right-4 p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+                title="Close"
               >
-                <XCircle size={18} />
+                <X size={15} />
               </button>
 
-              {/* User Header */}
-              <div className="flex flex-col items-center text-center space-y-2">
-                <div className="w-14 h-14 rounded-full bg-brand-light dark:bg-brand/10 flex items-center justify-center font-bold text-lg text-brand">
-                  {selectedUser.name ? selectedUser.name.charAt(0) : 'U'}
+              {/* Profile Header */}
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-brand/10 text-brand font-bold text-base flex items-center justify-center shrink-0 border border-brand/20">
+                  {(selectedUser.name || 'U').charAt(0).toUpperCase()}
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-[var(--text-primary)]">{selectedUser.name}</h3>
-                  <p className="text-xs text-[var(--text-muted)]">{selectedUser.email}</p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">{selectedUser.name}</h3>
+                    <span className="text-[9.5px] font-bold px-1.5 py-0.2 rounded uppercase bg-brand/10 text-brand">
+                      {selectedUser.role}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[var(--text-muted)] truncate">{selectedUser.email}</p>
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <span className="text-[10px] font-mono text-[var(--text-secondary)] bg-[var(--bg-muted)] border border-[var(--border)] px-2 py-0.5 rounded inline-flex items-center gap-1">
+                      <span className="text-[var(--text-muted)]">User ID:</span>
+                      <span className="font-semibold text-brand">#{selectedUser.id}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(selectedUser.id, 'User ID')}
+                      className="text-[var(--text-muted)] hover:text-brand p-1 rounded hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+                      title="Copy User ID"
+                    >
+                      <Copy size={11} />
+                    </button>
+                  </div>
                 </div>
+              </div>
+
+              {/* KYC Status Strip */}
+              <div className="p-3 bg-[var(--bg-muted)]/50 border border-[var(--border)] rounded-xl flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span 
-                    onClick={() => {
-                      navigator.clipboard.writeText(selectedUser.id);
-                      triggerToast('Copied ID to clipboard!');
-                    }}
-                    className="text-[9px] font-bold bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-subtle)] px-2 py-0.5 rounded-md cursor-pointer transition-colors flex items-center gap-1 select-all"
-                    title="Click to copy User ID"
-                  >
-                    ID: {selectedUser.id}
-                    <Copy size={8} className="text-[var(--text-muted)]" />
-                  </span>
-                  <span className="text-[9px] font-bold bg-orange-50 dark:bg-orange-500/10 text-brand dark:text-brand-light px-2 py-0.5 rounded-md">
-                    {selectedUser.role}
-                  </span>
-                </div>
-              </div>
-
-              {/* Verification Control Banner */}
-              <div className="p-3.5 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                      vState.isApproved ? 'bg-emerald-500/10 text-emerald-600' :
-                      vState.isPending ? 'bg-amber-500/10 text-amber-600 animate-pulse' :
-                      vState.isRejected ? 'bg-red-500/10 text-red-600' : 'bg-slate-500/10 text-slate-500'
-                    }`}>
-                      {vState.isApproved ? <ShieldCheck size={18} /> : <ShieldAlert size={18} />}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Verification Status</p>
-                      <p className={`text-xs font-extrabold truncate ${
-                        vState.isApproved ? 'text-emerald-600' :
-                        vState.isPending ? 'text-amber-600' :
-                        vState.isRejected ? 'text-red-600' : 'text-[var(--text-muted)]'
-                      }`}>
-                        {vState.label}
-                      </p>
-                    </div>
+                  <ShieldCheck size={16} className={vState.isApproved ? 'text-emerald-500' : 'text-[var(--text-muted)]'} />
+                  <div>
+                    <span className="text-[9px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block">Verification</span>
+                    <span className={`text-xs font-semibold ${vState.isApproved ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--text-muted)]'}`}>
+                      {vState.label}
+                    </span>
                   </div>
+                </div>
 
-                  {/* Direct Toggle Switch in Drawer */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => toggleKycVerification(selectedUser)}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                        vState.isApproved ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
-                      }`}
-                      title={vState.isApproved ? 'Revoke Verification' : 'Verify & Approve'}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                          vState.isApproved ? 'translate-x-5' : 'translate-x-0'
+                <div className="flex items-center gap-2">
+                  {isAgentOrBuilder && (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => selectedUser.role === 'Agent' ? handleVerifyAgent(selectedUser.id, 'approved') : handleVerifyDeveloper(selectedUser.id, 'approved')}
+                        className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                          vState.isApproved ? 'bg-emerald-500/10 text-emerald-600' : 'bg-emerald-600 text-white hover:bg-emerald-700'
                         }`}
-                      />
-                    </button>
-                  </div>
+                      >
+                        {vState.isApproved ? 'Approved ✓' : 'Approve'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRejectingUser(selectedUser);
+                          setShowRejectModal(true);
+                        }}
+                        className="px-2 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 rounded-md text-[11px] font-semibold transition-all cursor-pointer"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                  
+                  <button
+                    type="button"
+                    onClick={() => toggleKycVerification(selectedUser)}
+                    className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+                      vState.isApproved ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                    }`}
+                    title="Toggle KYC"
+                  >
+                    <span className={`inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                      vState.isApproved ? 'translate-x-3' : 'translate-x-0'
+                    }`} />
+                  </button>
                 </div>
-
-                {/* Quick Approve / Reject Buttons for Agent & Builder */}
-                {isAgentOrBuilder && (
-                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[var(--border)]/50">
-                    <button
-                      type="button"
-                      onClick={() => selectedUser.role === 'Agent' ? handleVerifyAgent(selectedUser.id, 'approved') : handleVerifyDeveloper(selectedUser.id, 'approved')}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                        vState.isApproved 
-                          ? 'bg-emerald-600/10 text-emerald-600 border border-emerald-500/20' 
-                          : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/10'
-                      }`}
-                    >
-                      <Check size={14} /> {vState.isApproved ? 'Approved ✓' : 'Approve & Verify'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const reason = window.prompt('Enter rejection reason (optional):');
-                        if (reason !== null) {
-                          if (selectedUser.role === 'Agent') handleVerifyAgent(selectedUser.id, 'rejected', reason);
-                          else handleVerifyDeveloper(selectedUser.id, 'rejected', reason);
-                        }
-                      }}
-                      className="py-2 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-600 border border-red-500/20 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                    >
-                      <X size={14} /> Reject
-                    </button>
-                  </div>
-                )}
-
-                {/* Rejection Reason Notice if any */}
-                {(selectedUser.agentRejectionReason || selectedUser.builderRejectionReason) && (
-                  <div className="p-2 bg-red-500/5 border border-red-500/20 rounded-xl text-[10px] text-red-600">
-                    <span className="font-bold">Rejection reason: </span>
-                    {selectedUser.agentRejectionReason || selectedUser.builderRejectionReason}
-                  </div>
-                )}
               </div>
 
-              {/* Tab Selector bar */}
-              <div className="flex border-b border-[var(--border)] text-xs gap-4">
+              {/* Tabs */}
+              <div className="flex border-b border-[var(--border)] text-xs gap-4 font-semibold">
                 {drawerTabs.map((tab) => (
                   <button
                     key={tab}
                     type="button"
                     onClick={() => setUserDrawerTab(tab)}
-                    className={`pb-2 font-bold relative transition-all cursor-pointer ${
-                      userDrawerTab === tab ? 'text-brand' : 'text-[var(--text-muted)] hover:text-[var(--text-subtle)]'
+                    className={`pb-2 transition-all cursor-pointer relative ${
+                      userDrawerTab === tab ? 'text-brand font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                     }`}
                   >
-                    {tab === 'Documents' ? (selectedUser.role === 'Agent' ? 'RERA Documents' : 'Company Docs') : tab}
+                    <span>{tab}</span>
                     {userDrawerTab === tab && (
-                      <span className="absolute bottom-0 left-0 w-full h-0.5 bg-brand rounded-t-full"></span>
+                      <span className="absolute bottom-0 left-0 w-full h-0.5 bg-brand rounded-t-full" />
                     )}
                   </button>
                 ))}
               </div>
 
-              {/* Conditional Panels */}
+              {/* Tab Contents */}
               {isDrawerLoading ? (
-                <div className="py-12 text-center text-xs text-[var(--text-muted)] flex flex-col items-center justify-center gap-2">
-                  <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin"></div>
-                  <span className="font-semibold">Loading details...</span>
+                <div className="py-8 text-center text-xs text-[var(--text-muted)] flex flex-col items-center justify-center gap-2">
+                  <RefreshCw size={15} className="animate-spin text-brand" />
+                  <span>Loading data...</span>
                 </div>
               ) : (
-                <>
+                <div className="space-y-3">
                   {userDrawerTab === 'Overview' && (
-                    <div className="space-y-3 p-4 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl">
-                      <div className="flex justify-between text-xs border-b border-[var(--border)]/50 pb-2">
-                        <span className="text-[var(--text-muted)] font-medium">Registered Date</span>
-                        <span className="font-semibold text-[var(--text-subtle)]">{selectedUser.date}</span>
+                    <div className="space-y-2 p-3 bg-[var(--bg-muted)]/30 border border-[var(--border)] rounded-xl text-xs">
+                      <div className="flex justify-between py-1 border-b border-[var(--border)]/40">
+                        <span className="text-[var(--text-muted)]">User ID</span>
+                        <span className="font-mono text-brand font-semibold">{selectedUser.id}</span>
                       </div>
-                      <div className="flex justify-between text-xs border-b border-[var(--border)]/50 pb-2">
-                        <span className="text-[var(--text-muted)] font-medium">Phone number</span>
-                        <span className="font-semibold text-[var(--text-subtle)]">{selectedUser.phone}</span>
+                      <div className="flex justify-between py-1 border-b border-[var(--border)]/40">
+                        <span className="text-[var(--text-muted)]">Registration Date</span>
+                        <span className="font-semibold text-[var(--text-primary)]">{selectedUser.date}</span>
                       </div>
-                      {selectedUser.cityOfOperation && (
-                        <div className="flex justify-between text-xs border-b border-[var(--border)]/50 pb-2">
-                          <span className="text-[var(--text-muted)] font-medium">City of Operation</span>
-                          <span className="font-semibold text-[var(--text-subtle)]">{selectedUser.cityOfOperation}</span>
-                        </div>
-                      )}
+                      <div className="flex justify-between py-1 border-b border-[var(--border)]/40">
+                        <span className="text-[var(--text-muted)]">Phone</span>
+                        <span className="font-semibold text-[var(--text-primary)]">{selectedUser.phone}</span>
+                      </div>
                       {selectedUser.reraNumber && (
-                        <div className="flex justify-between text-xs border-b border-[var(--border)]/50 pb-2">
-                          <span className="text-[var(--text-muted)] font-medium">RERA Registration</span>
-                          <span className="font-semibold font-mono text-[var(--text-subtle)]">{selectedUser.reraNumber}</span>
+                        <div className="flex justify-between py-1 border-b border-[var(--border)]/40">
+                          <span className="text-[var(--text-muted)]">RERA Number</span>
+                          <span className="font-mono font-bold text-brand">{selectedUser.reraNumber}</span>
                         </div>
                       )}
-                      <div className="flex justify-between text-xs border-b border-[var(--border)]/50 pb-2">
-                        <span className="text-[var(--text-muted)] font-medium">Verified KYC license</span>
-                        <span className="font-semibold text-[var(--text-subtle)]">{vState.isApproved ? 'Yes (Verified)' : 'No (Unverified)'}</span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-[var(--text-muted)] font-medium">Active Listings</span>
-                        <span className="font-bold text-[var(--text-subtle)]">{selectedUser.listings} listings</span>
+                      {selectedUser.companyName && (
+                        <div className="flex justify-between py-1 border-b border-[var(--border)]/40">
+                          <span className="text-[var(--text-muted)]">Company</span>
+                          <span className="font-semibold text-[var(--text-primary)]">{selectedUser.companyName}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between py-1">
+                        <span className="text-[var(--text-muted)]">Listings Count</span>
+                        <span className="font-bold text-[var(--text-primary)]">{selectedUser.listings || 0} listings</span>
                       </div>
                     </div>
                   )}
 
-                  {/* Documents & Verification Details Tab */}
-                  {(userDrawerTab === 'Documents' || userDrawerTab === 'RERA Documents' || userDrawerTab === 'Company Docs') && (
-                    <div className="space-y-4">
-                      {/* Agent RERA Details */}
-                      {selectedUser.role === 'Agent' && (
-                        <div className="space-y-3">
-                          <div className="p-3 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl space-y-2">
-                            <h4 className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-                              <Award size={14} className="text-brand" /> Agent Credentials
-                            </h4>
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                              <div>
-                                <span className="text-[10px] text-[var(--text-muted)] uppercase font-bold block">RERA Number</span>
-                                <span className="font-bold font-mono text-[var(--text-primary)] break-all">{selectedUser.reraNumber || 'Not submitted'}</span>
-                              </div>
-                              <div>
-                                <span className="text-[10px] text-[var(--text-muted)] uppercase font-bold block">Experience</span>
-                                <span className="font-semibold text-[var(--text-primary)]">{selectedUser.experience || 'Not specified'}</span>
-                              </div>
-                              <div>
-                                <span className="text-[10px] text-[var(--text-muted)] uppercase font-bold block">City of Operation</span>
-                                <span className="font-semibold text-[var(--text-primary)]">{selectedUser.cityOfOperation || 'Not provided'}</span>
-                              </div>
-                              <div>
-                                <span className="text-[10px] text-[var(--text-muted)] uppercase font-bold block">Status</span>
-                                <span className={`font-bold capitalize ${vState.isApproved ? 'text-emerald-600' : 'text-amber-600'}`}>
-                                  {selectedUser.agentVerificationStatus || 'unverified'}
-                                </span>
-                              </div>
-                            </div>
+                  {userDrawerTab === 'Documents' && (
+                    <div className="space-y-2 text-xs">
+                      <p className="text-[10px] text-[var(--text-muted)] font-semibold uppercase">Submitted Documents</p>
+                      <div className="space-y-1.5">
+                        <div className="p-2.5 bg-[var(--bg-muted)]/40 border border-[var(--border)] rounded-lg flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <FileText size={14} className="text-blue-500" />
+                            <span>RERA Registration Certificate</span>
                           </div>
-
-                          <div className="space-y-2">
-                            <h4 className="text-xs font-bold text-[var(--text-primary)]">Submitted Verification Documents</h4>
-                            
-                            {/* RERA Certificate */}
-                            <div className="p-3 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
-                                  <FileText size={18} />
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="text-xs font-bold text-[var(--text-primary)] truncate">RERA Certificate</p>
-                                  <p className="text-[10px] text-[var(--text-muted)] truncate">Official Agent License Document</p>
-                                </div>
-                              </div>
-                              {selectedUser.verificationDocs?.reraCertificate ? (
-                                <a
-                                  href={selectedUser.verificationDocs.reraCertificate}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="px-3 py-1.5 bg-brand text-white hover:bg-brand-dark rounded-xl text-[10px] font-bold flex items-center gap-1 transition-colors shrink-0 shadow-sm"
-                                >
-                                  <ExternalLink size={12} /> View File
-                                </a>
-                              ) : (
-                                <span className="text-[10px] font-semibold text-[var(--text-muted)] italic">Not uploaded</span>
-                              )}
-                            </div>
-
-                            {/* Aadhaar Card */}
-                            <div className="p-3 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center shrink-0">
-                                  <FileText size={18} />
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="text-xs font-bold text-[var(--text-primary)] truncate">Aadhaar Card / ID Proof</p>
-                                  <p className="text-[10px] text-[var(--text-muted)] truncate">Government ID Document</p>
-                                </div>
-                              </div>
-                              {selectedUser.verificationDocs?.aadhaarCard ? (
-                                <a
-                                  href={selectedUser.verificationDocs.aadhaarCard}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="px-3 py-1.5 bg-brand text-white hover:bg-brand-dark rounded-xl text-[10px] font-bold flex items-center gap-1 transition-colors shrink-0 shadow-sm"
-                                >
-                                  <ExternalLink size={12} /> View File
-                                </a>
-                              ) : (
-                                <span className="text-[10px] font-semibold text-[var(--text-muted)] italic">Not uploaded</span>
-                              )}
-                            </div>
-
-                            {/* Profile Photo */}
-                            <div className="p-3 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 overflow-hidden">
-                                  {selectedUser.verificationDocs?.profilePhoto || selectedUser.profilePicture ? (
-                                    <img 
-                                      src={selectedUser.verificationDocs?.profilePhoto || selectedUser.profilePicture} 
-                                      alt="" 
-                                      className="w-full h-full object-cover" 
-                                    />
-                                  ) : (
-                                    <ImageIcon size={18} />
-                                  )}
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="text-xs font-bold text-[var(--text-primary)] truncate">Agent Profile Photo</p>
-                                  <p className="text-[10px] text-[var(--text-muted)] truncate">Avatar / Identity Photo</p>
-                                </div>
-                              </div>
-                              {selectedUser.verificationDocs?.profilePhoto || selectedUser.profilePicture ? (
-                                <a
-                                  href={selectedUser.verificationDocs?.profilePhoto || selectedUser.profilePicture}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="px-3 py-1.5 bg-brand text-white hover:bg-brand-dark rounded-xl text-[10px] font-bold flex items-center gap-1 transition-colors shrink-0 shadow-sm"
-                                >
-                                  <ExternalLink size={12} /> View Photo
-                                </a>
-                              ) : (
-                                <span className="text-[10px] font-semibold text-[var(--text-muted)] italic">Not uploaded</span>
-                              )}
-                            </div>
-                          </div>
+                          {selectedUser.verificationDocs?.reraCertificate ? (
+                            <a
+                              href={selectedUser.verificationDocs.reraCertificate}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[10.5px] font-bold text-brand hover:underline flex items-center gap-0.5"
+                            >
+                              <span>View</span>
+                              <ExternalLink size={10} />
+                            </a>
+                          ) : (
+                            <span className="text-[10px] text-[var(--text-muted)]">Not Uploaded</span>
+                          )}
                         </div>
-                      )}
 
-                      {/* Builder Documents Details */}
-                      {selectedUser.role === 'Builder' && (
-                        <div className="space-y-3">
-                          <div className="p-3 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl space-y-2">
-                            <h4 className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-                              <Building2 size={14} className="text-brand" /> Company Profile
-                            </h4>
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                              <div>
-                                <span className="text-[10px] text-[var(--text-muted)] uppercase font-bold block">Company Name</span>
-                                <span className="font-bold text-[var(--text-primary)]">{selectedUser.companyName || 'Not submitted'}</span>
-                              </div>
-                              <div>
-                                <span className="text-[10px] text-[var(--text-muted)] uppercase font-bold block">RERA Number</span>
-                                <span className="font-bold font-mono text-[var(--text-primary)] break-all">{selectedUser.reraNumber || 'Not submitted'}</span>
-                              </div>
-                              <div>
-                                <span className="text-[10px] text-[var(--text-muted)] uppercase font-bold block">GST Number</span>
-                                <span className="font-mono text-[var(--text-primary)]">{selectedUser.gstNumber || 'Not provided'}</span>
-                              </div>
-                              <div>
-                                <span className="text-[10px] text-[var(--text-muted)] uppercase font-bold block">Years in Business</span>
-                                <span className="font-semibold text-[var(--text-primary)]">{selectedUser.yearsInBusiness || 'Not provided'}</span>
-                              </div>
-                            </div>
+                        <div className="p-2.5 bg-[var(--bg-muted)]/40 border border-[var(--border)] rounded-lg flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <FileText size={14} className="text-purple-500" />
+                            <span>Aadhaar / Identity Proof</span>
                           </div>
-
-                          <div className="space-y-2">
-                            <h4 className="text-xs font-bold text-[var(--text-primary)]">Company Verification Documents</h4>
-                            
-                            {/* RERA Certificate */}
-                            <div className="p-3 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
-                                  <FileText size={18} />
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="text-xs font-bold text-[var(--text-primary)] truncate">Developer RERA Certificate</p>
-                                  <p className="text-[10px] text-[var(--text-muted)] truncate">RERA License</p>
-                                </div>
-                              </div>
-                              {selectedUser.builderDocs?.reraCertificate ? (
-                                <a
-                                  href={selectedUser.builderDocs.reraCertificate}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="px-3 py-1.5 bg-brand text-white hover:bg-brand-dark rounded-xl text-[10px] font-bold flex items-center gap-1 transition-colors shrink-0 shadow-sm"
-                                >
-                                  <ExternalLink size={12} /> View File
-                                </a>
-                              ) : (
-                                <span className="text-[10px] font-semibold text-[var(--text-muted)] italic">Not uploaded</span>
-                              )}
-                            </div>
-
-                            {/* PAN Card */}
-                            <div className="p-3 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center shrink-0">
-                                  <FileText size={18} />
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="text-xs font-bold text-[var(--text-primary)] truncate">Company PAN Card</p>
-                                  <p className="text-[10px] text-[var(--text-muted)] truncate">Tax Identification Document</p>
-                                </div>
-                              </div>
-                              {selectedUser.builderDocs?.panCard ? (
-                                <a
-                                  href={selectedUser.builderDocs.panCard}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="px-3 py-1.5 bg-brand text-white hover:bg-brand-dark rounded-xl text-[10px] font-bold flex items-center gap-1 transition-colors shrink-0 shadow-sm"
-                                >
-                                  <ExternalLink size={12} /> View File
-                                </a>
-                              ) : (
-                                <span className="text-[10px] font-semibold text-[var(--text-muted)] italic">Not uploaded</span>
-                              )}
-                            </div>
-
-                            {/* Company Logo */}
-                            <div className="p-3 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 overflow-hidden">
-                                  {selectedUser.builderDocs?.companyLogo || selectedUser.profilePicture ? (
-                                    <img 
-                                      src={selectedUser.builderDocs?.companyLogo || selectedUser.profilePicture} 
-                                      alt="" 
-                                      className="w-full h-full object-cover" 
-                                    />
-                                  ) : (
-                                    <ImageIcon size={18} />
-                                  )}
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="text-xs font-bold text-[var(--text-primary)] truncate">Company Logo</p>
-                                  <p className="text-[10px] text-[var(--text-muted)] truncate">Brand Logo Asset</p>
-                                </div>
-                              </div>
-                              {selectedUser.builderDocs?.companyLogo || selectedUser.profilePicture ? (
-                                <a
-                                  href={selectedUser.builderDocs?.companyLogo || selectedUser.profilePicture}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="px-3 py-1.5 bg-brand text-white hover:bg-brand-dark rounded-xl text-[10px] font-bold flex items-center gap-1 transition-colors shrink-0 shadow-sm"
-                                >
-                                  <ExternalLink size={12} /> View Logo
-                                </a>
-                              ) : (
-                                <span className="text-[10px] font-semibold text-[var(--text-muted)] italic">Not uploaded</span>
-                              )}
-                            </div>
-                          </div>
+                          {selectedUser.verificationDocs?.aadhaarCard ? (
+                            <a
+                              href={selectedUser.verificationDocs.aadhaarCard}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[10.5px] font-bold text-brand hover:underline flex items-center gap-0.5"
+                            >
+                              <span>View</span>
+                              <ExternalLink size={10} />
+                            </a>
+                          ) : (
+                            <span className="text-[10px] text-[var(--text-muted)]">Not Uploaded</span>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
                   )}
 
                   {userDrawerTab === 'Listings' && (
-                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                      {listingsList.length === 0 ? (
-                        <div className="text-center py-6 text-[var(--text-muted)] font-semibold text-[10px] bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl">
-                          {selectedUser.role === 'Buyer' ? 'Buyers cannot upload listings.' : 'No listings uploaded yet.'}
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {realProperties.length === 0 ? (
+                        <div className="text-center py-6 text-[var(--text-muted)] text-xs">
+                          No listings posted yet.
                         </div>
                       ) : (
-                        listingsList.map((p) => (
-                          <div key={p.id} className="p-3 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl flex gap-3 items-center hover:border-[var(--border)] transition-colors">
-                            <img src={p.photoUrl} alt="" className="w-10 h-10 object-cover rounded-xl shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold text-[var(--text-primary)] text-[10px] truncate">{p.title}</p>
-                              <p className="text-[9px] text-[var(--text-muted)] truncate">{p.location} • {p.price}</p>
+                        realProperties.map((p) => (
+                          <div key={p._id} className="p-2 bg-[var(--bg-muted)]/40 border border-[var(--border)] rounded-lg flex items-center justify-between text-xs">
+                            <div className="min-w-0 pr-2">
+                              <p className="font-bold text-[var(--text-primary)] truncate">{p.title}</p>
+                              <p className="text-[10px] text-[var(--text-muted)]">{p.city} • ₹{p.price}</p>
                             </div>
-                            <span className={`px-1.5 py-0.5 text-[8px] font-extrabold rounded-md uppercase shrink-0 ${
-                              p.status === 'Approved' ? 'bg-green-500/10 text-green-700' :
-                              p.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-700' : 'bg-red-500/10 text-red-700'
-                            }`}>
-                              {p.status}
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 shrink-0">
+                              {p.approvalStatus || 'approved'}
                             </span>
                           </div>
                         ))
@@ -1773,143 +1441,105 @@ const UserManagement = () => {
                   )}
 
                   {userDrawerTab === 'Enquiries' && (
-                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                      {enquiriesList.length === 0 ? (
-                        <div className="text-center py-6 text-[var(--text-muted)] font-semibold text-[10px] bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl">
-                          No callback requests logged for this account.
-                        </div>
-                      ) : (
-                        enquiriesList.map((l) => (
-                          <div key={l.id} className="p-3 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl space-y-1.5 hover:border-[var(--border)] transition-colors">
-                            <div className="flex justify-between items-start gap-2">
-                              <span className="font-bold text-[var(--text-primary)] text-[10px] truncate">{l.property}</span>
-                              <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-700 text-[8px] font-extrabold rounded-md uppercase shrink-0">
-                                {l.type}
-                              </span>
-                            </div>
-                            <div className="flex justify-between text-[9px] text-[var(--text-muted)] font-semibold">
-                              <span>Logged: {l.date}</span>
-                              <span className={`${
-                                l.status === 'Resolved' || l.status === 'Approved' || l.status === 'Closed' ? 'text-green-600' :
-                                l.status === 'Contacted' ? 'text-blue-600' : 'text-yellow-600'
-                              } font-extrabold`}>{l.status}</span>
-                            </div>
-                          </div>
-                        ))
-                      )}
+                    <div className="text-center py-6 text-[var(--text-muted)] text-xs">
+                      No customer leads or inquiries logged.
                     </div>
                   )}
-                </>
+                </div>
               )}
 
-              {/* Drawer actions */}
-              <div className="space-y-2 pt-2 border-t border-[var(--border)]">
-                <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-1">
-                  <Activity size={12} /> Account Operations
-                </span>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { openEditUserModal(selectedUser); }}
-                    className="py-2.5 px-3 bg-brand hover:bg-brand-dark text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-lg shadow-brand/10"
-                  >
-                    <Edit size={14} /> Edit details
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { toggleUserStatus(selectedUser.id); }}
-                    className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                      selectedUser.status === 'Active'
-                        ? 'border border-red-500/25 hover:bg-red-500/10 text-red-600 dark:text-red-400'
-                        : 'bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/10'
-                    }`}
-                  >
-                    {selectedUser.status === 'Active' ? 'Block Account' : 'Activate User'}
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { alert(`Password reset link generated for ${selectedUser.name}`); }}
-                    className="py-2.5 px-3 border border-[var(--border)] hover:bg-[var(--bg-muted)] rounded-xl text-xs font-bold text-[var(--text-subtle)] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <KeyRound size={14} /> Reset Password
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { deleteUser(selectedUser.id); }}
-                    className="py-2.5 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <Trash2 size={14} /> Delete Profile
-                  </button>
-                </div>
+              {/* Bottom Actions */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border)]">
+                <button
+                  type="button"
+                  onClick={() => openEditUserModal(selectedUser)}
+                  className="px-3 py-1.5 bg-[var(--bg-muted)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border)] rounded-lg text-xs font-semibold cursor-pointer"
+                >
+                  Edit Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleUserStatus(selectedUser.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
+                    selectedUser.status === 'Active'
+                      ? 'bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 border border-rose-500/20'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  }`}
+                >
+                  {selectedUser.status === 'Active' ? 'Suspend Account' : 'Activate Account'}
+                </button>
               </div>
+
             </div>
           </div>
         );
       })()}
 
-      {/* Add User Modal */}
+      {/* ─── 05. ADD USER MODAL (Clean, Aligned, Minimal) ─── */}
       {isAddUserModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-3xl max-w-md w-full shadow-2xl border border-[var(--border)] p-6 space-y-4 relative animate-scale-in">
-            <button
-              type="button"
-              onClick={() => setIsAddUserModalOpen(false)}
-              className="absolute top-4 right-4 p-1.5 bg-[var(--bg-muted)] hover:bg-[var(--bg-muted)] rounded-lg text-[var(--text-muted)] hover:text-[var(--text-subtle)] transition-colors cursor-pointer"
-            >
-              <X size={16} />
-            </button>
-
-            <div>
-              <h3 className="text-sm font-bold text-[var(--text-primary)]">Add User Profile</h3>
-              <p className="text-[10px] text-[var(--text-muted)]">Create a new registered user in the database directory</p>
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setIsAddUserModalOpen(false); }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-2xl max-w-md w-full shadow-2xl border border-[var(--border)] p-5 space-y-4 relative">
+            <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text-primary)]">Add User Profile</h3>
+                <p className="text-[10.5px] text-[var(--text-muted)]">Register a new user in the platform directory</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddUserModalOpen(false)}
+                className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+              >
+                <X size={15} />
+              </button>
             </div>
 
-            <form onSubmit={handleAddUserSubmit} className="space-y-4">
+            <form onSubmit={handleAddUserSubmit} className="space-y-3 text-xs">
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-[var(--text-muted)] uppercase">Full Name</label>
+                <label className="block text-[10px] font-semibold text-[var(--text-muted)] uppercase">Full Name</label>
                 <input
                   type="text"
                   required
                   value={newUser.name}
                   onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
                   placeholder="e.g. Rahul Sharma"
-                  className="w-full p-2.5 border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
+                  className="w-full p-2 border border-[var(--border)] bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-lg outline-none focus:border-brand"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-[var(--text-muted)] uppercase">Email Address</label>
+                <label className="block text-[10px] font-semibold text-[var(--text-muted)] uppercase">Email Address</label>
                 <input
                   type="email"
                   required
                   value={newUser.email}
                   onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                   placeholder="e.g. rahul@example.com"
-                  className="w-full p-2.5 border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
+                  className="w-full p-2 border border-[var(--border)] bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-lg outline-none focus:border-brand"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-[var(--text-muted)] uppercase">Phone Number</label>
+                <label className="block text-[10px] font-semibold text-[var(--text-muted)] uppercase">Phone Number</label>
                 <input
                   type="text"
                   required
                   value={newUser.phone}
                   onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
                   placeholder="e.g. +91 99887 76655"
-                  className="w-full p-2.5 border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
+                  className="w-full p-2 border border-[var(--border)] bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-lg outline-none focus:border-brand"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="block text-[10px] font-bold text-[var(--text-muted)] uppercase">System Role</label>
+                  <label className="block text-[10px] font-semibold text-[var(--text-muted)] uppercase">Role</label>
                   <select
                     value={newUser.role}
                     onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                    className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40 bg-[var(--bg-muted)] text-[var(--text-primary)]"
+                    className="w-full p-2 border border-[var(--border)] rounded-lg bg-[var(--bg-muted)]/50 text-[var(--text-primary)] outline-none"
                   >
                     <option value="Buyer">Buyer</option>
                     <option value="Seller">Seller</option>
@@ -1919,11 +1549,11 @@ const UserManagement = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[10px] font-bold text-[var(--text-muted)] uppercase">Status</label>
+                  <label className="block text-[10px] font-semibold text-[var(--text-muted)] uppercase">Status</label>
                   <select
                     value={newUser.status}
                     onChange={(e) => setNewUser({ ...newUser, status: e.target.value })}
-                    className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40 bg-[var(--bg-muted)] text-[var(--text-primary)]"
+                    className="w-full p-2 border border-[var(--border)] rounded-lg bg-[var(--bg-muted)]/50 text-[var(--text-primary)] outline-none"
                   >
                     <option value="Active">Active</option>
                     <option value="Blocked">Blocked</option>
@@ -1937,26 +1567,26 @@ const UserManagement = () => {
                   id="add-verify"
                   checked={newUser.isVerified}
                   onChange={(e) => setNewUser({ ...newUser, isVerified: e.target.checked })}
-                  className="rounded border-slate-300 dark:border-slate-700 bg-transparent text-brand focus:ring-brand"
+                  className="rounded border-[var(--border)] text-brand focus:ring-brand accent-brand cursor-pointer"
                 />
-                <label htmlFor="add-verify" className="text-xs font-semibold text-[var(--text-subtle)] select-none">
-                  Mark profile as KYC verified (RERA/Identity check)
+                <label htmlFor="add-verify" className="text-xs font-semibold text-[var(--text-secondary)] select-none cursor-pointer">
+                  Mark profile as KYC verified
                 </label>
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 pt-2 border-t border-[var(--border)]">
                 <button
                   type="button"
                   onClick={() => setIsAddUserModalOpen(false)}
-                  className="flex-1 py-2.5 border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-subtle)] rounded-xl text-xs font-bold transition-colors"
+                  className="flex-1 py-1.5 border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-secondary)] rounded-lg font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-brand hover:bg-brand-dark text-white rounded-xl text-xs font-bold shadow-lg shadow-brand/10 transition-all"
+                  className="flex-1 py-1.5 bg-brand hover:bg-brand-dark text-white rounded-lg font-bold shadow-2xs cursor-pointer transition-colors"
                 >
-                  Save Profile
+                  Create User
                 </button>
               </div>
             </form>
@@ -1964,80 +1594,68 @@ const UserManagement = () => {
         </div>
       )}
 
-      {/* Edit User Modal */}
+      {/* ─── 06. EDIT USER MODAL ─── */}
       {isEditUserModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-3xl max-w-md w-full shadow-2xl border border-[var(--border)] p-6 space-y-4 relative animate-scale-in">
-            <button
-              type="button"
-              onClick={() => setIsEditUserModalOpen(false)}
-              className="absolute top-4 right-4 p-1.5 bg-[var(--bg-muted)] hover:bg-[var(--bg-muted)] rounded-lg text-[var(--text-muted)] hover:text-[var(--text-subtle)] transition-colors cursor-pointer"
-            >
-              <X size={16} />
-            </button>
-
-            <div>
-              <h3 className="text-sm font-bold text-[var(--text-primary)]">Edit User Details</h3>
-              <p className="text-[10px] text-[var(--text-muted)] flex items-center gap-1 flex-wrap">
-                Modify properties for user ID: 
-                <span 
-                  onClick={() => {
-                    navigator.clipboard.writeText(editUserData.id);
-                    triggerToast('Copied ID to clipboard!');
-                  }}
-                  className="font-mono bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-subtle)] px-1.5 py-0.5 rounded cursor-pointer transition-colors flex items-center gap-0.5 select-all"
-                  title="Click to copy User ID"
-                >
-                  {editUserData.id}
-                  <Copy size={8} />
-                </span>
-              </p>
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setIsEditUserModalOpen(false); }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-2xl max-w-md w-full shadow-2xl border border-[var(--border)] p-5 space-y-4 relative">
+            <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text-primary)]">Edit User Details</h3>
+                <p className="text-[10px] text-[var(--text-muted)] font-mono">#{editUserData.id}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditUserModalOpen(false)}
+                className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+              >
+                <X size={15} />
+              </button>
             </div>
 
-            <form onSubmit={handleEditUserSubmit} className="space-y-4">
+            <form onSubmit={handleEditUserSubmit} className="space-y-3 text-xs">
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-[var(--text-muted)] uppercase">Full Name</label>
+                <label className="block text-[10px] font-semibold text-[var(--text-muted)] uppercase">Full Name</label>
                 <input
                   type="text"
                   required
                   value={editUserData.name}
                   onChange={(e) => setEditUserData({ ...editUserData, name: e.target.value })}
-                  placeholder="e.g. Rahul Sharma"
-                  className="w-full p-2.5 border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
+                  className="w-full p-2 border border-[var(--border)] bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-lg outline-none focus:border-brand"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-[var(--text-muted)] uppercase">Email Address</label>
+                <label className="block text-[10px] font-semibold text-[var(--text-muted)] uppercase">Email Address</label>
                 <input
                   type="email"
                   required
                   value={editUserData.email}
                   onChange={(e) => setEditUserData({ ...editUserData, email: e.target.value })}
-                  placeholder="e.g. rahul@example.com"
-                  className="w-full p-2.5 border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
+                  className="w-full p-2 border border-[var(--border)] bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-lg outline-none focus:border-brand"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-[var(--text-muted)] uppercase">Phone Number</label>
+                <label className="block text-[10px] font-semibold text-[var(--text-muted)] uppercase">Phone Number</label>
                 <input
                   type="text"
                   required
                   value={editUserData.phone}
                   onChange={(e) => setEditUserData({ ...editUserData, phone: e.target.value })}
-                  placeholder="e.g. +91 99887 76655"
-                  className="w-full p-2.5 border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-xl text-xs focus:outline-none focus:border-brand/40"
+                  className="w-full p-2 border border-[var(--border)] bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-lg outline-none focus:border-brand"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="block text-[10px] font-bold text-[var(--text-muted)] uppercase">System Role</label>
+                  <label className="block text-[10px] font-semibold text-[var(--text-muted)] uppercase">Role</label>
                   <select
                     value={editUserData.role}
                     onChange={(e) => setEditUserData({ ...editUserData, role: e.target.value })}
-                    className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40 bg-[var(--bg-muted)] text-[var(--text-primary)]"
+                    className="w-full p-2 border border-[var(--border)] rounded-lg bg-[var(--bg-muted)]/50 text-[var(--text-primary)] outline-none"
                   >
                     <option value="Buyer">Buyer</option>
                     <option value="Seller">Seller</option>
@@ -2047,11 +1665,11 @@ const UserManagement = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[10px] font-bold text-[var(--text-muted)] uppercase">Status</label>
+                  <label className="block text-[10px] font-semibold text-[var(--text-muted)] uppercase">Status</label>
                   <select
                     value={editUserData.status}
                     onChange={(e) => setEditUserData({ ...editUserData, status: e.target.value })}
-                    className="w-full p-2.5 border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-brand/40 bg-[var(--bg-muted)] text-[var(--text-primary)]"
+                    className="w-full p-2 border border-[var(--border)] rounded-lg bg-[var(--bg-muted)]/50 text-[var(--text-primary)] outline-none"
                   >
                     <option value="Active">Active</option>
                     <option value="Blocked">Blocked</option>
@@ -2059,79 +1677,57 @@ const UserManagement = () => {
                 </div>
               </div>
 
-              {/* Role-Specific Verification Status Controls */}
-              {editUserData.role === 'Agent' && (
-                <div className="space-y-1 p-2.5 bg-blue-500/5 border border-blue-500/20 rounded-xl">
-                  <label className="block text-[10px] font-bold text-blue-600 uppercase">Agent RERA Verification</label>
-                  <select
-                    value={editUserData.agentVerificationStatus}
-                    onChange={(e) => {
-                      const newStatus = e.target.value;
-                      setEditUserData({
-                        ...editUserData,
-                        agentVerificationStatus: newStatus,
-                        isVerified: newStatus === 'approved'
-                      });
-                    }}
-                    className="w-full p-2 border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-brand/40 bg-[var(--bg-surface)] text-[var(--text-primary)]"
-                  >
-                    <option value="approved">Approved & Verified (Can post listings)</option>
-                    <option value="pending">Pending Review (Under evaluation)</option>
-                    <option value="rejected">Rejected</option>
-                    <option value="unverified">Unverified</option>
-                  </select>
+              {(editUserData.role === 'Agent' || editUserData.role === 'Builder') && (
+                <div className="space-y-2 p-2.5 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-semibold text-blue-600 uppercase">RERA Registration</label>
+                    <input
+                      type="text"
+                      value={editUserData.reraNumber}
+                      onChange={(e) => setEditUserData({ ...editUserData, reraNumber: e.target.value })}
+                      placeholder="e.g. MAHARERA/A51800029381"
+                      className="w-full p-1.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded text-xs outline-none"
+                    />
+                  </div>
+                  {editUserData.role === 'Builder' && (
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-semibold text-purple-600 uppercase">Company Name</label>
+                      <input
+                        type="text"
+                        value={editUserData.companyName}
+                        onChange={(e) => setEditUserData({ ...editUserData, companyName: e.target.value })}
+                        placeholder="Company name..."
+                        className="w-full p-1.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded text-xs outline-none"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
-              {editUserData.role === 'Builder' && (
-                <div className="space-y-1 p-2.5 bg-purple-500/5 border border-purple-500/20 rounded-xl">
-                  <label className="block text-[10px] font-bold text-purple-600 uppercase">Developer Company Verification</label>
-                  <select
-                    value={editUserData.builderVerificationStatus}
-                    onChange={(e) => {
-                      const newStatus = e.target.value;
-                      setEditUserData({
-                        ...editUserData,
-                        builderVerificationStatus: newStatus,
-                        isVerified: newStatus === 'approved'
-                      });
-                    }}
-                    className="w-full p-2 border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-brand/40 bg-[var(--bg-surface)] text-[var(--text-primary)]"
-                  >
-                    <option value="approved">Approved & Verified (Can launch projects)</option>
-                    <option value="pending">Pending Review (Under evaluation)</option>
-                    <option value="rejected">Rejected</option>
-                    <option value="unverified">Unverified</option>
-                  </select>
-                </div>
-              )}
+              <div className="flex items-center gap-2 py-1">
+                <input
+                  type="checkbox"
+                  id="edit-verify"
+                  checked={editUserData.isVerified}
+                  onChange={(e) => setEditUserData({ ...editUserData, isVerified: e.target.checked })}
+                  className="rounded border-[var(--border)] text-brand focus:ring-brand accent-brand cursor-pointer"
+                />
+                <label htmlFor="edit-verify" className="text-xs font-semibold text-[var(--text-secondary)] select-none cursor-pointer">
+                  Mark profile as KYC verified
+                </label>
+              </div>
 
-              {editUserData.role !== 'Agent' && editUserData.role !== 'Builder' && (
-                <div className="flex items-center gap-2 py-1">
-                  <input
-                    type="checkbox"
-                    id="edit-verify"
-                    checked={editUserData.isVerified}
-                    onChange={(e) => setEditUserData({ ...editUserData, isVerified: e.target.checked })}
-                    className="rounded border-slate-300 dark:border-slate-700 bg-transparent text-brand focus:ring-brand cursor-pointer"
-                  />
-                  <label htmlFor="edit-verify" className="text-xs font-semibold text-[var(--text-subtle)] select-none cursor-pointer">
-                    Mark profile as KYC verified
-                  </label>
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 pt-2 border-t border-[var(--border)]">
                 <button
                   type="button"
                   onClick={() => setIsEditUserModalOpen(false)}
-                  className="flex-1 py-2.5 border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-subtle)] rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  className="flex-1 py-1.5 border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-secondary)] rounded-lg font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-brand hover:bg-brand-dark text-white rounded-xl text-xs font-bold shadow-lg shadow-brand/10 transition-all cursor-pointer"
+                  className="flex-1 py-1.5 bg-brand hover:bg-brand-dark text-white rounded-lg font-bold shadow-2xs cursor-pointer transition-colors"
                 >
                   Save Changes
                 </button>
@@ -2141,55 +1737,174 @@ const UserManagement = () => {
         </div>
       )}
 
-      {/* Floating Bulk Action Bar */}
-      {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-55 bg-slate-900 border border-slate-800 text-white py-3.5 px-6 rounded-2xl shadow-2xl flex items-center justify-between gap-6 animate-slide-up max-w-lg w-[calc(100%-2rem)] sm:w-auto">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="w-5 h-5 rounded-full bg-brand text-white font-extrabold flex items-center justify-center text-[10px]">
-              {selectedIds.length}
-            </span>
-            <span className="font-semibold text-slate-300">users selected</span>
+      {/* ─── 07. DELETE CONFIRMATION MODAL ─── */}
+      {showDeleteModal && (
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget && !isDeleting) setShowDeleteModal(false); }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-md bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
+                <Trash2 size={18} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                  Delete User Account?
+                </h3>
+                <p className="text-xs text-[var(--text-muted)]">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-[var(--bg-muted)]/50 rounded-xl border border-[var(--border)] text-xs text-[var(--text-secondary)] space-y-1">
+              <p>
+                Permanently removing <strong className="text-[var(--text-primary)]">{userToDelete?.name}</strong> ({userToDelete?.email}).
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border)]">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setShowDeleteModal(false)}
+                className="px-3.5 py-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] rounded-lg transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={confirmDeleteExecution}
+                className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <RefreshCw size={12} className="animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={12} />
+                    <span>Confirm Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2 shrink-0">
+        </div>
+      )}
+
+      {/* ─── 08. REJECTION REASON MODAL ─── */}
+      {showRejectModal && rejectingUser && (
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget && !isSubmittingReject) setShowRejectModal(false); }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-md bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xl p-5 space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+              <div className="flex items-center gap-2">
+                <XCircle size={16} className="text-rose-500" />
+                <h3 className="text-sm font-bold text-[var(--text-primary)]">Reject Verification Request</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRejectModal(false)}
+                className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <p className="text-xs text-[var(--text-muted)]">
+              Specify reason for declining verification for <span className="font-bold text-[var(--text-primary)]">{rejectingUser.name}</span>.
+            </p>
+
+            <div className="space-y-1.5">
+              {[
+                'Document verification incomplete or mismatch',
+                'Invalid or expired RERA registration certificate',
+                'Identity proof could not be authenticated',
+                'Duplicate professional profile'
+              ].map((r, idx) => (
+                <label
+                  key={idx}
+                  className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
+                    rejectReason === r
+                      ? 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-400 font-semibold'
+                      : 'bg-[var(--bg-muted)]/40 border-[var(--border)] text-[var(--text-secondary)]'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="rejectReasonRadio"
+                    checked={rejectReason === r}
+                    onChange={() => setRejectReason(r)}
+                    className="accent-rose-500"
+                  />
+                  <span>{r}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border)]">
+              <button
+                type="button"
+                onClick={() => setShowRejectModal(false)}
+                className="px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingReject}
+                onClick={confirmRejectionSubmit}
+                className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-colors flex items-center gap-1.5"
+              >
+                {isSubmittingReject ? (
+                  <>
+                    <RefreshCw size={12} className="animate-spin" />
+                    <span>Rejecting...</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle size={13} />
+                    <span>Confirm Rejection</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── 09. IN-APP TOAST NOTIFICATION ─── */}
+      {toast && (
+        <div className="fixed bottom-5 right-5 z-50 animate-in slide-in-from-bottom-5 duration-200">
+          <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-xl border backdrop-blur-md text-xs font-semibold ${
+            toast.type === 'success'
+              ? 'bg-emerald-950/90 text-emerald-100 border-emerald-500/40 shadow-emerald-950/30'
+              : toast.type === 'error'
+              ? 'bg-rose-950/90 text-rose-100 border-rose-500/40 shadow-rose-950/30'
+              : 'bg-slate-900/90 text-slate-100 border-slate-700 shadow-slate-950/30'
+          }`}>
+            {toast.type === 'success' && <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />}
+            {toast.type === 'error' && <AlertCircle size={15} className="text-rose-400 shrink-0" />}
+            {toast.type === 'info' && <Info size={15} className="text-blue-400 shrink-0" />}
+            
+            <span className="leading-snug">{toast.message}</span>
+
             <button
               type="button"
-              onClick={triggerBulkBlock}
-              className="py-1.5 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-extrabold transition-colors cursor-pointer flex items-center gap-1"
+              onClick={() => setToast(null)}
+              className="ml-2 p-1 rounded-md hover:bg-white/10 text-white/70 hover:text-white transition-colors cursor-pointer"
+              title="Dismiss notification"
             >
-              <Lock size={12} /> Suspend
-            </button>
-            <button
-              type="button"
-              onClick={triggerBulkDelete}
-              className="py-1.5 px-3 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[10px] font-extrabold transition-colors cursor-pointer flex items-center gap-1"
-            >
-              <Trash2 size={12} /> Delete
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedIds([])}
-              className="py-1.5 px-2.5 border border-slate-700 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
-            >
-              Cancel
+              <X size={12} />
             </button>
           </div>
         </div>
       )}
 
-      {/* Toast Notification Popup */}
-      {toast.show && (
-        <div className={`fixed bottom-6 right-6 z-55 py-3 px-5 rounded-2xl shadow-2xl flex items-center gap-3 animate-slide-up border ${
-          toast.type === 'success' 
-            ? 'bg-emerald-950 border-emerald-800 text-emerald-300' 
-            : 'bg-rose-950 border-rose-800 text-rose-300'
-        }`}>
-          <span className={`w-2 h-2 rounded-full shrink-0 ${toast.type === 'success' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400 animate-pulse'}`} />
-          <div className="text-xs">
-            <p className="font-extrabold text-white">{toast.type === 'success' ? 'Success' : 'Error'}</p>
-            <p className={`text-[10px] ${toast.type === 'success' ? 'text-emerald-400/90' : 'text-rose-400/90'}`}>{toast.message}</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

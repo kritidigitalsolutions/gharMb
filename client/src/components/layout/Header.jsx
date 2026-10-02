@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContexts';
 import {
   Menu,
@@ -8,19 +8,199 @@ import {
   CheckSquare,
   Plus,
   Zap,
-  Download,
   ShieldCheck,
   Sun,
   Moon,
-  ExternalLink
+  ExternalLink,
+  Settings,
+  LogOut,
+  Crown,
+  UserCircle2,
+  Building2,
+  Scan,
+  ScanLine,
+  ChevronDown,
+  X,
+  ArrowRight,
+  Sparkles,
+  Users
 } from 'lucide-react';
+import { logOutOfFirebase } from '../../config/firebase';
 
-const Header = ({ toggleSidebar, title }) => {
+// ── Helper: read admin user from localStorage ──────────────────────────────
+const getAdminUser = () => {
+  const raw = localStorage.getItem('adminUser') || localStorage.getItem('admin');
+  let user = { name: 'Super Admin', role: 'SaaS Admin', avatar: null };
+  if (raw && raw !== 'undefined' && raw !== 'null') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        user = {
+          name: parsed.name || (parsed.email ? parsed.email.split('@')[0] : 'Super Admin'),
+          role: parsed.role || 'SaaS Admin',
+          avatar: parsed.avatar || parsed.photoUrl || parsed.profilePicture || null,
+        };
+      }
+    } catch (_) {}
+  }
+  return user;
+};
+
+const getInitials = (name) => {
+  if (!name || typeof name !== 'string') return 'AD';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2 && parts[0] && parts[1]) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+};
+
+const ROUTE_PAGE_NAMES = {
+  '/admin': 'Dashboard',
+  '/admin/verification': 'Property Verification',
+  '/admin/users': 'User Management',
+  '/admin/builders': 'Builders & RERA',
+  '/admin/leads': 'Leads & Enquiries',
+  '/admin/services': 'Services Hub',
+  '/admin/tokens': 'Token Bookings',
+  '/admin/references': 'Referral Network',
+  '/admin/revenue': 'Revenue & Analytics',
+  '/admin/reports': 'Reports & Export',
+  '/admin/insights': 'Market Insights',
+  '/admin/insights/categories': 'Insights Categories',
+  '/admin/insights/new': 'Create Article',
+  '/admin/faq': 'FAQ Management',
+  '/admin/faq/categories': 'FAQ Categories',
+  '/admin/testimonials': 'Testimonials',
+  '/admin/web-inquiries': 'Web Inquiries',
+  '/admin/notifications': 'Notifications',
+  '/admin/settings': 'Settings',
+  '/admin/legal': 'Legal Policies',
+  '/admin/about': 'About Platform',
+};
+
+const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const getPageTitle = () => {
+    if (title) return title;
+    const path = location.pathname.replace(/\/$/, '') || '/admin';
+    if (ROUTE_PAGE_NAMES[path]) return ROUTE_PAGE_NAMES[path];
+    if (path.startsWith('/admin/insights/edit')) return 'Edit Article';
+    const segment = path.split('/').filter(Boolean).pop();
+    if (segment && segment !== 'admin') {
+      return segment.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+    }
+    return 'Dashboard';
+  };
+
+  const pageTitle = getPageTitle();
   const { theme, toggleTheme } = useTheme();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchResults, setShowSearchResults] = useState(false);
+
+  const profileRef = useRef(null);
+  const quickActionsRef = useRef(null);
+  const searchContainerRef = useRef(null);
+  const searchInputRef = useRef(null);
+
+  const adminUser = getAdminUser();
+  const isAdmin = (adminUser.role || '').toLowerCase().includes('admin') ||
+                  (adminUser.name || '').toLowerCase().includes('admin');
+
+  // Quick navigation modules for search command palette
+  const searchModules = [
+    { title: 'Property Verification', category: 'Compliance', path: '/admin/verification', icon: <Zap size={14} /> },
+    { title: 'User Management', category: 'Administration', path: '/admin/users', icon: <Users size={14} /> },
+    { title: 'Builders & RERA', category: 'Real Estate', path: '/admin/builders', icon: <Building2 size={14} /> },
+    { title: 'Token Bookings & Escrow', category: 'Finance', path: '/admin/tokens', icon: <ShieldCheck size={14} /> },
+    { title: 'Services Hub (Loans & Interiors)', category: 'Services', path: '/admin/services', icon: <Plus size={14} /> },
+    { title: 'Leads & Enquiries', category: 'CRM', path: '/admin/leads', icon: <CheckSquare size={14} /> },
+    { title: 'Revenue & Financials', category: 'Analytics', path: '/admin/revenue', icon: <Zap size={14} /> },
+    { title: 'Reports & Export', category: 'Analytics', path: '/admin/reports', icon: <ExternalLink size={14} /> },
+    { title: 'Market Insights & Articles', category: 'Content', path: '/admin/insights', icon: <Sparkles size={14} /> },
+    { title: 'System Settings', category: 'Configuration', path: '/admin/settings', icon: <Settings size={14} /> },
+  ];
+
+  const filteredModules = searchQuery.trim() === ''
+    ? searchModules.slice(0, 5)
+    : searchModules.filter(m =>
+        m.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.category.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+
+  const quickActionsList = [
+    {
+      title: 'Verify Properties',
+      subtitle: 'Review & approve pending listings',
+      path: '/admin/verification',
+      icon: <Zap size={14} />
+    },
+    {
+      title: 'Services Hub',
+      subtitle: 'Manage Home Loans & Interiors',
+      path: '/admin/services',
+      icon: <Plus size={14} />
+    },
+    {
+      title: 'Escrow Token Bookings',
+      subtitle: 'Track property token receipts',
+      path: '/admin/tokens',
+      icon: <ShieldCheck size={14} />
+    },
+    {
+      title: 'Builders & RERA Registry',
+      subtitle: 'Audit licenses and projects',
+      path: '/admin/builders',
+      icon: <Building2 size={14} />
+    },
+    {
+      title: 'Referral Rewards',
+      subtitle: 'Process partner commissions',
+      path: '/admin/references',
+      icon: <ExternalLink size={14} />
+    },
+  ];
+
+  // Close dropdowns on outside click & handle Cmd+K / Ctrl+K keyboard shortcut
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setShowProfileMenu(false);
+      }
+      if (quickActionsRef.current && !quickActionsRef.current.contains(e.target)) {
+        setShowQuickActions(false);
+      }
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setShowSearchResults(false);
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        setShowSearchResults(true);
+      } else if (e.key === 'Escape') {
+        setShowSearchResults(false);
+        setShowQuickActions(false);
+        searchInputRef.current?.blur();
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   const formatTime = (dateString) => {
     const diffMs = new Date() - new Date(dateString);
@@ -143,14 +323,14 @@ const Header = ({ toggleSidebar, title }) => {
     switch (type) {
       case 'enquiry':
       case 'visit_booking':
-        return 'bg-blue-500/10 text-blue-600 dark:text-blue-400';
+        return 'bg-brand/10 text-brand';
       case 'property_status':
       case 'verification':
-        return 'bg-orange-500/10 text-orange-600 dark:text-orange-400';
+        return 'bg-[#DD543C]/10 text-[#DD543C]';
       case 'payment':
-        return 'bg-green-500/10 text-green-600 dark:text-green-400';
+        return 'bg-brand/15 text-brand font-bold';
       default:
-        return 'bg-slate-500/10 text-slate-500 dark:text-slate-400';
+        return 'bg-[var(--bg-muted)] text-[var(--text-subtle)]';
     }
   };
 
@@ -165,90 +345,191 @@ const Header = ({ toggleSidebar, title }) => {
     }
   };
 
+  const handleLogout = async () => {
+    setShowProfileMenu(false);
+    try { await logOutOfFirebase(); } catch (_) {}
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminUser');
+    localStorage.removeItem('admin');
+    navigate('/login');
+  };
+
+  const handleSettings = () => {
+    setShowProfileMenu(false);
+    navigate('/admin/settings');
+  };
+
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-6 bg-[var(--bg-surface)] border-b border-[var(--border)] shrink-0 transition-colors duration-250">
-      <div className="flex items-center gap-2 md:gap-4 min-w-0">
+    <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-6 bg-[var(--bg-surface)]/90 backdrop-blur-md border-b border-[var(--border)] shrink-0 transition-colors duration-250">
+      <div className="flex items-center gap-2 md:gap-3 min-w-0">
+        {/* Mobile menu trigger */}
         <button
           type="button"
           onClick={toggleSidebar}
-          className="p-2 rounded-xl text-[var(--text-muted)] hover:bg-[var(--bg-muted)] md:hidden transition-all duration-200 active:scale-90 shrink-0"
+          className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] md:hidden transition-all duration-200 active:scale-90 shrink-0 cursor-pointer"
+          title="Open navigation"
         >
           <Menu size={18} />
         </button>
-        <h1 className="text-xs sm:text-sm md:text-base font-extrabold text-[var(--text-primary)] tracking-tight truncate whitespace-nowrap max-w-[150px] xs:max-w-[200px] sm:max-w-[300px] md:max-w-none">
-          {title || 'Overview'}
-        </h1>
+
+
+        {/* Page Name */}
+        <div className="flex items-center min-w-0">
+          <h1 className="text-sm sm:text-base font-bold text-[var(--text-primary)] tracking-tight truncate whitespace-nowrap">
+            {pageTitle}
+          </h1>
+        </div>
       </div>
 
       {/* Action triggers */}
       <div className="flex items-center gap-2 md:gap-3 shrink-0">
-        {/* Quick Actions Menu */}
-        <div className="relative">
+        
+        {/* ── Quick Actions Menu ── */}
+        <div className="relative" ref={quickActionsRef}>
           <button
             type="button"
             onClick={() => {
-              setShowQuickActions(!showQuickActions);
+              setShowQuickActions(prev => !prev);
               setShowNotifications(false);
+              setShowProfileMenu(false);
+              setShowSearchResults(false);
             }}
-            className="group flex items-center justify-center w-8 h-8 md:w-auto md:h-auto md:px-3 md:py-1.5 bg-brand hover:bg-brand-dark text-white rounded-full md:rounded-xl text-[10px] font-extrabold shadow-md shadow-brand/10 transition-all hover:scale-105 active:scale-95 duration-150 cursor-pointer shrink-0"
+            className={`group flex items-center gap-1.5 h-9 px-3.5 bg-brand hover:bg-[#DD543C] text-white rounded-xl text-xs font-semibold shadow-xs hover:shadow-sm transition-all duration-150 active:scale-[0.97] cursor-pointer shrink-0 border border-brand hover:border-[#DD543C] ${
+              showQuickActions ? 'bg-[#DD543C] ring-2 ring-brand/20' : ''
+            }`}
             title="Quick Actions"
           >
-            <Plus size={12} className="transition-transform duration-300 group-hover:rotate-90" />
-            <span className="hidden md:inline ml-1">Quick Actions</span>
+            <Plus size={13} strokeWidth={2.2} className="transition-transform duration-200 group-hover:rotate-90 shrink-0" />
+            <span className="hidden sm:inline tracking-tight">Quick Actions</span>
+            <ChevronDown 
+              size={12} 
+              className={`text-white/80 group-hover:text-white transition-transform duration-200 shrink-0 ${showQuickActions ? 'rotate-180' : ''}`} 
+            />
           </button>
 
           {showQuickActions && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setShowQuickActions(false)}></div>
-              <div className="absolute right-0 mt-2 w-60 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xl z-20 overflow-hidden py-1 animate-slide-down origin-top-right">
-                <button
-                  type="button"
-                  onClick={() => { navigate('/admin/verification'); setShowQuickActions(false); }}
-                  className="w-full text-left px-4 py-2 hover:bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-subtle)] flex items-center gap-2"
-                >
-                  <Zap size={14} className="text-brand" /> Verify Properties
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { navigate('/admin/services'); setShowQuickActions(false); }}
-                  className="w-full text-left px-4 py-2 hover:bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-subtle)] flex items-center gap-2"
-                >
-                  <Plus size={14} className="text-purple-500" /> Services Hub (Loan & Interior)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { navigate('/admin/tokens'); setShowQuickActions(false); }}
-                  className="w-full text-left px-4 py-2 hover:bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-subtle)] flex items-center gap-2"
-                >
-                  <ShieldCheck size={14} className="text-blue-500" /> Escrow Token Bookings
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { navigate('/admin/references'); setShowQuickActions(false); }}
-                  className="w-full text-left px-4 py-2 hover:bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-subtle)] flex items-center gap-2"
-                >
-                  <ExternalLink size={14} className="text-emerald-500" /> Referral Rewards
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { navigate('/admin/builders'); setShowQuickActions(false); }}
-                  className="w-full text-left px-4 py-2 hover:bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-subtle)] flex items-center gap-2"
-                >
-                  <Building size={14} className="text-slate-500" /> Builders & RERA
-                </button>
+            <div className="absolute right-0 sm:left-0 sm:right-auto mt-2 w-64 sm:w-72 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xl z-40 overflow-hidden animate-slide-down origin-top-left">
+              {/* Header */}
+              <div className="px-3.5 py-2.5 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-muted)]/40">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles size={13} className="text-brand" />
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-muted)]">Quick Actions</span>
+                </div>
+                <span className="text-[9px] font-bold text-brand bg-brand/10 border border-brand/20 px-1.5 py-0.5 rounded-md">Shortcuts</span>
               </div>
-            </>
+
+              {/* Actions List */}
+              <div className="p-1.5 space-y-1">
+                {quickActionsList.map((action, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      navigate(action.path);
+                      setShowQuickActions(false);
+                    }}
+                    className="w-full text-left p-2 hover:bg-[var(--bg-muted)] rounded-xl transition-all duration-150 flex items-center justify-between group/item cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center shrink-0 group-hover/item:bg-brand group-hover/item:text-white transition-colors duration-200 shadow-2xs">
+                        {action.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-[var(--text-primary)] truncate group-hover/item:text-brand transition-colors">
+                          {action.title}
+                        </div>
+                        <div className="text-[10px] text-[var(--text-muted)] truncate">
+                          {action.subtitle}
+                        </div>
+                      </div>
+                    </div>
+                    <ArrowRight size={13} className="text-[var(--text-muted)] opacity-0 group-hover/item:opacity-100 group-hover/item:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
-        {/* Search */}
-        <div className="relative hidden max-w-xs md:block">
-          <Search className="absolute top-2.5 left-3 text-slate-400" size={14} />
-          <input
-            type="text"
-            placeholder="Search dashboard parameters..."
-            className="w-48 lg:w-64 pl-9 pr-4 py-1.5 text-[11px] bg-[var(--bg-muted)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl focus:outline-none focus:border-brand/40 focus:bg-[var(--bg-surface)] transition-all placeholder:text-[var(--text-muted)]"
-          />
+        {/* ── Search Bar with Live Command Center ── */}
+        <div className="relative hidden md:block" ref={searchContainerRef}>
+          <div className="flex items-center h-9 w-48 lg:w-72 bg-[var(--bg-muted)]/70 hover:bg-[var(--bg-muted)] focus-within:bg-[var(--bg-surface)] rounded-xl transition-all duration-150 group border-0 outline-none">
+            <Search className="ml-3 text-[var(--text-muted)] group-focus-within:text-brand transition-colors shrink-0" size={14} />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowSearchResults(true);
+              }}
+              onFocus={() => setShowSearchResults(true)}
+              placeholder="Search dashboard parameters..."
+              className="w-full pl-2.5 pr-3 py-1.5 text-xs font-medium bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none border-none"
+            />
+            
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  searchInputRef.current?.focus();
+                }}
+                className="p-1 mr-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-md hover:bg-[var(--bg-muted)] cursor-pointer transition-colors shrink-0"
+                title="Clear"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          {/* Search Dropdown Modal / Palette */}
+          {showSearchResults && (
+            <div className="absolute left-0 mt-2 w-72 lg:w-80 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xl z-40 overflow-hidden animate-slide-down origin-top-left">
+              <div className="px-3.5 py-2 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-muted)]/40">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-muted)]">
+                  {searchQuery.trim() ? 'Matching Modules' : 'Quick Navigation'}
+                </span>
+                <span className="text-[9px] font-bold text-[var(--text-muted)]">Esc to close</span>
+              </div>
+
+              <div className="p-1.5 max-h-72 overflow-y-auto space-y-0.5">
+                {filteredModules.length === 0 ? (
+                  <div className="p-5 text-center text-xs text-[var(--text-muted)] font-medium">
+                    No matching parameters found for <span className="font-bold text-[var(--text-primary)]">"{searchQuery}"</span>
+                  </div>
+                ) : (
+                  filteredModules.map((item, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        navigate(item.path);
+                        setShowSearchResults(false);
+                        setSearchQuery('');
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-[var(--bg-muted)] rounded-xl transition-all duration-150 flex items-center justify-between group/item cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-[var(--bg-muted)] group-hover/item:bg-brand/10 text-[var(--text-muted)] group-hover/item:text-brand flex items-center justify-center shrink-0 transition-colors">
+                          {item.icon}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-[var(--text-primary)] truncate group-hover/item:text-brand transition-colors">
+                            {item.title}
+                          </div>
+                          <div className="text-[10px] text-[var(--text-muted)] truncate">
+                            {item.category}
+                          </div>
+                        </div>
+                      </div>
+                      <ArrowRight size={12} className="text-[var(--text-muted)] opacity-0 group-hover/item:opacity-100 group-hover/item:translate-x-0.5 transition-all shrink-0" />
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Notifications */}
@@ -258,8 +539,9 @@ const Header = ({ toggleSidebar, title }) => {
             onClick={() => {
               setShowNotifications(!showNotifications);
               setShowQuickActions(false);
+              setShowProfileMenu(false);
             }}
-            className="group relative p-2 text-[var(--text-muted)] rounded-xl hover:bg-[var(--bg-muted)] hover:text-[var(--text-subtle)] transition-all duration-200 hover:scale-110 active:scale-90 cursor-pointer"
+            className="group relative w-8 h-8 flex items-center justify-center text-[var(--text-muted)] rounded-xl hover:bg-[var(--bg-muted)] hover:text-[var(--text-subtle)] transition-all duration-200 active:scale-90 cursor-pointer"
           >
             {unreadNotificationsCount > 0 && (
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-brand rounded-full border border-[var(--bg-surface)]"></span>
@@ -322,27 +604,125 @@ const Header = ({ toggleSidebar, title }) => {
           )}
         </div>
 
-        {/* Theme Toggle Switch */}
-        <label
-          className="theme-toggle-switch flex items-center shrink-0 scale-90 md:scale-100 transition-transform"
-          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        {/* Fullscreen Toggle */}
+        <button
+          type="button"
+          onClick={() => {
+            if (!document.fullscreenElement) {
+              document.documentElement.requestFullscreen();
+              setIsFullscreen(true);
+            } else {
+              document.exitFullscreen();
+              setIsFullscreen(false);
+            }
+          }}
+          className="w-8 h-8 flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] transition-colors duration-150 cursor-pointer"
+          title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
         >
-          <input
-            className="toggle-checkbox"
-            type="checkbox"
-            checked={theme === 'dark'}
-            onChange={toggleTheme}
-          />
-          <div className="toggle-slot">
-            <div className="sun-icon-wrapper">
-              <Sun className="sun-icon" />
-            </div>
-            <div className="toggle-button" />
-            <div className="moon-icon-wrapper">
-              <Moon className="moon-icon" />
+          {isFullscreen ? <ScanLine size={16} strokeWidth={2} /> : <Scan size={16} strokeWidth={2} />}
+        </button>
+
+        {/* Theme Toggle Switch with Smooth Radial Ripple Trigger */}
+        <div className="h-8 flex items-center shrink-0">
+          <div
+            className="theme-toggle-switch flex items-center cursor-pointer select-none" 
+            style={{ transform: 'scale(0.72)', transformOrigin: 'center' }}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            onClick={(e) => toggleTheme(e)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleTheme(e);
+              }
+            }}
+          >
+            <input
+              className="toggle-checkbox"
+              type="checkbox"
+              checked={theme === 'dark'}
+              readOnly
+              tabIndex={-1}
+            />
+            <div className="toggle-slot">
+              <div className="sun-icon-wrapper">
+                <Sun className="sun-icon" />
+              </div>
+              <div className="toggle-button" />
+              <div className="moon-icon-wrapper">
+                <Moon className="moon-icon" />
+              </div>
             </div>
           </div>
-        </label>
+        </div>
+
+        {/* ── Profile Avatar Dropdown ──────────────────────────────────────── */}
+        <div className="relative" ref={profileRef}>
+          <button
+            type="button"
+            id="profile-menu-trigger"
+            onClick={() => {
+              setShowProfileMenu(!showProfileMenu);
+              setShowNotifications(false);
+              setShowQuickActions(false);
+            }}
+            className="w-8 h-8 flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] transition-colors duration-150 cursor-pointer"
+            title="Account menu"
+          >
+            <UserCircle2 size={22} strokeWidth={1.5} />
+          </button>
+
+          {/* Dropdown panel — CSS transition for smooth slide */}
+          <div
+            className={`absolute right-0 mt-2 w-52 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl z-50 overflow-hidden origin-top-right transition-all duration-300 ease-out ${
+              showProfileMenu
+                ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
+                : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
+            }`}
+          >
+            {/* User info header */}
+            <div className="px-4 pt-3.5 pb-3 bg-[var(--bg-muted)] border-b border-[var(--border)]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-brand/10 flex items-center justify-center text-brand shrink-0">
+                  {isAdmin ? <Crown size={15} /> : <ShieldCheck size={15} />}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-extrabold text-[var(--text-primary)] truncate leading-tight">{adminUser.name}</p>
+                  <span className="inline-flex items-center text-[8px] font-extrabold text-brand bg-brand/10 px-1.5 py-0.5 rounded-md mt-0.5">
+                    {adminUser.role || 'SaaS Admin'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Menu items */}
+            <div className="py-1.5">
+              <button
+                type="button"
+                id="profile-menu-settings"
+                onClick={handleSettings}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-[var(--text-subtle)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer group/item"
+              >
+                <Settings size={14} className="text-[var(--text-muted)] group-hover/item:text-brand transition-all duration-200 group-hover/item:rotate-45" />
+                Settings
+              </button>
+
+              <div className="mx-3 border-t border-[var(--border)] my-1" />
+
+              <button
+                type="button"
+                id="profile-menu-logout"
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-[var(--text-subtle)] hover:bg-[#DD543C]/10 hover:text-[#DD543C] transition-all duration-150 cursor-pointer group/item"
+              >
+                <LogOut size={14} className="text-[var(--text-muted)] group-hover/item:text-[#DD543C] transition-all duration-150 group-hover/item:translate-x-0.5" />
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+        {/* ── /Profile Avatar Dropdown ─────────────────────────────────────── */}
       </div>
     </header>
   );

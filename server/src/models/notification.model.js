@@ -26,7 +26,7 @@ const notificationSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: {
-        values: ['enquiry', 'visit_booking', 'property_status', 'verification', 'payment', 'system'],
+        values: ['enquiry', 'visit_booking', 'property_status', 'verification', 'payment', 'token_request', 'system'],
         message: 'Invalid notification type.',
       },
       default: 'system',
@@ -45,6 +45,10 @@ const notificationSchema = new mongoose.Schema(
       enquiryId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'PropertyEnquiry',
+      },
+      tokenRequestId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'TokenRequest',
       },
       customLink: String,
     },

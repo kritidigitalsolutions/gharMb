@@ -1,6 +1,6 @@
 /**
- * Favorite Model
- * Records bookmarks or saved listings for buyers and tenants.
+ * Favorite / Wishlist Model
+ * Records bookmarks or saved listings/projects for app users.
  */
 
 const mongoose = require('mongoose');
@@ -10,23 +10,42 @@ const favoriteSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Favorite must belong to a user.'],
+      required: [true, 'Wishlist item must belong to a user.'],
       index: true,
     },
     property: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Property',
-      required: [true, 'Favorite must reference a property.'],
       index: true,
+    },
+    project: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
+      index: true,
+    },
+    itemType: {
+      type: String,
+      enum: ['Property', 'Project'],
+      default: 'Property',
     },
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
-// Composite unique index to ensure a user cannot favorite the same property twice
-favoriteSchema.index({ user: 1, property: 1 }, { unique: true });
+// Custom validation for Mongoose 8/9+
+favoriteSchema.pre('validate', function () {
+  if (!this.property && !this.project) {
+    throw new Error('Wishlist item must reference either a property or a project.');
+  }
+});
+
+// Composite unique indexes to prevent duplicate bookmarks
+favoriteSchema.index({ user: 1, property: 1 }, { unique: true, sparse: true });
+favoriteSchema.index({ user: 1, project: 1 }, { unique: true, sparse: true });
 
 const Favorite = mongoose.model('Favorite', favoriteSchema);
 
