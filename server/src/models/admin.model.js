@@ -18,8 +18,19 @@ const adminSchema = new mongoose.Schema(
 
     password: {
       type: String,
-      required: true,
+      required: false,
       minlength: 6,
+    },
+
+    firebaseUid: {
+      type: String,
+      default: null,
+      index: true,
+    },
+
+    avatar: {
+      type: String,
+      default: null,
     },
 
     role: {

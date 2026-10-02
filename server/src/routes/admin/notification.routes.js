@@ -27,6 +27,8 @@ router.route('/')
 
 router.post('/mark-all-read', notificationController.markAllNotificationsRead);
 router.patch('/:id/read', notificationController.markNotificationRead);
+router.delete('/clear-all', notificationController.deleteAllNotifications);
+router.delete('/:id', notificationController.deleteNotification);
 
 module.exports = router;
 

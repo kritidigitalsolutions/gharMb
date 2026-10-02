@@ -17,7 +17,7 @@ exports.createEnquiry = async (req, res, next) => {
     const { propertyId, message, visitPreferredDate, visitTimeSlot } = req.body;
 
     const property = await Property.findById(propertyId);
-    if (!property || property.status !== 'approved') {
+    if (!property || property.approvalStatus === 'rejected') {
       return res.status(404).json({
         status: 'fail',
         message: 'Property not found or unavailable for enquiry.',
@@ -164,7 +164,14 @@ exports.updateEnquiryStatus = async (req, res, next) => {
 // @access  Private (Buyer/Tenant only)
 exports.createDeveloperEnquiry = async (req, res, next) => {
   try {
-    const { developerId, message } = req.body;
+    const developerId =
+      req.params.id ||
+      req.params.developerId ||
+      req.body.developerId ||
+      req.body.developer ||
+      req.body.id;
+
+    const message = req.body.message || req.body.enquiry || req.body.comment;
 
     if (!developerId || !message) {
       return res.status(400).json({
@@ -181,8 +188,11 @@ exports.createDeveloperEnquiry = async (req, res, next) => {
       });
     }
 
-    // 1. Verify developer exists and is a builder
-    const developer = await User.findOne({ _id: developerId, role: 'builder' });
+    // 1. Verify developer exists
+    let developer = await User.findOne({ _id: developerId, role: 'builder' });
+    if (!developer) {
+      developer = await User.findById(developerId);
+    }
     if (!developer) {
       return res.status(404).json({
         status: 'fail',

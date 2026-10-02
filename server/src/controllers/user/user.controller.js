@@ -101,14 +101,27 @@ exports.updateMe = async (req, res, next) => {
       };
     }
 
+    // Check if basic info is now complete
+    const effectivePhone = updateData.phone || req.user.phone;
+    const effectiveAddress = updateData.address || req.user.address;
+    if (effectivePhone && (effectiveAddress?.formattedAddress || effectiveAddress?.city || effectiveAddress?.street)) {
+      updateData.isBasicInfoCompleted = true;
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
       updateData,
       { new: true, runValidators: true }
     );
 
+    const token = signToken(updatedUser._id, updatedUser.role);
+
     res.status(200).json({
       status: 'success',
+      token,
+      isBasicInfoCompleted: updatedUser.isBasicInfoCompleted || false,
+      isOnboardingCompleted: updatedUser.isOnboardingCompleted || false,
+      nextScreen: updatedUser.isOnboardingCompleted ? 'dashboard' : (updatedUser.isBasicInfoCompleted ? 'role_selection' : 'basic_info'),
       data: {
         user: updatedUser,
       },

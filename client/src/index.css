@@ -1,10 +1,21 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *, body.theme-dark, body.theme-dark *));
+
 @theme {
-  --color-brand-light: #FFF0ED;
+  --color-brand-light: #DDDDDD;
   --color-brand: #FF5A3C;
-  --color-brand-dark: #E04F34;
+  --color-brand-dark: #DD543C;
   --font-sans: 'Inter', sans-serif;
+
+  /* Card, Border & Typography tokens for component design */
+  --color-card: var(--bg-surface);
+  --color-card-foreground: var(--text-primary);
+  --color-border: var(--border);
+  --color-foreground: var(--text-primary);
+  --color-muted: var(--bg-muted);
+  --color-muted-foreground: var(--text-muted);
+
 
   /* Custom Animations */
   --animate-slide-down: slide-down 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -54,34 +65,138 @@
       transform: translateY(-50%) scale(1) translateX(0);
     }
   }
+
+  /* ── 6-Color Palette Explicit Tokens ── */
+  --color-palette-onyx: #111111;
+  --color-palette-charcoal: #444444;
+  --color-palette-steel: #888888;
+  --color-palette-platinum: #DDDDDD;
+  --color-palette-coral: #FF5A3C;
+  --color-palette-rust: #DD543C;
+
+  /* ── Neutrals Mapped to Natural Crisp Shades ── */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-slate-950: #020617;
+
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
+  --color-gray-900: #111827;
+  --color-gray-950: #030712;
+
+  --color-zinc-50: #fafafa;
+  --color-zinc-100: #f4f4f5;
+  --color-zinc-200: #e4e4e7;
+  --color-zinc-300: #d4d4d8;
+  --color-zinc-400: #a1a1aa;
+  --color-zinc-500: #71717a;
+  --color-zinc-600: #52525b;
+  --color-zinc-700: #3f3f46;
+  --color-zinc-800: #27272a;
+  --color-zinc-900: #18181b;
+  --color-zinc-950: #09090b;
+
+  /* ── Accent Utility Mappings ── */
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-500: #FF5A3C;
+  --color-blue-600: #DD543C;
+  --color-blue-700: #DD543C;
+
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-200: #a7f3d0;
+  --color-emerald-300: #6ee7b7;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+
+  --color-green-50: #f0fdf4;
+  --color-green-100: #dcfce7;
+  --color-green-500: #22c55e;
+  --color-green-600: #16a34a;
+  --color-green-700: #15803d;
+
+  --color-amber-50: #fffbeb;
+  --color-amber-100: #fef3c7;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+  --color-amber-700: #b45309;
+
+  --color-red-50: #fef2f2;
+  --color-red-100: #fee2e2;
+  --color-red-500: #ef4444;
+  --color-red-600: #dc2626;
+  --color-red-700: #b91c1c;
+
+  --color-rose-50: #fff1f2;
+  --color-rose-100: #ffe4e6;
+  --color-rose-500: #f43f5e;
+  --color-rose-600: #e11d48;
+  --color-rose-700: #be123c;
+
+  --color-purple-50: #faf5ff;
+  --color-purple-500: #8b5cf6;
+  --color-purple-600: #7c3aed;
+
+  --color-sky-50: #f0f9ff;
+  --color-sky-500: #0ea5e9;
+  --color-sky-600: #0284c7;
+
+  --color-teal-50: #f0fdfa;
+  --color-teal-500: #14b8a6;
+  --color-teal-600: #0d9488;
+
+  --color-indigo-50: #eef2ff;
+  --color-indigo-500: #6366f1;
+  --color-indigo-600: #4f46e5;
 }
 
 /* ─── Light Theme Tokens (default) ─────────────────────────────── */
-:root {
-  --bg-main:      #f8fafc;
+:root,
+body.theme-light {
+  --bg-main:      #F8FAFC;
   --bg-surface:   #ffffff;
-  --bg-muted:     #f1f5f9;
-  --bg-hover:     #f8fafc;
-  --border:       #e2e8f0;
-  --border-muted: #f1f5f9;
-  --text-primary: #1e293b;
-  --text-subtle:  #475569;
-  --text-muted:   #94a3b8;
-  --shadow:       0 1px 3px 0 rgba(0,0,0,0.07), 0 1px 2px -1px rgba(0,0,0,0.04);
+  --bg-muted:     #F1F5F9;
+  --bg-hover:     rgba(241, 245, 249, 0.8);
+  --border:       #E2E8F0;
+  --border-muted: #E2E8F0;
+  --text-primary: #0F172A;
+  --text-subtle:  #334155;
+  --text-muted:   #64748B;
+  --shadow:       0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
 }
 
 /* ─── Dark Theme Tokens ─────────────────────────────────────────── */
-html.dark {
-  --bg-main:      #0f172a;
-  --bg-surface:   #1e293b;
-  --bg-muted:     #0f172a;
-  --bg-hover:     #1e293b;
-  --border:       #334155;
-  --border-muted: #1e293b;
-  --text-primary: #f1f5f9;
-  --text-subtle:  #94a3b8;
-  --text-muted:   #64748b;
-  --shadow:       0 1px 3px 0 rgba(0,0,0,0.4), 0 1px 2px -1px rgba(0,0,0,0.3);
+html.dark,
+body.theme-dark,
+.dark {
+  --bg-main:      #111111;
+  --bg-surface:   #111111;
+  --bg-muted:     #444444;
+  --bg-hover:     #444444;
+  --border:       #444444;
+  --border-muted: #444444;
+  --text-primary: #DDDDDD;
+  --text-subtle:  #888888;
+  --text-muted:   #888888;
+  --shadow:       0 1px 4px 0 rgba(0, 0, 0, 0.6);
 }
 
 body {
@@ -98,7 +213,7 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-muted);
+  background: var(--bg-main);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -107,7 +222,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #ff5a3c;
+  background: #FF5A3C;
 }
 
 /* Premium Recharts UI/UX Enhancements & Focus Ring Resets */
@@ -136,12 +251,65 @@ body {
 }
 
 .recharts-default-tooltip {
-  border: none !important;
+  border: 1px solid var(--border) !important;
   border-radius: 12px !important;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  box-shadow: var(--shadow) !important;
   padding: 8px 12px !important;
   background-color: var(--bg-surface) !important;
   color: var(--text-primary) !important;
+}
+
+/* ─── Hardware-Accelerated Smooth Radial View Transition ────────────── */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none !important;
+  mix-blend-mode: normal !important;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 9999;
+}
+
+/* Eliminate child CSS transition stutter during theme snapshot */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: none !important;
+}
+
+/* ─── Fix Chrome / Edge Browser Autofill in Dark Mode ─────────── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #111111 inset !important;
+  box-shadow: 0 0 0 1000px #111111 inset !important;
+  -webkit-text-fill-color: #DDDDDD !important;
+  color: #DDDDDD !important;
+  caret-color: #DDDDDD !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #111111 inset !important;
+  box-shadow: 0 0 0 1000px #111111 inset !important;
+  -webkit-text-fill-color: #DDDDDD !important;
+  color: #DDDDDD !important;
+  caret-color: #DDDDDD !important;
 }
 
 /* Custom Theme Toggle Switch */
@@ -177,27 +345,29 @@ body {
 }
 
 .theme-toggle-switch .toggle-button {
-  transform: translate(0.3em, 0.25em);
   position: absolute;
-  height: 3em;
-  width: 3em;
+  top: 50%;
+  left: 0;
+  transform: translate(0.3em, -50%);
+  height: 2.9em;
+  width: 2.9em;
   border-radius: 50%;
-  background-color: #FFF0ED; /* Brand light background */
-  box-shadow: inset 0px 0px 0px 0.75em #FF5A3C; /* Brand orange color */
-  transition: background-color 250ms, border-color 250ms, transform 500ms cubic-bezier(.26,2,.46,.71);
+  background-color: #FF5A3C;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  transition: background-color 250ms, border-color 250ms, transform 450ms cubic-bezier(.26,2,.46,.71);
 }
 
 .theme-toggle-switch .toggle-checkbox:checked ~ .toggle-slot .toggle-button {
-  background-color: var(--bg-surface);
-  box-shadow: inset 0px 0px 0px 0.75em var(--text-primary);
-  transform: translate(3.65em, 0.25em);
+  background-color: #FF5A3C;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  transform: translate(3.8em, -50%);
 }
 
 .theme-toggle-switch .sun-icon {
   position: absolute;
   height: 1.8em;
   width: 1.8em;
-  color: #FF5A3C; /* Brand orange color */
+  color: #FF5A3C; /* Brand coral */
   fill: #FF5A3C;
 }
 
@@ -220,8 +390,8 @@ body {
   position: absolute;
   height: 1.8em;
   width: 1.8em;
-  color: var(--text-primary);
-  fill: var(--text-primary);
+  color: #DDDDDD;
+  fill: #DDDDDD;
 }
 
 .theme-toggle-switch .moon-icon-wrapper {
@@ -243,7 +413,7 @@ body {
 .tiptap {
   outline: none !important;
   min-height: 500px;
-  color: #344054 !important;
+  color: var(--text-primary) !important;
   font-family: 'Inter', sans-serif;
   font-size: 16px;
   line-height: 1.7;
@@ -251,72 +421,75 @@ body {
 
 .tiptap p {
   margin-bottom: 1.15rem;
-  color: #344054;
+  color: var(--text-primary);
   line-height: 1.75;
+}
+
+.tiptap h1,
+.tiptap h2,
+.tiptap h3 {
+  color: var(--text-primary);
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .tiptap h1 {
   font-size: 1.875rem;
-  font-weight: 800;
-  color: #17212B;
   margin-top: 2rem;
   margin-bottom: 1rem;
   line-height: 1.3;
-  letter-spacing: -0.02em;
 }
 
 .tiptap h2 {
   font-size: 1.5rem;
-  font-weight: 700;
-  color: #17212B;
   margin-top: 1.75rem;
   margin-bottom: 0.75rem;
   line-height: 1.35;
-  letter-spacing: -0.015em;
 }
 
 .tiptap h3 {
   font-size: 1.25rem;
-  font-weight: 700;
-  color: #17212B;
   margin-top: 1.5rem;
   margin-bottom: 0.5rem;
   line-height: 1.4;
+}
+
+.tiptap ul,
+.tiptap ol,
+.tiptap li {
+  color: var(--text-primary);
 }
 
 .tiptap ul {
   list-style-type: disc !important;
   padding-left: 1.5rem !important;
   margin-bottom: 1.25rem;
-  color: #344054;
 }
 
 .tiptap ol {
   list-style-type: decimal !important;
   padding-left: 1.5rem !important;
   margin-bottom: 1.25rem;
-  color: #344054;
 }
 
 .tiptap li {
   margin-bottom: 0.4rem;
-  color: #344054;
 }
 
 .tiptap blockquote {
   border-left: 4px solid #FF5A3C !important;
-  background-color: #FFF5F2 !important;
+  background-color: var(--bg-muted) !important;
   padding: 1rem 1.25rem;
   border-radius: 0 0.75rem 0.75rem 0;
   font-style: italic;
   margin: 1.5rem 0;
-  color: #17212B !important;
+  color: var(--text-primary) !important;
   font-weight: 500;
 }
 
 .tiptap hr {
   border: none;
-  border-top: 1px solid #E5E9EF;
+  border-top: 1px solid var(--border);
   margin: 2rem 0;
 }
 
@@ -326,7 +499,7 @@ body {
   height: auto;
   margin: 1.5rem auto;
   display: block;
-  box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 10px -2px rgba(17, 17, 17, 0.15);
 }
 
 .tiptap a {
@@ -336,16 +509,37 @@ body {
 }
 
 .tiptap a:hover {
-  color: #E04F34 !important;
+  color: #DD543C !important;
 }
 
 .tiptap p.is-editor-empty:first-child::before {
-  color: #98A2B3;
+  color: var(--text-muted);
   content: attr(data-placeholder);
   float: left;
   height: 0;
   pointer-events: none;
 }
 
+/* ─── Premium Custom Scrollbar Utility ────────────────────────── */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
 
+/* Firefox custom scrollbar */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
 

@@ -33,6 +33,8 @@ const adminFaqRoutes = require('./src/routes/admin/faq.routes');
 const adminFaqCategoryRoutes = require('./src/routes/admin/faq-category.routes');
 const adminTestimonialRoutes = require('./src/routes/admin/testimonial.routes');
 const adminWebInquiryRoutes = require('./src/routes/admin/web-inquiry.routes');
+const adminCommercialSpaceRoutes = require('./src/routes/admin/commercial-space.routes');
+const adminBannerRoutes = require('./src/routes/admin/banner.routes');
 
 const appAuthRoutes = require('./src/routes/user/auth.routes');
 const appUserRoutes = require('./src/routes/user/user.routes');
@@ -43,6 +45,7 @@ const appEnquiryRoutes = require('./src/routes/user/enquiry.routes');
 const appFavoriteRoutes = require('./src/routes/user/favorite.routes');
 const appNotificationRoutes = require('./src/routes/user/notification.routes');
 const appDeveloperRoutes = require('./src/routes/user/developer.routes');
+const appReviewRoutes = require('./src/routes/user/review.routes');
 const appLegalRoutes = require('./src/routes/user/legal.routes');
 const appPageRoutes = require('./src/routes/user/page.routes');
 const appNewsRoutes = require('./src/routes/user/news.routes');
@@ -50,6 +53,9 @@ const appBlogRoutes = require('./src/routes/user/blog.routes');
 const appFaqRoutes = require('./src/routes/user/faq.routes');
 const appWebInquiryRoutes = require('./src/routes/user/web-inquiry.routes');
 const appTestimonialRoutes = require('./src/routes/user/testimonial.routes');
+const appCommercialSpaceRoutes = require('./src/routes/user/commercial-space.routes');
+const appBannerRoutes = require('./src/routes/user/banner.routes');
+const appTokenRequestRoutes = require('./src/routes/user/token-request.routes');
 
 const app = express();
 
@@ -255,6 +261,8 @@ app.use('/api/admin/faqs', adminFaqRoutes);
 app.use('/api/admin/faq-categories', adminFaqCategoryRoutes);
 app.use('/api/admin/testimonials', adminTestimonialRoutes);
 app.use('/api/admin/web-inquiries', adminWebInquiryRoutes);
+app.use('/api/admin/commercial-spaces', adminCommercialSpaceRoutes);
+app.use('/api/admin/banners', adminBannerRoutes);
 
 
 
@@ -279,7 +287,16 @@ app.use('/api/user/upload', appUploadRoutes); // Supports $baseUrl/user/upload/m
 
 app.use('/api/users/enquiries', appEnquiryRoutes);
 
+// Wishlist & Favorites (Supports both /wishlist and /favorites conventions)
 app.use('/api/favorites', appFavoriteRoutes);
+app.use('/api/user/favorites', appFavoriteRoutes);
+app.use('/api/wishlist', appFavoriteRoutes);
+app.use('/api/user/wishlist', appFavoriteRoutes);
+
+// Developer & Builder Reviews
+app.use('/api/reviews', appReviewRoutes);
+app.use('/api/user/reviews', appReviewRoutes);
+app.use('/api/developer-reviews', appReviewRoutes);
 
 app.use('/api/notifications', appNotificationRoutes); // Notifications enabled
 app.use('/api/user/notifications', appNotificationRoutes);
@@ -291,6 +308,18 @@ app.use('/api/blogs', appBlogRoutes);
 app.use('/api/faqs', appFaqRoutes);
 app.use('/api/testimonials', appTestimonialRoutes);
 app.use('/api/web-inquiries', appWebInquiryRoutes);
+
+app.use('/api/commercial-spaces', appCommercialSpaceRoutes);
+app.use('/api/user/commercial-spaces', appCommercialSpaceRoutes);
+
+// Home & Promotional Banners
+app.use('/api/banners', appBannerRoutes);
+app.use('/api/user/banners', appBannerRoutes);
+
+// Property Token Booking Requests
+app.use('/api/token-requests', appTokenRequestRoutes);
+app.use('/api/user/token-requests', appTokenRequestRoutes);
+app.use('/api/user/properties/token-requests', appTokenRequestRoutes);
 
 // 10. Fallback 404 Route handler
 app.use((req, res, next) => {

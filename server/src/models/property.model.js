@@ -312,6 +312,11 @@ propertySchema.pre('save', function () {
   }
 });
 
+// Virtual for verification badge (matches mobile UI badge)
+propertySchema.virtual('isVerified').get(function () {
+  return this.approvalStatus === 'approved';
+});
+
 // Indexes for fast searching & filtering
 propertySchema.index({ category: 1, listingFor: 1, isLive: 1 });
 propertySchema.index({ price: 1 });

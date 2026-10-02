@@ -188,7 +188,8 @@ exports.updateProject = async (req, res, next) => {
       });
     }
 
-    if (project.developer.toString() !== req.user._id.toString()) {
+    const isAdmin = ['admin', 'superadmin', 'super_admin'].includes((req.user?.role || '').toLowerCase());
+    if (!isAdmin && project.developer.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         status: 'fail',
         message: 'You do not own this project listing.',
@@ -196,8 +197,10 @@ exports.updateProject = async (req, res, next) => {
     }
 
     const updateFields = { ...req.body };
-    updateFields.approvalStatus = 'pending';
-    updateFields.isLive = false;
+    if (!isAdmin) {
+      updateFields.approvalStatus = 'pending';
+      updateFields.isLive = false;
+    }
 
     project = await Project.findByIdAndUpdate(req.params.id, updateFields, {
       new: true,

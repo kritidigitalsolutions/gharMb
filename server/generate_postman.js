@@ -26,6 +26,8 @@ const collection = {
     { key: "userId", value: "", type: "string" },
     { key: "agentId", value: "", type: "string" },
     { key: "propertyId", value: "", type: "string" },
+    { key: "commercialSpaceId", value: "", type: "string" },
+    { key: "bannerId", value: "", type: "string" },
     { key: "projectId", value: "", type: "string" },
     { key: "developerId", value: "", type: "string" },
     { key: "notificationId", value: "", type: "string" },
@@ -34,7 +36,8 @@ const collection = {
     { key: "blogId", value: "", type: "string" },
     { key: "policyId", value: "", type: "string" },
     { key: "testimonialId", value: "", type: "string" },
-    { key: "inquiryId", value: "", type: "string" }
+    { key: "inquiryId", value: "", type: "string" },
+    { key: "tokenRequestId", value: "", type: "string" }
   ],
   item: [
     // =========================================================================
@@ -135,6 +138,97 @@ const collection = {
                   path: ["user", "auth", "register"]
                 }
               }
+            },
+            {
+              name: "05. Google Sign-In / Firebase Auth (Auto-saves userToken)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.token) {",
+                      "    pm.collectionVariables.set('userToken', jsonData.token);",
+                      "    if (jsonData.data && jsonData.data.user && jsonData.data.user.id) {",
+                      "        pm.collectionVariables.set('userId', jsonData.data.user.id);",
+                      "    }",
+                      "    console.log('✅ userToken & userId set successfully from Google Sign-In');",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [{ key: "Content-Type", value: "application/json" }],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    idToken: "PASTE_FIREBASE_OR_GOOGLE_ID_TOKEN_HERE",
+                    role: "buyer",
+                    phone: "+919876543210"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/user/auth/google",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "auth", "google"]
+                }
+              }
+            },
+            {
+              name: "06. Get Current User Profile (GET /user/auth/me)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/user/auth/me",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "auth", "me"]
+                }
+              }
+            },
+            {
+              name: "07. Submit Basic Info (Screen 1: Basic Info)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.token) {",
+                      "    pm.collectionVariables.set('userToken', jsonData.token);",
+                      "    console.log('✅ userToken refreshed from Basic Info submission');",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    name: "Dhruv Sharma",
+                    email: "dhruv@example.com",
+                    phone: "9876543210",
+                    address: "A 191, Kamla Nagar, Agra, Uttar Pradesh, 282005",
+                    latitude: 27.1767,
+                    longitude: 78.0081
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/user/auth/basic-info",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "auth", "basic-info"]
+                }
+              }
             }
           ]
         },
@@ -233,14 +327,124 @@ const collection = {
           description: "Owner and Agent dashboard, property creation, editing, and listing removal.",
           item: [
             {
-              name: "01. My Property Dashboard (Stats & Submitted Listings)",
+              name: "01. My Property Dashboard (All-Time Stats, Counters, Banner & Tabs)",
               request: {
                 method: "GET",
                 header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
                 url: {
-                  raw: "{{baseUrl}}/properties/my-dashboard",
+                  raw: "{{baseUrl}}/properties/my-dashboard?tab=live&page=1&limit=10",
                   host: ["{{baseUrl}}"],
-                  path: ["properties", "my-dashboard"]
+                  path: ["properties", "my-dashboard"],
+                  query: [
+                    { key: "tab", value: "live", description: "live | pending | rejected | all" },
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "10" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "02. My Properties List by Tab (Live / Pending / Rejected)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/properties/my-properties?status=live&page=1&limit=10",
+                  host: ["{{baseUrl}}"],
+                  path: ["properties", "my-properties"],
+                  query: [
+                    { key: "status", value: "live", description: "live | pending | rejected | all" },
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "10" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "03. Get Received Token Requests (Banner & Decision)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/properties/token-requests?status=pending",
+                  host: ["{{baseUrl}}"],
+                  path: ["properties", "token-requests"],
+                  query: [
+                    { key: "status", value: "pending", description: "pending | accepted | rejected | all" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "04. Submit Property Token Booking Request (Buyer)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.tokenRequest) {",
+                      "    pm.collectionVariables.set('tokenRequestId', jsonData.data.tokenRequest._id);",
+                      "    console.log('✅ tokenRequestId set to: ' + jsonData.data.tokenRequest._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    propertyId: "{{propertyId}}",
+                    tokenAmount: 25000,
+                    message: "Ready to proceed with token booking for this property.",
+                    paymentMethod: "upi",
+                    transactionId: "UPI-TXN-123456789"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/token-requests",
+                  host: ["{{baseUrl}}"],
+                  path: ["token-requests"]
+                }
+              }
+            },
+            {
+              name: "05. Accept Token Request (Owner Decision)",
+              request: {
+                method: "PATCH",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/token-requests/{{tokenRequestId}}/accept",
+                  host: ["{{baseUrl}}"],
+                  path: ["token-requests", "{{tokenRequestId}}", "accept"]
+                }
+              }
+            },
+            {
+              name: "06. Reject Token Request (Owner Decision)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    reason: "Property already under negotiation with another buyer."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/token-requests/{{tokenRequestId}}/reject",
+                  host: ["{{baseUrl}}"],
+                  path: ["token-requests", "{{tokenRequestId}}", "reject"]
                 }
               }
             },
@@ -718,26 +922,26 @@ const collection = {
         },
 
         // ---------------------------------------------------------------------
-        // 07. Favorites / Saved Listings
+        // 07. Wishlist / Saved Listings
         // ---------------------------------------------------------------------
         {
-          name: "07. Favorites / Saved Listings",
-          description: "Manage shortlisted properties for buyers and tenants.",
+          name: "07. Wishlist / Saved Listings",
+          description: "Manage shortlisted and bookmarked properties & projects for users.",
           item: [
             {
-              name: "01. Get All Favorite Properties",
+              name: "01. Get Wishlist Feed",
               request: {
                 method: "GET",
                 header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
                 url: {
-                  raw: "{{baseUrl}}/favorites",
+                  raw: "{{baseUrl}}/wishlist",
                   host: ["{{baseUrl}}"],
-                  path: ["favorites"]
+                  path: ["wishlist"]
                 }
               }
             },
             {
-              name: "02. Toggle Favorite Property (Add / Remove)",
+              name: "02. Toggle Wishlist Item (Add / Remove)",
               request: {
                 method: "POST",
                 header: [
@@ -751,9 +955,158 @@ const collection = {
                   }, null, 2)
                 },
                 url: {
-                  raw: "{{baseUrl}}/favorites/toggle",
+                  raw: "{{baseUrl}}/wishlist/toggle",
                   host: ["{{baseUrl}}"],
-                  path: ["favorites", "toggle"]
+                  path: ["wishlist", "toggle"]
+                }
+              }
+            },
+            {
+              name: "03. Add to Wishlist (Direct REST POST)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    propertyId: "{{propertyId}}"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/wishlist",
+                  host: ["{{baseUrl}}"],
+                  path: ["wishlist"]
+                }
+              }
+            },
+            {
+              name: "04. Check Wishlist Status by ID",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/wishlist/check/{{propertyId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["wishlist", "check", "{{propertyId}}"]
+                }
+              }
+            },
+            {
+              name: "05. Get Wishlisted IDs List",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/wishlist/ids",
+                  host: ["{{baseUrl}}"],
+                  path: ["wishlist", "ids"]
+                }
+              }
+            },
+            {
+              name: "06. Remove from Wishlist by ID",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/wishlist/{{propertyId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["wishlist", "{{propertyId}}"]
+                }
+              }
+            },
+            {
+              name: "07. Clear Entire Wishlist",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/wishlist/clear",
+                  host: ["{{baseUrl}}"],
+                  path: ["wishlist", "clear"]
+                }
+              }
+            },
+            {
+              name: "08. Get Favorites (Alias /favorites)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/favorites",
+                  host: ["{{baseUrl}}"],
+                  path: ["favorites"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 08. Developer Reviews & Ratings
+        // ---------------------------------------------------------------------
+        {
+          name: "08. Developer Reviews & Ratings",
+          description: "Submit ratings, aspects (Quality, Timely Delivery, etc.), and comments for builders/developers.",
+          item: [
+            {
+              name: "01. Submit / Update Review for Developer",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    rating: 5,
+                    tags: ["Quality", "Timely Delivery"],
+                    comment: "Exceptional construction quality and timely possession handover!"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/developers/{{developerId}}/reviews",
+                  host: ["{{baseUrl}}"],
+                  path: ["developers", "{{developerId}}", "reviews"]
+                }
+              }
+            },
+            {
+              name: "02. Get Developer Reviews & Star Breakdown",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/developers/{{developerId}}/reviews",
+                  host: ["{{baseUrl}}"],
+                  path: ["developers", "{{developerId}}", "reviews"]
+                }
+              }
+            },
+            {
+              name: "03. Get My Review for Developer",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/developers/{{developerId}}/my-review",
+                  host: ["{{baseUrl}}"],
+                  path: ["developers", "{{developerId}}", "my-review"]
+                }
+              }
+            },
+            {
+              name: "04. Delete My Review for Developer",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/developers/{{developerId}}/reviews",
+                  host: ["{{baseUrl}}"],
+                  path: ["developers", "{{developerId}}", "reviews"]
                 }
               }
             }
@@ -817,6 +1170,30 @@ const collection = {
                   path: ["notifications", "mark-all-read"]
                 }
               }
+            },
+            {
+              name: "04. Delete Single Notification",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/notifications/{{notificationId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["notifications", "{{notificationId}}"]
+                }
+              }
+            },
+            {
+              name: "05. Clear All Notifications",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/notifications/clear-all",
+                  host: ["{{baseUrl}}"],
+                  path: ["notifications", "clear-all"]
+                }
+              }
             }
           ]
         },
@@ -847,6 +1224,137 @@ const collection = {
                   raw: "{{baseUrl}}/developers/{{developerId}}/reviews",
                   host: ["{{baseUrl}}"],
                   path: ["developers", "{{developerId}}", "reviews"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 10. Commercial Spaces
+        // ---------------------------------------------------------------------
+        {
+          name: "10. Commercial Spaces",
+          description: "Endpoints for property owners, agents, and developers to list and manage commercial spaces.",
+          item: [
+            {
+              name: "01. Create Commercial Space Listing (POST /commercial-spaces)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    spaceType: "Shop / Retail",
+                    listingFor: "Sale",
+                    title: "Corner Retail Shop Ground Floor",
+                    price: 4800000,
+                    carpetArea: 500,
+                    city: "Noida",
+                    locality: "Sector 18",
+                    fullAddress: "Shop 12, Atta Market, Sector 18, Noida",
+                    pincode: "201301"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/commercial-spaces",
+                  host: ["{{baseUrl}}"],
+                  path: ["commercial-spaces"]
+                }
+              }
+            },
+            {
+              name: "02. Get My Commercial Dashboard (GET /commercial-spaces/my-dashboard)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/commercial-spaces/my-dashboard",
+                  host: ["{{baseUrl}}"],
+                  path: ["commercial-spaces", "my-dashboard"]
+                }
+              }
+            },
+            {
+              name: "03. Update Commercial Space (PUT /commercial-spaces/:id)",
+              request: {
+                method: "PUT",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    price: 5000000,
+                    description: "Updated price for corner retail shop"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/commercial-spaces/{{commercialSpaceId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["commercial-spaces", "{{commercialSpaceId}}"]
+                }
+              }
+            },
+            {
+              name: "04. Delete Commercial Space (DELETE /commercial-spaces/:id)",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/commercial-spaces/{{commercialSpaceId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["commercial-spaces", "{{commercialSpaceId}}"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 11. Home Banners & Analytics
+        // ---------------------------------------------------------------------
+        {
+          name: "11. Home Banners & Analytics",
+          description: "Retrieve active home page banners and register tap/click analytics.",
+          item: [
+            {
+              name: "01. Get Structured Home Screen Banners (GET /banners/home)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/banners/home",
+                  host: ["{{baseUrl}}"],
+                  path: ["banners", "home"]
+                }
+              }
+            },
+            {
+              name: "02. Get Active Banners by Position (GET /banners?position=home_top)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/banners?position=home_top",
+                  host: ["{{baseUrl}}"],
+                  path: ["banners"],
+                  query: [
+                    { key: "position", value: "home_top" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "03. Track Banner Click (PATCH /banners/:id/click)",
+              request: {
+                method: "PATCH",
+                url: {
+                  raw: "{{baseUrl}}/banners/{{bannerId}}/click",
+                  host: ["{{baseUrl}}"],
+                  path: ["banners", "{{bannerId}}", "click"]
                 }
               }
             }
@@ -909,6 +1417,40 @@ const collection = {
                   raw: "{{baseUrl}}/users/me",
                   host: ["{{baseUrl}}"],
                   path: ["users", "me"]
+                }
+              }
+            },
+            {
+              name: "03. Admin Google Sign-In (Auto-saves adminToken)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.token) {",
+                      "    pm.collectionVariables.set('adminToken', jsonData.token);",
+                      "    console.log('✅ adminToken set successfully from Admin Google Sign-In');",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [{ key: "Content-Type", value: "application/json" }],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    idToken: "PASTE_FIREBASE_OR_GOOGLE_ID_TOKEN_HERE",
+                    email: "admin@gmail.com"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/auth/google",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "auth", "google"]
                 }
               }
             }
@@ -1379,6 +1921,30 @@ const collection = {
                   raw: "{{baseUrl}}/admin/notifications/mark-all-read",
                   host: ["{{baseUrl}}"],
                   path: ["admin", "notifications", "mark-all-read"]
+                }
+              }
+            },
+            {
+              name: "04. Admin - Delete Single Notification",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/notifications/{{notificationId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "notifications", "{{notificationId}}"]
+                }
+              }
+            },
+            {
+              name: "05. Admin - Clear All Notifications",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/notifications/clear-all",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "notifications", "clear-all"]
                 }
               }
             }
@@ -2040,6 +2606,205 @@ const collection = {
               }
             }
           ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 11. Admin - Commercial Space Moderation
+        // ---------------------------------------------------------------------
+        {
+          name: "11. Admin - Commercial Space Moderation",
+          description: "Review, approve, reject, feature, or delete commercial space listings.",
+          item: [
+            {
+              name: "01. List All Commercial Spaces (Admin)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/commercial-spaces",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "commercial-spaces"]
+                }
+              }
+            },
+            {
+              name: "02. Approve / Reject Commercial Space Status",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ approvalStatus: "approved" }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/commercial-spaces/{{commercialSpaceId}}/status",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "commercial-spaces", "{{commercialSpaceId}}", "status"]
+                }
+              }
+            },
+            {
+              name: "03. Toggle Featured Commercial Space",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ listingTier: "Featured" }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/commercial-spaces/{{commercialSpaceId}}/featured",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "commercial-spaces", "{{commercialSpaceId}}", "featured"]
+                }
+              }
+            },
+            {
+              name: "04. Delete Commercial Space (Admin)",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/commercial-spaces/{{commercialSpaceId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "commercial-spaces", "{{commercialSpaceId}}"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 12. Admin - Home Banners Management
+        // ---------------------------------------------------------------------
+        {
+          name: "12. Admin - Home Banners Management",
+          description: "Create, update, toggle status, reorder, and delete home screen promotional banners.",
+          item: [
+            {
+              name: "01. Get All Banners (Admin)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/banners",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "banners"]
+                }
+              }
+            },
+            {
+              name: "02. Create New Home Banner",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    title: "Exclusive Commercial Hubs",
+                    subtitle: "High footfall retail shops & offices with assured rental yields",
+                    image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1200&h=500&fit=crop&q=80",
+                    position: "home_top",
+                    linkType: "category",
+                    linkValue: "Commercial",
+                    buttonText: "Explore Now",
+                    sortOrder: 1,
+                    isActive: true
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/banners",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "banners"]
+                }
+              }
+            },
+            {
+              name: "03. Update Banner by ID",
+              request: {
+                method: "PUT",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    title: "Updated Banner Title",
+                    sortOrder: 2
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/banners/{{bannerId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "banners", "{{bannerId}}"]
+                }
+              }
+            },
+            {
+              name: "04. Toggle Banner Active Status",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ isActive: true }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/banners/{{bannerId}}/status",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "banners", "{{bannerId}}", "status"]
+                }
+              }
+            },
+            {
+              name: "05. Reorder Banners (Bulk)",
+              request: {
+                method: "PUT",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    items: [
+                      { id: "{{bannerId}}", sortOrder: 1 }
+                    ]
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/banners/reorder",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "banners", "reorder"]
+                }
+              }
+            },
+            {
+              name: "06. Delete Banner (Admin)",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/banners/{{bannerId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "banners", "{{bannerId}}"]
+                }
+              }
+            }
+          ]
         }
       ]
     },
@@ -2091,7 +2856,37 @@ const collection = {
           description: "Search, filter, geospatial proximity query, and view approved properties.",
           item: [
             {
-              name: "01. Get All Live Properties (Public Feed & Filters)",
+              name: "01. Get Latest Properties (GET /properties/latest)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/properties/latest?page=1&limit=10",
+                  host: ["{{baseUrl}}"],
+                  path: ["properties", "latest"],
+                  query: [
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "10" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "02. Get All Verified Properties (GET /properties/verified)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/properties/verified?page=1&limit=20",
+                  host: ["{{baseUrl}}"],
+                  path: ["properties", "verified"],
+                  query: [
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "20" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "02. Get All Live Properties (Public Feed & Filters)",
               request: {
                 method: "GET",
                 url: {
@@ -2462,24 +3257,108 @@ const collection = {
               }
             }
           ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 08. Commercial Spaces (Public Search & Details)
+        // ---------------------------------------------------------------------
+        {
+          name: "08. Commercial Spaces (Public Feed)",
+          description: "Search, filter, geospatial proximity lookup, and detailed view of commercial spaces.",
+          item: [
+            {
+              name: "01. Search Commercial Spaces (GET /commercial-spaces)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/commercial-spaces?spaceType=Shop%20%2F%20Retail&listingFor=Sale&city=Noida&page=1&limit=20",
+                  host: ["{{baseUrl}}"],
+                  path: ["commercial-spaces"],
+                  query: [
+                    { key: "spaceType", value: "Shop / Retail" },
+                    { key: "listingFor", value: "Sale" },
+                    { key: "city", value: "Noida" },
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "20" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "02. Get Near-Me Commercial Spaces (Geospatial Coordinates)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/commercial-spaces/near-me?lat=28.5355&lng=77.3910&radius=50&radiusUnit=km",
+                  host: ["{{baseUrl}}"],
+                  path: ["commercial-spaces", "near-me"],
+                  query: [
+                    { key: "lat", value: "28.5355" },
+                    { key: "lng", value: "77.3910" },
+                    { key: "radius", value: "50" },
+                    { key: "radiusUnit", value: "km" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "03. Get Commercial Space Details by ID",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/commercial-spaces/{{commercialSpaceId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["commercial-spaces", "{{commercialSpaceId}}"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 09. Home Banners (Public Feed)
+        // ---------------------------------------------------------------------
+        {
+          name: "09. Home Banners (Public Feed)",
+          description: "Public endpoints for fetching home screen banners and hero slides.",
+          item: [
+            {
+              name: "01. Get Structured Home Screen Banners (GET /banners/home)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/banners/home",
+                  host: ["{{baseUrl}}"],
+                  path: ["banners", "home"]
+                }
+              }
+            },
+            {
+              name: "02. Get Active Banners (GET /banners?position=home_top)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/banners?position=home_top",
+                  host: ["{{baseUrl}}"],
+                  path: ["banners"],
+                  query: [
+                    { key: "position", value: "home_top" }
+                  ]
+                }
+              }
+            }
+          ]
         }
       ]
     }
   ]
 };
 
-// Generate Postman Collection files in both root and server directories
+// Generate Postman Collection file in project root
 const rootOutputPath = path.join(__dirname, '../gharmb.postman_collection.json');
-const serverOutputPath = path.join(__dirname, 'gharmb.postman_collection.json');
 
 const jsonString = JSON.stringify(collection, null, 2);
 
 fs.writeFileSync(rootOutputPath, jsonString, 'utf-8');
 console.log('✅ Successfully updated root Postman Collection at:', rootOutputPath);
 
-try {
-  fs.writeFileSync(serverOutputPath, jsonString, 'utf-8');
-  console.log('✅ Successfully updated server Postman Collection at:', serverOutputPath);
-} catch (err) {
-  // Ignored if server directory is current directory
-}

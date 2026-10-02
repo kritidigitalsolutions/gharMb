@@ -10,13 +10,26 @@ const userAuth = require('../../middlewares/userAuth.middleware');
 const router = express.Router();
 
 
+const tokenRequestController = require('../../controllers/user/token-request.controller');
+
 router.get('/', propertyController.getAllProperties);
+
+router.get('/latest', propertyController.getLatestProperties);
+
+router.get('/verified', propertyController.getVerifiedProperties);
 
 router.get('/near-me', propertyController.getNearMeProperties);
 
 router.get('/my-dashboard', userAuth, propertyController.getMyDashboard);
 
+router.get('/my-properties', userAuth, propertyController.getMyProperties);
+
+router.get('/token-requests', userAuth, tokenRequestController.getReceivedTokenRequests);
+
 router.get('/:id', propertyController.getPropertyDetails);
+
+// Property token request submission
+router.post('/:id/token-request', userAuth, tokenRequestController.createTokenRequest);
 
 // Protected write operations (Creation & Edits)
 router.use(userAuth);

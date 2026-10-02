@@ -49,20 +49,24 @@ exports.getDashboardStats = async (req, res, next) => {
       Property.aggregate([{ $group: { _id: null, total: { $sum: '$tokensCount' } } }]),
       Property.countDocuments({ listingTier: 'Featured' }),
       Property.countDocuments({ listingTier: 'Premium' }),
-      Property.find({ approvalStatus: 'pending' }).populate('owner', 'name companyName').limit(5),
-      Notification.find().sort({ createdAt: -1 }).limit(5)
+      Property.find({ approvalStatus: 'pending' })
+        .select('title category listingFor propertyType listingAs city locality owner createdAt')
+        .populate('owner', 'name companyName email')
+        .sort({ createdAt: -1 })
+        .limit(5),
+      Notification.find().sort({ createdAt: -1 }).limit(7)
     ]);
 
     const totalEnquiries = propEnquiriesCount + devEnquiriesCount;
     const tokenRequests = propertyTokensResult[0]?.total || 0;
     const revenueGenerated = (featuredCount * 5000) + (premiumCount * 10000) + (tokenRequests * 50000);
 
-    // 2. Dynamic Chart Data (Last 6 Months parallelized queries)
+    // 2. Dynamic Chart Data (Last 12 Months parallelized queries)
     const chartQueries = [];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const now = new Date();
     
-    for (let i = 5; i >= 0; i--) {
+    for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const startOfMonth = new Date(d.getFullYear(), d.getMonth(), 1);
       const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
@@ -92,26 +96,23 @@ exports.getDashboardStats = async (req, res, next) => {
     // 3. Verification Alerts Mapping
     const verificationAlerts = pendingProps.map(p => ({
       id: p._id,
-      title: p.listingAs === 'Developer / Builder' ? 'RERA License Check' : 'Registry Deed Check',
-      subtitle: p.owner?.companyName || p.owner?.name || 'Tata Value Homes',
-      propertyId: p._id
+      title: p.listingAs === 'Developer / Builder' ? 'RERA License Check' : (p.category === 'Commercial' ? 'Commercial Deed Check' : 'Registry Deed Check'),
+      propertyTitle: p.title || 'Untitled Listing',
+      subtitle: p.owner?.companyName || p.owner?.name || 'Private Owner',
+      category: p.category || 'Residential',
+      city: p.city || 'Gurugram',
+      propertyId: p._id,
+      time: p.createdAt
     }));
 
     // 4. Audit Logs Mapping
-    const auditLogs = recentNotifs.map(n => {
-      let logType = 'system';
-      if (n.type === 'enquiry') logType = 'enquiry';
-      else if (n.type === 'payment') logType = 'payment';
-      else if (n.type === 'verification') logType = 'verification';
-
-      return {
-        id: n._id,
-        title: n.title,
-        message: n.message,
-        time: n.createdAt,
-        type: logType
-      };
-    });
+    const auditLogs = recentNotifs.map(n => ({
+      id: n._id,
+      title: n.title,
+      message: n.message,
+      time: n.createdAt,
+      type: n.type || 'system'
+    }));
 
     res.status(200).json({
       status: 'success',

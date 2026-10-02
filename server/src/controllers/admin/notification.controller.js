@@ -3,6 +3,7 @@
  * Allows administrators to broadcast notifications and alerts to platform users.
  */
 
+const mongoose = require('mongoose');
 const Notification = require('../../models/notification.model');
 const User = require('../../models/user.model');
 
@@ -124,3 +125,56 @@ exports.markAllNotificationsRead = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Delete a notification by ID (Admin)
+// @route   DELETE /api/admin/notifications/:id
+// @access  Private (Admin only)
+exports.deleteNotification = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Invalid notification ID format.',
+      });
+    }
+
+    const notification = await Notification.findByIdAndDelete(id);
+
+    if (!notification) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'Notification not found.',
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Notification deleted successfully.',
+      data: null,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Delete all notifications (Admin Clear All)
+// @route   DELETE /api/admin/notifications/clear-all
+// @access  Private (Admin only)
+exports.deleteAllNotifications = async (req, res, next) => {
+  try {
+    const result = await Notification.deleteMany({});
+
+    res.status(200).json({
+      status: 'success',
+      message: 'All notifications deleted successfully.',
+      data: {
+        deletedCount: result.deletedCount,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
