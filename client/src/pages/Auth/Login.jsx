@@ -120,6 +120,10 @@ const Login = () => {
 
       if (token) {
         localStorage.setItem('adminToken', token);
+        const refreshToken = response?.data?.refreshToken || response?.data?.data?.refreshToken;
+        if (refreshToken) {
+          localStorage.setItem('adminRefreshToken', refreshToken);
+        }
         if (adminData) {
           localStorage.setItem('admin', JSON.stringify(adminData));
           localStorage.setItem('adminUser', JSON.stringify(adminData));

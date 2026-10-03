@@ -51,6 +51,10 @@ router.patch('/basic-info', authController.submitBasicInfo);
 // ── Google / Firebase Auth ────────────────────────────────────────────────────
 router.post('/google', authController.googleAuth);
 
+// ── Refresh Auth Token ────────────────────────────────────────────────────────
+router.post('/refresh-token', authController.refreshToken);
+router.post('/refresh', authController.refreshToken);
+
 // ── Current user profile ──────────────────────────────────────────────────────
 router.get('/me', userAuth, authController.getMe);
 

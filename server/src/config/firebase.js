@@ -1,4 +1,5 @@
 const admin = require("firebase-admin");
+const { initializeApp, getApps, getApp, cert } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { getStorage } = require("firebase-admin/storage");
 
@@ -7,7 +8,8 @@ let auth;
 let bucket;
 
 try {
-  if (!admin.getApps().length) {
+  const apps = getApps();
+  if (!apps.length) {
     if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
       const serviceAccount = {
         projectId: process.env.FIREBASE_PROJECT_ID,
@@ -15,20 +17,20 @@ try {
         privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
       };
 
-      app = admin.initializeApp({
-        credential: admin.cert(serviceAccount),
+      app = initializeApp({
+        credential: cert(serviceAccount),
         storageBucket: process.env.FIREBASE_STORAGE_BUCKET
       });
       console.log(`🔥 Firebase Admin SDK initialized successfully for project: ${process.env.FIREBASE_PROJECT_ID}`);
     } else {
-      app = admin.initializeApp({
+      app = initializeApp({
         projectId: process.env.FIREBASE_PROJECT_ID || 'gharmb',
         storageBucket: process.env.FIREBASE_STORAGE_BUCKET
       });
       console.log('🔥 Firebase Admin SDK initialized with default credentials');
     }
   } else {
-    app = admin.getApp();
+    app = getApp();
   }
 
   auth = getAuth(app);

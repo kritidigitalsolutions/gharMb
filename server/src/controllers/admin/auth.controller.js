@@ -1,6 +1,7 @@
 const Admin = require("../../models/admin.model"); 
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { generateToken, generateRefreshToken, generateAuthTokens, verifyRefreshToken } = require("../../utils/generateToken");
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_TIME = 15 * 60 * 1000; // 15 minutes
@@ -48,14 +49,8 @@ exports.adminLogin = async (req, res) => {
     admin.lockUntil = undefined;
     await admin.save();
 
-    // 6. Generate JWT Token
-    const secret = process.env.JWT_SECRET || "gharmb_secret_key_2026";
-    const expiresIn = process.env.ADMIN_JWT_EXPIRES_IN || process.env.JWT_EXPIRES_IN || "7d";
-    const token = jwt.sign(
-      { id: admin._id, role: admin.role },
-      secret, 
-      { expiresIn }
-    );
+    // 6. Generate JWT Access and Refresh Tokens
+    const { token, refreshToken } = generateAuthTokens(admin._id, admin.role);
 
     const adminData = {
       id: admin._id,
@@ -72,9 +67,13 @@ exports.adminLogin = async (req, res) => {
       status: "success",
       message: "Login successful",
       token,
+      accessToken: token,
+      refreshToken,
       admin: adminData,
       data: {
         token,
+        accessToken: token,
+        refreshToken,
         admin: adminData,
       }
     });
@@ -206,14 +205,8 @@ exports.adminGoogleLogin = async (req, res) => {
     }
     await admin.save();
 
-    // Generate JWT Token
-    const secret = process.env.JWT_SECRET || "gharmb_secret_key_2026";
-    const expiresIn = process.env.ADMIN_JWT_EXPIRES_IN || process.env.JWT_EXPIRES_IN || "7d";
-    const platformToken = jwt.sign(
-      { id: admin._id, role: admin.role },
-      secret,
-      { expiresIn }
-    );
+    // Generate JWT Access and Refresh Tokens
+    const { token: platformToken, refreshToken } = generateAuthTokens(admin._id, admin.role);
 
     const adminData = {
       id: admin._id,
@@ -229,14 +222,119 @@ exports.adminGoogleLogin = async (req, res) => {
       status: "success",
       message: "Admin Firebase / Google login successful",
       token: platformToken,
+      accessToken: platformToken,
+      refreshToken,
       admin: adminData,
       data: {
         token: platformToken,
+        accessToken: platformToken,
+        refreshToken,
         admin: adminData,
       },
     });
   } catch (error) {
     console.error("Admin Firebase / Google login error:", error);
     res.status(500).json({ message: "Server error during Firebase / Google login" });
+  }
+};
+
+// @desc    Refresh Admin Authentication Token
+// @route   POST /api/admin/auth/refresh-token  OR  POST /api/admin/auth/refresh
+// @access  Public
+exports.adminRefreshToken = async (req, res) => {
+  try {
+    let refreshToken =
+      req.body?.refreshToken ||
+      req.body?.token ||
+      req.headers['x-refresh-token'];
+
+    if (!refreshToken && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      refreshToken = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!refreshToken && req.query?.refreshToken) {
+      refreshToken = req.query.refreshToken;
+    }
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        status: 'fail',
+        code: 'TOKEN_REQUIRED',
+        message: 'Refresh token is required. Please provide it in request body (refreshToken) or headers.',
+      });
+    }
+
+    let decoded;
+    try {
+      decoded = verifyRefreshToken(refreshToken);
+    } catch (err) {
+      if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          status: 'fail',
+          code: 'TOKEN_EXPIRED',
+          message: 'Refresh token has expired. Please log in again.',
+        });
+      }
+      return res.status(401).json({
+        status: 'fail',
+        code: 'INVALID_TOKEN',
+        message: 'Invalid refresh token. Please log in again.',
+      });
+    }
+
+    if (!decoded || !decoded.id) {
+      return res.status(401).json({
+        status: 'fail',
+        code: 'INVALID_PAYLOAD',
+        message: 'Invalid token payload.',
+      });
+    }
+
+    const admin = await Admin.findById(decoded.id);
+    if (!admin) {
+      return res.status(401).json({
+        status: 'fail',
+        code: 'ADMIN_NOT_FOUND',
+        message: 'The administrator belonging to this token no longer exists.',
+      });
+    }
+
+    if (!admin.isActive) {
+      return res.status(403).json({
+        status: 'fail',
+        code: 'ACCOUNT_DEACTIVATED',
+        message: 'Your administrator account has been deactivated.',
+      });
+    }
+
+    const newTokens = generateAuthTokens(admin._id, admin.role);
+
+    const adminData = {
+      id: admin._id,
+      _id: admin._id,
+      name: admin.name,
+      email: admin.email,
+      role: admin.role,
+      avatar: admin.avatar || null,
+      firebaseUid: admin.firebaseUid || null,
+    };
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Admin token refreshed successfully.',
+      token: newTokens.token,
+      accessToken: newTokens.accessToken,
+      refreshToken: newTokens.refreshToken,
+      admin: adminData,
+      data: {
+        token: newTokens.token,
+        accessToken: newTokens.accessToken,
+        refreshToken: newTokens.refreshToken,
+        admin: adminData,
+      },
+    });
+  } catch (error) {
+    console.error("Admin refresh token error:", error);
+    res.status(500).json({ message: "Server error during admin token refresh" });
   }
 };

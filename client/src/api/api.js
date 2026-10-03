@@ -29,6 +29,7 @@ export const isTokenExpired = (token) => {
 
 export const clearAuthSession = (message = null) => {
   localStorage.removeItem("adminToken");
+  localStorage.removeItem("adminRefreshToken");
   localStorage.removeItem("adminUser");
   localStorage.removeItem("admin");
   if (message) {
@@ -64,11 +65,13 @@ const API = axios.create({
 
 // Request interceptor: attach token & check expiration before dispatch
 API.interceptors.request.use((config) => {
-  const isAuthPath = config.url?.includes('/auth/login');
+  const isAuthPath = config.url?.includes('/auth/');
   const token = localStorage.getItem("adminToken");
+  const refreshToken = localStorage.getItem("adminRefreshToken");
 
   if (token && !isAuthPath) {
-    if (isTokenExpired(token)) {
+    // If token is expired and no refresh token exists, clear session immediately
+    if (isTokenExpired(token) && !refreshToken) {
       clearAuthSession("Your admin session has expired. Please log in again.");
       if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
         window.location.href = "/login?expired=1";
@@ -80,12 +83,74 @@ API.interceptors.request.use((config) => {
   return config;
 }, (error) => Promise.reject(error));
 
-// Response interceptor: handle 401 session expiry cleanly (exclude login form submissions)
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Response interceptor: handle 401 session expiry and automatic token refresh
 API.interceptors.response.use(
   (response) => response,
-  (error) => {
-    const isAuthPath = error.config?.url?.includes('/auth/login');
-    if (error.response?.status === 401 && !isAuthPath) {
+  async (error) => {
+    const originalRequest = error.config;
+    const isAuthPath = originalRequest?.url?.includes('/auth/');
+
+    if (error.response?.status === 401 && !isAuthPath && !originalRequest?._retry) {
+      const refreshToken = localStorage.getItem("adminRefreshToken");
+
+      if (refreshToken) {
+        if (isRefreshing) {
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          })
+            .then((token) => {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+              return API(originalRequest);
+            })
+            .catch((err) => Promise.reject(err));
+        }
+
+        originalRequest._retry = true;
+        isRefreshing = true;
+
+        try {
+          const res = await axios.post(`${getBaseUrl()}/admin/auth/refresh-token`, {
+            refreshToken,
+          });
+
+          const newAccessToken = res?.data?.token || res?.data?.data?.token;
+          const newRefreshToken = res?.data?.refreshToken || res?.data?.data?.refreshToken;
+
+          if (newAccessToken) {
+            localStorage.setItem("adminToken", newAccessToken);
+            if (newRefreshToken) {
+              localStorage.setItem("adminRefreshToken", newRefreshToken);
+            }
+            processQueue(null, newAccessToken);
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            return API(originalRequest);
+          }
+        } catch (refreshErr) {
+          processQueue(refreshErr, null);
+          clearAuthSession("Your session has expired. Please log in again.");
+          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            window.location.href = "/login?expired=1";
+          }
+          return Promise.reject(refreshErr);
+        } finally {
+          isRefreshing = false;
+        }
+      }
+
       clearAuthSession("Your admin session has expired. Please log in again.");
       if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
         window.location.href = "/login?expired=1";
