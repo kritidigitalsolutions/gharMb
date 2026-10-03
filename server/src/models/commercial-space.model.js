@@ -207,6 +207,61 @@ const commercialSpaceSchema = new mongoose.Schema(
       default: 0,
     },
 
+    // ─── Installment / EMI Options (Toggle for Direct Full Payment vs Installments)
+    allowInstallments: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    installmentDetails: {
+      downPaymentAmount: {
+        type: Number,
+        default: 0,
+      },
+      downPaymentPercentage: {
+        type: Number,
+        default: 0,
+      },
+      numberOfInstallments: {
+        type: Number,
+        default: 0,
+      },
+      installmentFrequency: {
+        type: String,
+        enum: ['Monthly', 'Quarterly', 'Bi-annual', 'Yearly', 'Milestone-based', 'Custom'],
+        default: 'Monthly',
+      },
+      installmentAmount: {
+        type: Number,
+        default: 0,
+      },
+      interestRate: {
+        type: Number,
+        default: 0,
+      },
+      installmentDurationMonths: {
+        type: Number,
+        default: 0,
+      },
+      gracePeriodDays: {
+        type: Number,
+        default: 0,
+      },
+      termsAndConditions: {
+        type: String,
+        trim: true,
+      },
+      milestones: [
+        {
+          name: { type: String, trim: true },
+          percentage: { type: Number },
+          amount: { type: Number },
+          dueDate: { type: Date },
+          description: { type: String, trim: true },
+        },
+      ],
+    },
+
     // ─── Documents ────────────────────────────────────────────────────────────
     propertyDocuments: {
       titleDeed: { type: String, trim: true },

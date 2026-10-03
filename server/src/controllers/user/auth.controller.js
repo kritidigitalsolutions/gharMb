@@ -40,6 +40,7 @@ const generateToken = require('../../utils/generateToken');
 const { generateRefreshToken, generateAuthTokens, verifyRefreshToken } = generateToken;
 const { auth: firebaseAuth } = require('../../config/firebase');
 const { OAuth2Client } = require('google-auth-library');
+const { computeVerificationDetails } = require('../../utils/verification.helper');
 
 const googleOAuthClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -70,19 +71,37 @@ const otpStore = new Map();
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: build safe user response object
 // ─────────────────────────────────────────────────────────────────────────────
-const buildUserResponse = (user) => ({
-  id: user._id,
-  name: user.name,
-  email: user.email || null,
-  phone: user.phone || null,
-  role: user.role || null,
-  profilePicture: user.profilePicture,
-  authProvider: user.authProvider,
-  address: user.address || {},
-  location: user.location || {},
-  isBasicInfoCompleted: user.isBasicInfoCompleted || false,
-  isOnboardingCompleted: user.isOnboardingCompleted || false,
-});
+const buildUserResponse = (user) => {
+  const verification = computeVerificationDetails(user);
+  return {
+    id: user._id,
+    name: user.name,
+    email: user.email || null,
+    phone: user.phone || null,
+    role: user.role || null,
+    profilePicture: user.profilePicture,
+    authProvider: user.authProvider,
+    address: user.address || {},
+    location: user.location || {},
+    isBasicInfoCompleted: user.isBasicInfoCompleted || false,
+    isOnboardingCompleted: user.isOnboardingCompleted || false,
+    isVerified: verification ? verification.isVerified : Boolean(user.isVerified),
+    verificationStatus: verification ? verification.verificationStatus : 'unverified',
+    hasSubmittedDetails: verification ? verification.hasSubmittedDetails : false,
+    badge: verification ? verification.badge : 'Unverified',
+    canPostListings: verification ? verification.canPostListings : false,
+    agentVerificationStatus: user.agentVerificationStatus || 'unverified',
+    agentRejectionReason: user.agentRejectionReason || null,
+    builderVerificationStatus: user.builderVerificationStatus || 'unverified',
+    builderRejectionReason: user.builderRejectionReason || null,
+    reraNumber: user.reraNumber || null,
+    companyName: user.companyName || null,
+    cityOfOperation: user.cityOfOperation || null,
+    verificationDocs: user.verificationDocs || {},
+    builderDocs: user.builderDocs || {},
+    verification: verification || {},
+  };
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // @desc    Register New User  (No OTP step — direct account creation)
@@ -840,6 +859,35 @@ exports.getMe = async (req, res, next) => {
     return res.status(200).json({
       status: 'success',
       data: { user: buildUserResponse(user) },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Get Current Logged In User Verification Status
+// @route   GET /api/user/auth/verification-status
+// @access  Private (Authenticated User)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getVerificationStatus = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'User not found.',
+      });
+    }
+
+    const verification = computeVerificationDetails(user);
+
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        ...verification,
+        user: buildUserResponse(user),
+      },
     });
   } catch (error) {
     next(error);

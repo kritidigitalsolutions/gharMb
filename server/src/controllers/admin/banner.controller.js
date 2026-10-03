@@ -120,6 +120,14 @@ exports.createBanner = async (req, res, next) => {
       bannerData.sortOrder = Number(bannerData.sortOrder) || 0;
     }
 
+    // Sanitize dates to prevent Mongoose CastError on empty strings
+    if (bannerData.startDate === '' || bannerData.startDate === 'null' || bannerData.startDate === undefined) {
+      bannerData.startDate = null;
+    }
+    if (bannerData.endDate === '' || bannerData.endDate === 'null' || bannerData.endDate === undefined) {
+      bannerData.endDate = null;
+    }
+
     const banner = await Banner.create(bannerData);
 
     res.status(201).json({
@@ -163,6 +171,14 @@ exports.updateBanner = async (req, res, next) => {
     }
     if (bannerData.sortOrder !== undefined) {
       bannerData.sortOrder = Number(bannerData.sortOrder) || 0;
+    }
+
+    // Sanitize dates to prevent Mongoose CastError on empty strings
+    if (bannerData.startDate === '' || bannerData.startDate === 'null') {
+      bannerData.startDate = null;
+    }
+    if (bannerData.endDate === '' || bannerData.endDate === 'null') {
+      bannerData.endDate = null;
     }
 
     const banner = await Banner.findByIdAndUpdate(req.params.id, bannerData, {

@@ -35,6 +35,9 @@ const adminTestimonialRoutes = require('./src/routes/admin/testimonial.routes');
 const adminWebInquiryRoutes = require('./src/routes/admin/web-inquiry.routes');
 const adminCommercialSpaceRoutes = require('./src/routes/admin/commercial-space.routes');
 const adminBannerRoutes = require('./src/routes/admin/banner.routes');
+const adminTokenRoutes = require('./src/routes/admin/token.routes');
+const adminServiceRoutes = require('./src/routes/admin/service.routes');
+const adminReferralRoutes = require('./src/routes/admin/referral.routes');
 
 const appAuthRoutes = require('./src/routes/user/auth.routes');
 const appUserRoutes = require('./src/routes/user/user.routes');
@@ -56,6 +59,7 @@ const appTestimonialRoutes = require('./src/routes/user/testimonial.routes');
 const appCommercialSpaceRoutes = require('./src/routes/user/commercial-space.routes');
 const appBannerRoutes = require('./src/routes/user/banner.routes');
 const appTokenRequestRoutes = require('./src/routes/user/token-request.routes');
+const appVisitRequestRoutes = require('./src/routes/user/visit-request.routes');
 
 const app = express();
 
@@ -263,6 +267,10 @@ app.use('/api/admin/testimonials', adminTestimonialRoutes);
 app.use('/api/admin/web-inquiries', adminWebInquiryRoutes);
 app.use('/api/admin/commercial-spaces', adminCommercialSpaceRoutes);
 app.use('/api/admin/banners', adminBannerRoutes);
+app.use('/api/admin/tokens', adminTokenRoutes);
+app.use('/api/admin/services', adminServiceRoutes);
+app.use('/api/admin/referrals', adminReferralRoutes);
+app.use('/api/admin/upload', appUploadRoutes);
 
 
 
@@ -317,9 +325,18 @@ app.use('/api/banners', appBannerRoutes);
 app.use('/api/user/banners', appBannerRoutes);
 
 // Property Token Booking Requests
+app.use('/api/tokens', appTokenRequestRoutes);
+app.use('/api/user/tokens', appTokenRequestRoutes);
 app.use('/api/token-requests', appTokenRequestRoutes);
 app.use('/api/user/token-requests', appTokenRequestRoutes);
 app.use('/api/user/properties/token-requests', appTokenRequestRoutes);
+
+// Property Site Visit Scheduling Requests
+app.use('/api/visit-requests', appVisitRequestRoutes);
+app.use('/api/user/visit-requests', appVisitRequestRoutes);
+app.use('/api/site-visits', appVisitRequestRoutes);
+app.use('/api/user/site-visits', appVisitRequestRoutes);
+app.use('/api/user/properties/visit-requests', appVisitRequestRoutes);
 
 // 10. Fallback 404 Route handler
 app.use((req, res, next) => {

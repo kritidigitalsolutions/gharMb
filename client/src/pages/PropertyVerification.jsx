@@ -10,7 +10,7 @@ import {
   ArrowRight, Download, FileCheck, HardHat, CheckCircle,
   HelpCircle, ArrowUpRight, CheckCheck, MessageSquare,
   FileSpreadsheet, ClipboardCheck, Info, Copy, AlertTriangle,
-  PhoneCall, RotateCcw
+  PhoneCall, RotateCcw, CreditCard, Wallet
 } from 'lucide-react';
 
 const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
@@ -223,6 +223,20 @@ const PropertyVerification = () => {
       viewsCount: p.viewsCount || 0,
       shortlistedCount: p.shortlistedCount || 0,
       inquiriesCount: p.inquiriesCount || 0,
+      // Installment / EMI Plan configuration
+      allowInstallments: p.allowInstallments === true,
+      installmentDetails: p.installmentDetails || {
+        downPaymentAmount: 0,
+        downPaymentPercentage: 0,
+        numberOfInstallments: 0,
+        installmentFrequency: 'Monthly',
+        installmentAmount: 0,
+        interestRate: 0,
+        installmentDurationMonths: 0,
+        gracePeriodDays: 0,
+        termsAndConditions: '',
+        milestones: []
+      },
       itemType: 'property'
     };
   };
@@ -387,6 +401,23 @@ const PropertyVerification = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleInstallmentChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      installmentDetails: {
+        ...(prev.installmentDetails || {}),
+        [field]: value
+      }
+    }));
+  };
+
+  const handleToggleInstallments = () => {
+    setFormData(prev => ({
+      ...prev,
+      allowInstallments: !prev.allowInstallments
+    }));
+  };
+
   const handleCheckAll = () => {
     const allChecked = Object.values(reviewChecklist).every(Boolean);
     const nextState = !allChecked;
@@ -432,7 +463,9 @@ const PropertyVerification = () => {
           category: formData.category,
           condition: formData.condition,
           furnishing: formData.furnishing,
-          reraNumber: formData.reraNumber
+          reraNumber: formData.reraNumber,
+          allowInstallments: formData.allowInstallments,
+          installmentDetails: formData.installmentDetails
         })
       });
 
@@ -1338,6 +1371,166 @@ const PropertyVerification = () => {
                           )}
                         </div>
                       </div>
+                    </div>
+
+                    {/* Payment Mode & Installment Option (Owner preference) */}
+                    <div className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] space-y-3">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                          <CreditCard size={15} className="text-brand shrink-0" />
+                          <div>
+                            <span className="text-xs font-bold text-[var(--text-primary)] block">Payment Mode & Installments</span>
+                            <span className="text-[10px] text-[var(--text-muted)]">Owner selected payment terms for buyers</span>
+                          </div>
+                        </div>
+
+                        {isEditing ? (
+                          <button
+                            type="button"
+                            onClick={handleToggleInstallments}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                              formData.allowInstallments
+                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
+                                : 'bg-[var(--bg-muted)] text-[var(--text-muted)] border-[var(--border)]'
+                            }`}
+                          >
+                            <span className={`w-2 h-2 rounded-full ${formData.allowInstallments ? 'bg-emerald-500' : 'bg-zinc-400'}`}></span>
+                            <span>{formData.allowInstallments ? 'Installments Enabled' : 'Direct Full Payment'}</span>
+                          </button>
+                        ) : (
+                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold flex items-center gap-1.5 ${
+                            formData.allowInstallments
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                              : 'bg-zinc-100 dark:bg-zinc-800 text-[var(--text-muted)] border border-[var(--border)]'
+                          }`}>
+                            <span className={`w-2 h-2 rounded-full ${formData.allowInstallments ? 'bg-emerald-500' : 'bg-zinc-400'}`}></span>
+                            {formData.allowInstallments ? 'Installments / EMI Available' : 'Direct Full Payment Only'}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Display breakdown or edit fields */}
+                      {formData.allowInstallments ? (
+                        <div className="p-3 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-lg border border-emerald-500/20 space-y-2.5">
+                          {isEditing ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                              <div>
+                                <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1">Down Payment (₹)</label>
+                                <input
+                                  type="number"
+                                  value={formData.installmentDetails?.downPaymentAmount || ''}
+                                  onChange={(e) => handleInstallmentChange('downPaymentAmount', Number(e.target.value))}
+                                  placeholder="500000"
+                                  className="w-full p-1.5 bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-primary)] border border-[var(--border)] rounded outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1">Down Payment (%)</label>
+                                <input
+                                  type="number"
+                                  value={formData.installmentDetails?.downPaymentPercentage || ''}
+                                  onChange={(e) => handleInstallmentChange('downPaymentPercentage', Number(e.target.value))}
+                                  placeholder="20"
+                                  className="w-full p-1.5 bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-primary)] border border-[var(--border)] rounded outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1">Installments Count</label>
+                                <input
+                                  type="number"
+                                  value={formData.installmentDetails?.numberOfInstallments || ''}
+                                  onChange={(e) => handleInstallmentChange('numberOfInstallments', Number(e.target.value))}
+                                  placeholder="12"
+                                  className="w-full p-1.5 bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-primary)] border border-[var(--border)] rounded outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1">Frequency</label>
+                                <select
+                                  value={formData.installmentDetails?.installmentFrequency || 'Monthly'}
+                                  onChange={(e) => handleInstallmentChange('installmentFrequency', e.target.value)}
+                                  className="w-full p-1.5 bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-primary)] border border-[var(--border)] rounded outline-none"
+                                >
+                                  <option value="Monthly">Monthly</option>
+                                  <option value="Quarterly">Quarterly</option>
+                                  <option value="Bi-annual">Bi-annual</option>
+                                  <option value="Yearly">Yearly</option>
+                                  <option value="Milestone-based">Milestone-based</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1">EMI Amount (₹)</label>
+                                <input
+                                  type="number"
+                                  value={formData.installmentDetails?.installmentAmount || ''}
+                                  onChange={(e) => handleInstallmentChange('installmentAmount', Number(e.target.value))}
+                                  placeholder="Auto-calculated if blank"
+                                  className="w-full p-1.5 bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-primary)] border border-[var(--border)] rounded outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1">Interest Rate (%)</label>
+                                <input
+                                  type="number"
+                                  value={formData.installmentDetails?.interestRate || ''}
+                                  onChange={(e) => handleInstallmentChange('interestRate', Number(e.target.value))}
+                                  placeholder="0 for interest-free"
+                                  className="w-full p-1.5 bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-primary)] border border-[var(--border)] rounded outline-none"
+                                />
+                              </div>
+                              <div className="sm:col-span-2">
+                                <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1">Terms & Conditions</label>
+                                <input
+                                  type="text"
+                                  value={formData.installmentDetails?.termsAndConditions || ''}
+                                  onChange={(e) => handleInstallmentChange('termsAndConditions', e.target.value)}
+                                  placeholder="e.g. Possession on 50% payment"
+                                  className="w-full p-1.5 bg-[var(--bg-muted)] text-xs font-semibold text-[var(--text-primary)] border border-[var(--border)] rounded outline-none"
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                              <div>
+                                <span className="text-[10px] text-[var(--text-muted)] uppercase block">Min Down Payment</span>
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                  ₹{Number(formData.installmentDetails?.downPaymentAmount || 0).toLocaleString('en-IN')}
+                                  {formData.installmentDetails?.downPaymentPercentage ? ` (${formData.installmentDetails.downPaymentPercentage}%)` : ''}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-[var(--text-muted)] uppercase block">Total Installments</span>
+                                <span className="font-bold text-[var(--text-primary)]">
+                                  {formData.installmentDetails?.numberOfInstallments || 'Flexible'} ({formData.installmentDetails?.installmentFrequency || 'Monthly'})
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-[var(--text-muted)] uppercase block">Installment / EMI</span>
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                  ₹{Number(formData.installmentDetails?.installmentAmount || 0).toLocaleString('en-IN')} / {formData.installmentDetails?.installmentFrequency === 'Quarterly' ? 'qtr' : formData.installmentDetails?.installmentFrequency === 'Yearly' ? 'yr' : 'mo'}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-[var(--text-muted)] uppercase block">Interest Rate</span>
+                                <span className="font-bold text-[var(--text-primary)]">
+                                  {formData.installmentDetails?.interestRate > 0 ? `${formData.installmentDetails.interestRate}% p.a.` : '0% (Interest Free)'}
+                                </span>
+                              </div>
+                              {formData.installmentDetails?.termsAndConditions && (
+                                <div className="sm:col-span-4 pt-1 border-t border-emerald-500/20">
+                                  <span className="text-[10px] text-[var(--text-muted)] uppercase block">Owner's Payment Terms</span>
+                                  <span className="text-xs text-[var(--text-secondary)] font-medium">{formData.installmentDetails.termsAndConditions}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-[var(--bg-muted)]/50 rounded-lg text-xs text-[var(--text-muted)] flex items-center justify-between">
+                          <span>Owner requires direct full payment. Installment / EMI option is not enabled on this site.</span>
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Full Upfront Settlement</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Commercial specifics — real fields from DB only */}

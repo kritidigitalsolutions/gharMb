@@ -61,6 +61,8 @@ router.route('/')
  *         description: Property not found
  */
 router.route('/:id')
+  .put(propertyController.updateProperty)
+  .patch(propertyController.updateProperty)
   .delete(propertyController.deleteProperty);
 
 /**

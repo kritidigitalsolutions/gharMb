@@ -224,6 +224,7 @@ router.patch('/:id/verify-agent', userController.verifyAgent);
  *         description: User not found
  */
 router.patch('/:id/verify-developer', userController.verifyDeveloper);
+router.patch('/:id/verify-user', userController.verifyUser);
 
 module.exports = router;
 

@@ -35,12 +35,16 @@ router.use(restrictTo('admin'));
  *       401:
  *         description: Unauthorized
  */
+const tokenController = require('../../controllers/admin/token.controller');
+
 router.get('/stats', dashboardController.getDashboardStats);
 
 router.get('/enquiries', dashboardController.getAllEnquiries);
+router.post('/enquiries', dashboardController.createEnquiry);
 router.patch('/enquiries/:id', dashboardController.updateEnquiry);
 router.delete('/enquiries/:id', dashboardController.deleteEnquiry);
 router.get('/revenue', dashboardController.getRevenueStats);
+router.patch('/tokens/:id/status', tokenController.updateTokenStatus);
 
 module.exports = router;
 

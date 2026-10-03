@@ -251,26 +251,29 @@ export default function WebInquiries() {
 
     const headers = ['Ref ID', 'Type', 'Full Name', 'Email', 'Phone', 'Role', 'Status', 'Date', 'Message/Reason', 'Admin Notes'];
     const rows = inquiries.map((item) => [
-      item.refId || item._id,
+      item.refId || item._id || '',
       item.type === 'deletion_request' ? 'Account Deletion' : 'Contact Us',
-      `"${item.fullName.replace(/"/g, '""')}"`,
-      item.email,
-      item.phone,
-      item.role,
-      item.status,
+      item.fullName || '',
+      item.email || '',
+      item.phone || '',
+      item.role || '',
+      item.status || '',
       new Date(item.createdAt).toLocaleDateString('en-IN'),
-      `"${(item.message || item.reason || '').replace(/"/g, '""')}"`,
-      `"${(item.adminNotes || '').replace(/"/g, '""')}"`,
+      item.message || item.reason || '',
+      item.adminNotes || '',
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
+    const escapeCell = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+    const csvContent = '\uFEFF' + [headers.map(escapeCell).join(','), ...rows.map((r) => r.map(escapeCell).join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
+    link.href = url;
     link.setAttribute('download', `gharmb_web_inquiries_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
     triggerToast('CSV Export downloaded successfully!');
   };
 

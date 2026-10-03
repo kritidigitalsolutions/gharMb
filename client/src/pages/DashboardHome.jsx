@@ -399,15 +399,15 @@ const DashboardHome = () => {
     setError(null);
     try {
       const token = localStorage.getItem('adminToken');
-      // If we don't have a real token or are running mock simulation
-      if (!token || token === 'mock_admin_token_2026') {
-        loadMockData();
-        setLastSyncTime(new Date());
-        setRefreshCount(prev => prev + 1);
+      if (!token) {
+        setError('Please log in with an admin account to view live analytics.');
+        setIsLoading(false);
         return;
       }
 
-      const response = await fetch('http://localhost:5001/api/admin/dashboard/stats', {
+      const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+      const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
+      const response = await fetch(`${API_BASE}/api/admin/dashboard/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -415,118 +415,34 @@ const DashboardHome = () => {
       
       const data = await response.json();
       if (response.ok && data.status === 'success') {
-        setStats(data.data.stats);
-        setChartData(data.data.chartData);
+        setStats(data.data.stats || {
+          totalUsers: 0,
+          activeUsers: 0,
+          totalProperties: 0,
+          liveProperties: 0,
+          pendingProperties: 0,
+          rejectedProperties: 0,
+          totalBuilders: 0,
+          activeProjects: 0,
+          totalEnquiries: 0,
+          siteVisits: 0,
+          tokenRequests: 0,
+          revenueGenerated: 0
+        });
+        setChartData(data.data.chartData || []);
         setVerificationAlerts(data.data.verificationAlerts || []);
         setAuditLogs(data.data.auditLogs || []);
       } else {
         setError(data.message || 'Failed to fetch dashboard stats.');
-        loadMockData();
       }
       setLastSyncTime(new Date());
       setRefreshCount(prev => prev + 1);
     } catch (err) {
-      console.error('Error fetching dashboard stats, using mock fallback:', err);
-      loadMockData();
-      setLastSyncTime(new Date());
-      setRefreshCount(prev => prev + 1);
+      console.error('Error fetching dashboard stats:', err);
+      setError('Could not connect to backend server. Please verify backend is running.');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const loadMockData = () => {
-    setStats({
-      totalUsers: 18490,
-      activeUsers: 4102,
-      totalProperties: 32840,
-      liveProperties: 28190,
-      pendingProperties: 184,
-      rejectedProperties: 92,
-      totalBuilders: 482,
-      activeProjects: 1284,
-      totalEnquiries: 8492,
-      siteVisits: 1840,
-      tokenRequests: 382,
-      revenueGenerated: 1492000
-    });
-    setChartData([
-      { name: 'Jul', revenue: 220000, enquiries: 650 },
-      { name: 'Aug', revenue: 280000, enquiries: 820 },
-      { name: 'Sep', revenue: 320000, enquiries: 980 },
-      { name: 'Oct', revenue: 360000, enquiries: 1100 },
-      { name: 'Nov', revenue: 410000, enquiries: 1250 },
-      { name: 'Dec', revenue: 480000, enquiries: 1450 },
-      { name: 'Jan', revenue: 540000, enquiries: 1600 },
-      { name: 'Feb', revenue: 650000, enquiries: 1800 },
-      { name: 'Mar', revenue: 580000, enquiries: 2000 },
-      { name: 'Apr', revenue: 900000, enquiries: 2400 },
-      { name: 'May', revenue: 1100000, enquiries: 3100 },
-      { name: 'Jun', revenue: 1492000, enquiries: 3800 },
-    ]);
-    setVerificationAlerts([
-      {
-        id: '1',
-        title: 'Commercial Deed Check',
-        propertyTitle: 'Commercial Retail Space',
-        subtitle: 'Kartik Khandelwal · Commercial Rent',
-        category: 'Commercial',
-        time: new Date(Date.now() - 30 * 60000).toISOString()
-      },
-      {
-        id: '2',
-        title: 'RERA License Check',
-        propertyTitle: 'Palm Grove Residency',
-        subtitle: 'Tata Value Homes · Sector 102',
-        category: 'Residential',
-        time: new Date(Date.now() - 90 * 60000).toISOString()
-      },
-      {
-        id: '3',
-        title: 'Registry Title Deed Check',
-        propertyTitle: 'Luxury Skycourt Studio',
-        subtitle: 'Tata Value Homes · DLF Phase 5',
-        category: 'Residential',
-        time: new Date(Date.now() - 180 * 60000).toISOString()
-      }
-    ]);
-    setAuditLogs([
-      {
-        id: '1',
-        title: 'New Property Verification Pending',
-        message: 'A new property listing "commerical" (Commercial - Rent) by Kartik Khandelwal requires verification.',
-        type: 'verification',
-        time: new Date(Date.now() - 120 * 60000).toISOString()
-      },
-      {
-        id: '2',
-        title: 'New User Registered',
-        message: 'Vikram (+919284253302) has created a new account.',
-        type: 'user',
-        time: new Date(Date.now() - 120 * 60000).toISOString()
-      },
-      {
-        id: '3',
-        title: 'Welcome to GharMB! 🎉',
-        message: 'Hi Vikram! Your account has been created. Explore verified listings, manage properties, and connect with trusted agents & developers.',
-        type: 'welcome',
-        time: new Date(Date.now() - 120 * 60000).toISOString()
-      },
-      {
-        id: '4',
-        title: 'New User Registered',
-        message: 'kaetik (+919284253304) has created a new account.',
-        type: 'user',
-        time: new Date(Date.now() - 180 * 60000).toISOString()
-      },
-      {
-        id: '5',
-        title: 'Welcome to GharMB! 🎉',
-        message: 'Hi kaetik! Your account has been created. Explore verified listings, manage properties, and connect with trusted agents & developers.',
-        type: 'welcome',
-        time: new Date(Date.now() - 180 * 60000).toISOString()
-      }
-    ]);
   };
 
   useEffect(() => {

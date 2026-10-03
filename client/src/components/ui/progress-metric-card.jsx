@@ -47,7 +47,6 @@ export default function ProgressMetricCard({
   accent,
   data,
   series,
-  defaultIndex,
   size = 'md',
   showStats = true,
   valueFormatter,
@@ -142,8 +141,6 @@ export default function ProgressMetricCard({
         : color.stroke,
   }));
 
-  const lastIndex = (primary?.data?.length ?? 1) - 1;
-  const fallback = Math.min(defaultIndex ?? lastIndex, lastIndex);
 
   const handlePeriodChange = (option) => {
     setSelectedLabel(option.label);
@@ -197,7 +194,6 @@ export default function ProgressMetricCard({
         <MetricChart
           series={chartSeries}
           view={view}
-          defaultIndex={fallback}
           valueFormatter={fmtFull}
           dateFormatter={fmtDate}
           onHoverPoint={setHoveredPoint}

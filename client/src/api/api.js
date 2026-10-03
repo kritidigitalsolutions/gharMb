@@ -2,7 +2,6 @@ import axios from "axios";
 
 export const isTokenExpired = (token) => {
   if (!token || typeof token !== 'string') return true;
-  if (token === 'mock_admin_token_2026') return false;
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return true;

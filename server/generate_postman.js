@@ -39,7 +39,8 @@ const collection = {
     { key: "policyId", value: "", type: "string" },
     { key: "testimonialId", value: "", type: "string" },
     { key: "inquiryId", value: "", type: "string" },
-    { key: "tokenRequestId", value: "", type: "string" }
+    { key: "tokenRequestId", value: "", type: "string" },
+    { key: "visitRequestId", value: "", type: "string" }
   ],
   item: [
     // =========================================================================
@@ -323,6 +324,19 @@ const collection = {
               }
             },
             {
+              name: "01b. Get My Verification Status (GET /users/verification-status)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/users/verification-status",
+                  host: ["{{baseUrl}}"],
+                  path: ["users", "verification-status"]
+                },
+                description: "Returns real-time verification status for Agent, Builder, Owner, Buyer with badge, message, isPending, and submittedDetails."
+              }
+            },
+            {
               name: "02. Update My Profile (PATCH /users/update-me)",
               request: {
                 method: "PATCH",
@@ -473,7 +487,16 @@ const collection = {
                   raw: JSON.stringify({
                     propertyId: "{{propertyId}}",
                     tokenAmount: 25000,
-                    message: "Ready to proceed with token booking for this property.",
+                    paymentPlanType: "installment",
+                    installmentPlan: {
+                      downPaymentAmount: 1500000,
+                      numberOfInstallments: 24,
+                      installmentFrequency: "Monthly",
+                      installmentAmount: 291667,
+                      totalPayable: 8500000,
+                      proposedTerms: "Buyer opting for 24-month installment option as listed by owner"
+                    },
+                    message: "Ready to proceed with token booking under the 24-month installment plan.",
                     paymentMethod: "upi",
                     transactionId: "UPI-TXN-123456789"
                   }, null, 2)
@@ -569,7 +592,19 @@ const collection = {
                     vastuCompliant: true,
                     keyHandover: true,
                     openToAllBuyers: true,
-                    loanAssistanceNeeded: true
+                    loanAssistanceNeeded: true,
+                    allowInstallments: true,
+                    installmentDetails: {
+                      downPaymentAmount: 1700000,
+                      downPaymentPercentage: 20,
+                      numberOfInstallments: 24,
+                      installmentFrequency: "Monthly",
+                      installmentAmount: 283333,
+                      interestRate: 0,
+                      installmentDurationMonths: 24,
+                      gracePeriodDays: 10,
+                      termsAndConditions: "Possession handed over on 50% milestone payment; registry on full clearance."
+                    }
                   }, null, 2)
                 },
                 url: {
@@ -765,11 +800,13 @@ const collection = {
               name: "01. Upload Single File",
               request: {
                 method: "POST",
-                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                header: [
+                  { key: "Authorization", value: "Bearer {{userToken}}", disabled: true }
+                ],
                 body: {
                   mode: "formdata",
                   formdata: [
-                    { key: "file", type: "file", src: [] }
+                    { key: "file", type: "file", src: [], description: "Select an image or document" }
                   ]
                 },
                 url: {
@@ -780,15 +817,17 @@ const collection = {
               }
             },
             {
-              name: "02. Upload Multiple Files (General)",
+              name: "02. Upload Multiple Files (FormData)",
               request: {
                 method: "POST",
-                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                header: [
+                  { key: "Authorization", value: "Bearer {{userToken}}", disabled: true }
+                ],
                 body: {
                   mode: "formdata",
                   formdata: [
-                    { key: "files", type: "file", src: [] },
-                    { key: "files", type: "file", src: [] }
+                    { key: "files", type: "file", src: [], description: "First image or document" },
+                    { key: "files", type: "file", src: [], disabled: true, description: "Second image (check to enable)" }
                   ]
                 },
                 url: {
@@ -799,16 +838,46 @@ const collection = {
               }
             },
             {
-              name: "03. Upload Property Documents by ID",
+              name: "03. Upload Multiple Files (Base64 JSON)",
               request: {
                 method: "POST",
-                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}", disabled: true }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    images: [
+                      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+                    ]
+                  }, null, 2),
+                  options: {
+                    raw: {
+                      language: "json"
+                    }
+                  }
+                },
+                url: {
+                  raw: "{{baseUrl}}/upload/multiple",
+                  host: ["{{baseUrl}}"],
+                  path: ["upload", "multiple"]
+                }
+              }
+            },
+            {
+              name: "04. Upload Property Documents by ID",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Authorization", value: "Bearer {{userToken}}", disabled: true }
+                ],
                 body: {
                   mode: "formdata",
                   formdata: [
-                    { key: "images", type: "file", src: [] },
-                    { key: "titleDeed", type: "file", src: [] },
-                    { key: "electricityBill", type: "file", src: [] }
+                    { key: "images", type: "file", src: [], description: "Property photo" },
+                    { key: "titleDeed", type: "file", src: [], disabled: true, description: "Title Deed PDF (optional)" },
+                    { key: "electricityBill", type: "file", src: [], disabled: true, description: "Electricity bill PDF (optional)" }
                   ]
                 },
                 url: {
@@ -819,16 +888,18 @@ const collection = {
               }
             },
             {
-              name: "04. Upload Project Brochures & Plans by ID",
+              name: "05. Upload Project Brochures & Plans by ID",
               request: {
                 method: "POST",
-                header: [{ key: "Authorization", value: "Bearer {{developerToken}}" }],
+                header: [
+                  { key: "Authorization", value: "Bearer {{developerToken}}", disabled: true }
+                ],
                 body: {
                   mode: "formdata",
                   formdata: [
-                    { key: "photos", type: "file", src: [] },
-                    { key: "masterPlan", type: "file", src: [] },
-                    { key: "brochure", type: "file", src: [] }
+                    { key: "photos", type: "file", src: [], description: "Project photo" },
+                    { key: "masterPlan", type: "file", src: [], disabled: true, description: "Master plan PDF/image (optional)" },
+                    { key: "brochure", type: "file", src: [], disabled: true, description: "Brochure PDF (optional)" }
                   ]
                 },
                 url: {
@@ -839,14 +910,16 @@ const collection = {
               }
             },
             {
-              name: "05. Upload Multiple Files Linked to Property",
+              name: "06. Upload Multiple Files Linked to Property",
               request: {
                 method: "POST",
-                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                header: [
+                  { key: "Authorization", value: "Bearer {{userToken}}", disabled: true }
+                ],
                 body: {
                   mode: "formdata",
                   formdata: [
-                    { key: "files", type: "file", src: [] }
+                    { key: "files", type: "file", src: [], description: "Photo to auto-link to property" }
                   ]
                 },
                 url: {
@@ -858,14 +931,16 @@ const collection = {
               }
             },
             {
-              name: "06. Upload Multiple Files Linked to Project",
+              name: "07. Upload Multiple Files Linked to Project",
               request: {
                 method: "POST",
-                header: [{ key: "Authorization", value: "Bearer {{developerToken}}" }],
+                header: [
+                  { key: "Authorization", value: "Bearer {{developerToken}}", disabled: true }
+                ],
                 body: {
                   mode: "formdata",
                   formdata: [
-                    { key: "files", type: "file", src: [] }
+                    { key: "files", type: "file", src: [], description: "Photo to auto-link to project" }
                   ]
                 },
                 url: {
@@ -1425,6 +1500,164 @@ const collection = {
                   raw: "{{baseUrl}}/banners/{{bannerId}}/click",
                   host: ["{{baseUrl}}"],
                   path: ["banners", "{{bannerId}}", "click"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 12. Property Site Visit Scheduling
+        // ---------------------------------------------------------------------
+        {
+          name: "12. Property Site Visit Scheduling",
+          description: "Endpoints for scheduling property/site visits, owner notifications, fetching visits, and owner accept/reject decision flows.",
+          item: [
+            {
+              name: "01. Schedule Visit Request (POST /visit-requests)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.visitRequest) {",
+                      "    pm.collectionVariables.set('visitRequestId', jsonData.data.visitRequest._id);",
+                      "    console.log('✅ visitRequestId set to: ' + jsonData.data.visitRequest._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    propertyId: "{{propertyId}}",
+                    visitDate: "2026-10-15",
+                    visitTime: "10:30 AM",
+                    notes: "Interested in checking sunlight and parking facilities."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/visit-requests",
+                  host: ["{{baseUrl}}"],
+                  path: ["visit-requests"]
+                }
+              }
+            },
+            {
+              name: "02. Schedule Visit Request via Property Path (POST /properties/:id/schedule-visit)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    visitDate: "2026-10-18",
+                    visitTime: "02:00 PM",
+                    notes: "Follow-up visit with family members."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/properties/{{propertyId}}/schedule-visit",
+                  host: ["{{baseUrl}}"],
+                  path: ["properties", "{{propertyId}}", "schedule-visit"]
+                }
+              }
+            },
+            {
+              name: "03. Get Received Visit Requests (Owner - GET /visit-requests)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{ownerToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/visit-requests?status=pending",
+                  host: ["{{baseUrl}}"],
+                  path: ["visit-requests"],
+                  query: [
+                    { key: "status", value: "pending", description: "pending | accepted | rejected | all" },
+                    { key: "page", value: "1", disabled: true },
+                    { key: "limit", value: "10", disabled: true }
+                  ]
+                }
+              }
+            },
+            {
+              name: "04. Get My Scheduled Visits (Visitor/Buyer - GET /visit-requests/my-visits)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/visit-requests/my-visits",
+                  host: ["{{baseUrl}}"],
+                  path: ["visit-requests", "my-visits"],
+                  query: [
+                    { key: "status", value: "all", disabled: true }
+                  ]
+                }
+              }
+            },
+            {
+              name: "05. Get Visit Request by ID (GET /visit-requests/:id)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/visit-requests/{{visitRequestId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["visit-requests", "{{visitRequestId}}"]
+                }
+              }
+            },
+            {
+              name: "06. Accept Visit Request (Owner Decision - PATCH /visit-requests/:id/accept)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{ownerToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    ownerMessage: "Looking forward to meeting you. Security gate pass has been pre-cleared."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/visit-requests/{{visitRequestId}}/accept",
+                  host: ["{{baseUrl}}"],
+                  path: ["visit-requests", "{{visitRequestId}}", "accept"]
+                }
+              }
+            },
+            {
+              name: "07. Reject Visit Request with Message (Owner Decision - PATCH /visit-requests/:id/reject)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{ownerToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    ownerMessage: "Unavailable on Sunday due to society AGM. Please reschedule for Tuesday between 3:00 PM and 6:00 PM."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/visit-requests/{{visitRequestId}}/reject",
+                  host: ["{{baseUrl}}"],
+                  path: ["visit-requests", "{{visitRequestId}}", "reject"]
                 }
               }
             }
