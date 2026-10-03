@@ -294,6 +294,98 @@ exports.verifyDeveloper = async (req, res, next) => {
   }
 };
 
+// @desc    Approve or Reject verification for any user (Agent, Builder, Owner, Buyer, etc.)
+// @route   PATCH /api/admin/users/:id/verify-user
+// @access  Private (Admin only)
+exports.verifyUser = async (req, res, next) => {
+  try {
+    const { status, isVerified, rejectionReason, reason } = req.body;
+    const finalReason = rejectionReason || reason || '';
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'No user found with that ID.',
+      });
+    }
+
+    const role = (user.role || '').toLowerCase();
+    let targetStatus = status;
+
+    // Handle boolean isVerified if status is not explicitly passed
+    if (!targetStatus && isVerified !== undefined) {
+      targetStatus = isVerified ? 'approved' : 'unverified';
+    }
+
+    if (!targetStatus || !['approved', 'rejected', 'pending', 'unverified'].includes(targetStatus)) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Valid status (approved, rejected, pending, unverified) or isVerified boolean is required.',
+      });
+    }
+
+    const updateData = {
+      isVerified: targetStatus === 'approved',
+    };
+
+    if (role === 'agent') {
+      updateData.agentVerificationStatus = targetStatus;
+      if (targetStatus === 'approved') {
+        updateData.agentRejectionReason = undefined;
+      } else if (targetStatus === 'rejected') {
+        updateData.agentRejectionReason = finalReason;
+      }
+    } else if (role === 'builder') {
+      updateData.builderVerificationStatus = targetStatus;
+      if (targetStatus === 'approved') {
+        updateData.builderRejectionReason = undefined;
+      } else if (targetStatus === 'rejected') {
+        updateData.builderRejectionReason = finalReason;
+      }
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true,
+    });
+
+    // Send notification to the user
+    try {
+      const Notification = require('../../models/notification.model');
+      if (targetStatus === 'approved') {
+        await Notification.create({
+          recipient: updatedUser._id,
+          title: 'Account Verification Approved! 🎉',
+          message: `Congratulations! Your account (${updatedUser.role || 'user'}) has been verified and approved by admin.`,
+          type: 'verification',
+          isRead: false,
+        });
+      } else if (targetStatus === 'rejected') {
+        await Notification.create({
+          recipient: updatedUser._id,
+          title: 'Account Verification Update',
+          message: `Your account verification could not be approved. Reason: ${finalReason || 'Please review your details and re-apply.'}`,
+          type: 'verification',
+          isRead: false,
+        });
+      }
+    } catch (notifErr) {
+      console.error('Error creating user notification for verification:', notifErr);
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: `User verification status updated to ${targetStatus}.`,
+      data: {
+        user: updatedUser,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Delete user account and all associated data (cascade delete)
 // @route   DELETE /api/admin/users/:id
 // @access  Private (Admin only)
@@ -559,6 +651,15 @@ exports.createUser = async (req, res, next) => {
       status: status || 'Active',
       isVerified: !!isVerified,
       isOnboardingCompleted: true,
+      companyName: req.body.companyName || name,
+      gstNumber: req.body.gstNumber,
+      reraNumber: req.body.reraNumber,
+      yearsInBusiness: req.body.yearsInBusiness,
+      cityOfOperation: req.body.cityOfOperation,
+      unitsDelivered: req.body.unitsDelivered || '0',
+      bio: req.body.bio,
+      isIsoCertified: req.body.isIsoCertified,
+      builderVerificationStatus: req.body.builderVerificationStatus || (dbRole === 'builder' ? 'approved' : 'unverified'),
     });
 
     res.status(201).json({

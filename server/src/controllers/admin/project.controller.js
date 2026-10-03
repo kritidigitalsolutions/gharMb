@@ -122,6 +122,88 @@ exports.updateProjectStatus = async (req, res, next) => {
 // @desc    Delete developer project from platform
 // @route   DELETE /api/admin/projects/:id
 // @access  Private (Admin only)
+// @desc    Create a new developer project listing by administrator
+// @route   POST /api/admin/projects
+// @access  Private (Admin only)
+exports.createProject = async (req, res, next) => {
+  try {
+    const {
+      projectName,
+      developer,
+      developerName,
+      reraProjectNumber,
+      city,
+      locality,
+      fullAddress,
+      pincode,
+      projectType,
+      projectStatus,
+      totalUnits,
+      possessionDate,
+      shortDescription,
+      approvalStatus,
+    } = req.body;
+
+    if (!projectName || !reraProjectNumber || !city || !locality) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Project Name, RERA Number, City, and Locality are required.',
+      });
+    }
+
+    const submissionId = `PRJ-${Date.now().toString().slice(-6)}`;
+
+    let devId = developer;
+    let devName = developerName;
+    const User = require('../../models/user.model');
+
+    if (devId) {
+      const devUser = await User.findById(devId);
+      if (devUser) {
+        devName = devUser.companyName || devUser.name;
+      }
+    } else {
+      const anyBuilder = await User.findOne({ role: 'builder' });
+      if (anyBuilder) {
+        devId = anyBuilder._id;
+        devName = devName || anyBuilder.companyName || anyBuilder.name;
+      }
+    }
+
+    const newProject = await Project.create({
+      submissionId,
+      projectName,
+      developer: devId,
+      developerName: devName || 'Registered Developer',
+      reraProjectNumber,
+      city,
+      locality,
+      fullAddress: fullAddress || `${locality}, ${city}`,
+      pincode: pincode || '122001',
+      projectType: projectType || 'Residential',
+      projectStatus: projectStatus || 'Under construction',
+      totalUnits: Number(totalUnits) || 0,
+      possessionDate: possessionDate || 'Dec 2026',
+      shortDescription: shortDescription || '',
+      approvalStatus: approvalStatus || 'approved',
+      isLive: approvalStatus !== 'rejected' && approvalStatus !== 'pending',
+    });
+
+    res.status(201).json({
+      status: 'success',
+      message: 'Developer project created successfully.',
+      data: {
+        project: newProject,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Delete developer project from platform
+// @route   DELETE /api/admin/projects/:id
+// @access  Private (Admin only)
 exports.deleteProject = async (req, res, next) => {
   try {
     const project = await Project.findByIdAndDelete(req.params.id);
@@ -141,3 +223,5 @@ exports.deleteProject = async (req, res, next) => {
     next(error);
   }
 };
+
+

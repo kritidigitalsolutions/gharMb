@@ -1,7 +1,6 @@
 /**
  * File Upload Routes
- * Exposes 2 clean, dedicated endpoints for uploading multiple images, photos,
- * and PDF documents directly to a Property or Developer Project by ID.
+ * Provides clean, robust endpoints for single and multiple file uploads.
  */
 
 const express = require('express');
@@ -10,27 +9,52 @@ const uploadController = require('../../controllers/user/upload.controller');
 
 const router = express.Router();
 
-// 1. Upload multiple images & documents for a Property by ID
-// POST /api/user/upload/property/:id (or PATCH)
-router.route('/property/:id')
-  .post(upload.any(), uploadController.uploadPropertyFiles)
-  .patch(upload.any(), uploadController.uploadPropertyFiles);
+/**
+ * Safe Multer middleware wrapper that catches file errors (e.g. file size exceeded)
+ * and returns clean JSON instead of throwing uncaught exceptions.
+ */
+const safeUploadAny = (req, res, next) => {
+  upload.any()(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          status: 'fail',
+          success: false,
+          message: 'One or more files exceed the maximum allowed size of 15MB.',
+        });
+      }
+      return res.status(400).json({
+        status: 'fail',
+        success: false,
+        message: err.message || 'File upload error occurred.',
+      });
+    }
+    next();
+  });
+};
 
-// 2. Upload multiple photos, plans & brochures for a Developer Project by ID
-// POST /api/user/upload/project/:id (or PATCH)
-router.route('/project/:id')
-  .post(upload.any(), uploadController.uploadProjectFiles)
-  .patch(upload.any(), uploadController.uploadProjectFiles);
+// 1. Multiple Files Upload (Aliases: / , /multiple , /multi)
+router.route('/')
+  .post(safeUploadAny, uploadController.uploadMultipleFiles);
 
-// 3. General upload for multiple files (or with optional ?propertyId=... / ?projectId=...)
-// POST /api/user/upload/multiple or POST /api/upload/multiple
 router.route('/multiple')
-  .post(upload.any(), uploadController.uploadMultipleFiles);
+  .post(safeUploadAny, uploadController.uploadMultipleFiles);
 
-// 4. General upload for a single file
-// POST /api/user/upload/single or POST /api/upload/single
+router.route('/multi')
+  .post(safeUploadAny, uploadController.uploadMultipleFiles);
+
+// 2. Single File Upload
 router.route('/single')
-  .post(upload.any(), uploadController.uploadSingleFile);
+  .post(safeUploadAny, uploadController.uploadSingleFile);
+
+// 3. Property Files Upload (Images & Legal Docs)
+router.route('/property/:id')
+  .post(safeUploadAny, uploadController.uploadPropertyFiles)
+  .patch(safeUploadAny, uploadController.uploadPropertyFiles);
+
+// 4. Project Files Upload (Photos, Plans & Brochures)
+router.route('/project/:id')
+  .post(safeUploadAny, uploadController.uploadProjectFiles)
+  .patch(safeUploadAny, uploadController.uploadProjectFiles);
 
 module.exports = router;
-

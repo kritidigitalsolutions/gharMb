@@ -97,6 +97,82 @@ function resolveCoordinates(body = {}) {
   return [77.3910, 28.5355]; // Sensible default (NCR/Noida)
 }
 
+// Helper to normalize and auto-calculate installment options details
+const normalizeInstallmentData = (body = {}, totalPrice = 0) => {
+  const allowInstallments = body.allowInstallments === true || body.allowInstallments === 'true';
+  let installmentDetails = body.installmentDetails;
+
+  if (typeof installmentDetails === 'string') {
+    try {
+      installmentDetails = JSON.parse(installmentDetails);
+    } catch {
+      installmentDetails = {};
+    }
+  }
+
+  if (allowInstallments) {
+    installmentDetails = installmentDetails || {};
+    const price = Number(totalPrice) || Number(body.price) || 0;
+    let downPaymentAmount = Number(installmentDetails.downPaymentAmount) || 0;
+    let downPaymentPercentage = Number(installmentDetails.downPaymentPercentage) || 0;
+
+    if (downPaymentPercentage > 0 && (!downPaymentAmount || downPaymentAmount === 0) && price > 0) {
+      downPaymentAmount = Math.round((price * downPaymentPercentage) / 100);
+    } else if (downPaymentAmount > 0 && price > 0 && (!downPaymentPercentage || downPaymentPercentage === 0)) {
+      downPaymentPercentage = Math.round((downPaymentAmount / price) * 100);
+    }
+
+    const numberOfInstallments = Number(installmentDetails.numberOfInstallments) || 0;
+    let installmentAmount = Number(installmentDetails.installmentAmount) || 0;
+
+    // Auto-calculate installment amount if not provided but installments count is provided
+    if ((!installmentAmount || installmentAmount === 0) && numberOfInstallments > 0 && price > 0) {
+      const remainingBalance = Math.max(0, price - downPaymentAmount);
+      installmentAmount = Math.round(remainingBalance / numberOfInstallments);
+    }
+
+    const freq = installmentDetails.installmentFrequency || 'Monthly';
+    const durationMonths = Number(installmentDetails.installmentDurationMonths) || (
+      freq === 'Quarterly' ? numberOfInstallments * 3 :
+      freq === 'Bi-annual' ? numberOfInstallments * 6 :
+      freq === 'Yearly' ? numberOfInstallments * 12 :
+      numberOfInstallments
+    );
+
+    return {
+      allowInstallments: true,
+      installmentDetails: {
+        downPaymentAmount,
+        downPaymentPercentage,
+        numberOfInstallments,
+        installmentFrequency: freq,
+        installmentAmount,
+        interestRate: Number(installmentDetails.interestRate) || 0,
+        installmentDurationMonths: durationMonths,
+        gracePeriodDays: Number(installmentDetails.gracePeriodDays) || 0,
+        termsAndConditions: (installmentDetails.termsAndConditions || '').trim(),
+        milestones: Array.isArray(installmentDetails.milestones) ? installmentDetails.milestones : [],
+      },
+    };
+  }
+
+  return {
+    allowInstallments: false,
+    installmentDetails: {
+      downPaymentAmount: 0,
+      downPaymentPercentage: 0,
+      numberOfInstallments: 0,
+      installmentFrequency: 'Monthly',
+      installmentAmount: 0,
+      interestRate: 0,
+      installmentDurationMonths: 0,
+      gracePeriodDays: 0,
+      termsAndConditions: '',
+      milestones: [],
+    },
+  };
+};
+
 // @desc    Retrieve approved live properties for search feed
 // @route   GET /api/user/properties
 // @access  Public
@@ -146,6 +222,10 @@ exports.getAllProperties = async (req, res, next) => {
     }
     if (loanAssistanceNeeded !== undefined) {
       query.loanAssistanceNeeded = loanAssistanceNeeded === 'true' || loanAssistanceNeeded === true;
+    }
+    // Installment / EMI available filter
+    if (req.query.allowInstallments !== undefined) {
+      query.allowInstallments = req.query.allowInstallments === 'true' || req.query.allowInstallments === true;
     }
 
     // Price range filters
@@ -274,8 +354,11 @@ exports.createProperty = async (req, res, next) => {
     }
 
     // 3. Prepare property data (Owner can upload directly, but property itself will require Admin verification)
+    const installmentData = normalizeInstallmentData(req.body, req.body.price);
+
     const propertyData = {
       ...req.body,
+      ...installmentData,
       owner: user._id,
       approvalStatus: 'pending',
       isLive: false,
@@ -687,6 +770,18 @@ exports.updateProperty = async (req, res, next) => {
       delete updateFields.longitude;
       delete updateFields.lat;
       delete updateFields.lng;
+    }
+
+    // Process Installment details if provided or toggled
+    if (updateFields.allowInstallments !== undefined || updateFields.installmentDetails !== undefined) {
+      const targetPrice = updateFields.price !== undefined ? updateFields.price : property.price;
+      const mergedBody = {
+        allowInstallments: updateFields.allowInstallments !== undefined ? updateFields.allowInstallments : property.allowInstallments,
+        installmentDetails: updateFields.installmentDetails !== undefined ? updateFields.installmentDetails : property.installmentDetails,
+      };
+      const installmentData = normalizeInstallmentData(mergedBody, targetPrice);
+      updateFields.allowInstallments = installmentData.allowInstallments;
+      updateFields.installmentDetails = installmentData.installmentDetails;
     }
 
     // Only reset status to pending when regular user updates

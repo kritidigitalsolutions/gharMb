@@ -18,7 +18,8 @@ import {
   Gift,
   Sparkles,
   MessageSquareQuote,
-  MailCheck
+  MailCheck,
+  Layers
 } from 'lucide-react';
 
 const Sidebar = ({
@@ -68,13 +69,13 @@ const Sidebar = ({
     {
       group: 'Content & Inquiries',
       items: [
+        { name: 'App Banners', path: '/admin/banners', icon: Layers },
         { name: 'Insights & Blogs', path: '/admin/insights', icon: Sparkles },
         { name: 'FAQ Management', path: '/admin/faq', icon: Info },
         { name: 'Testimonials', path: '/admin/testimonials', icon: MessageSquareQuote },
         { name: 'Web Inquiries', path: '/admin/web-inquiries', icon: MailCheck },
         { name: 'Notifications', path: '/admin/notifications', icon: Bell },
       ]
-
     },
     {
       group: 'Platform & Legal',

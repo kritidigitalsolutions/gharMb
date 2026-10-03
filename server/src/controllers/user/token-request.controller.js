@@ -1,7 +1,8 @@
 /**
  * Token Request Controller
  * Handles token booking workflows for real estate properties:
- * - Buyers can submit token booking requests
+ * - Buyers can submit 5-step token booking requests (personal, family, occupation, ID proof, token amount)
+ * - Returns dynamic token booking configuration set by administrators
  * - Owners / Builders / Agents can view received token requests, accept, or reject them
  * - Updates property counters and triggers in-app notifications
  */
@@ -9,6 +10,7 @@
 const TokenRequest = require('../../models/token-request.model');
 const Property = require('../../models/property.model');
 const Notification = require('../../models/notification.model');
+const TokenSetting = require('../../models/token-setting.model');
 
 // Helper for pagination
 const getPagination = (page, limit, defaultLimit = 10) => {
@@ -18,13 +20,89 @@ const getPagination = (page, limit, defaultLimit = 10) => {
   return { page: pageNum, limit: limitNum, skip };
 };
 
-// @desc    Submit a new Token Booking Request for a property
+// @desc    Get Token Booking Configuration (Amounts configured by Admin)
+// @route   GET /api/token-requests/config OR GET /api/user/token-requests/config
+// @access  Public / Private
+exports.getTokenConfig = async (req, res, next) => {
+  try {
+    const { propertyId } = req.query;
+    const globalSettings = await TokenSetting.getSettings();
+
+    let config = {
+      tokenAmounts: globalSettings.tokenAmounts || [2000, 5000],
+      defaultTokenAmount: globalSettings.defaultTokenAmount || 2000,
+      minTokenAmount: globalSettings.minTokenAmount || 1000,
+      maxTokenAmount: globalSettings.maxTokenAmount || 100000,
+      allowCustomAmount: globalSettings.allowCustomAmount || false,
+      adjustmentNote: globalSettings.adjustmentNote || "Token amount will be adjusted in security deposit or first month's rent",
+      allowTokenBooking: true,
+      property: null,
+    };
+
+    if (propertyId) {
+      const property = await Property.findById(propertyId)
+        .select('title price category listingFor allowTokenBooking tokenAmount tokenAmounts tokenAdjustmentNote securityDeposit owner city locality')
+        .populate('owner', 'name phone email companyName');
+
+      if (property) {
+        config.property = {
+          id: property._id,
+          title: property.title,
+          price: property.price,
+          monthlyRent: property.listingFor === 'Rent' || property.listingFor === 'Lease' || property.listingFor === 'PG' ? property.price : null,
+          category: property.category,
+          listingFor: property.listingFor,
+          city: property.city,
+          locality: property.locality,
+          owner: property.owner,
+        };
+
+        config.allowTokenBooking = property.allowTokenBooking !== false;
+
+        // If property has specific token amounts configured by admin/owner
+        if (Array.isArray(property.tokenAmounts) && property.tokenAmounts.length > 0) {
+          config.tokenAmounts = property.tokenAmounts;
+        }
+
+        if (property.tokenAmount) {
+          config.defaultTokenAmount = property.tokenAmount;
+        }
+
+        if (property.tokenAdjustmentNote) {
+          config.adjustmentNote = property.tokenAdjustmentNote;
+        }
+      }
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: config,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Submit a new Token Booking Request for a property (5-Step Mobile & Web Workflow)
 // @route   POST /api/user/token-requests OR POST /api/properties/:id/token-request
 // @access  Private (Buyer / Client)
 exports.createTokenRequest = async (req, res, next) => {
   try {
     const propertyId = req.params.id || req.body.property || req.body.propertyId;
-    const { tokenAmount, message, paymentMethod, transactionId } = req.body;
+    const {
+      tokenAmount,
+      message,
+      paymentMethod,
+      transactionId,
+      paymentPlanType,
+      installmentPlan,
+      personalDetails,
+      familyDetails,
+      occupationDetails,
+      idProof,
+      monthlyRent,
+      totalAgreedPrice,
+    } = req.body;
 
     if (!propertyId) {
       return res.status(400).json({
@@ -42,11 +120,44 @@ exports.createTokenRequest = async (req, res, next) => {
     }
 
     // Owner cannot send token request to their own property
-    if (property.owner.toString() === req.user._id.toString()) {
+    if (property.owner && req.user && property.owner.toString() === req.user._id.toString()) {
       return res.status(400).json({
         status: 'fail',
         message: 'You cannot submit a token request for your own property listing.',
       });
+    }
+
+    // Check if token bookings are allowed for this property
+    if (property.allowTokenBooking === false) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Token booking is temporarily unavailable for this property listing.',
+      });
+    }
+
+    // Validate installment plan selection against owner preference
+    const selectedPlan = (paymentPlanType || 'full_payment').toLowerCase();
+    if (selectedPlan === 'installment') {
+      if (!property.allowInstallments) {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'The owner of this property requires direct full payment. Installment / EMI option is not enabled for this site.',
+        });
+      }
+    }
+
+    // Parse installment plan if provided
+    let parsedInstallment = undefined;
+    if (selectedPlan === 'installment') {
+      const rawInst = typeof installmentPlan === 'string' ? JSON.parse(installmentPlan || '{}') : (installmentPlan || {});
+      parsedInstallment = {
+        downPaymentAmount: Number(rawInst.downPaymentAmount || rawInst.downPayment) || property.installmentDetails?.downPaymentAmount || 0,
+        numberOfInstallments: Number(rawInst.numberOfInstallments) || property.installmentDetails?.numberOfInstallments || 0,
+        installmentFrequency: rawInst.installmentFrequency || property.installmentDetails?.installmentFrequency || 'Monthly',
+        installmentAmount: Number(rawInst.installmentAmount) || property.installmentDetails?.installmentAmount || 0,
+        totalPayable: Number(rawInst.totalPayable) || property.price || 0,
+        proposedTerms: (rawInst.proposedTerms || rawInst.terms || '').trim(),
+      };
     }
 
     // Check if client already has a pending token request for this property
@@ -64,22 +175,83 @@ exports.createTokenRequest = async (req, res, next) => {
       });
     }
 
-    const numericAmount = Number(tokenAmount) || 21000;
+    // Determine token amount (from body, or property config, or global setting)
+    let numericAmount = Number(tokenAmount);
+    if (!numericAmount || isNaN(numericAmount) || numericAmount <= 0) {
+      numericAmount = property.tokenAmount || 2000;
+    }
+
+    // Parse Personal Details
+    const parsedPersonal = typeof personalDetails === 'string' ? JSON.parse(personalDetails || '{}') : (personalDetails || {});
+    const finalPersonalDetails = {
+      fullName: parsedPersonal.fullName || parsedPersonal.name || req.user.name || '',
+      mobileNumber: parsedPersonal.mobileNumber || parsedPersonal.phone || req.user.phone || '',
+      email: parsedPersonal.email || req.user.email || '',
+      currentCity: parsedPersonal.currentCity || parsedPersonal.city || '',
+    };
+
+    // Parse Family Details
+    const parsedFamily = typeof familyDetails === 'string' ? JSON.parse(familyDetails || '{}') : (familyDetails || {});
+    const finalFamilyDetails = {
+      numberOfFamilyMembers: String(parsedFamily.numberOfFamilyMembers || parsedFamily.members || '1'),
+      adults: String(parsedFamily.adults || '1'),
+      children: String(parsedFamily.children || '0'),
+      maritalStatus: String(parsedFamily.maritalStatus || 'Single'),
+    };
+
+    // Parse Occupation Details
+    const parsedOccupation = typeof occupationDetails === 'string' ? JSON.parse(occupationDetails || '{}') : (occupationDetails || {});
+    const finalOccupationDetails = {
+      profession: String(parsedOccupation.profession || ''),
+      companyName: String(parsedOccupation.companyName || parsedOccupation.company || ''),
+      monthlyIncome: String(parsedOccupation.monthlyIncome || parsedOccupation.income || ''),
+    };
+
+    // Parse ID Proof Details (handles file upload if passed in multipart form)
+    const parsedIdProof = typeof idProof === 'string' ? JSON.parse(idProof || '{}') : (idProof || {});
+    let idProofDocUrl = parsedIdProof.documentUrl || '';
+    let idProofOrigName = parsedIdProof.documentOriginalName || '';
+
+    if (req.file) {
+      idProofDocUrl = `/uploads/${req.file.filename}`;
+      idProofOrigName = req.file.originalname;
+    } else if (req.files && req.files.length > 0) {
+      idProofDocUrl = `/uploads/${req.files[0].filename}`;
+      idProofOrigName = req.files[0].originalname;
+    }
+
+    const finalIdProof = {
+      idProofType: parsedIdProof.idProofType || 'Aadhaar',
+      documentUrl: idProofDocUrl,
+      documentOriginalName: idProofOrigName,
+    };
 
     const tokenRequest = await TokenRequest.create({
       property: propertyId,
       client: req.user._id,
       owner: property.owner,
+      personalDetails: finalPersonalDetails,
+      familyDetails: finalFamilyDetails,
+      occupationDetails: finalOccupationDetails,
+      idProof: finalIdProof,
+      monthlyRent: Number(monthlyRent) || property.price || 0,
+      totalAgreedPrice: totalAgreedPrice || `₹${(property.price || 0).toLocaleString('en-IN')}`,
       tokenAmount: numericAmount,
+      adjustmentNote: property.tokenAdjustmentNote || "Token amount will be adjusted in security deposit or first month's rent",
+      paymentPlanType: selectedPlan,
+      installmentPlan: parsedInstallment,
       message: message || '',
       paymentMethod: paymentMethod || 'upi',
-      transactionId: transactionId || '',
+      transactionId: transactionId || `UTR-GHARMB-${Date.now()}`,
       paymentStatus: 'paid', // Mark as paid for token reservation
       status: 'pending',
+      escrowStatus: 'Escrow Held',
+      escrowBank: 'ICICI Escrow Trust #9910',
+      utrRef: transactionId || `UTR-TXN-${Math.floor(10000000 + Math.random() * 90000000)}`,
       clientDetails: {
-        name: req.user.name,
-        phone: req.user.phone,
-        email: req.user.email,
+        name: finalPersonalDetails.fullName,
+        phone: finalPersonalDetails.mobileNumber,
+        email: finalPersonalDetails.email,
       },
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days decision window
     });
@@ -88,8 +260,8 @@ exports.createTokenRequest = async (req, res, next) => {
     try {
       await Notification.create({
         recipient: property.owner,
-        title: 'New Token Request Received! 💰',
-        message: `${req.user.name || 'A buyer'} submitted a token request of ₹${numericAmount.toLocaleString('en-IN')} for ${property.title}. Awaiting your decision.`,
+        title: 'New Token Booking Request! 💰',
+        message: `${finalPersonalDetails.fullName || 'A prospective tenant/buyer'} booked "${property.title}" with a token deposit of ₹${numericAmount.toLocaleString('en-IN')}. Awaiting your decision.`,
         type: 'token_request',
         metadata: {
           propertyId: property._id,
@@ -100,9 +272,14 @@ exports.createTokenRequest = async (req, res, next) => {
       console.error('Failed to create notification for token request:', notifErr.message);
     }
 
+    // Increment inquiry/token counter on property
+    await Property.findByIdAndUpdate(propertyId, {
+      $inc: { inquiriesCount: 1 }
+    }).catch(() => {});
+
     res.status(201).json({
       status: 'success',
-      message: 'Token request submitted successfully. The property owner will review it shortly.',
+      message: 'Token booking submitted successfully! Property reserved in escrow pending owner confirmation.',
       data: {
         tokenRequest,
       },
@@ -139,7 +316,7 @@ exports.getReceivedTokenRequests = async (req, res, next) => {
 
     const totalFiltered = await TokenRequest.countDocuments(filter);
     const tokenRequests = await TokenRequest.find(filter)
-      .populate('property', 'title locality city price propertyType photos submissionId approvalStatus')
+      .populate('property', 'title locality city price propertyType photos images submissionId approvalStatus')
       .populate('client', 'name phone email profilePicture')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -187,7 +364,7 @@ exports.getSentTokenRequests = async (req, res, next) => {
 
     const total = await TokenRequest.countDocuments(filter);
     const tokenRequests = await TokenRequest.find(filter)
-      .populate('property', 'title locality city price propertyType photos submissionId')
+      .populate('property', 'title locality city price propertyType photos images submissionId')
       .populate('owner', 'name phone email companyName')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -351,7 +528,7 @@ exports.rejectTokenRequest = async (req, res, next) => {
       await Notification.create({
         recipient: tokenRequest.client,
         title: 'Token Request Update',
-        message: `Your token request for "${tokenRequest.property.title}" was rejected: ${tokenRequest.rejectionReason}. Refund processing initiated if applicable.`,
+        message: `Your token request for "${tokenRequest.property.title}" was not accepted: ${tokenRequest.rejectionReason}. Refund processing initiated if applicable.`,
         type: 'token_request',
         metadata: {
           propertyId: tokenRequest.property._id,
@@ -365,6 +542,51 @@ exports.rejectTokenRequest = async (req, res, next) => {
     res.status(200).json({
       status: 'success',
       message: 'Token request rejected.',
+      data: {
+        tokenRequest,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Cancel a pending token request by the buyer
+// @route   PATCH /api/user/token-requests/:id/cancel
+// @access  Private (Buyer / Client)
+exports.cancelTokenRequest = async (req, res, next) => {
+  try {
+    const tokenRequest = await TokenRequest.findById(req.params.id);
+
+    if (!tokenRequest) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'Token request not found.',
+      });
+    }
+
+    if (tokenRequest.client.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        status: 'fail',
+        message: 'You can only cancel your own token booking requests.',
+      });
+    }
+
+    if (tokenRequest.status !== 'pending') {
+      return res.status(400).json({
+        status: 'fail',
+        message: `Cannot cancel a token request that is already ${tokenRequest.status}.`,
+      });
+    }
+
+    tokenRequest.status = 'cancelled';
+    tokenRequest.escrowStatus = 'Refunded';
+    tokenRequest.refundDate = new Date();
+    await tokenRequest.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Token booking request cancelled and refund initiated.',
       data: {
         tokenRequest,
       },

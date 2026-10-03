@@ -43,17 +43,7 @@ const AdminLogin = ({ onLoginSuccess }) => {
       }
     } catch (err) {
       console.error('Login error:', err);
-      // Fallback for local simulation if backend API is not connected
-      if (email === 'admin@gmail.com' && password === 'admin123') {
-        const mockAdmin = { name: 'Super Admin', email: 'admin@gmail.com', role: 'ADMIN' };
-        localStorage.setItem('adminToken', 'mock_admin_token_2026');
-        localStorage.setItem('adminUser', JSON.stringify(mockAdmin));
-        localStorage.setItem('admin', JSON.stringify(mockAdmin));
-        if (onLoginSuccess) onLoginSuccess(mockAdmin, 'mock_admin_token_2026');
-        navigate('/admin');
-      } else {
-        setErrorMessage(err.response?.data?.message || 'Unable to connect to server. Check server or credentials.');
-      }
+      setErrorMessage(err.response?.data?.message || err.message || 'Unable to connect to server. Check server or credentials.');
     } finally {
       setIsLoading(false);
     }
@@ -109,12 +99,6 @@ const AdminLogin = ({ onLoginSuccess }) => {
     } finally {
       setIsFirebaseLoading(false);
     }
-  };
-
-  const handleDemoFill = () => {
-    setEmail('admin@gmail.com');
-    setPassword('admin123');
-    setErrorMessage('');
   };
 
   return (
@@ -262,16 +246,8 @@ const AdminLogin = ({ onLoginSuccess }) => {
             </button>
           </form>
 
-          {/* Quick Demo Fill button */}
-          <div className="mt-5 pt-4 border-t border-slate-700/50 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={handleDemoFill}
-              className="text-[11px] font-semibold text-slate-400 hover:text-brand transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-            >
-              <CheckCircle2 size={13} className="text-brand" /> Auto-fill Demo Admin
-            </button>
-            <span className="text-[10px] text-slate-400 font-medium">Firebase Auth</span>
+          <div className="mt-5 pt-4 border-t border-slate-700/50 flex items-center justify-center">
+            <span className="text-[10px] text-slate-400 font-medium">Secured Administrative Access</span>
           </div>
         </div>
 

@@ -145,14 +145,6 @@ const Login = () => {
     }
   };
 
-  const handleDemoFill = () => {
-    setFormData({
-      email: 'admin@gmail.com',
-      password: 'admin123'
-    });
-    setError('');
-  };
-
   return (
     <div 
       style={{ colorScheme: 'dark' }}
@@ -382,27 +374,15 @@ const Login = () => {
           </motion.button>
         </form>
 
-        {/* Demo Credentials Quick Fill & Badge */}
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6, duration: 0.4 }}
-          className="mt-6 pt-4 border-t border-[#444444]/60 flex items-center justify-between gap-2"
+          className="mt-6 pt-4 border-t border-[#444444]/60 flex items-center justify-center gap-2"
         >
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            type="button"
-            onClick={handleDemoFill}
-            className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#888888] hover:text-[#DDDDDD] bg-[#444444]/30 hover:bg-[#444444]/60 border border-[#444444] px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
-          >
-            <Sparkles size={12} className="text-[#FF5A3C] shrink-0" />
-            <span>Auto-fill Demo</span>
-          </motion.button>
-          
           <div className="flex items-center gap-1.5 text-[10px] text-[#888888] font-semibold">
             <ShieldCheck size={13} className="text-[#FF5A3C] shrink-0" />
-            <span>Firebase Protected</span>
+            <span>Secure System Access</span>
           </div>
         </motion.div>
       </motion.div>

@@ -50,6 +50,10 @@ const notificationSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.ObjectId,
         ref: 'TokenRequest',
       },
+      visitRequestId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'VisitRequest',
+      },
       customLink: String,
     },
   },

@@ -29,6 +29,8 @@ const getFileUrl = (req, filename) => {
   return `${protocol}://${host}/uploads/${filename}`;
 };
 
+const { computeVerificationDetails } = require('../../utils/verification.helper');
+
 // Sign JWT helper function
 const signToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET || 'gharmb_secret_key_2026', {
@@ -41,16 +43,58 @@ const signToken = (id, role) => {
 // @access  Private
 exports.getMe = async (req, res, next) => {
   try {
+    const user = await User.findById(req.user._id);
+    const targetUser = user || req.user;
+    const verification = computeVerificationDetails(targetUser);
+
     res.status(200).json({
       status: 'success',
       data: {
-        user: req.user,
+        user: targetUser,
+        verification,
       },
     });
   } catch (error) {
     next(error);
   }
 };
+
+// @desc    Get current user verification status (Agent, Builder, Owner, Buyer, etc.)
+// @route   GET /api/user/users/verification-status
+//          GET /api/users/verification-status
+// @access  Private
+exports.getVerificationStatus = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'User not found.',
+      });
+    }
+
+    const verification = computeVerificationDetails(user);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        ...verification,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email || null,
+          phone: user.phone || null,
+          role: user.role || null,
+          profilePicture: user.profilePicture || null,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.computeVerificationDetails = computeVerificationDetails;
 
 // @desc    Update current user profile
 // @route   PATCH /api/user/users/update-me
@@ -197,6 +241,7 @@ exports.registerAgent = async (req, res, next) => {
         profilePhoto: profilePhoto || existingDocs.profilePhoto || '',
       },
       agentVerificationStatus: 'pending',
+      isVerified: false,
     };
 
     if (profilePhoto) {
@@ -412,6 +457,7 @@ exports.registerDeveloper = async (req, res, next) => {
       }
 
       updateData.builderVerificationStatus = 'pending';
+      updateData.isVerified = false;
     } else {
       // Just saving a draft, retain current status or set to 'unverified'
       updateData.builderVerificationStatus = currentUser.builderVerificationStatus || 'unverified';

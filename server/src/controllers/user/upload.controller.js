@@ -1,21 +1,36 @@
 /**
  * File Upload Controller
- * Dedicated endpoints for uploading multiple images, photos, and PDF documents
- * directly to a Property or Developer Project via their :id param.
+ * Production-ready, resilient file upload handlers for:
+ * 1. General multiple file uploads (Multipart form-data & Base64 JSON)
+ * 2. General single file upload
+ * 3. Property file & document attachments
+ * 4. Project photo & brochure attachments
  */
 
+const fs = require('fs');
+const path = require('path');
+const mongoose = require('mongoose');
 const Property = require('../../models/property.model');
 const Project = require('../../models/project.model');
-const mongoose = require('mongoose');
 
-// Helper to construct full public URL for uploaded files
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, '../../../uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+/**
+ * Construct full public URL for uploaded files
+ */
 const getFileUrl = (req, filename) => {
-  const protocol = req.protocol;
-  const host = req.get('host');
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+  const host = req.get('host') || 'localhost:5001';
   return `${protocol}://${host}/uploads/${filename}`;
 };
 
-// Helper to find Property by _id or submissionId
+/**
+ * Helper to find Property by _id or submissionId
+ */
 const findPropertyById = async (id) => {
   if (!id) return null;
   if (mongoose.Types.ObjectId.isValid(id)) {
@@ -25,7 +40,9 @@ const findPropertyById = async (id) => {
   return await Property.findOne({ submissionId: id });
 };
 
-// Helper to find Project by _id or submissionId
+/**
+ * Helper to find Project by _id or submissionId
+ */
 const findProjectById = async (id) => {
   if (!id) return null;
   if (mongoose.Types.ObjectId.isValid(id)) {
@@ -33,6 +50,234 @@ const findProjectById = async (id) => {
     if (proj) return proj;
   }
   return await Project.findOne({ submissionId: id });
+};
+
+/**
+ * Save a Base64 string or data URL to the disk in /uploads
+ */
+const saveBase64File = (base64String, fallbackName = 'upload') => {
+  try {
+    let mimeType = 'image/jpeg';
+    let base64Data = base64String;
+
+    const dataUrlMatch = base64String.match(/^data:([A-Za-z0-9-+\/]+);base64,(.+)$/);
+    if (dataUrlMatch && dataUrlMatch.length === 3) {
+      mimeType = dataUrlMatch[1];
+      base64Data = dataUrlMatch[2];
+    }
+
+    const buffer = Buffer.from(base64Data, 'base64');
+    let ext = 'jpg';
+    if (mimeType.includes('png')) ext = 'png';
+    else if (mimeType.includes('webp')) ext = 'webp';
+    else if (mimeType.includes('pdf')) ext = 'pdf';
+    else if (mimeType.includes('svg')) ext = 'svg';
+    else if (mimeType.includes('gif')) ext = 'gif';
+
+    const filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`;
+    const filePath = path.join(uploadDir, filename);
+    fs.writeFileSync(filePath, buffer);
+
+    return {
+      filename,
+      originalname: `${fallbackName}.${ext}`,
+      mimetype: mimeType,
+      size: buffer.length,
+    };
+  } catch (err) {
+    console.error('Error saving base64 file:', err.message);
+    return null;
+  }
+};
+
+/**
+ * @desc    Upload multiple files (General multi-upload with auto property/project linking)
+ * @route   POST /api/upload
+ * @route   POST /api/upload/multiple
+ * @route   POST /api/user/upload/multiple
+ * @route   POST /api/admin/upload/multiple
+ * @access  Public / Private
+ */
+exports.uploadMultipleFiles = async (req, res, next) => {
+  try {
+    const collectedFiles = [];
+
+    // 1. Process files from multipart/form-data
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+      for (const f of req.files) {
+        collectedFiles.push({
+          filename: f.filename,
+          originalname: f.originalname,
+          mimetype: f.mimetype,
+          size: f.size,
+          fieldname: f.fieldname,
+        });
+      }
+    } else if (req.file) {
+      collectedFiles.push({
+        filename: req.file.filename,
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        fieldname: req.file.fieldname,
+      });
+    }
+
+    // 2. Process Base64 or URL strings from JSON body (if provided)
+    if (req.body) {
+      const candidates = req.body.files || req.body.images || req.body.photos || req.body.documents || [];
+      const list = Array.isArray(candidates) ? candidates : (typeof candidates === 'string' ? [candidates] : []);
+
+      // Also check single field aliases
+      if (typeof req.body.image === 'string') list.push(req.body.image);
+      if (typeof req.body.file === 'string') list.push(req.body.file);
+
+      list.forEach((item, index) => {
+        if (!item || typeof item !== 'string') return;
+
+        if (item.startsWith('data:') || (item.length > 200 && !item.startsWith('http'))) {
+          const saved = saveBase64File(item, `image-${index + 1}`);
+          if (saved) collectedFiles.push(saved);
+        } else if (item.startsWith('http://') || item.startsWith('https://')) {
+          // Keep existing HTTP URLs
+          collectedFiles.push({
+            isExistingUrl: true,
+            url: item,
+            fileUrl: item,
+            filename: path.basename(item),
+            originalname: path.basename(item),
+            mimetype: 'image/jpeg',
+            size: 0,
+          });
+        }
+      });
+    }
+
+    // 3. Validate that at least one file was received
+    if (collectedFiles.length === 0) {
+      return res.status(400).json({
+        status: 'fail',
+        success: false,
+        message: 'No files provided. Please select one or more files in form-data (key: "files" or "images") or provide base64 strings in JSON.',
+      });
+    }
+
+    // 4. Construct file URLs and metadata
+    const fileUrls = [];
+    const filesMeta = [];
+
+    for (const f of collectedFiles) {
+      const fileUrl = f.isExistingUrl ? f.url : getFileUrl(req, f.filename);
+      fileUrls.push(fileUrl);
+      filesMeta.push({
+        url: fileUrl,
+        fileUrl,
+        filename: f.filename,
+        originalName: f.originalname || f.filename,
+        originalname: f.originalname || f.filename,
+        mimeType: f.mimetype,
+        mimetype: f.mimetype,
+        size: f.size,
+        fieldname: f.fieldname || 'files',
+      });
+    }
+
+    // 5. Optional auto-attachment to Property
+    const propertyId = req.query.propertyId || req.body?.propertyId;
+    let property = null;
+    if (propertyId) {
+      property = await findPropertyById(propertyId);
+      if (property) {
+        property.images = property.images || [];
+        fileUrls.forEach((u) => {
+          if (!property.images.includes(u)) property.images.push(u);
+        });
+        await property.save();
+      }
+    }
+
+    // 6. Optional auto-attachment to Project
+    const projectId = req.query.projectId || req.body?.projectId;
+    let project = null;
+    if (projectId) {
+      project = await findProjectById(projectId);
+      if (project) {
+        project.projectPhotos = project.projectPhotos || [];
+        fileUrls.forEach((u) => {
+          if (!project.projectPhotos.includes(u)) project.projectPhotos.push(u);
+        });
+        await project.save();
+      }
+    }
+
+    // 7. Return comprehensive, developer-friendly response
+    return res.status(200).json({
+      status: 'success',
+      success: true,
+      message: `${collectedFiles.length} file(s) uploaded successfully.`,
+      data: {
+        urls: fileUrls,
+        fileUrls,
+        images: fileUrls,
+        files: filesMeta,
+        count: collectedFiles.length,
+        totalFiles: collectedFiles.length,
+        url: fileUrls[0],
+        fileUrl: fileUrls[0],
+        ...(property && { property }),
+        ...(project && { project }),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Upload a single file
+ * @route   POST /api/upload/single
+ * @route   POST /api/user/upload/single
+ * @route   POST /api/admin/upload/single
+ * @access  Public / Private
+ */
+exports.uploadSingleFile = async (req, res, next) => {
+  try {
+    let file = req.file || (req.files && req.files[0]);
+
+    if (!file && req.body && (req.body.file || req.body.image)) {
+      const item = req.body.file || req.body.image;
+      if (typeof item === 'string' && (item.startsWith('data:') || item.length > 200)) {
+        file = saveBase64File(item, 'single_upload');
+      }
+    }
+
+    if (!file) {
+      return res.status(400).json({
+        status: 'fail',
+        success: false,
+        message: 'Please select a file to upload.',
+      });
+    }
+
+    const fileUrl = getFileUrl(req, file.filename);
+
+    return res.status(200).json({
+      status: 'success',
+      success: true,
+      message: 'File uploaded successfully.',
+      data: {
+        url: fileUrl,
+        fileUrl,
+        filename: file.filename,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        mimetype: file.mimetype,
+        size: file.size,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 /**
@@ -45,24 +290,25 @@ exports.uploadPropertyFiles = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // 1. Find Property
     const property = await findPropertyById(id);
     if (!property) {
       return res.status(404).json({
         status: 'fail',
+        success: false,
         message: `Property listing not found with ID: ${id}`,
       });
     }
 
-    // 2. Validate uploaded files
-    if (!req.files || req.files.length === 0) {
+    const rawFiles = req.files || (req.file ? [req.file] : []);
+    if (!rawFiles || rawFiles.length === 0) {
       return res.status(400).json({
         status: 'fail',
-        message: 'Please provide at least one file to upload (form-data fields: images, photos, titleDeed, electricityBill, taxReceipt, khataExtract, etc.).',
+        success: false,
+        message: 'Please provide at least one file to upload (form-data: images, photos, titleDeed, electricityBill, taxReceipt, khataExtract, etc.).',
       });
     }
 
-    const shouldReplaceImages = req.query.replace === 'true' || req.body.replace === 'true';
+    const shouldReplaceImages = req.query.replace === 'true' || req.body?.replace === 'true';
     if (shouldReplaceImages) {
       property.images = [];
     } else {
@@ -76,8 +322,7 @@ exports.uploadPropertyFiles = async (req, res, next) => {
 
     const uploadedFilesMeta = [];
 
-    // 3. Process each uploaded file and save to Property schema
-    for (const file of req.files) {
+    for (const file of rawFiles) {
       const fileUrl = getFileUrl(req, file.filename);
       const fieldname = (file.fieldname || '').toLowerCase();
       const isPdfOrDoc =
@@ -94,9 +339,9 @@ exports.uploadPropertyFiles = async (req, res, next) => {
         mimetype: file.mimetype,
         size: file.size,
         fileUrl,
+        url: fileUrl,
       });
 
-      // Specific Legal Document Fields
       if (fieldname.includes('titledeed') || fieldname === 'title_deed') {
         property.propertyDocuments.titleDeed = fileUrl;
         property.documents.push({ name: file.originalname, url: fileUrl, docType: 'titleDeed' });
@@ -116,7 +361,6 @@ exports.uploadPropertyFiles = async (req, res, next) => {
         property.propertyDocuments.otherDoc = fileUrl;
         property.documents.push({ name: file.originalname, url: fileUrl, docType: file.fieldname || 'document' });
       } else {
-        // Standard Property Images / Photos
         if (!property.images.includes(fileUrl)) {
           property.images.push(fileUrl);
         }
@@ -125,13 +369,14 @@ exports.uploadPropertyFiles = async (req, res, next) => {
 
     await property.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       status: 'success',
-      message: `${req.files.length} file(s) uploaded and saved to property successfully.`,
+      success: true,
+      message: `${rawFiles.length} file(s) uploaded and saved to property successfully.`,
       data: {
         propertyId: property._id,
         submissionId: property.submissionId,
-        uploadedCount: req.files.length,
+        uploadedCount: rawFiles.length,
         images: property.images,
         propertyDocuments: property.propertyDocuments,
         documents: property.documents,
@@ -154,24 +399,25 @@ exports.uploadProjectFiles = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // 1. Find Project
     const project = await findProjectById(id);
     if (!project) {
       return res.status(404).json({
         status: 'fail',
+        success: false,
         message: `Developer project not found with ID: ${id}`,
       });
     }
 
-    // 2. Validate uploaded files
-    if (!req.files || req.files.length === 0) {
+    const rawFiles = req.files || (req.file ? [req.file] : []);
+    if (!rawFiles || rawFiles.length === 0) {
       return res.status(400).json({
         status: 'fail',
-        message: 'Please provide at least one file to upload (form-data fields: projectPhotos, photos, images, masterPlan, floorPlan, brochure, etc.).',
+        success: false,
+        message: 'Please provide at least one file to upload (form-data: projectPhotos, photos, images, masterPlan, floorPlan, brochure, etc.).',
       });
     }
 
-    const shouldReplacePhotos = req.query.replace === 'true' || req.body.replace === 'true';
+    const shouldReplacePhotos = req.query.replace === 'true' || req.body?.replace === 'true';
     if (shouldReplacePhotos) {
       project.projectPhotos = [];
     } else {
@@ -180,8 +426,7 @@ exports.uploadProjectFiles = async (req, res, next) => {
 
     const uploadedFilesMeta = [];
 
-    // 3. Process each uploaded file and save to Project schema
-    for (const file of req.files) {
+    for (const file of rawFiles) {
       const fileUrl = getFileUrl(req, file.filename);
       const fieldname = (file.fieldname || '').toLowerCase();
       const isPdfOrDoc =
@@ -198,9 +443,9 @@ exports.uploadProjectFiles = async (req, res, next) => {
         mimetype: file.mimetype,
         size: file.size,
         fileUrl,
+        url: fileUrl,
       });
 
-      // Specific Plan / Brochure Fields
       if (fieldname.includes('masterplan') || fieldname === 'master_plan') {
         project.masterPlanUrl = fileUrl;
       } else if (fieldname.includes('floorplan') || fieldname === 'floor_plan') {
@@ -216,7 +461,6 @@ exports.uploadProjectFiles = async (req, res, next) => {
           project.floorPlanUrl = fileUrl;
         }
       } else {
-        // Standard Project Photos / Images
         if (!project.projectPhotos.includes(fileUrl)) {
           project.projectPhotos.push(fileUrl);
         }
@@ -225,131 +469,22 @@ exports.uploadProjectFiles = async (req, res, next) => {
 
     await project.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       status: 'success',
-      message: `${req.files.length} file(s) uploaded and saved to project successfully.`,
+      success: true,
+      message: `${rawFiles.length} file(s) uploaded and saved to project successfully.`,
       data: {
         projectId: project._id,
         submissionId: project.submissionId,
-        uploadedCount: req.files.length,
+        uploadedCount: rawFiles.length,
         projectPhotos: project.projectPhotos,
         masterPlanUrl: project.masterPlanUrl,
         floorPlanUrl: project.floorPlanUrl,
         brochureUrl: project.brochureUrl,
-        // project,
-        // uploadedFiles: uploadedFilesMeta,
+        uploadedFiles: uploadedFilesMeta,
       },
     });
   } catch (error) {
     next(error);
   }
 };
-
-/**
- * @desc    Upload multiple files (general upload or attached to Property/Project)
- * @route   POST /api/user/upload/multiple
- * @route   POST /api/upload/multiple
- * @access  Public / Private
- */
-exports.uploadMultipleFiles = async (req, res, next) => {
-  try {
-    const rawFiles = req.files || (req.file ? [req.file] : []);
-    if (!rawFiles || rawFiles.length === 0) {
-      return res.status(400).json({
-        status: 'fail',
-        message: 'Please select at least one file to upload.',
-      });
-    }
-
-    const fileUrls = rawFiles.map((file) => getFileUrl(req, file.filename));
-    const fileMetas = rawFiles.map((file) => ({
-      fileUrl: getFileUrl(req, file.filename),
-      url: getFileUrl(req, file.filename),
-      filename: file.filename,
-      originalName: file.originalname,
-      mimeType: file.mimetype,
-      size: file.size,
-    }));
-
-    // Optional: link to Property if propertyId was passed in query or body
-    const propertyId = req.query.propertyId || req.body.propertyId;
-    let property = null;
-    if (propertyId) {
-      property = await findPropertyById(propertyId);
-      if (property) {
-        property.images = property.images || [];
-        fileUrls.forEach((u) => {
-          if (!property.images.includes(u)) property.images.push(u);
-        });
-        await property.save();
-      }
-    }
-
-    // Optional: link to Project if projectId was passed in query or body
-    const projectId = req.query.projectId || req.body.projectId;
-    let project = null;
-    if (projectId) {
-      project = await findProjectById(projectId);
-      if (project) {
-        project.projectPhotos = project.projectPhotos || [];
-        fileUrls.forEach((u) => {
-          if (!project.projectPhotos.includes(u)) project.projectPhotos.push(u);
-        });
-        await project.save();
-      }
-    }
-
-    res.status(200).json({
-      status: 'success',
-      message: `${rawFiles.length} file(s) uploaded successfully.`,
-      data: {
-        fileUrls,
-        urls: fileUrls,
-        fileUrl: fileUrls[0],
-        url: fileUrls[0],
-        files: fileMetas,
-        count: rawFiles.length,
-        ...(property && { property }),
-        ...(project && { project }),
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Upload a single file
- * @route   POST /api/user/upload/single
- * @route   POST /api/upload/single
- * @access  Public / Private
- */
-exports.uploadSingleFile = async (req, res, next) => {
-  try {
-    const file = req.file || (req.files && req.files[0]);
-    if (!file) {
-      return res.status(400).json({
-        status: 'fail',
-        message: 'Please select a file to upload.',
-      });
-    }
-
-    const fileUrl = getFileUrl(req, file.filename);
-
-    res.status(200).json({
-      status: 'success',
-      message: 'File uploaded successfully.',
-      data: {
-        fileUrl,
-        url: fileUrl,
-        filename: file.filename,
-        originalName: file.originalname,
-        mimeType: file.mimetype,
-        size: file.size,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-

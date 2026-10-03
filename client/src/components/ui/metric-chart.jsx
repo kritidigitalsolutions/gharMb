@@ -87,7 +87,6 @@ const CustomTooltip = ({ active, payload, label, valueFormatter, dateFormatter }
 export function MetricChart({
   series = [],
   view = 'curve',
-  defaultIndex,
   valueFormatter,
   dateFormatter,
   onHoverPoint,
@@ -168,7 +167,6 @@ export function MetricChart({
             <YAxis hide domain={[0, (dataMax) => (dataMax <= 2 ? 3 : Math.ceil(dataMax * 1.25))]} />
 
             <Tooltip
-              defaultIndex={defaultIndex}
               content={
                 <CustomTooltip
                   valueFormatter={valueFormatter}
@@ -239,7 +237,6 @@ export function MetricChart({
             <YAxis hide domain={[0, (dataMax) => (dataMax <= 2 ? 3 : Math.ceil(dataMax * 1.25))]} />
 
             <Tooltip
-              defaultIndex={defaultIndex}
               content={
                 <CustomTooltip
                   valueFormatter={valueFormatter}

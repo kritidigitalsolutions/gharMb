@@ -216,26 +216,20 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
   const fetchNotifications = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      if (!token || token === 'mock_admin_token_2026') {
-        const localNotifs = [
-          { id: 'notif_1', title: 'New RERA Verification', desc: 'Godrej Woods submitted license docs for approval.', time: '5m ago', isRead: false, type: 'verification' },
-          { id: 'notif_2', title: 'Token Escrow Received', desc: 'Token booking of ₹2,50,000 received for PROP-9821.', time: '1h ago', isRead: false, type: 'payment' },
-          { id: 'notif_3', title: 'New Site Visit Booking', desc: 'Farhan Merchant requested visit at Oberoi Sky City.', time: '3h ago', isRead: true, type: 'visit_booking' }
-        ];
-        setNotifications(localNotifs);
+      if (!token) {
+        setNotifications([]);
         return;
       }
 
-      const response = await fetch('http://localhost:5001/api/admin/notifications', {
+      const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+      const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
+      const response = await fetch(`${API_BASE}/api/admin/notifications`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       if (response.status === 401) {
-        setNotifications([
-          { id: 'notif_1', title: 'New RERA Verification', desc: 'Godrej Woods submitted license docs for approval.', time: '5m ago', isRead: false, type: 'verification' },
-          { id: 'notif_2', title: 'Token Escrow Received', desc: 'Token booking of ₹2,50,000 received for PROP-9821.', time: '1h ago', isRead: false, type: 'payment' }
-        ]);
+        setNotifications([]);
         return;
       }
       const data = await response.json();
@@ -248,17 +242,12 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
           isRead: n.isRead,
           type: n.type
         }));
-        setNotifications(mapped.length > 0 ? mapped : [
-          { id: 'notif_1', title: 'New RERA Verification', desc: 'Godrej Woods submitted license docs for approval.', time: '5m ago', isRead: false, type: 'verification' },
-          { id: 'notif_2', title: 'Token Escrow Received', desc: 'Token booking of ₹2,50,000 received for PROP-9821.', time: '1h ago', isRead: false, type: 'payment' }
-        ]);
+        setNotifications(mapped);
+      } else {
+        setNotifications([]);
       }
     } catch {
-      // Graceful local fallback on server disconnect
-      setNotifications([
-        { id: 'notif_1', title: 'New RERA Verification', desc: 'Godrej Woods submitted license docs for approval.', time: '5m ago', isRead: false, type: 'verification' },
-        { id: 'notif_2', title: 'Token Escrow Received', desc: 'Token booking of ₹2,50,000 received for PROP-9821.', time: '1h ago', isRead: false, type: 'payment' }
-      ]);
+      setNotifications([]);
     }
   };
 
@@ -280,8 +269,10 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
     if (!notif.isRead) {
       try {
         const token = localStorage.getItem('adminToken');
-        if (token && token !== 'mock_admin_token_2026') {
-          await fetch(`http://localhost:5001/api/admin/notifications/${notif.id}/read`, {
+        if (token) {
+          const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+          const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
+          await fetch(`${API_BASE}/api/admin/notifications/${notif.id}/read`, {
             method: 'PATCH',
             headers: {
               'Authorization': `Bearer ${token}`
@@ -294,9 +285,9 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
       }
     }
 
-    if (notif.title.includes('RERA') || notif.type === 'verification') {
+    if (notif.title?.includes('RERA') || notif.type === 'verification') {
       navigate('/admin/builders');
-    } else if (notif.title.includes('Escrow') || notif.type === 'payment') {
+    } else if (notif.title?.includes('Escrow') || notif.type === 'payment') {
       navigate('/admin/tokens');
     }
   };
@@ -305,8 +296,10 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
     e.stopPropagation();
     try {
       const token = localStorage.getItem('adminToken');
-      if (token && token !== 'mock_admin_token_2026') {
-        await fetch('http://localhost:5001/api/admin/notifications/mark-all-read', {
+      if (token) {
+        const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+        const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
+        await fetch(`${API_BASE}/api/admin/notifications/mark-all-read`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`

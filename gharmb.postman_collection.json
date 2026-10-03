@@ -120,6 +120,11 @@
       "key": "tokenRequestId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "visitRequestId",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -473,6 +478,29 @@
               }
             },
             {
+              "name": "01b. Get My Verification Status (GET /users/verification-status)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{userToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/users/verification-status",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    "verification-status"
+                  ]
+                },
+                "description": "Returns real-time verification status for Agent, Builder, Owner, Buyer with badge, message, isPending, and submittedDetails."
+              }
+            },
+            {
               "name": "02. Update My Profile (PATCH /users/update-me)",
               "request": {
                 "method": "PATCH",
@@ -758,7 +786,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"propertyId\": \"{{propertyId}}\",\n  \"tokenAmount\": 25000,\n  \"message\": \"Ready to proceed with token booking for this property.\",\n  \"paymentMethod\": \"upi\",\n  \"transactionId\": \"UPI-TXN-123456789\"\n}"
+                  "raw": "{\n  \"propertyId\": \"{{propertyId}}\",\n  \"tokenAmount\": 25000,\n  \"paymentPlanType\": \"installment\",\n  \"installmentPlan\": {\n    \"downPaymentAmount\": 1500000,\n    \"numberOfInstallments\": 24,\n    \"installmentFrequency\": \"Monthly\",\n    \"installmentAmount\": 291667,\n    \"totalPayable\": 8500000,\n    \"proposedTerms\": \"Buyer opting for 24-month installment option as listed by owner\"\n  },\n  \"message\": \"Ready to proceed with token booking under the 24-month installment plan.\",\n  \"paymentMethod\": \"upi\",\n  \"transactionId\": \"UPI-TXN-123456789\"\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/token-requests",
@@ -856,7 +884,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"title\": \"Luxurious 3 BHK Apartment in Sector 62\",\n  \"description\": \"Spacious 3 bedroom apartment with modular kitchen, corner balcony with park view, and covered parking.\",\n  \"listingFor\": \"sale\",\n  \"category\": \"residential\",\n  \"propertyType\": \"apartment\",\n  \"price\": 8500000,\n  \"carpetArea\": 1650,\n  \"builtUpArea\": 1950,\n  \"bedrooms\": 3,\n  \"bathrooms\": 3,\n  \"balconies\": 2,\n  \"furnishingStatus\": \"semi-furnished\",\n  \"possessionStatus\": \"ready-to-move\",\n  \"address\": \"Flat 402, Tower 4, Express Greens\",\n  \"city\": \"Noida\",\n  \"state\": \"Uttar Pradesh\",\n  \"pincode\": \"201301\",\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [\n      77.391,\n      28.5355\n    ]\n  },\n  \"amenities\": [\n    \"Gymnasium\",\n    \"Swimming Pool\",\n    \"24/7 Power Backup\",\n    \"Clubhouse\",\n    \"Security\"\n  ],\n  \"vastuCompliant\": true,\n  \"keyHandover\": true,\n  \"openToAllBuyers\": true,\n  \"loanAssistanceNeeded\": true\n}"
+                  "raw": "{\n  \"title\": \"Luxurious 3 BHK Apartment in Sector 62\",\n  \"description\": \"Spacious 3 bedroom apartment with modular kitchen, corner balcony with park view, and covered parking.\",\n  \"listingFor\": \"sale\",\n  \"category\": \"residential\",\n  \"propertyType\": \"apartment\",\n  \"price\": 8500000,\n  \"carpetArea\": 1650,\n  \"builtUpArea\": 1950,\n  \"bedrooms\": 3,\n  \"bathrooms\": 3,\n  \"balconies\": 2,\n  \"furnishingStatus\": \"semi-furnished\",\n  \"possessionStatus\": \"ready-to-move\",\n  \"address\": \"Flat 402, Tower 4, Express Greens\",\n  \"city\": \"Noida\",\n  \"state\": \"Uttar Pradesh\",\n  \"pincode\": \"201301\",\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [\n      77.391,\n      28.5355\n    ]\n  },\n  \"amenities\": [\n    \"Gymnasium\",\n    \"Swimming Pool\",\n    \"24/7 Power Backup\",\n    \"Clubhouse\",\n    \"Security\"\n  ],\n  \"vastuCompliant\": true,\n  \"keyHandover\": true,\n  \"openToAllBuyers\": true,\n  \"loanAssistanceNeeded\": true,\n  \"allowInstallments\": true,\n  \"installmentDetails\": {\n    \"downPaymentAmount\": 1700000,\n    \"downPaymentPercentage\": 20,\n    \"numberOfInstallments\": 24,\n    \"installmentFrequency\": \"Monthly\",\n    \"installmentAmount\": 283333,\n    \"interestRate\": 0,\n    \"installmentDurationMonths\": 24,\n    \"gracePeriodDays\": 10,\n    \"termsAndConditions\": \"Possession handed over on 50% milestone payment; registry on full clearance.\"\n  }\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/properties",
@@ -1089,7 +1117,8 @@
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{userToken}}"
+                    "value": "Bearer {{userToken}}",
+                    "disabled": true
                   }
                 ],
                 "body": {
@@ -1098,7 +1127,8 @@
                     {
                       "key": "file",
                       "type": "file",
-                      "src": []
+                      "src": [],
+                      "description": "Select an image or document"
                     }
                   ]
                 },
@@ -1115,13 +1145,14 @@
               }
             },
             {
-              "name": "02. Upload Multiple Files (General)",
+              "name": "02. Upload Multiple Files (FormData)",
               "request": {
                 "method": "POST",
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{userToken}}"
+                    "value": "Bearer {{userToken}}",
+                    "disabled": true
                   }
                 ],
                 "body": {
@@ -1130,12 +1161,15 @@
                     {
                       "key": "files",
                       "type": "file",
-                      "src": []
+                      "src": [],
+                      "description": "First image or document"
                     },
                     {
                       "key": "files",
                       "type": "file",
-                      "src": []
+                      "src": [],
+                      "disabled": true,
+                      "description": "Second image (check to enable)"
                     }
                   ]
                 },
@@ -1152,13 +1186,50 @@
               }
             },
             {
-              "name": "03. Upload Property Documents by ID",
+              "name": "03. Upload Multiple Files (Base64 JSON)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{userToken}}",
+                    "disabled": true
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"images\": [\n    \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/upload/multiple",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "upload",
+                    "multiple"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "04. Upload Property Documents by ID",
               "request": {
                 "method": "POST",
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{userToken}}"
+                    "value": "Bearer {{userToken}}",
+                    "disabled": true
                   }
                 ],
                 "body": {
@@ -1167,17 +1238,22 @@
                     {
                       "key": "images",
                       "type": "file",
-                      "src": []
+                      "src": [],
+                      "description": "Property photo"
                     },
                     {
                       "key": "titleDeed",
                       "type": "file",
-                      "src": []
+                      "src": [],
+                      "disabled": true,
+                      "description": "Title Deed PDF (optional)"
                     },
                     {
                       "key": "electricityBill",
                       "type": "file",
-                      "src": []
+                      "src": [],
+                      "disabled": true,
+                      "description": "Electricity bill PDF (optional)"
                     }
                   ]
                 },
@@ -1195,13 +1271,14 @@
               }
             },
             {
-              "name": "04. Upload Project Brochures & Plans by ID",
+              "name": "05. Upload Project Brochures & Plans by ID",
               "request": {
                 "method": "POST",
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{developerToken}}"
+                    "value": "Bearer {{developerToken}}",
+                    "disabled": true
                   }
                 ],
                 "body": {
@@ -1210,17 +1287,22 @@
                     {
                       "key": "photos",
                       "type": "file",
-                      "src": []
+                      "src": [],
+                      "description": "Project photo"
                     },
                     {
                       "key": "masterPlan",
                       "type": "file",
-                      "src": []
+                      "src": [],
+                      "disabled": true,
+                      "description": "Master plan PDF/image (optional)"
                     },
                     {
                       "key": "brochure",
                       "type": "file",
-                      "src": []
+                      "src": [],
+                      "disabled": true,
+                      "description": "Brochure PDF (optional)"
                     }
                   ]
                 },
@@ -1238,13 +1320,14 @@
               }
             },
             {
-              "name": "05. Upload Multiple Files Linked to Property",
+              "name": "06. Upload Multiple Files Linked to Property",
               "request": {
                 "method": "POST",
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{userToken}}"
+                    "value": "Bearer {{userToken}}",
+                    "disabled": true
                   }
                 ],
                 "body": {
@@ -1253,7 +1336,8 @@
                     {
                       "key": "files",
                       "type": "file",
-                      "src": []
+                      "src": [],
+                      "description": "Photo to auto-link to property"
                     }
                   ]
                 },
@@ -1276,13 +1360,14 @@
               }
             },
             {
-              "name": "06. Upload Multiple Files Linked to Project",
+              "name": "07. Upload Multiple Files Linked to Project",
               "request": {
                 "method": "POST",
                 "header": [
                   {
                     "key": "Authorization",
-                    "value": "Bearer {{developerToken}}"
+                    "value": "Bearer {{developerToken}}",
+                    "disabled": true
                   }
                 ],
                 "body": {
@@ -1291,7 +1376,8 @@
                     {
                       "key": "files",
                       "type": "file",
-                      "src": []
+                      "src": [],
+                      "description": "Photo to auto-link to project"
                     }
                   ]
                 },
@@ -2101,6 +2187,238 @@
                     "banners",
                     "{{bannerId}}",
                     "click"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "12. Property Site Visit Scheduling",
+          "description": "Endpoints for scheduling property/site visits, owner notifications, fetching visits, and owner accept/reject decision flows.",
+          "item": [
+            {
+              "name": "01. Schedule Visit Request (POST /visit-requests)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.visitRequest) {",
+                      "    pm.collectionVariables.set('visitRequestId', jsonData.data.visitRequest._id);",
+                      "    console.log('✅ visitRequestId set to: ' + jsonData.data.visitRequest._id);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{userToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"propertyId\": \"{{propertyId}}\",\n  \"visitDate\": \"2026-10-15\",\n  \"visitTime\": \"10:30 AM\",\n  \"notes\": \"Interested in checking sunlight and parking facilities.\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/visit-requests",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "visit-requests"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "02. Schedule Visit Request via Property Path (POST /properties/:id/schedule-visit)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{userToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"visitDate\": \"2026-10-18\",\n  \"visitTime\": \"02:00 PM\",\n  \"notes\": \"Follow-up visit with family members.\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/properties/{{propertyId}}/schedule-visit",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "properties",
+                    "{{propertyId}}",
+                    "schedule-visit"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "03. Get Received Visit Requests (Owner - GET /visit-requests)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ownerToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/visit-requests?status=pending",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "visit-requests"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "pending",
+                      "description": "pending | accepted | rejected | all"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "04. Get My Scheduled Visits (Visitor/Buyer - GET /visit-requests/my-visits)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{userToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/visit-requests/my-visits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "visit-requests",
+                    "my-visits"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "all",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "05. Get Visit Request by ID (GET /visit-requests/:id)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{userToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/visit-requests/{{visitRequestId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "visit-requests",
+                    "{{visitRequestId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "06. Accept Visit Request (Owner Decision - PATCH /visit-requests/:id/accept)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ownerToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ownerMessage\": \"Looking forward to meeting you. Security gate pass has been pre-cleared.\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/visit-requests/{{visitRequestId}}/accept",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "visit-requests",
+                    "{{visitRequestId}}",
+                    "accept"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "07. Reject Visit Request with Message (Owner Decision - PATCH /visit-requests/:id/reject)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ownerToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ownerMessage\": \"Unavailable on Sunday due to society AGM. Please reschedule for Tuesday between 3:00 PM and 6:00 PM.\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/visit-requests/{{visitRequestId}}/reject",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "visit-requests",
+                    "{{visitRequestId}}",
+                    "reject"
                   ]
                 }
               }

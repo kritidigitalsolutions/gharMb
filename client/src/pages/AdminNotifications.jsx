@@ -25,7 +25,9 @@ const AdminNotifications = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const [isMockMode, setIsMockMode] = useState(false);
+
+  const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+  const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
   
   // Filtering & Searching
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,13 +70,12 @@ const AdminNotifications = () => {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      if (!token || token === 'mock_admin_token_2026') {
-        setIsMockMode(true);
-        loadMockUsers();
+      if (!token) {
+        setUsers([]);
         return;
       }
 
-      const response = await fetch('http://localhost:5001/api/admin/users', {
+      const response = await fetch(`${API_BASE}/api/admin/users`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -82,36 +83,13 @@ const AdminNotifications = () => {
       const data = await response.json();
       if (response.ok && data.status === 'success') {
         setUsers(data.data.users || []);
-        setIsMockMode(false);
       } else {
-        setError(data.message || 'Failed to fetch platform users from database.');
+        setUsers([]);
       }
     } catch (err) {
-      console.warn('API connection failed. Falling back to mock users.', err);
-      setIsMockMode(true);
-      loadMockUsers();
+      console.warn('API users fetch failed:', err);
+      setUsers([]);
     }
-  };
-
-  const loadMockUsers = () => {
-    // Attempt to load from user management dashboard state
-    const saved = localStorage.getItem('gharmb_users');
-    if (saved) {
-      try {
-        setUsers(JSON.parse(saved));
-        return;
-      } catch (err) {
-        console.error('Error parsing mock users:', err);
-      }
-    }
-    // Static fallback
-    setUsers([
-      { id: 'USR-8902', name: 'Alok Mishra', email: 'alok.mishra@gmail.com', role: 'Buyer' },
-      { id: 'USR-3120', name: 'Simran Jeet', email: 'simran.jeet@outlook.com', role: 'Seller' },
-      { id: 'USR-4811', name: 'Vikram Developers', email: 'info@vikramdev.com', role: 'Builder' },
-      { id: 'USR-0922', name: 'Deepak Estates', email: 'deepak.estates@gmail.com', role: 'Agent' },
-      { id: 'USR-7731', name: 'Sanjay Aggarwal', email: 'sanjay.ag@gmail.com', role: 'Buyer' }
-    ]);
   };
 
   // 2. Fetch Notification History Logs
@@ -120,14 +98,13 @@ const AdminNotifications = () => {
     setError(null);
     try {
       const token = localStorage.getItem('adminToken');
-      if (!token || token === 'mock_admin_token_2026') {
-        setIsMockMode(true);
-        loadMockNotifications();
+      if (!token) {
+        setNotifications([]);
         setLoading(false);
         return;
       }
 
-      const response = await fetch('http://localhost:5001/api/admin/notifications', {
+      const response = await fetch(`${API_BASE}/api/admin/notifications`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -135,70 +112,17 @@ const AdminNotifications = () => {
       const data = await response.json();
       if (response.ok && data.status === 'success') {
         setNotifications(data.data.notifications || []);
-        setIsMockMode(false);
       } else {
         setError(data.message || 'Failed to fetch database notification logs.');
+        setNotifications([]);
       }
     } catch (err) {
-      console.warn('API logs fetch failed. Using local storage logs.', err);
-      setError('Could not connect to database. Make sure the backend server is running on port 5001.');
+      console.error('API logs fetch failed:', err);
+      setError('Could not connect to database. Make sure the backend server is running.');
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
-  };
-
-  const loadMockNotifications = () => {
-    const saved = localStorage.getItem('gharmb_admin_notifications');
-    if (saved) {
-      try {
-        setNotifications(JSON.parse(saved));
-        return;
-      } catch (err) {
-        console.error('Error loading mock notifications:', err);
-      }
-    }
-
-    const defaultLogs = [
-      {
-        _id: 'notif_1',
-        title: 'Documents Pending RERA Check',
-        message: 'Builder Vikram Developers submitted new license credentials for validation check.',
-        type: 'verification',
-        createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 mins ago
-        recipient: { name: 'Vikram Developers', email: 'info@vikramdev.com' },
-        isRead: false
-      },
-      {
-        _id: 'notif_2',
-        title: 'Escrow Account Credited',
-        message: 'Token booking payment of ₹50,000 received for Property Reference ID #GH-9092.',
-        type: 'payment',
-        createdAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(), // 2 hrs ago
-        recipient: { name: 'Alok Mishra', email: 'alok.mishra@gmail.com' },
-        isRead: true
-      },
-      {
-        _id: 'notif_3',
-        title: 'New Lead Enquiry Received',
-        message: 'Sanjay Aggarwal requested a callback regarding Imperial Heights apartments.',
-        type: 'enquiry',
-        createdAt: new Date(Date.now() - 1000 * 60 * 720).toISOString(), // 12 hrs ago
-        recipient: { name: 'Sanjay Aggarwal', email: 'sanjay.ag@gmail.com' },
-        isRead: true
-      },
-      {
-        _id: 'notif_4',
-        title: 'System Announcement: Holiday Hours',
-        message: 'Broadcast alert regarding customer support availability updates during festive weekend.',
-        type: 'system',
-        createdAt: new Date(Date.now() - 1000 * 60 * 1440 * 2).toISOString(), // 2 days ago
-        recipient: { name: 'All Users', email: 'broadcast' },
-        isRead: true
-      }
-    ];
-
-    setNotifications(defaultLogs);
-    localStorage.setItem('gharmb_admin_notifications', JSON.stringify(defaultLogs));
   };
 
   /* eslint-disable react-hooks/exhaustive-deps */
@@ -233,12 +157,11 @@ const AdminNotifications = () => {
     try {
       const token = localStorage.getItem('adminToken');
       if (!token) {
-        // Handle mock mode dispatch
-        handleMockBroadcastSubmit(payload);
+        triggerToast('Admin login token required to send notifications.', 'error');
         return;
       }
 
-      const response = await fetch('http://localhost:5001/api/admin/notifications', {
+      const response = await fetch(`${API_BASE}/api/admin/notifications`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -260,53 +183,14 @@ const AdminNotifications = () => {
         fetchNotificationLogs(); // Reload logs
         setActiveTab('history');
       } else {
-        // Try fallback if API fails
-        handleMockBroadcastSubmit(payload);
+        triggerToast(data.message || 'Failed to dispatch notification.', 'error');
       }
     } catch (err) {
-      console.warn('API dispatch failed. Saving locally.', err);
-      handleMockBroadcastSubmit(payload);
+      console.error('API dispatch failed:', err);
+      triggerToast('Network error while dispatching notification.', 'error');
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleMockBroadcastSubmit = (payload) => {
-    // Generate mock entry
-    let targetRecipient = { name: 'All Users', email: 'broadcast' };
-    if (payload.recipientId) {
-      const foundUser = users.find(u => u._id === payload.recipientId || u.id === payload.recipientId);
-      if (foundUser) {
-        targetRecipient = { name: foundUser.name, email: foundUser.email };
-      } else {
-        targetRecipient = { name: 'Target User', email: 'specific' };
-      }
-    }
-
-    const newNotif = {
-      _id: 'notif_' + Date.now(),
-      title: payload.title,
-      message: payload.message,
-      type: payload.type,
-      createdAt: new Date().toISOString(),
-      recipient: targetRecipient,
-      isRead: false
-    };
-
-    const updated = [newNotif, ...notifications];
-    setNotifications(updated);
-    localStorage.setItem('gharmb_admin_notifications', JSON.stringify(updated));
-
-    triggerToast('Notification dispatched successfully (Saved Locally)!');
-    setFormData({
-      recipientType: 'all',
-      recipientId: '',
-      title: '',
-      message: '',
-      type: 'system'
-    });
-    setSubmitting(false);
-    setActiveTab('history');
   };
 
   // Helper color tags for Notification Types
@@ -401,14 +285,6 @@ const AdminNotifications = () => {
           >
             Retry Database Connection
           </button>
-        </div>
-      ) : isMockMode ? (
-        <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-2xl flex items-center gap-3 text-xs">
-          <Info className="shrink-0 text-amber-500" size={18} />
-          <div>
-            <p className="font-extrabold text-[var(--text-primary)]">Sandbox Simulation Active</p>
-            <p className="text-[10px] text-[var(--text-muted)] mt-0.5">Showing mock/demo dataset from LocalStorage. To query the real database, please log in with a valid admin account.</p>
-          </div>
         </div>
       ) : null}
 

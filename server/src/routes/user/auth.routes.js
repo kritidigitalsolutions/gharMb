@@ -55,7 +55,8 @@ router.post('/google', authController.googleAuth);
 router.post('/refresh-token', authController.refreshToken);
 router.post('/refresh', authController.refreshToken);
 
-// ── Current user profile ──────────────────────────────────────────────────────
+// ── Current user profile & verification ─────────────────────────────────────────
 router.get('/me', userAuth, authController.getMe);
+router.get('/verification-status', userAuth, authController.getVerificationStatus);
 
 module.exports = router;

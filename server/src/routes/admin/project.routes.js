@@ -35,6 +35,7 @@ router.use(restrictTo('admin'));
  *         description: Unauthorized
  */
 router.get('/', projectController.getAllProjects);
+router.post('/', projectController.createProject);
 
 /**
  * @swagger

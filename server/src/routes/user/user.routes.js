@@ -26,6 +26,8 @@ router.post('/developers/:id/reviews', developerReviewController.createDeveloper
 router.post('/developers/:id/review', developerReviewController.createDeveloperReview);
 
 router.get('/me', userController.getMe);
+router.get('/verification-status', userController.getVerificationStatus);
+router.get('/status', userController.getVerificationStatus);
 router.get('/dashboard', propertyController.getMyDashboard);
 router.get('/my-dashboard', propertyController.getMyDashboard);
 
