@@ -37,6 +37,7 @@ const User = require('../../models/user.model');
 const Admin = require('../../models/admin.model');
 const Notification = require('../../models/notification.model');
 const generateToken = require('../../utils/generateToken');
+const { generateRefreshToken, generateAuthTokens, verifyRefreshToken } = generateToken;
 const { auth: firebaseAuth } = require('../../config/firebase');
 const { OAuth2Client } = require('google-auth-library');
 
@@ -177,7 +178,7 @@ exports.registerUser = async (req, res, next) => {
       console.warn('[Auth] Admin notification error (non-fatal):', notifErr.message);
     }
 
-    const token = generateToken(newUser._id, newUser.role);
+    const { token, refreshToken } = generateAuthTokens(newUser._id, newUser.role);
 
     console.log(`\n==================================================`);
     console.log(`✅ [NEW USER REGISTERED — No OTP]`);
@@ -194,7 +195,12 @@ exports.registerUser = async (req, res, next) => {
       isOnboardingCompleted: false,
       nextScreen: 'role_selection',
       token,
+      accessToken: token,
+      refreshToken,
       data: {
+        token,
+        accessToken: token,
+        refreshToken,
         user: buildUserResponse(newUser),
       },
     });
@@ -392,7 +398,7 @@ exports.verifyOtp = async (req, res, next) => {
     // ── EXISTING USER: successful login ─────────────────────────────────────
     otpStore.delete(normalizedPhone);
 
-    const token = generateToken(user._id, user.role);
+    const { token, refreshToken } = generateAuthTokens(user._id, user.role);
 
     console.log(`\n==================================================`);
     console.log(`🚀 [OTP VERIFIED — LOGIN SUCCESS]`);
@@ -412,7 +418,12 @@ exports.verifyOtp = async (req, res, next) => {
       // 'role_selection' → user hasn't completed onboarding yet
       nextScreen: user.isOnboardingCompleted ? 'home' : 'role_selection',
       token,
+      accessToken: token,
+      refreshToken,
       data: {
+        token,
+        accessToken: token,
+        refreshToken,
         user: buildUserResponse(user),
       },
     });
@@ -483,7 +494,7 @@ exports.updateProfile = async (req, res, next) => {
       runValidators: true,
     });
 
-    const token = generateToken(user._id, user.role);
+    const { token, refreshToken } = generateAuthTokens(user._id, user.role);
 
     return res.status(200).json({
       status: 'success',
@@ -496,7 +507,14 @@ exports.updateProfile = async (req, res, next) => {
         ? 'role_selection'
         : 'basic_info',
       token,
-      data: { user: buildUserResponse(user) },
+      accessToken: token,
+      refreshToken,
+      data: {
+        token,
+        accessToken: token,
+        refreshToken,
+        user: buildUserResponse(user),
+      },
     });
   } catch (error) {
     next(error);
@@ -591,7 +609,7 @@ exports.submitBasicInfo = async (req, res, next) => {
       });
     }
 
-    const token = generateToken(targetUser._id, targetUser.role);
+    const { token, refreshToken } = generateAuthTokens(targetUser._id, targetUser.role);
 
     return res.status(200).json({
       status: 'success',
@@ -600,7 +618,14 @@ exports.submitBasicInfo = async (req, res, next) => {
       isOnboardingCompleted: targetUser.isOnboardingCompleted || false,
       nextScreen: targetUser.isOnboardingCompleted ? 'home' : 'role_selection',
       token,
-      data: { user: buildUserResponse(targetUser) },
+      accessToken: token,
+      refreshToken,
+      data: {
+        token,
+        accessToken: token,
+        refreshToken,
+        user: buildUserResponse(targetUser),
+      },
     });
   } catch (error) {
     next(error);
@@ -759,7 +784,7 @@ exports.googleAuth = async (req, res, next) => {
       }
     }
 
-    const platformToken = generateToken(user._id, user.role);
+    const { token: platformToken, refreshToken } = generateAuthTokens(user._id, user.role);
 
     const hasBasicInfo = Boolean(user.isBasicInfoCompleted || (user.phone && user.address?.formattedAddress));
     const nextScreen = !hasBasicInfo ? 'basic_info' : user.isOnboardingCompleted ? 'home' : 'role_selection';
@@ -783,7 +808,14 @@ exports.googleAuth = async (req, res, next) => {
       isOnboardingCompleted: user.isOnboardingCompleted || false,
       nextScreen,
       token: platformToken,
-      data: { user: buildUserResponse(user) },
+      accessToken: platformToken,
+      refreshToken,
+      data: {
+        token: platformToken,
+        accessToken: platformToken,
+        refreshToken,
+        user: buildUserResponse(user),
+      },
     });
   } catch (error) {
     next(error);
@@ -809,6 +841,146 @@ exports.getMe = async (req, res, next) => {
       status: 'success',
       data: { user: buildUserResponse(user) },
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Refresh Authentication Token
+// @route   POST /api/user/auth/refresh-token  OR  POST /api/user/auth/refresh
+//          POST /api/auth/refresh-token       OR  POST /api/auth/refresh
+// @access  Public
+// ─────────────────────────────────────────────────────────────────────────────
+exports.refreshToken = async (req, res, next) => {
+  try {
+    // 1. Extract refresh token from multiple sources (body, headers, query)
+    let refreshToken =
+      req.body?.refreshToken ||
+      req.body?.token ||
+      req.headers['x-refresh-token'];
+
+    if (!refreshToken && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      refreshToken = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!refreshToken && req.query?.refreshToken) {
+      refreshToken = req.query.refreshToken;
+    }
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        status: 'fail',
+        code: 'TOKEN_REQUIRED',
+        message: 'Refresh token is required. Please provide it in request body (refreshToken) or Authorization header.',
+      });
+    }
+
+    // 2. Verify Refresh Token signature and expiry
+    let decoded;
+    try {
+      decoded = verifyRefreshToken(refreshToken);
+    } catch (err) {
+      if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          status: 'fail',
+          code: 'TOKEN_EXPIRED',
+          message: 'Refresh token has expired. Please log in again.',
+        });
+      }
+      return res.status(401).json({
+        status: 'fail',
+        code: 'INVALID_TOKEN',
+        message: 'Invalid refresh token. Please log in again.',
+      });
+    }
+
+    if (!decoded || !decoded.id) {
+      return res.status(401).json({
+        status: 'fail',
+        code: 'INVALID_PAYLOAD',
+        message: 'Invalid token payload.',
+      });
+    }
+
+    // 3. Find associated User or Admin
+    let user = null;
+    let isAdmin = false;
+    const roleStr = (decoded.role || '').toLowerCase();
+
+    if (roleStr === 'admin' || roleStr === 'superadmin' || roleStr === 'super_admin') {
+      user = await Admin.findById(decoded.id);
+      if (user) isAdmin = true;
+    }
+
+    if (!user) {
+      user = await User.findById(decoded.id);
+    }
+
+    // Fallback: If not found in primary collection, check Admin model
+    if (!user) {
+      user = await Admin.findById(decoded.id);
+      if (user) isAdmin = true;
+    }
+
+    if (!user) {
+      return res.status(401).json({
+        status: 'fail',
+        code: 'USER_NOT_FOUND',
+        message: 'The user belonging to this token no longer exists.',
+      });
+    }
+
+    // 4. Check whether the account is blocked or deactivated
+    if (user.status === 'Blocked' || user.isActive === false) {
+      return res.status(403).json({
+        status: 'fail',
+        code: 'ACCOUNT_SUSPENDED',
+        message: 'Your account has been suspended or deactivated. Please contact support.',
+      });
+    }
+
+    // 5. Generate fresh tokens (access token and rotated refresh token)
+    const newTokens = generateAuthTokens(user._id, user.role);
+
+    // 6. Build response
+    const responsePayload = {
+      status: 'success',
+      message: 'Auth token refreshed successfully.',
+      token: newTokens.token,
+      accessToken: newTokens.accessToken,
+      refreshToken: newTokens.refreshToken,
+    };
+
+    if (isAdmin) {
+      const adminData = {
+        id: user._id,
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar || null,
+        firebaseUid: user.firebaseUid || null,
+      };
+      responsePayload.admin = adminData;
+      responsePayload.data = {
+        token: newTokens.token,
+        accessToken: newTokens.accessToken,
+        refreshToken: newTokens.refreshToken,
+        admin: adminData,
+      };
+    } else {
+      const userData = buildUserResponse(user);
+      responsePayload.user = userData;
+      responsePayload.data = {
+        token: newTokens.token,
+        accessToken: newTokens.accessToken,
+        refreshToken: newTokens.refreshToken,
+        user: userData,
+      };
+    }
+
+    return res.status(200).json(responsePayload);
   } catch (error) {
     next(error);
   }

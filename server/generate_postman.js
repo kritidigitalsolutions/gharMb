@@ -19,7 +19,9 @@ const collection = {
   variable: [
     { key: "baseUrl", value: "http://localhost:5001/api", type: "string" },
     { key: "adminToken", value: "", type: "string" },
+    { key: "adminRefreshToken", value: "", type: "string" },
     { key: "userToken", value: "", type: "string" },
+    { key: "userRefreshToken", value: "", type: "string" },
     { key: "ownerToken", value: "", type: "string" },
     { key: "agentToken", value: "", type: "string" },
     { key: "developerToken", value: "", type: "string" },
@@ -82,6 +84,10 @@ const collection = {
                       "    pm.collectionVariables.set('userToken', jsonData.token);",
                       "    pm.collectionVariables.set('ownerToken', jsonData.token);",
                       "    console.log('✅ userToken & ownerToken set successfully');",
+                      "}",
+                      "if (jsonData.refreshToken) {",
+                      "    pm.collectionVariables.set('userRefreshToken', jsonData.refreshToken);",
+                      "    console.log('✅ userRefreshToken set successfully');",
                       "}"
                     ],
                     type: "text/javascript"
@@ -120,6 +126,25 @@ const collection = {
             },
             {
               name: "04. Complete Registration Details",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.token) {",
+                      "    pm.collectionVariables.set('userToken', jsonData.token);",
+                      "    console.log('✅ userToken set from Registration');",
+                      "}",
+                      "if (jsonData.refreshToken) {",
+                      "    pm.collectionVariables.set('userRefreshToken', jsonData.refreshToken);",
+                      "    console.log('✅ userRefreshToken set from Registration');",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
               request: {
                 method: "POST",
                 header: [{ key: "Content-Type", value: "application/json" }],
@@ -153,6 +178,10 @@ const collection = {
                       "        pm.collectionVariables.set('userId', jsonData.data.user.id);",
                       "    }",
                       "    console.log('✅ userToken & userId set successfully from Google Sign-In');",
+                      "}",
+                      "if (jsonData.refreshToken) {",
+                      "    pm.collectionVariables.set('userRefreshToken', jsonData.refreshToken);",
+                      "    console.log('✅ userRefreshToken set successfully from Google Sign-In');",
                       "}"
                     ],
                     type: "text/javascript"
@@ -228,6 +257,47 @@ const collection = {
                   host: ["{{baseUrl}}"],
                   path: ["user", "auth", "basic-info"]
                 }
+              }
+            },
+            {
+              name: "08. Refresh User Auth Token (Auto-updates userToken & userRefreshToken)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.token) {",
+                      "    pm.collectionVariables.set('userToken', jsonData.token);",
+                      "    pm.collectionVariables.set('ownerToken', jsonData.token);",
+                      "    console.log('✅ userToken refreshed successfully');",
+                      "}",
+                      "if (jsonData.refreshToken) {",
+                      "    pm.collectionVariables.set('userRefreshToken', jsonData.refreshToken);",
+                      "    console.log('✅ userRefreshToken rotated and updated');",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    refreshToken: "{{userRefreshToken}}"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/user/auth/refresh-token",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "auth", "refresh-token"]
+                },
+                description: "Exchanges a valid refresh token for a new access token and rotated refresh token."
               }
             }
           ]
@@ -1388,6 +1458,10 @@ const collection = {
                       "if (jsonData.token) {",
                       "    pm.collectionVariables.set('adminToken', jsonData.token);",
                       "    console.log('✅ adminToken set successfully');",
+                      "}",
+                      "if (jsonData.refreshToken) {",
+                      "    pm.collectionVariables.set('adminRefreshToken', jsonData.refreshToken);",
+                      "    console.log('✅ adminRefreshToken set successfully');",
                       "}"
                     ],
                     type: "text/javascript"
@@ -1431,6 +1505,10 @@ const collection = {
                       "if (jsonData.token) {",
                       "    pm.collectionVariables.set('adminToken', jsonData.token);",
                       "    console.log('✅ adminToken set successfully from Admin Google Sign-In');",
+                      "}",
+                      "if (jsonData.refreshToken) {",
+                      "    pm.collectionVariables.set('adminRefreshToken', jsonData.refreshToken);",
+                      "    console.log('✅ adminRefreshToken set successfully from Admin Google Sign-In');",
                       "}"
                     ],
                     type: "text/javascript"
@@ -1452,6 +1530,46 @@ const collection = {
                   host: ["{{baseUrl}}"],
                   path: ["admin", "auth", "google"]
                 }
+              }
+            },
+            {
+              name: "04. Refresh Admin Auth Token (Auto-updates adminToken & adminRefreshToken)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.token) {",
+                      "    pm.collectionVariables.set('adminToken', jsonData.token);",
+                      "    console.log('✅ adminToken refreshed successfully');",
+                      "}",
+                      "if (jsonData.refreshToken) {",
+                      "    pm.collectionVariables.set('adminRefreshToken', jsonData.refreshToken);",
+                      "    console.log('✅ adminRefreshToken rotated and updated');",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    refreshToken: "{{adminRefreshToken}}"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/auth/refresh-token",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "auth", "refresh-token"]
+                },
+                description: "Exchanges a valid admin refresh token for a new access token and rotated refresh token."
               }
             }
           ]

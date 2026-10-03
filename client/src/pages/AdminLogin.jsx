@@ -28,6 +28,10 @@ const AdminLogin = ({ onLoginSuccess }) => {
 
       if (token) {
         localStorage.setItem('adminToken', token);
+        const refreshToken = data?.refreshToken || data?.data?.refreshToken;
+        if (refreshToken) {
+          localStorage.setItem('adminRefreshToken', refreshToken);
+        }
         if (admin) {
           localStorage.setItem('admin', JSON.stringify(admin));
           localStorage.setItem('adminUser', JSON.stringify(admin));
@@ -83,6 +87,10 @@ const AdminLogin = ({ onLoginSuccess }) => {
 
       if (token) {
         localStorage.setItem('adminToken', token);
+        const refreshToken = data?.refreshToken || data?.data?.refreshToken;
+        if (refreshToken) {
+          localStorage.setItem('adminRefreshToken', refreshToken);
+        }
         if (admin) {
           localStorage.setItem('admin', JSON.stringify(admin));
           localStorage.setItem('adminUser', JSON.stringify(admin));
