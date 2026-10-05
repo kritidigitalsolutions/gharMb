@@ -47,10 +47,12 @@ exports.createFaq = async (req, res, next) => {
 // @access  Private (Admin only)
 exports.getAllFaqs = async (req, res, next) => {
   try {
-    const { category, search, sort = 'desc' } = req.query;
+    const { category, search, status, sort = 'desc' } = req.query;
 
     const query = {};
     if (category) query.category = category;
+    if (status === 'active') query.isActive = true;
+    if (status === 'inactive') query.isActive = false;
     
     if (search) {
       query.$or = [
@@ -59,14 +61,24 @@ exports.getAllFaqs = async (req, res, next) => {
       ];
     }
 
-    const faqs = await Faq.find(query)
-      .populate('category', 'name slug')
-      .sort({ createdAt: sort === 'asc' ? 1 : -1 })
-      .lean();
+    const [faqs, totalFaqs, activeCount, inactiveCount] = await Promise.all([
+      Faq.find(query)
+        .populate('category', 'name slug')
+        .sort({ sortOrder: 1, createdAt: sort === 'asc' ? 1 : -1 })
+        .lean(),
+      Faq.countDocuments(),
+      Faq.countDocuments({ isActive: true }),
+      Faq.countDocuments({ isActive: false })
+    ]);
 
     res.status(200).json({
       status: 'success',
       results: faqs.length,
+      stats: {
+        total: totalFaqs,
+        active: activeCount,
+        inactive: inactiveCount,
+      },
       data: { faqs },
     });
   } catch (error) {

@@ -1,14 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  Plus, Search, Filter, Edit, Trash2,
-  CheckCircle2, XCircle, Clock, Folder, AlertCircle, RefreshCw, 
-  Layers, CheckSquare, Square, X, ArrowRight, Quote, ImageIcon, ArrowUp, ArrowDown, ArrowUpDown
+  Plus, Search, Filter, Edit, Trash2, Eye,
+  CheckCircle2, XCircle, Clock, AlertCircle, RefreshCw,
+  CheckSquare, Square, X, Quote, ImageIcon, ArrowUpDown,
+  ShieldCheck, MapPin, Building2, Sparkles, ChevronRight,
+  RotateCcw, Upload, Check, ExternalLink, SlidersHorizontal
 } from 'lucide-react';
 import API from '../api/api';
 
+const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
+
+const getMediaUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('blob:') || url.startsWith('data:')) return url;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('/uploads')) return `${API_BASE}${url}`;
+  const match = url.match(/\/uploads\/[^\s"']+/);
+  if (match) return `${API_BASE}${match[0]}`;
+  return `${API_BASE}/${url.replace(/^\/+/, '')}`;
+};
+
+// Generates a soft pastel gradient avatar based on the author's name
+const getInitials = (name = '') => {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0 || !parts[0]) return 'MB';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
+const getAvatarGradient = (name = '') => {
+  const gradients = [
+    'from-orange-500 to-amber-500 text-white',
+    'from-blue-500 to-indigo-600 text-white',
+    'from-emerald-500 to-teal-600 text-white',
+    'from-rose-500 to-pink-600 text-white',
+    'from-violet-500 to-purple-600 text-white',
+    'from-cyan-500 to-blue-600 text-white',
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return gradients[Math.abs(hash) % gradients.length];
+};
+
 const TestimonialManagement = () => {
   const navigate = useNavigate();
+
+  // Primary Data States
   const [testimonials, setTestimonials] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -16,17 +57,25 @@ const TestimonialManagement = () => {
   // Selection & Bulk Operations
   const [selectedIds, setSelectedIds] = useState([]);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   // Filters & Search
   const [search, setSearch] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('');
-  const [sortDirection, setSortDirection] = useState('desc');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'active' | 'inactive'
+  const [verifiedFilter, setVerifiedFilter] = useState('all'); // 'all' | 'verified' | 'unverified'
+  const [sortDirection, setSortDirection] = useState('desc'); // 'desc' (newest) | 'asc' (oldest)
+
+  // Quick Inline Status Updating tracker
+  const [statusTogglingId, setStatusTogglingId] = useState(null);
+
+  // Live Card Preview Modal
+  const [previewTestimonial, setPreviewTestimonial] = useState(null);
 
   // Form Modal (Add / Edit)
-  const [modalState, setModalState] = useState({
+  const initialModalState = {
     open: false,
-    mode: 'create', // 'create' or 'edit'
+    mode: 'create', // 'create' | 'edit'
     id: null,
     quote: '',
     name: '',
@@ -35,7 +84,6 @@ const TestimonialManagement = () => {
     propertyType: '',
     journeyType: '',
     stages: 'Discover, Verify, Understand, Decide',
-    activeStageIndex: 1,
     activeStageIndex: 1,
     avatar: '',
     avatarFile: null,
@@ -48,7 +96,8 @@ const TestimonialManagement = () => {
     displayOrder: 0,
     isSubmitting: false,
     error: null,
-  });
+  };
+  const [modalState, setModalState] = useState(initialModalState);
 
   // Single Delete modal state
   const [deleteModal, setDeleteModal] = useState({
@@ -58,12 +107,17 @@ const TestimonialManagement = () => {
     isDeleting: false
   });
 
-  // Toast
+  // Toast Notification
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-
   const triggerToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 4000);
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3500);
+  };
+
+  // Image load error cache
+  const [imageErrors, setImageErrors] = useState({});
+  const handleImageError = (id) => {
+    setImageErrors(prev => ({ ...prev, [id]: true }));
   };
 
   // Fetch testimonials
@@ -73,8 +127,8 @@ const TestimonialManagement = () => {
     try {
       const params = {};
       if (search.trim()) params.search = search.trim();
-      if (selectedStatus === 'active') params.isActive = true;
-      if (selectedStatus === 'inactive') params.isActive = false;
+      if (statusFilter === 'active') params.isActive = true;
+      if (statusFilter === 'inactive') params.isActive = false;
       params.sort = sortDirection;
 
       const res = await API.get('/admin/testimonials', { params });
@@ -83,7 +137,7 @@ const TestimonialManagement = () => {
       }
     } catch (err) {
       console.error('Error fetching testimonials:', err);
-      setError('Failed to load testimonials.');
+      setError('Failed to load testimonials. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -91,18 +145,35 @@ const TestimonialManagement = () => {
 
   useEffect(() => {
     fetchTestimonials();
-  }, [search, selectedStatus, sortDirection]);
+  }, [search, statusFilter, sortDirection]);
 
+  // Derived filtered items (client-side filters like verified)
+  const filteredTestimonials = useMemo(() => {
+    return testimonials.filter(t => {
+      if (verifiedFilter === 'verified' && !t.isVerified) return false;
+      if (verifiedFilter === 'unverified' && t.isVerified) return false;
+      return true;
+    });
+  }, [testimonials, verifiedFilter]);
+
+  // Summary Metrics
+  const stats = useMemo(() => {
+    const total = testimonials.length;
+    const active = testimonials.filter(t => t.isActive).length;
+    const verified = testimonials.filter(t => t.isVerified).length;
+    const inactive = total - active;
+    return { total, active, verified, inactive };
+  }, [testimonials]);
 
   // Selection helpers
-  const isAllSelected = testimonials.length > 0 && selectedIds.length === testimonials.length;
-  const isSomeSelected = selectedIds.length > 0 && selectedIds.length < testimonials.length;
+  const isAllSelected = filteredTestimonials.length > 0 && selectedIds.length === filteredTestimonials.length;
+  const isSomeSelected = selectedIds.length > 0 && selectedIds.length < filteredTestimonials.length;
 
   const handleToggleSelectAll = () => {
     if (isAllSelected) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(testimonials.map(t => t._id));
+      setSelectedIds(filteredTestimonials.map(t => t._id));
     }
   };
 
@@ -110,6 +181,68 @@ const TestimonialManagement = () => {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
+  };
+
+  // 1-Click Fast Inline Status Toggle
+  const handleToggleStatus = async (id, currentStatus, e) => {
+    if (e) e.stopPropagation();
+    if (statusTogglingId) return;
+
+    setStatusTogglingId(id);
+    const newStatus = !currentStatus;
+
+    // Optimistic UI update
+    setTestimonials(prev =>
+      prev.map(t => (t._id === id ? { ...t, isActive: newStatus } : t))
+    );
+
+    try {
+      await API.put(`/admin/testimonials/${id}`, { isActive: newStatus });
+      triggerToast(`Story ${newStatus ? 'published' : 'hidden'} successfully`);
+    } catch (err) {
+      // Revert on error
+      setTestimonials(prev =>
+        prev.map(t => (t._id === id ? { ...t, isActive: currentStatus } : t))
+      );
+      triggerToast('Failed to update status', 'error');
+    } finally {
+      setStatusTogglingId(null);
+    }
+  };
+
+  // Bulk Status Update (Activate / Deactivate)
+  const handleBulkStatus = async (isActive) => {
+    if (selectedIds.length === 0) return;
+    setIsBulkUpdating(true);
+
+    try {
+      await API.post('/admin/testimonials/bulk-status', {
+        ids: selectedIds,
+        isActive
+      });
+
+      setTestimonials(prev =>
+        prev.map(t => selectedIds.includes(t._id) ? { ...t, isActive } : t)
+      );
+      triggerToast(`${selectedIds.length} stories marked as ${isActive ? 'active' : 'inactive'}`);
+      setSelectedIds([]);
+    } catch (err) {
+      // Fallback: batch individual updates if server bulk-status isn't reachable
+      try {
+        await Promise.all(
+          selectedIds.map(id => API.put(`/admin/testimonials/${id}`, { isActive }))
+        );
+        setTestimonials(prev =>
+          prev.map(t => selectedIds.includes(t._id) ? { ...t, isActive } : t)
+        );
+        triggerToast(`${selectedIds.length} stories updated successfully`);
+        setSelectedIds([]);
+      } catch (fallbackErr) {
+        triggerToast('Failed to update selected stories', 'error');
+      }
+    } finally {
+      setIsBulkUpdating(false);
+    }
   };
 
   // Single Delete
@@ -121,6 +254,7 @@ const TestimonialManagement = () => {
       setTestimonials(prev => prev.filter(t => t._id !== deleteModal.id));
       setSelectedIds(prev => prev.filter(id => id !== deleteModal.id));
       setDeleteModal({ open: false, id: null, name: '', isDeleting: false });
+      if (previewTestimonial?._id === deleteModal.id) setPreviewTestimonial(null);
     } catch (err) {
       triggerToast(err.response?.data?.message || 'Failed to delete testimonial', 'error');
       setDeleteModal(prev => ({ ...prev, isDeleting: false }));
@@ -137,6 +271,9 @@ const TestimonialManagement = () => {
       setTestimonials(prev => prev.filter(t => !selectedIds.includes(t._id)));
       setSelectedIds([]);
       setShowBulkDeleteModal(false);
+      if (previewTestimonial && selectedIds.includes(previewTestimonial._id)) {
+        setPreviewTestimonial(null);
+      }
     } catch (err) {
       triggerToast(err.response?.data?.message || 'Failed to delete testimonials', 'error');
     } finally {
@@ -147,14 +284,13 @@ const TestimonialManagement = () => {
   // Add / Edit Modal Submit
   const handleModalSubmit = async (e) => {
     e.preventDefault();
-    const { 
-      quote, name, role, location, propertyType, journeyType, 
-      stages, activeStageIndex, avatar, propertyImage, 
-      isVerified, isActive, displayOrder, mode, id 
+    const {
+      quote, name, role, location, propertyType, journeyType,
+      stages, activeStageIndex, isVerified, isActive, displayOrder, mode, id
     } = modalState;
 
     if (!quote.trim() || !name.trim()) {
-      setModalState(prev => ({ ...prev, error: 'Name and Quote are required fields' }));
+      setModalState(prev => ({ ...prev, error: 'Author Name and Quote are required fields' }));
       return;
     }
 
@@ -162,44 +298,56 @@ const TestimonialManagement = () => {
 
     try {
       const formData = new FormData();
-      formData.append('quote', quote);
-      formData.append('name', name);
-      formData.append('role', role);
-      formData.append('location', location);
-      formData.append('propertyType', propertyType);
-      formData.append('journeyType', journeyType);
-      formData.append('stages', JSON.stringify(stages.split(',').map(s => s.trim())));
-      formData.append('activeStageIndex', activeStageIndex);
+      formData.append('quote', quote.trim());
+      formData.append('name', name.trim());
+      formData.append('role', role.trim());
+      formData.append('location', location.trim());
+      formData.append('propertyType', propertyType.trim());
+      formData.append('journeyType', journeyType.trim());
+
+      const stagesList = stages
+        ? stages.split(',').map(s => s.trim()).filter(Boolean)
+        : ['Discover', 'Verify', 'Understand', 'Decide'];
+      formData.append('stages', JSON.stringify(stagesList));
+      formData.append('activeStageIndex', Math.max(0, parseInt(activeStageIndex, 10) || 0));
       formData.append('isVerified', isVerified);
       formData.append('isActive', isActive);
-      formData.append('displayOrder', displayOrder);
-      
+      formData.append('sortOrder', parseInt(displayOrder, 10) || 0);
+
       if (modalState.avatarFile) formData.append('avatar', modalState.avatarFile);
       if (modalState.propertyImageFile) formData.append('propertyImage', modalState.propertyImageFile);
-      
+
       if (modalState.removeAvatar) formData.append('removeAvatar', 'true');
       if (modalState.removePropertyImage) formData.append('removePropertyImage', 'true');
-
-      // Note: the backend config handles parsing FormData
 
       if (mode === 'create') {
         const res = await API.post('/admin/testimonials', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         triggerToast('Testimonial created successfully');
-        setTestimonials([res.data.data.testimonial, ...testimonials]);
+        if (res.data?.data?.testimonial) {
+          setTestimonials([res.data.data.testimonial, ...testimonials]);
+        } else {
+          fetchTestimonials();
+        }
       } else {
         const res = await API.put(`/admin/testimonials/${id}`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         triggerToast('Testimonial updated successfully');
-        setTestimonials(testimonials.map(t => t._id === id ? res.data.data.testimonial : t));
+        if (res.data?.data?.testimonial) {
+          const updated = res.data.data.testimonial;
+          setTestimonials(testimonials.map(t => (t._id === id ? updated : t)));
+          if (previewTestimonial?._id === id) setPreviewTestimonial(updated);
+        } else {
+          fetchTestimonials();
+        }
       }
-      setModalState(prev => ({ ...prev, open: false }));
+      setModalState(initialModalState);
     } catch (err) {
       setModalState(prev => ({
         ...prev,
-        error: err.response?.data?.message || 'Something went wrong',
+        error: err.response?.data?.message || 'Something went wrong while saving.',
         isSubmitting: false
       }));
     }
@@ -207,33 +355,14 @@ const TestimonialManagement = () => {
 
   const openAddModal = () => {
     setModalState({
+      ...initialModalState,
       open: true,
-      mode: 'create',
-      id: null,
-      quote: '',
-      name: '',
-      role: '',
-      location: '',
-      propertyType: '',
-      journeyType: '',
-      stages: 'Discover, Verify, Understand, Decide',
-      activeStageIndex: 1,
-      activeStageIndex: 1,
-      avatar: '',
-      avatarFile: null,
-      removeAvatar: false,
-      propertyImage: '',
-      propertyImageFile: null,
-      removePropertyImage: false,
-      isVerified: true,
-      isActive: true,
-      displayOrder: 0,
-      isSubmitting: false,
-      error: null,
+      mode: 'create'
     });
   };
 
-  const openEditModal = (t) => {
+  const openEditModal = (t, e) => {
+    if (e) e.stopPropagation();
     setModalState({
       open: true,
       mode: 'edit',
@@ -244,18 +373,17 @@ const TestimonialManagement = () => {
       location: t.location || '',
       propertyType: t.propertyType || '',
       journeyType: t.journeyType || '',
-      stages: (t.stages || []).join(', '),
-      activeStageIndex: t.activeStageIndex || 0,
-      activeStageIndex: t.activeStageIndex || 0,
-      avatar: t.avatar || '',
+      stages: (t.stages || ['Discover', 'Verify', 'Understand', 'Decide']).join(', '),
+      activeStageIndex: t.activeStageIndex !== undefined ? t.activeStageIndex : 1,
+      avatar: t.avatar ? getMediaUrl(t.avatar) : '',
       avatarFile: null,
       removeAvatar: false,
-      propertyImage: t.propertyImage || '',
+      propertyImage: t.propertyImage ? getMediaUrl(t.propertyImage) : '',
       propertyImageFile: null,
       removePropertyImage: false,
       isVerified: t.isVerified ?? true,
       isActive: t.isActive ?? true,
-      displayOrder: t.displayOrder || 0,
+      displayOrder: t.sortOrder || t.displayOrder || 0,
       isSubmitting: false,
       error: null,
     });
@@ -267,7 +395,7 @@ const TestimonialManagement = () => {
       setModalState(prev => ({
         ...prev,
         [`${field}File`]: file,
-        [field]: URL.createObjectURL(file), // for preview
+        [field]: URL.createObjectURL(file),
         [`remove${field.charAt(0).toUpperCase() + field.slice(1)}`]: false
       }));
     }
@@ -282,528 +410,1132 @@ const TestimonialManagement = () => {
     }));
   };
 
+  const hasActiveFilters = search.trim() !== '' || statusFilter !== 'all' || verifiedFilter !== 'all';
+  const handleResetFilters = () => {
+    setSearch('');
+    setStatusFilter('all');
+    setVerifiedFilter('all');
+  };
+
   return (
-    <div className="min-h-screen bg-[#F8F8F7] pb-20">
+    <div className="space-y-6 pb-16">
       {/* Toast Notification */}
       {toast.show && (
-        <div className="fixed bottom-6 right-6 z-50 animate-fade-in-up">
-          <div className={`flex items-center gap-3 px-5 py-3.5 rounded-xl border shadow-lg ${
+        <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-3 duration-300">
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg ${
             toast.type === 'error'
-              ? 'bg-red-50 border-red-100 text-red-800'
-              : 'bg-white border-[#E8E5E1] text-[#17202A]'
+              ? 'bg-red-50 dark:bg-red-950/70 border-red-200 dark:border-red-800 text-red-800 dark:text-red-300'
+              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 shadow-slate-200/50 dark:shadow-black/40'
           }`}>
             {toast.type === 'error' ? (
-              <XCircle size={18} className="text-red-500" />
+              <XCircle size={18} className="text-red-500 shrink-0" />
             ) : (
-              <CheckCircle2 size={18} className="text-[#16A66A]" />
+              <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
             )}
-            <p className="text-[13.5px] font-semibold">{toast.message}</p>
+            <p className="text-xs font-semibold">{toast.message}</p>
           </div>
         </div>
       )}
 
-      {/* Header */}
-      <div className="bg-white border-b border-[#E8E5E1] sticky top-0 z-30">
-        <div className="max-w-[1600px] mx-auto px-6 py-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 text-[12px] font-medium text-[#64748B] mb-1">
-                <span>Content</span>
-                <span className="w-1 h-1 rounded-full bg-[#D1D5DB]" />
-                <span className="text-[#17202A]">Testimonials</span>
-              </div>
-              <h1 className="text-[24px] font-bold text-[#17202A] tracking-tight">Real Stories</h1>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={openAddModal}
-                className="inline-flex items-center gap-2 px-4 py-2 text-[13.5px] font-semibold text-white bg-[#FF5A3C] rounded-xl hover:bg-[#E04F34] transition-all shadow-sm hover:shadow active:scale-[0.98]"
-              >
-                <Plus size={16} />
-                Add Testimonial
-              </button>
-            </div>
+      {/* Header & Page Action */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-medium text-[var(--text-muted)] mb-1">
+            <span>Content</span>
+            <ChevronRight size={12} className="text-slate-400" />
+            <span className="text-[var(--text-primary)] font-semibold">Testimonials</span>
           </div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">Real Stories</h1>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand/10 text-brand border border-brand/20">
+              {stats.total} {stats.total === 1 ? 'story' : 'stories'}
+            </span>
+          </div>
+          <p className="text-xs text-[var(--text-muted)] mt-1">
+            Manage authentic customer experiences, verified badges, and social proof shown on GharMB.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5 shrink-0">
+          <button
+            onClick={fetchTestimonials}
+            disabled={isLoading}
+            className="p-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors shadow-2xs cursor-pointer"
+            title="Refresh Stories"
+          >
+            <RefreshCw size={15} className={isLoading ? 'animate-spin text-brand' : ''} />
+          </button>
+
+          <button
+            onClick={openAddModal}
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-brand hover:bg-brand-dark rounded-xl transition-all shadow-xs hover:shadow active:scale-[0.98] cursor-pointer"
+          >
+            <Plus size={16} />
+            <span>Add Testimonial</span>
+          </button>
         </div>
       </div>
 
-      <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-6">
-        
-        {/* Bulk Actions Bar */}
-        {selectedIds.length > 0 && (
-          <div className="bg-white border border-[#FF5A3C]/20 rounded-xl p-3 flex items-center justify-between shadow-sm animate-fade-in">
-            <div className="flex items-center gap-3 pl-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-md bg-[#FFF0ED] text-[#FF5A3C] text-[12px] font-bold">
-                {selectedIds.length}
-              </span>
-              <span className="text-[13.5px] font-medium text-[#17202A]">
-                Selected
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowBulkDeleteModal(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100"
-              >
-                <Trash2 size={14} />
-                Delete Selected
-              </button>
-              <button
-                onClick={() => setSelectedIds([])}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-[#64748B] hover:text-[#17202A] hover:bg-[#F8F8F7] rounded-lg transition-colors"
-              >
-                <X size={14} />
-                Cancel
-              </button>
+      {/* Minimal Interactive Metric Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        {/* Total Stories */}
+        <button
+          type="button"
+          onClick={() => { setStatusFilter('all'); setVerifiedFilter('all'); }}
+          className={`p-4 rounded-xl text-left bg-[var(--bg-surface)] border transition-all cursor-pointer ${
+            statusFilter === 'all' && verifiedFilter === 'all'
+              ? 'border-brand ring-1 ring-brand/30 shadow-xs'
+              : 'border-[var(--border)] hover:border-slate-300 dark:hover:border-slate-700'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-[var(--text-muted)]">Total Stories</span>
+            <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+              <Quote size={14} />
             </div>
           </div>
-        )}
+          <div className="mt-3 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+              {stats.total}
+            </span>
+            <span className="text-[11px] font-medium text-[var(--text-muted)]">In database</span>
+          </div>
+        </button>
 
-        {/* Filters & Search */}
-        <div className="bg-white rounded-2xl border border-[#E8E5E1] shadow-sm p-4">
-          <div className="flex flex-col sm:flex-row items-center gap-4">
-            {/* Search */}
-            <div className="relative flex-1 w-full">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-              <input
-                type="text"
-                placeholder="Search name, quote, or role..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-[#F8F8F7] border border-[#E8E5E1] rounded-xl text-[13.5px] text-[#17202A] placeholder:text-[#94A3B8] focus:outline-none focus:bg-white focus:border-[#FF5A3C] focus:ring-1 focus:ring-[#FF5A3C] transition-all"
-              />
+        {/* Live / Active */}
+        <button
+          type="button"
+          onClick={() => setStatusFilter(prev => prev === 'active' ? 'all' : 'active')}
+          className={`p-4 rounded-xl text-left bg-[var(--bg-surface)] border transition-all cursor-pointer ${
+            statusFilter === 'active'
+              ? 'border-emerald-500 ring-1 ring-emerald-500/30 shadow-xs'
+              : 'border-[var(--border)] hover:border-slate-300 dark:hover:border-slate-700'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-[var(--text-muted)]">Live on Site</span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 size={14} />
             </div>
+          </div>
+          <div className="mt-3 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tracking-tight">
+              {stats.active}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Active
+            </span>
+          </div>
+        </button>
 
-            {/* Status Filter */}
-            <div className="relative min-w-[160px] w-full sm:w-auto">
-              <Filter size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="w-full pl-10 pr-8 py-2.5 bg-[#F8F8F7] border border-[#E8E5E1] rounded-xl text-[13.5px] text-[#17202A] appearance-none focus:outline-none focus:bg-white focus:border-[#FF5A3C] focus:ring-1 focus:ring-[#FF5A3C] transition-all cursor-pointer"
-              >
-                <option value="">All Statuses</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
+        {/* Verified Reviews */}
+        <button
+          type="button"
+          onClick={() => setVerifiedFilter(prev => prev === 'verified' ? 'all' : 'verified')}
+          className={`p-4 rounded-xl text-left bg-[var(--bg-surface)] border transition-all cursor-pointer ${
+            verifiedFilter === 'verified'
+              ? 'border-blue-500 ring-1 ring-blue-500/30 shadow-xs'
+              : 'border-[var(--border)] hover:border-slate-300 dark:hover:border-slate-700'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-[var(--text-muted)]">Verified Buyers</span>
+            <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
+              <ShieldCheck size={14} />
             </div>
-            
-            <button 
-              onClick={fetchTestimonials}
-              disabled={isLoading}
-              className="p-2.5 bg-[#F8F8F7] border border-[#E8E5E1] text-[#64748B] hover:text-[#17202A] rounded-xl transition-colors shrink-0"
-              title="Refresh Testimonials"
+          </div>
+          <div className="mt-3 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-blue-600 dark:text-blue-400 tracking-tight">
+              {stats.verified}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-700 dark:text-blue-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              Authenticated
+            </span>
+          </div>
+        </button>
+
+        {/* Inactive / Drafts */}
+        <button
+          type="button"
+          onClick={() => setStatusFilter(prev => prev === 'inactive' ? 'all' : 'inactive')}
+          className={`p-4 rounded-xl text-left bg-[var(--bg-surface)] border transition-all cursor-pointer ${
+            statusFilter === 'inactive'
+              ? 'border-amber-500 ring-1 ring-amber-500/30 shadow-xs'
+              : 'border-[var(--border)] hover:border-slate-300 dark:hover:border-slate-700'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-[var(--text-muted)]">Hidden / Drafts</span>
+            <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-600 dark:text-amber-400">
+              <Clock size={14} />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-amber-600 dark:text-amber-400 tracking-tight">
+              {stats.inactive}
+            </span>
+            <span className="text-[11px] font-medium text-[var(--text-muted)]">Offline</span>
+          </div>
+        </button>
+      </div>
+
+      {/* Unified Search & Minimal Filter Toolbar */}
+      <div className="p-3 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] flex flex-col md:flex-row gap-3 items-center justify-between shadow-2xs">
+        {/* Search */}
+        <div className="relative w-full md:w-80">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search author, quote, or role..."
+            className="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-[var(--bg-muted)] border border-transparent focus:border-[var(--border)] focus:bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-slate-400 transition-colors outline-none"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              title="Clear search"
             >
-              <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+              <X size={13} />
+            </button>
+          )}
+        </div>
+
+        {/* Filter Controls & Sort */}
+        <div className="flex items-center gap-2 w-full md:w-auto flex-wrap justify-end">
+          {/* Status Tabs / Segmented Control */}
+          <div className="inline-flex p-1 rounded-xl bg-[var(--bg-muted)] border border-[var(--border)]">
+            <button
+              onClick={() => setStatusFilter('all')}
+              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                statusFilter === 'all'
+                  ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-2xs'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setStatusFilter('active')}
+              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                statusFilter === 'active'
+                  ? 'bg-[var(--bg-surface)] text-emerald-600 dark:text-emerald-400 shadow-2xs'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Active
+            </button>
+            <button
+              onClick={() => setStatusFilter('inactive')}
+              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                statusFilter === 'inactive'
+                  ? 'bg-[var(--bg-surface)] text-amber-600 dark:text-amber-400 shadow-2xs'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Inactive
+            </button>
+          </div>
+
+          {/* Verified Filter */}
+          <select
+            value={verifiedFilter}
+            onChange={(e) => setVerifiedFilter(e.target.value)}
+            className="px-3 py-1.5 text-xs rounded-xl bg-[var(--bg-muted)] border border-[var(--border)] text-[var(--text-primary)] outline-none cursor-pointer hover:bg-[var(--bg-surface)] transition-colors"
+          >
+            <option value="all">All Experiences</option>
+            <option value="verified">Verified Only</option>
+            <option value="unverified">Unverified Only</option>
+          </select>
+
+          {/* Sort Order */}
+          <button
+            onClick={() => setSortDirection(prev => (prev === 'desc' ? 'asc' : 'desc'))}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] transition-colors cursor-pointer"
+            title={`Sorting ${sortDirection === 'desc' ? 'Newest first' : 'Oldest first'}`}
+          >
+            <ArrowUpDown size={13} className="text-slate-500" />
+            <span>{sortDirection === 'desc' ? 'Newest' : 'Oldest'}</span>
+          </button>
+
+          {/* Reset Filters */}
+          {hasActiveFilters && (
+            <button
+              onClick={handleResetFilters}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              title="Reset all filters"
+            >
+              <RotateCcw size={12} />
+              <span>Reset</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Floating / Inline Bulk Actions Ribbon */}
+      {selectedIds.length > 0 && (
+        <div className="p-3 rounded-2xl bg-slate-900 text-white flex items-center justify-between shadow-lg animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-3 pl-2">
+            <span className="flex items-center justify-center px-2 py-0.5 rounded-md bg-brand text-white text-xs font-bold">
+              {selectedIds.length}
+            </span>
+            <span className="text-xs font-medium text-slate-200">
+              {selectedIds.length === 1 ? 'story selected' : 'stories selected'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleBulkStatus(true)}
+              disabled={isBulkUpdating}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <CheckCircle2 size={13} />
+              <span>Set Active</span>
+            </button>
+
+            <button
+              onClick={() => handleBulkStatus(false)}
+              disabled={isBulkUpdating}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <Clock size={13} />
+              <span>Set Inactive</span>
+            </button>
+
+            <button
+              onClick={() => setShowBulkDeleteModal(true)}
+              disabled={isBulkDeleting}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-500 text-white transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <Trash2 size={13} />
+              <span>Delete</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedIds([])}
+              className="p-1 rounded-md text-slate-400 hover:text-white transition-colors cursor-pointer ml-1"
+              title="Clear selection"
+            >
+              <X size={15} />
             </button>
           </div>
         </div>
+      )}
 
-        {/* Data Table */}
-        <div className="bg-white border border-[#E8E5E1] rounded-2xl shadow-sm overflow-hidden">
+      {/* Main Table Card */}
+      <div className="rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-xs overflow-hidden">
+        {isLoading ? (
+          <div className="p-6 space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center gap-4 py-3 animate-pulse">
+                <div className="w-4 h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+                <div className="w-6 h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+                <div className="w-10 h-10 bg-slate-200 dark:bg-slate-800 rounded-full shrink-0" />
+                <div className="w-44 space-y-1.5">
+                  <div className="w-3/4 h-3.5 bg-slate-200 dark:bg-slate-800 rounded" />
+                  <div className="w-1/2 h-2.5 bg-slate-100 dark:bg-slate-800/60 rounded" />
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <div className="w-full h-3 bg-slate-200 dark:bg-slate-800 rounded" />
+                  <div className="w-2/3 h-2.5 bg-slate-100 dark:bg-slate-800/60 rounded" />
+                </div>
+                <div className="w-24 h-6 bg-slate-200 dark:bg-slate-800 rounded-full" />
+                <div className="w-20 h-6 bg-slate-200 dark:bg-slate-800 rounded-lg" />
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="py-16 text-center px-4">
+            <AlertCircle size={28} className="mx-auto text-red-500 mb-2" />
+            <p className="text-xs text-red-600 dark:text-red-400 font-medium">{error}</p>
+            <button
+              onClick={fetchTestimonials}
+              className="mt-3 px-3 py-1.5 rounded-xl text-xs font-semibold bg-brand text-white cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
+        ) : filteredTestimonials.length === 0 ? (
+          <div className="py-16 text-center px-4">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mx-auto mb-3">
+              <Quote size={20} />
+            </div>
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">No testimonials found</h3>
+            <p className="text-xs text-[var(--text-muted)] max-w-sm mx-auto mt-1">
+              {hasActiveFilters
+                ? 'No testimonials match your current search and filter criteria.'
+                : 'Get started by creating your first customer story.'}
+            </p>
+            <div className="mt-4 flex items-center justify-center gap-2">
+              {hasActiveFilters ? (
+                <button
+                  onClick={handleResetFilters}
+                  className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] transition-colors cursor-pointer"
+                >
+                  Clear Filters
+                </button>
+              ) : (
+                <button
+                  onClick={openAddModal}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-brand text-white shadow-xs cursor-pointer"
+                >
+                  <Plus size={14} /> Add Testimonial
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[#F8F8F7] border-b border-[#E8E5E1]">
-                  <th className="px-5 py-4 w-[50px]">
+                <tr className="border-b border-[var(--border)] bg-slate-50/70 dark:bg-slate-800/40 text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                  {/* Select All */}
+                  <th className="py-3 px-4 w-12 text-center">
                     <button
+                      type="button"
                       onClick={handleToggleSelectAll}
-                      className="text-[#94A3B8] hover:text-[#FF5A3C] transition-colors"
+                      className="text-slate-400 hover:text-brand transition-colors cursor-pointer"
+                      title={isAllSelected ? 'Deselect all' : 'Select all'}
                     >
                       {isAllSelected ? (
-                        <CheckSquare size={18} className="text-[#FF5A3C]" />
+                        <CheckSquare size={16} className="text-brand" />
                       ) : isSomeSelected ? (
-                        <div className="relative">
-                          <Square size={18} />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-2.5 h-[2px] bg-[#FF5A3C] rounded-sm" />
-                          </div>
+                        <div className="relative w-4 h-4 flex items-center justify-center text-brand">
+                          <Square size={16} />
+                          <div className="absolute w-2 h-0.5 bg-brand rounded-xs" />
                         </div>
                       ) : (
-                        <Square size={18} />
+                        <Square size={16} />
                       )}
                     </button>
                   </th>
-                  <th className="px-5 py-4 w-[60px]">
-                    <button 
-                      onClick={() => setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc')}
-                      className="flex items-center gap-1 text-[12px] font-bold text-[#64748B] hover:text-[#FF5A3C] transition-colors uppercase tracking-wider"
-                      title="Toggle Sort Order"
-                    >
-                      S.No
-                      <ArrowUpDown size={12} className={sortDirection === 'asc' ? 'rotate-180 transition-transform' : 'transition-transform'} />
-                    </button>
-                  </th>
-                  <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider">Name & Role</th>
-                  <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider">Quote</th>
-                  <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider text-center">Status</th>
-                  <th className="px-5 py-4 text-[12px] font-bold text-[#64748B] uppercase tracking-wider text-right">Actions</th>
+
+                  {/* S.No */}
+                  <th className="py-3 px-3 w-12 text-center">#</th>
+
+                  {/* Author */}
+                  <th className="py-3 px-4 min-w-[220px]">Author & Profile</th>
+
+                  {/* Story & Quote */}
+                  <th className="py-3 px-4 min-w-[320px]">Story & Highlights</th>
+
+                  {/* Status */}
+                  <th className="py-3 px-4 w-36 text-center">Status</th>
+
+                  {/* Actions */}
+                  <th className="py-3 px-4 w-32 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E8E5E1]">
-                {isLoading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      <td className="px-5 py-5"><div className="w-8 h-4 bg-[#F1F1F0] rounded" /></td>
-                      <td className="px-5 py-5"><div className="w-32 h-4 bg-[#F1F1F0] rounded mb-2" /><div className="w-24 h-3 bg-[#F1F1F0] rounded" /></td>
-                      <td className="px-5 py-5"><div className="w-full h-4 bg-[#F1F1F0] rounded" /></td>
-                      <td className="px-5 py-5 text-center"><div className="w-16 h-5 bg-[#F1F1F0] rounded-full mx-auto" /></td>
-                      <td className="px-5 py-5"><div className="w-16 h-8 bg-[#F1F1F0] rounded-lg ml-auto" /></td>
-                    </tr>
-                  ))
-                ) : error ? (
-                  <tr>
-                    <td colSpan={6} className="px-5 py-12 text-center text-red-500">
-                      <AlertCircle size={24} className="mx-auto mb-2 opacity-50" />
-                      <p className="text-[14px] font-medium">{error}</p>
-                    </td>
-                  </tr>
-                ) : testimonials.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-5 py-16 text-center">
-                      <div className="w-12 h-12 rounded-2xl bg-[#F8F8F7] flex items-center justify-center mx-auto mb-4 border border-[#E8E5E1]">
-                        <Quote size={20} className="text-[#94A3B8]" />
-                      </div>
-                      <h3 className="text-[16px] font-bold text-[#17202A] mb-1">No testimonials found</h3>
-                      <p className="text-[13.5px] text-[#64748B] max-w-sm mx-auto">
-                        Try adjusting your filters or search query, or create a new testimonial.
-                      </p>
-                      <button
-                        onClick={() => { setSearch(''); setSelectedStatus(''); }}
-                        className="mt-4 text-[13px] font-semibold text-[#FF5A3C] hover:underline"
-                      >
-                        Clear all filters
-                      </button>
-                    </td>
-                  </tr>
-                ) : (
-                  testimonials.map((t, index) => {
-                    const isSelected = selectedIds.includes(t._id);
-                    return (
-                      <tr key={t._id} className={`hover:bg-[#FAF9F7] transition-colors ${isSelected ? 'bg-[#FFF7F4] hover:bg-[#FFF7F4]' : ''}`}>
-                        <td className="px-5 py-5">
-                          <button
-                            onClick={() => handleToggleSelectOne(t._id)}
-                            className={`transition-colors ${isSelected ? 'text-[#FF5A3C]' : 'text-[#94A3B8] hover:text-[#17202A]'}`}
-                          >
-                            {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
-                          </button>
-                        </td>
-                        <td className="px-5 py-5 font-mono text-[13px] text-[#64748B]">
-                          {index + 1}
-                        </td>
-                        <td className="px-5 py-5">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-[#E8E5E1] overflow-hidden border border-[#D1D5DB] shrink-0">
-                              {t.avatar ? (
-                                <img src={t.avatar} alt={t.name} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-[#94A3B8]">
-                                  <ImageIcon size={16} />
-                                </div>
+              <tbody className="divide-y divide-[var(--border)] text-xs">
+                {filteredTestimonials.map((t, index) => {
+                  const isSelected = selectedIds.includes(t._id);
+                  const avatarSrc = t.avatar ? getMediaUrl(t.avatar) : null;
+                  const hasImgError = imageErrors[t._id];
+
+                  return (
+                    <tr
+                      key={t._id}
+                      onClick={() => setPreviewTestimonial(t)}
+                      className={`group transition-colors cursor-pointer ${
+                        isSelected
+                          ? 'bg-brand/5 dark:bg-brand/10'
+                          : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/30'
+                      }`}
+                    >
+                      {/* Checkbox */}
+                      <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSelectOne(t._id)}
+                          className={`cursor-pointer transition-colors ${
+                            isSelected ? 'text-brand' : 'text-slate-400 hover:text-[var(--text-primary)]'
+                          }`}
+                        >
+                          {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+                        </button>
+                      </td>
+
+                      {/* S.No */}
+                      <td className="py-3.5 px-3 text-center font-mono text-[11px] text-[var(--text-muted)]">
+                        {index + 1}
+                      </td>
+
+                      {/* Author */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-3">
+                          {/* Avatar with fallback */}
+                          <div className="relative shrink-0">
+                            {avatarSrc && !hasImgError ? (
+                              <img
+                                src={avatarSrc}
+                                alt={t.name}
+                                onError={() => handleImageError(t._id)}
+                                className="w-10 h-10 rounded-full object-cover border border-[var(--border)] shadow-2xs"
+                              />
+                            ) : (
+                              <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getAvatarGradient(t.name)} flex items-center justify-center font-bold text-xs tracking-wider shadow-2xs`}>
+                                {getInitials(t.name)}
+                              </div>
+                            )}
+
+                            {t.isVerified && (
+                              <div
+                                className="absolute -bottom-0.5 -right-0.5 bg-blue-500 text-white rounded-full p-0.5 shadow-2xs"
+                                title="Verified Buyer Experience"
+                              >
+                                <Check size={9} strokeWidth={3} />
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-[var(--text-primary)] truncate max-w-[160px]">
+                                {t.name}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] mt-0.5 truncate max-w-[200px]">
+                              <span>{t.role || 'Homebuyer'}</span>
+                              {t.location && (
+                                <>
+                                  <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
+                                  <span className="flex items-center gap-0.5 truncate">
+                                    <MapPin size={10} className="shrink-0 text-slate-400" />
+                                    {t.location}
+                                  </span>
+                                </>
                               )}
                             </div>
-                            <div>
-                              <div className="text-[14px] font-semibold text-[#17202A] leading-tight">
-                                {t.name}
-                              </div>
-                              <div className="text-[12px] text-[#64748B] mt-0.5">
-                                {t.role || 'No Role'}
-                              </div>
-                            </div>
                           </div>
-                        </td>
-                        <td className="px-5 py-5">
-                          <div className="text-[13px] text-[#17202A] max-w-sm line-clamp-2 italic">
+                        </div>
+                      </td>
+
+                      {/* Story & Quote */}
+                      <td className="py-3.5 px-4">
+                        <div className="space-y-1.5">
+                          <p className="text-[12.5px] text-[var(--text-primary)] leading-snug line-clamp-2">
                             "{t.quote}"
+                          </p>
+
+                          {/* Chips row */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {t.propertyType && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-medium bg-[var(--bg-muted)] text-[var(--text-muted)] border border-[var(--border)]">
+                                <Building2 size={10} className="text-slate-400" />
+                                {t.propertyType}
+                              </span>
+                            )}
+
+                            {t.journeyType && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-medium bg-brand/10 text-brand border border-brand/20">
+                                <Sparkles size={10} />
+                                {t.journeyType}
+                              </span>
+                            )}
+
+                            {t.stages && t.stages.length > 0 && (
+                              <span className="text-[10.5px] text-[var(--text-muted)]">
+                                Stage: <strong className="font-medium text-[var(--text-primary)]">{t.stages[t.activeStageIndex] || t.stages[0]}</strong>
+                              </span>
+                            )}
                           </div>
-                        </td>
-                        <td className="px-5 py-5 text-center">
-                          <span className={`inline-flex items-center justify-center px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded-full border ${
-                            t.isActive 
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-amber-50 text-amber-700 border-amber-200'
-                          }`}>
-                            {t.isActive ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                        <td className="px-5 py-5">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => openEditModal(t)}
-                              className="p-2 rounded-lg bg-white border border-[#E8E5E1] text-[#64748B] hover:text-[#FF5A3C] hover:border-[#FF5A3C]/30 hover:bg-[#FFF7F4] transition-all shadow-sm"
-                              title="Edit"
-                            >
-                              <Edit size={15} />
-                            </button>
-                            <button
-                              onClick={() => setDeleteModal({ open: true, id: t._id, name: t.name, isDeleting: false })}
-                              className="p-2 rounded-lg bg-white border border-[#E8E5E1] text-[#64748B] hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-all shadow-sm"
-                              title="Delete"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
+                        </div>
+                      </td>
+
+                      {/* Status & 1-Click Toggle */}
+                      <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleStatus(t._id, t.isActive, e)}
+                          disabled={statusTogglingId === t._id}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
+                            t.isActive
+                              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
+                          }`}
+                          title={`Click to ${t.isActive ? 'hide from website' : 'publish to website'}`}
+                        >
+                          {statusTogglingId === t._id ? (
+                            <RefreshCw size={11} className="animate-spin text-slate-500" />
+                          ) : (
+                            <span className={`w-1.5 h-1.5 rounded-full ${t.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                          )}
+                          <span>{t.isActive ? 'Active' : 'Hidden'}</span>
+                        </button>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
+                          {/* Quick Preview */}
+                          <button
+                            type="button"
+                            onClick={() => setPreviewTestimonial(t)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+                            title="Quick preview card"
+                          >
+                            <Eye size={15} />
+                          </button>
+
+                          {/* Edit */}
+                          <button
+                            type="button"
+                            onClick={(e) => openEditModal(t, e)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-brand hover:bg-brand/10 transition-colors cursor-pointer"
+                            title="Edit story"
+                          >
+                            <Edit size={15} />
+                          </button>
+
+                          {/* Delete */}
+                          <button
+                            type="button"
+                            onClick={() => setDeleteModal({ open: true, id: t._id, name: t.name, isDeleting: false })}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                            title="Delete story"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-        </div>
+        )}
+
+        {/* Footer Info */}
+        {!isLoading && filteredTestimonials.length > 0 && (
+          <div className="px-5 py-3 border-t border-[var(--border)] bg-slate-50/50 dark:bg-slate-900/30 flex flex-col sm:flex-row items-center justify-between text-xs text-[var(--text-muted)] gap-2">
+            <div>
+              Showing <span className="font-semibold text-[var(--text-primary)]">{filteredTestimonials.length}</span> of <span className="font-semibold text-[var(--text-primary)]">{stats.total}</span> total stories
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                {stats.active} published
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                {stats.verified} verified
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* --- ADD / EDIT MODAL --- */}
+      {/* --- LIVE STORY PREVIEW MODAL --- */}
+      {previewTestimonial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
+            onClick={() => setPreviewTestimonial(null)}
+          />
+
+          <div className="relative w-full max-w-lg bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Top Header */}
+            <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-muted)]/50">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-brand" />
+                <h3 className="text-sm font-bold text-[var(--text-primary)]">Frontend Card Preview</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewTestimonial(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Testimonial Card Body */}
+            <div className="p-6 space-y-5">
+              {/* Optional Property Header Image */}
+              {previewTestimonial.propertyImage && (
+                <div className="relative w-full h-44 rounded-xl overflow-hidden border border-[var(--border)] bg-slate-100 dark:bg-slate-800">
+                  <img
+                    src={getMediaUrl(previewTestimonial.propertyImage)}
+                    alt="Property"
+                    className="w-full h-full object-cover"
+                  />
+                  {previewTestimonial.propertyType && (
+                    <div className="absolute top-3 left-3 px-2.5 py-1 rounded-lg text-xs font-semibold bg-black/60 backdrop-blur-md text-white border border-white/20">
+                      {previewTestimonial.propertyType}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Quote Mark Decoration & Text */}
+              <div className="relative">
+                <Quote size={28} className="text-brand/20 mb-2" />
+                <p className="text-sm text-[var(--text-primary)] font-normal leading-relaxed">
+                  "{previewTestimonial.quote}"
+                </p>
+              </div>
+
+              {/* Journey Steps Progress Bar */}
+              {previewTestimonial.stages && previewTestimonial.stages.length > 0 && (
+                <div className="p-3.5 rounded-xl bg-[var(--bg-muted)] border border-[var(--border)] space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-[var(--text-muted)]">
+                    <span>Buyer Journey Progress</span>
+                    <span className="text-brand">
+                      Step {(previewTestimonial.activeStageIndex || 0) + 1} of {previewTestimonial.stages.length}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {previewTestimonial.stages.map((stage, idx) => {
+                      const isActive = idx === (previewTestimonial.activeStageIndex || 0);
+                      const isCompleted = idx < (previewTestimonial.activeStageIndex || 0);
+                      return (
+                        <div key={idx} className="space-y-1 text-center">
+                          <div className={`h-1.5 rounded-full ${
+                            isActive
+                              ? 'bg-brand'
+                              : isCompleted
+                              ? 'bg-emerald-500'
+                              : 'bg-slate-200 dark:bg-slate-700'
+                          }`} />
+                          <span className={`block text-[10px] truncate ${
+                            isActive
+                              ? 'font-bold text-brand'
+                              : 'text-[var(--text-muted)]'
+                          }`}>
+                            {stage}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Author Info Bar */}
+              <div className="pt-2 flex items-center justify-between border-t border-[var(--border)]">
+                <div className="flex items-center gap-3">
+                  {previewTestimonial.avatar ? (
+                    <img
+                      src={getMediaUrl(previewTestimonial.avatar)}
+                      alt={previewTestimonial.name}
+                      className="w-11 h-11 rounded-full object-cover border border-[var(--border)] shadow-xs"
+                    />
+                  ) : (
+                    <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${getAvatarGradient(previewTestimonial.name)} flex items-center justify-center font-bold text-xs shadow-xs`}>
+                      {getInitials(previewTestimonial.name)}
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-sm font-bold text-[var(--text-primary)]">
+                        {previewTestimonial.name}
+                      </h4>
+                      {previewTestimonial.isVerified && (
+                        <ShieldCheck size={14} className="text-blue-500 shrink-0" title="Verified" />
+                      )}
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      {previewTestimonial.role || 'Homebuyer'}
+                      {previewTestimonial.location && ` • ${previewTestimonial.location}`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                    previewTestimonial.isActive
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${previewTestimonial.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                    {previewTestimonial.isActive ? 'Live on Site' : 'Draft'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3.5 border-t border-[var(--border)] bg-[var(--bg-muted)]/50 flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setPreviewTestimonial(null)}
+                className="px-4 py-2 text-xs font-semibold rounded-xl border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-primary)] transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const t = previewTestimonial;
+                  setPreviewTestimonial(null);
+                  openEditModal(t);
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-brand text-white hover:bg-brand-dark transition-colors cursor-pointer"
+              >
+                <Edit size={14} />
+                <span>Edit Story</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- ADD / EDIT FORM MODAL --- */}
       {modalState.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div 
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm" 
-            onClick={() => !modalState.isSubmitting && setModalState(prev => ({ ...prev, open: false }))} 
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
+            onClick={() => !modalState.isSubmitting && setModalState(prev => ({ ...prev, open: false }))}
           />
-          
-          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-[#E8E5E1] flex items-center justify-between bg-[#F8F8F7] shrink-0">
-              <h3 className="text-[17px] font-bold text-[#17202A]">
-                {modalState.mode === 'create' ? 'Add Testimonial' : 'Edit Testimonial'}
-              </h3>
+
+          <div className="relative w-full max-w-2xl bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-muted)]/50 shrink-0">
+              <div>
+                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                  {modalState.mode === 'create' ? 'Create New Testimonial' : 'Edit Testimonial'}
+                </h3>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                  Provide customer story details, photo, and journey milestone.
+                </p>
+              </div>
+
               <button
+                type="button"
                 onClick={() => setModalState(prev => ({ ...prev, open: false }))}
                 disabled={modalState.isSubmitting}
-                className="text-[#94A3B8] hover:text-[#17202A] p-1 rounded-lg hover:bg-black/5 transition-colors"
+                className="p-1 rounded-lg text-slate-400 hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
+            {/* Form */}
             <form onSubmit={handleModalSubmit} className="overflow-y-auto flex-1 p-6 space-y-6">
               {modalState.error && (
-                <div className="p-3.5 rounded-xl bg-red-50 border border-red-100 flex items-center gap-3 text-red-700 text-[13px] font-medium">
-                  <AlertCircle size={16} />
+                <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 flex items-center gap-2.5 text-red-700 dark:text-red-300 text-xs font-medium">
+                  <AlertCircle size={16} className="shrink-0" />
                   <p>{modalState.error}</p>
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="sm:col-span-2">
-                  <label className="block text-[13px] font-bold text-[#17202A] mb-1.5">Quote *</label>
+              {/* Section 1: Author Details */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-1 border-b border-[var(--border)]">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                    Author Information
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-[var(--text-primary)] mb-1.5">
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={modalState.name}
+                      onChange={(e) => setModalState(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="e.g. Priya Kapoor"
+                      className="w-full px-3.5 py-2 text-xs rounded-xl bg-[var(--bg-muted)] border border-[var(--border)] focus:border-brand focus:bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-slate-400 outline-none transition-all"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[var(--text-primary)] mb-1.5">
+                      Role / User Type
+                    </label>
+                    <input
+                      type="text"
+                      value={modalState.role}
+                      onChange={(e) => setModalState(prev => ({ ...prev, role: e.target.value }))}
+                      placeholder="e.g. First-time Homebuyer"
+                      className="w-full px-3.5 py-2 text-xs rounded-xl bg-[var(--bg-muted)] border border-[var(--border)] focus:border-brand focus:bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-slate-400 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[var(--text-primary)] mb-1.5">
+                      Location
+                    </label>
+                    <input
+                      type="text"
+                      value={modalState.location}
+                      onChange={(e) => setModalState(prev => ({ ...prev, location: e.target.value }))}
+                      placeholder="e.g. Bandra West, Mumbai"
+                      className="w-full px-3.5 py-2 text-xs rounded-xl bg-[var(--bg-muted)] border border-[var(--border)] focus:border-brand focus:bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-slate-400 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[var(--text-primary)] mb-1.5">
+                      Profile Avatar
+                    </label>
+                    <div className="flex items-center gap-3">
+                      {modalState.avatar ? (
+                        <div className="relative w-12 h-12 rounded-full overflow-hidden border border-[var(--border)] shrink-0">
+                          <img src={modalState.avatar} alt="Preview" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage('avatar')}
+                            className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                            title="Remove avatar"
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-[var(--bg-muted)] border border-dashed border-[var(--border)] flex items-center justify-center text-slate-400 shrink-0">
+                          <ImageIcon size={18} />
+                        </div>
+                      )}
+
+                      <label className="cursor-pointer px-3 py-1.5 text-xs font-semibold rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] transition-all">
+                        <span>{modalState.avatar ? 'Change' : 'Upload Avatar'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleImageUpload(e, 'avatar')}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Story & Quote */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-1 border-b border-[var(--border)]">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                    Story & Review
+                  </span>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-[var(--text-primary)]">
+                      Customer Quote *
+                    </label>
+                    <span className="text-[11px] text-[var(--text-muted)]">
+                      {modalState.quote.length} characters
+                    </span>
+                  </div>
                   <textarea
                     value={modalState.quote}
                     onChange={(e) => setModalState(prev => ({ ...prev, quote: e.target.value }))}
-                    placeholder="Enter testimonial quote..."
+                    placeholder="Enter the customer's exact feedback or quote..."
                     rows={3}
-                    className="w-full px-4 py-2.5 bg-white border border-[#E8E5E1] rounded-xl text-[13.5px] text-[#17202A] focus:outline-none focus:border-[#FF5A3C] focus:ring-2 focus:ring-[#FF5A3C]/15 transition-all resize-y"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-[var(--bg-muted)] border border-[var(--border)] focus:border-brand focus:bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-slate-400 outline-none transition-all resize-y"
                     required
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[13px] font-bold text-[#17202A] mb-1.5">Name *</label>
-                  <input
-                    type="text"
-                    value={modalState.name}
-                    onChange={(e) => setModalState(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="e.g., Ananya Sharma"
-                    className="w-full px-4 py-2.5 bg-white border border-[#E8E5E1] rounded-xl text-[13.5px] text-[#17202A] focus:outline-none focus:border-[#FF5A3C] focus:ring-2 focus:ring-[#FF5A3C]/15 transition-all"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[13px] font-bold text-[#17202A] mb-1.5">Role / User Type</label>
-                  <input
-                    type="text"
-                    value={modalState.role}
-                    onChange={(e) => setModalState(prev => ({ ...prev, role: e.target.value }))}
-                    placeholder="e.g., First-time Homebuyer"
-                    className="w-full px-4 py-2.5 bg-white border border-[#E8E5E1] rounded-xl text-[13.5px] text-[#17202A] focus:outline-none focus:border-[#FF5A3C] focus:ring-2 focus:ring-[#FF5A3C]/15 transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[13px] font-bold text-[#17202A] mb-1.5">User Location</label>
-                  <input
-                    type="text"
-                    value={modalState.location}
-                    onChange={(e) => setModalState(prev => ({ ...prev, location: e.target.value }))}
-                    placeholder="e.g., Noida, NCR"
-                    className="w-full px-4 py-2.5 bg-white border border-[#E8E5E1] rounded-xl text-[13.5px] text-[#17202A] focus:outline-none focus:border-[#FF5A3C] focus:ring-2 focus:ring-[#FF5A3C]/15 transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[13px] font-bold text-[#17202A] mb-1.5">Profile Image</label>
-                  <div className="flex items-center gap-4">
-                    {modalState.avatar ? (
-                      <div className="relative w-14 h-14 rounded-full overflow-hidden border border-[#E8E5E1] shrink-0">
-                        <img src={modalState.avatar} alt="Avatar Preview" className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage('avatar')}
-                          className="absolute inset-0 bg-black/50 text-white flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="w-14 h-14 rounded-full bg-[#F8F8F7] border border-[#E8E5E1] border-dashed flex items-center justify-center shrink-0">
-                        <ImageIcon size={20} className="text-[#94A3B8]" />
-                      </div>
-                    )}
-                    <label className="cursor-pointer px-4 py-2 bg-white border border-[#E8E5E1] rounded-xl text-[13px] font-semibold text-[#64748B] hover:text-[#17202A] hover:bg-[#F8F8F7] transition-all">
-                      <span>Upload Image</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleImageUpload(e, 'avatar')}
-                      />
-                    </label>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-muted)] border border-[var(--border)]">
+                  <div>
+                    <span className="block text-xs font-semibold text-[var(--text-primary)]">
+                      Verified Experience
+                    </span>
+                    <span className="block text-[11px] text-[var(--text-muted)]">
+                      Display verified buyer badge next to the author's name
+                    </span>
                   </div>
-                </div>
-
-                <div className="sm:col-span-2 pt-2 pb-1">
-                  <h4 className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider border-b border-[#E8E5E1] pb-2">Property Details</h4>
-                </div>
-
-                <div>
-                  <label className="block text-[13px] font-bold text-[#17202A] mb-1.5">Property Type</label>
-                  <input
-                    type="text"
-                    value={modalState.propertyType}
-                    onChange={(e) => setModalState(prev => ({ ...prev, propertyType: e.target.value }))}
-                    placeholder="e.g., Residential"
-                    className="w-full px-4 py-2.5 bg-white border border-[#E8E5E1] rounded-xl text-[13.5px] text-[#17202A] focus:outline-none focus:border-[#FF5A3C] focus:ring-2 focus:ring-[#FF5A3C]/15 transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[13px] font-bold text-[#17202A] mb-1.5">Journey Label</label>
-                  <input
-                    type="text"
-                    value={modalState.journeyType}
-                    onChange={(e) => setModalState(prev => ({ ...prev, journeyType: e.target.value }))}
-                    placeholder="e.g., First-time homebuyer"
-                    className="w-full px-4 py-2.5 bg-white border border-[#E8E5E1] rounded-xl text-[13.5px] text-[#17202A] focus:outline-none focus:border-[#FF5A3C] focus:ring-2 focus:ring-[#FF5A3C]/15 transition-all"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-[13px] font-bold text-[#17202A] mb-1.5">Property Image</label>
-                  <div className="flex items-center gap-4">
-                    {modalState.propertyImage ? (
-                      <div className="relative w-32 h-20 rounded-xl overflow-hidden border border-[#E8E5E1] shrink-0">
-                        <img src={modalState.propertyImage} alt="Property Preview" className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage('propertyImage')}
-                          className="absolute inset-0 bg-black/50 text-white flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
-                        >
-                          <X size={20} />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="w-32 h-20 rounded-xl bg-[#F8F8F7] border border-[#E8E5E1] border-dashed flex items-center justify-center shrink-0">
-                        <ImageIcon size={24} className="text-[#94A3B8]" />
-                      </div>
-                    )}
-                    <label className="cursor-pointer px-4 py-2 bg-white border border-[#E8E5E1] rounded-xl text-[13px] font-semibold text-[#64748B] hover:text-[#17202A] hover:bg-[#F8F8F7] transition-all">
-                      <span>Upload Property Image</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleImageUpload(e, 'propertyImage')}
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                <div className="sm:col-span-2 pt-2 pb-1">
-                  <h4 className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider border-b border-[#E8E5E1] pb-2">Journey Steps Configuration</h4>
-                </div>
-
-                <div>
-                  <label className="block text-[13px] font-bold text-[#17202A] mb-1.5">Journey Steps (comma separated)</label>
-                  <input
-                    type="text"
-                    value={modalState.stages}
-                    onChange={(e) => setModalState(prev => ({ ...prev, stages: e.target.value }))}
-                    placeholder="Discover, Verify, Understand, Decide"
-                    className="w-full px-4 py-2.5 bg-white border border-[#E8E5E1] rounded-xl text-[13.5px] text-[#17202A] focus:outline-none focus:border-[#FF5A3C] focus:ring-2 focus:ring-[#FF5A3C]/15 transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[13px] font-bold text-[#17202A] mb-1.5">Active Step Index (0-based)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={modalState.activeStageIndex}
-                    onChange={(e) => setModalState(prev => ({ ...prev, activeStageIndex: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white border border-[#E8E5E1] rounded-xl text-[13.5px] text-[#17202A] focus:outline-none focus:border-[#FF5A3C] focus:ring-2 focus:ring-[#FF5A3C]/15 transition-all"
-                  />
-                </div>
-
-                <div className="sm:col-span-2 pt-2 pb-1">
-                  <h4 className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider border-b border-[#E8E5E1] pb-2">Settings</h4>
-                </div>
-
-                <div>
-                  <label className="block text-[13px] font-bold text-[#17202A] mb-1.5">Display Order</label>
-                  <input
-                    type="number"
-                    value={modalState.displayOrder}
-                    onChange={(e) => setModalState(prev => ({ ...prev, displayOrder: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white border border-[#E8E5E1] rounded-xl text-[13.5px] text-[#17202A] focus:outline-none focus:border-[#FF5A3C] focus:ring-2 focus:ring-[#FF5A3C]/15 transition-all"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-3 justify-center pt-2">
-                  <label className="flex items-center gap-3 cursor-pointer">
+                  <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
                       checked={modalState.isVerified}
                       onChange={(e) => setModalState(prev => ({ ...prev, isVerified: e.target.checked }))}
-                      className="w-4 h-4 rounded border-[#D1D5DB] text-[#FF5A3C] focus:ring-[#FF5A3C] cursor-pointer"
+                      className="sr-only peer"
                     />
-                    <span className="block text-[13px] font-bold text-[#17202A]">Verified Experience</span>
-                  </label>
-
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={modalState.isActive}
-                      onChange={(e) => setModalState(prev => ({ ...prev, isActive: e.target.checked }))}
-                      className="w-4 h-4 rounded border-[#D1D5DB] text-[#FF5A3C] focus:ring-[#FF5A3C] cursor-pointer"
-                    />
-                    <span className="block text-[13px] font-bold text-[#17202A]">Active Status</span>
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600" />
                   </label>
                 </div>
               </div>
 
-              <div className="pt-6 border-t border-[#E8E5E1] flex justify-end gap-3 shrink-0">
+              {/* Section 3: Property & Journey Configuration */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-1 border-b border-[var(--border)]">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                    Property & Journey Milestone
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-[var(--text-primary)] mb-1.5">
+                      Property Type
+                    </label>
+                    <input
+                      type="text"
+                      value={modalState.propertyType}
+                      onChange={(e) => setModalState(prev => ({ ...prev, propertyType: e.target.value }))}
+                      placeholder="e.g. Residential 3BHK"
+                      className="w-full px-3.5 py-2 text-xs rounded-xl bg-[var(--bg-muted)] border border-[var(--border)] focus:border-brand focus:bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-slate-400 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[var(--text-primary)] mb-1.5">
+                      Journey Label
+                    </label>
+                    <input
+                      type="text"
+                      value={modalState.journeyType}
+                      onChange={(e) => setModalState(prev => ({ ...prev, journeyType: e.target.value }))}
+                      placeholder="e.g. First-time homebuyer"
+                      className="w-full px-3.5 py-2 text-xs rounded-xl bg-[var(--bg-muted)] border border-[var(--border)] focus:border-brand focus:bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-slate-400 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-[var(--text-primary)] mb-1.5">
+                      Journey Stages (comma separated)
+                    </label>
+                    <input
+                      type="text"
+                      value={modalState.stages}
+                      onChange={(e) => setModalState(prev => ({ ...prev, stages: e.target.value }))}
+                      placeholder="Discover, Verify, Understand, Decide"
+                      className="w-full px-3.5 py-2 text-xs rounded-xl bg-[var(--bg-muted)] border border-[var(--border)] focus:border-brand focus:bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-slate-400 outline-none transition-all"
+                    />
+                    {/* Live Stages preview */}
+                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                      <span className="text-[11px] text-[var(--text-muted)] mr-1">Active Stage:</span>
+                      {modalState.stages.split(',').map((s, idx) => {
+                        const trimmed = s.trim();
+                        if (!trimmed) return null;
+                        const isSelected = idx === parseInt(modalState.activeStageIndex, 10);
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setModalState(prev => ({ ...prev, activeStageIndex: idx }))}
+                            className={`px-2.5 py-0.5 rounded-lg text-[10.5px] font-semibold border transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-brand text-white border-brand shadow-2xs'
+                                : 'bg-[var(--bg-muted)] text-[var(--text-muted)] border-[var(--border)] hover:border-slate-400'
+                            }`}
+                          >
+                            {trimmed}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-[var(--text-primary)] mb-1.5">
+                      Property Image (Optional)
+                    </label>
+                    <div className="flex items-center gap-3">
+                      {modalState.propertyImage ? (
+                        <div className="relative w-28 h-18 rounded-xl overflow-hidden border border-[var(--border)] shrink-0 bg-slate-100 dark:bg-slate-800">
+                          <img src={modalState.propertyImage} alt="Property" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage('propertyImage')}
+                            className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                            title="Remove photo"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-28 h-18 rounded-xl bg-[var(--bg-muted)] border border-dashed border-[var(--border)] flex items-center justify-center text-slate-400 shrink-0">
+                          <ImageIcon size={20} />
+                        </div>
+                      )}
+
+                      <label className="cursor-pointer px-3 py-1.5 text-xs font-semibold rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] transition-all">
+                        <span>{modalState.propertyImage ? 'Change Image' : 'Upload Property Photo'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleImageUpload(e, 'propertyImage')}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Settings & Visibility */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-1 border-b border-[var(--border)]">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                    Visibility & Ordering
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-[var(--text-primary)] mb-1.5">
+                      Display Sort Order
+                    </label>
+                    <input
+                      type="number"
+                      value={modalState.displayOrder}
+                      onChange={(e) => setModalState(prev => ({ ...prev, displayOrder: e.target.value }))}
+                      className="w-full px-3.5 py-2 text-xs rounded-xl bg-[var(--bg-muted)] border border-[var(--border)] focus:border-brand focus:bg-[var(--bg-surface)] text-[var(--text-primary)] outline-none transition-all"
+                    />
+                    <span className="text-[10.5px] text-[var(--text-muted)] mt-1 block">
+                      Lower numbers appear first on the frontend.
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-muted)] border border-[var(--border)] self-start">
+                    <div>
+                      <span className="block text-xs font-semibold text-[var(--text-primary)]">
+                        Active Status
+                      </span>
+                      <span className="block text-[11px] text-[var(--text-muted)]">
+                        Publish story to live homepage
+                      </span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={modalState.isActive}
+                        onChange={(e) => setModalState(prev => ({ ...prev, isActive: e.target.checked }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500" />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Action Buttons */}
+              <div className="pt-4 border-t border-[var(--border)] flex justify-end gap-2.5 shrink-0">
                 <button
                   type="button"
                   onClick={() => setModalState(prev => ({ ...prev, open: false }))}
                   disabled={modalState.isSubmitting}
-                  className="px-5 py-2.5 text-[13.5px] font-semibold text-[#64748B] hover:text-[#17202A] hover:bg-[#F8F8F7] rounded-xl transition-all"
+                  className="px-4 py-2 text-xs font-semibold rounded-xl border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={modalState.isSubmitting}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 text-[13.5px] font-semibold text-white bg-[#FF5A3C] hover:bg-[#E04F34] rounded-xl transition-all shadow-sm active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-brand hover:bg-brand-dark rounded-xl transition-all shadow-xs active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {modalState.isSubmitting ? (
-                    <RefreshCw size={16} className="animate-spin" />
+                    <RefreshCw size={14} className="animate-spin" />
                   ) : (
-                    <CheckCircle2 size={16} />
+                    <CheckCircle2 size={14} />
                   )}
-                  {modalState.mode === 'create' ? 'Save Testimonial' : 'Update Testimonial'}
+                  <span>{modalState.mode === 'create' ? 'Publish Story' : 'Save Changes'}</span>
                 </button>
               </div>
             </form>
@@ -811,69 +1543,83 @@ const TestimonialManagement = () => {
         </div>
       )}
 
-      {/* --- SINGLE DELETE MODAL --- */}
+      {/* --- SINGLE DELETE CONFIRMATION MODAL --- */}
       {deleteModal.open && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !deleteModal.isDeleting && setDeleteModal({ open: false, id: null, name: '', isDeleting: false })} />
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 text-center animate-fade-in-up">
-            <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 border border-red-100">
-              <Trash2 size={24} className="text-red-500" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
+            onClick={() => !deleteModal.isDeleting && setDeleteModal({ open: false, id: null, name: '', isDeleting: false })}
+          />
+          <div className="relative w-full max-w-sm bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-5 text-center animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950/50 flex items-center justify-center mx-auto mb-3 border border-red-200 dark:border-red-900 text-red-500">
+              <Trash2 size={20} />
             </div>
-            <h3 className="text-[18px] font-bold text-[#17202A] mb-2">Delete Testimonial?</h3>
-            <p className="text-[13.5px] text-[#64748B] mb-2">
-              Are you sure you want to delete this testimonial? This action cannot be undone.
+            <h3 className="text-base font-bold text-[var(--text-primary)] mb-1">Delete Testimonial?</h3>
+            <p className="text-xs text-[var(--text-muted)] mb-3 leading-relaxed">
+              Are you sure you want to permanently remove this testimonial? This action cannot be undone.
             </p>
-            <div className="p-3 bg-[#F8F8F7] rounded-xl border border-[#E8E5E1] text-[13px] font-medium text-[#17202A] mb-6 text-left">
-              From: {deleteModal.name}
-            </div>
-            
-            <div className="flex gap-3">
+            {deleteModal.name && (
+              <div className="p-2.5 bg-[var(--bg-muted)] rounded-xl border border-[var(--border)] text-xs font-medium text-[var(--text-primary)] mb-4 text-left truncate">
+                Author: {deleteModal.name}
+              </div>
+            )}
+
+            <div className="flex gap-2">
               <button
+                type="button"
                 onClick={() => setDeleteModal({ open: false, id: null, name: '', isDeleting: false })}
                 disabled={deleteModal.isDeleting}
-                className="flex-1 py-2.5 text-[13.5px] font-semibold text-[#17202A] bg-white border border-[#E8E5E1] rounded-xl hover:bg-[#F8F8F7] transition-all disabled:opacity-50"
+                className="flex-1 py-2 text-xs font-semibold text-[var(--text-primary)] bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl hover:bg-[var(--bg-muted)] transition-all cursor-pointer disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleDeleteConfirm}
                 disabled={deleteModal.isDeleting}
-                className="flex-1 inline-flex justify-center items-center gap-2 py-2.5 text-[13.5px] font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-all shadow-sm active:scale-[0.98] disabled:opacity-70"
+                className="flex-1 inline-flex justify-center items-center gap-1.5 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all shadow-xs cursor-pointer disabled:opacity-70"
               >
-                {deleteModal.isDeleting ? <RefreshCw size={15} className="animate-spin" /> : 'Delete'}
+                {deleteModal.isDeleting ? <RefreshCw size={13} className="animate-spin" /> : 'Delete'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* --- BULK DELETE MODAL --- */}
+      {/* --- BULK DELETE CONFIRMATION MODAL --- */}
       {showBulkDeleteModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !isBulkDeleting && setShowBulkDeleteModal(false)} />
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 text-center animate-fade-in-up">
-            <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 border border-red-100">
-              <Trash2 size={24} className="text-red-500" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
+            onClick={() => !isBulkDeleting && setShowBulkDeleteModal(false)}
+          />
+          <div className="relative w-full max-w-sm bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-5 text-center animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950/50 flex items-center justify-center mx-auto mb-3 border border-red-200 dark:border-red-900 text-red-500">
+              <Trash2 size={20} />
             </div>
-            <h3 className="text-[18px] font-bold text-[#17202A] mb-2">Delete {selectedIds.length} Testimonials?</h3>
-            <p className="text-[13.5px] text-[#64748B] mb-6">
-              You are about to permanently delete {selectedIds.length} selected testimonials. This action cannot be undone.
+            <h3 className="text-base font-bold text-[var(--text-primary)] mb-1">
+              Delete {selectedIds.length} Testimonials?
+            </h3>
+            <p className="text-xs text-[var(--text-muted)] mb-4 leading-relaxed">
+              You are about to permanently delete {selectedIds.length} selected stories. This action cannot be undone.
             </p>
-            
-            <div className="flex gap-3">
+
+            <div className="flex gap-2">
               <button
+                type="button"
                 onClick={() => setShowBulkDeleteModal(false)}
                 disabled={isBulkDeleting}
-                className="flex-1 py-2.5 text-[13.5px] font-semibold text-[#17202A] bg-white border border-[#E8E5E1] rounded-xl hover:bg-[#F8F8F7] transition-all disabled:opacity-50"
+                className="flex-1 py-2 text-xs font-semibold text-[var(--text-primary)] bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl hover:bg-[var(--bg-muted)] transition-all cursor-pointer disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleBulkDeleteConfirm}
                 disabled={isBulkDeleting}
-                className="flex-1 inline-flex justify-center items-center gap-2 py-2.5 text-[13.5px] font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-all shadow-sm active:scale-[0.98] disabled:opacity-70"
+                className="flex-1 inline-flex justify-center items-center gap-1.5 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all shadow-xs cursor-pointer disabled:opacity-70"
               >
-                {isBulkDeleting ? <RefreshCw size={15} className="animate-spin" /> : 'Delete All'}
+                {isBulkDeleting ? <RefreshCw size={13} className="animate-spin" /> : 'Delete All'}
               </button>
             </div>
           </div>

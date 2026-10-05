@@ -119,7 +119,7 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
     { title: 'Property Verification', category: 'Compliance', path: '/admin/verification', icon: <Zap size={14} /> },
     { title: 'User Management', category: 'Administration', path: '/admin/users', icon: <Users size={14} /> },
     { title: 'Builders & RERA', category: 'Real Estate', path: '/admin/builders', icon: <Building2 size={14} /> },
-    { title: 'Token Bookings & Escrow', category: 'Finance', path: '/admin/tokens', icon: <ShieldCheck size={14} /> },
+    { title: 'Token Booking Requests', category: 'Bookings', path: '/admin/tokens', icon: <ShieldCheck size={14} /> },
     { title: 'Services Hub (Loans & Interiors)', category: 'Services', path: '/admin/services', icon: <Plus size={14} /> },
     { title: 'Leads & Enquiries', category: 'CRM', path: '/admin/leads', icon: <CheckSquare size={14} /> },
     { title: 'Revenue & Financials', category: 'Analytics', path: '/admin/revenue', icon: <Zap size={14} /> },
@@ -149,8 +149,8 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
       icon: <Plus size={14} />
     },
     {
-      title: 'Escrow Token Bookings',
-      subtitle: 'Track property token receipts',
+      title: 'Token Booking Requests',
+      subtitle: 'Review buyer reservation requests',
       path: '/admin/tokens',
       icon: <ShieldCheck size={14} />
     },

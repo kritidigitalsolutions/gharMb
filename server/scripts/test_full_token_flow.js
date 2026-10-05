@@ -88,9 +88,7 @@ async function testFullWorkflow() {
       tokenAmount: 2000,
       monthlyRent: property.price || 28000,
       totalAgreedPrice: `₹${(property.price || 28000).toLocaleString('en-IN')}`,
-      paymentMethod: 'upi',
-      transactionId: 'UTR-UPI-8899123401',
-      message: 'Booking submitted through Book with Token screen'
+      message: 'Booking reservation submitted through Book with Token screen'
     };
 
     const bookRes = await fetch(`${BASE_URL}/api/tokens`, {

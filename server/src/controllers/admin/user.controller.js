@@ -27,28 +27,48 @@ const normalizePhone = (phone) => {
 exports.getAllUsers = async (req, res, next) => {
   try {
     const { role, isVerified, agentVerificationStatus, builderVerificationStatus, search, status } = req.query;
-    const filter = {};
+    const conditions = [];
 
     if (role && role !== 'All') {
-      if (role === 'Buyer') filter.role = 'buyer';
-      else if (role === 'Seller') filter.role = 'owner';
-      else if (role === 'Agent') filter.role = 'agent';
-      else if (role === 'Builder') filter.role = 'builder';
-      else filter.role = role.toLowerCase();
+      if (role === 'Buyer') conditions.push({ role: 'buyer' });
+      else if (role === 'Seller') conditions.push({ role: 'owner' });
+      else if (role === 'Agent' || role.toLowerCase() === 'agent') {
+        conditions.push({
+          $or: [
+            { role: 'agent' },
+            { agentVerificationStatus: { $in: ['pending', 'approved', 'rejected'] } },
+          ],
+        });
+      } else if (role === 'Builder' || role.toLowerCase() === 'builder') {
+        conditions.push({
+          $or: [
+            { role: 'builder' },
+            { builderVerificationStatus: { $in: ['pending', 'approved', 'rejected'] } },
+          ],
+        });
+      } else {
+        conditions.push({ role: role.toLowerCase() });
+      }
     }
-    if (isVerified) filter.isVerified = isVerified === 'true';
-    if (agentVerificationStatus) filter.agentVerificationStatus = agentVerificationStatus;
-    if (builderVerificationStatus) filter.builderVerificationStatus = builderVerificationStatus;
-    if (status) filter.status = status;
+    if (isVerified) conditions.push({ isVerified: isVerified === 'true' });
+    if (agentVerificationStatus) conditions.push({ agentVerificationStatus });
+    if (builderVerificationStatus) conditions.push({ builderVerificationStatus });
+    if (status) conditions.push({ status });
 
     if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-        { companyName: { $regex: search, $options: 'i' } },
-      ];
+      conditions.push({
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
+          { phone: { $regex: search, $options: 'i' } },
+          { companyName: { $regex: search, $options: 'i' } },
+          { reraNumber: { $regex: search, $options: 'i' } },
+          { cityOfOperation: { $regex: search, $options: 'i' } },
+        ],
+      });
     }
+
+    const filter = conditions.length > 0 ? { $and: conditions } : {};
 
     const users = await User.find(filter).sort({ createdAt: -1 });
 
@@ -81,8 +101,10 @@ exports.getAllUsers = async (req, res, next) => {
 exports.getPendingAgents = async (req, res, next) => {
   try {
     const pendingAgents = await User.find({
-      role: 'agent',
-      agentVerificationStatus: 'pending',
+      $or: [
+        { role: 'agent', agentVerificationStatus: 'pending' },
+        { agentVerificationStatus: 'pending' },
+      ],
     }).sort({ updatedAt: -1 });
 
     res.status(200).json({
@@ -407,36 +429,45 @@ exports.deactivateUser = async (req, res, next) => {
       const Notification = require('../../models/notification.model');
       const PropertyEnquiry = require('../../models/property-enquiry.model');
       const DeveloperEnquiry = require('../../models/developer-enquiry.model');
+      const TokenRequest = require('../../models/token-request.model');
+      const VisitRequest = require('../../models/visit-request.model');
+      const Favorite = require('../../models/favorite.model');
+      const DeveloperReview = require('../../models/developer-review.model');
+      const CommercialSpace = require('../../models/commercial-space.model');
+      const ServiceRequest = require('../../models/service-request.model');
 
-      // Delete all properties owned by this user
+      // Find all properties owned by this user
       const userProperties = await Property.find({ owner: user._id }).select('_id');
       const userPropertyIds = userProperties.map(p => p._id);
 
-      // Delete all enquiries received on those properties
-      if (userPropertyIds.length > 0) {
-        await PropertyEnquiry.deleteMany({ property: { $in: userPropertyIds } });
-      }
+      // Find all projects owned by this user
+      const userProjects = await Project.find({ developer: user._id }).select('_id');
+      const userProjectIds = userProjects.map(p => p._id);
 
-      // Delete user's own properties
-      await Property.deleteMany({ owner: user._id });
-
-      // Delete user's projects (if builder/developer)
-      if (user.role === 'builder') {
-        const userProjects = await Project.find({ developer: user._id }).select('_id');
-        const userProjectIds = userProjects.map(p => p._id);
-        if (userProjectIds.length > 0) {
-          await DeveloperEnquiry.deleteMany({ project: { $in: userProjectIds } });
-        }
-        await Project.deleteMany({ developer: user._id });
-      }
-
-      // Delete all enquiries sent by this user (as buyer/client)
-      await PropertyEnquiry.deleteMany({ client: user._id });
-      await DeveloperEnquiry.deleteMany({ client: user._id });
-
-      // Delete all notifications for this user
-      await Notification.deleteMany({ recipient: user._id });
-
+      await Promise.allSettled([
+        // Enquiries on user's properties OR submitted by this user
+        PropertyEnquiry.deleteMany({ $or: [{ property: { $in: userPropertyIds } }, { client: user._id }] }),
+        // Enquiries on user's projects OR submitted by this user
+        DeveloperEnquiry.deleteMany({ $or: [{ project: { $in: userProjectIds } }, { developer: user._id }, { client: user._id }] }),
+        // Token requests for user's properties OR where user is buyer or seller
+        TokenRequest.deleteMany({ $or: [{ property: { $in: userPropertyIds } }, { buyer: user._id }, { seller: user._id }, { client: user._id }, { owner: user._id }] }),
+        // Visit requests for user's properties OR requested by user
+        VisitRequest.deleteMany({ $or: [{ property: { $in: userPropertyIds } }, { user: user._id }, { owner: user._id }] }),
+        // Favorites for user's properties OR saved by user
+        Favorite.deleteMany({ $or: [{ property: { $in: userPropertyIds } }, { user: user._id }] }),
+        // Developer reviews
+        DeveloperReview.deleteMany({ $or: [{ user: user._id }, { developer: user._id }] }),
+        // Commercial spaces
+        CommercialSpace.deleteMany({ owner: user._id }),
+        // Service requests
+        ServiceRequest.deleteMany({ user: user._id }),
+        // Notifications sent to this user
+        Notification.deleteMany({ recipient: user._id }),
+        // User's properties
+        Property.deleteMany({ owner: user._id }),
+        // User's projects
+        Project.deleteMany({ developer: user._id }),
+      ]);
     } catch (cascadeErr) {
       console.error('Warning: Error during cascade delete for user:', cascadeErr.message);
       // Continue with user deletion even if cascade partially fails

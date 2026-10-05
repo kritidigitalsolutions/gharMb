@@ -1,8 +1,7 @@
 /**
  * Admin Token Controller
- * Manages platform token escrow transactions, token requests moderation,
- * status updates (release to seller / refund to buyer / dispute lock),
- * and administrator configuration of token amounts.
+ * Manages property token booking requests moderation, status updates (accept / reject / cancel / pending),
+ * and administrator configuration of token reservation amounts.
  */
 
 const TokenRequest = require('../../models/token-request.model');
@@ -29,19 +28,21 @@ exports.getAllTokens = async (req, res, next) => {
 
     const filter = {};
 
-    // Status filter matches either escrowStatus or request status
+    // Status filter matches token request status
     if (status && status !== 'all' && status !== 'All') {
       const s = status.toLowerCase();
-      if (s === 'escrow held' || s === 'escrow_held' || s === 'held') {
-        filter.escrowStatus = 'Escrow Held';
-      } else if (s === 'released') {
-        filter.escrowStatus = 'Released';
-      } else if (s === 'refunded') {
-        filter.escrowStatus = 'Refunded';
-      } else if (s === 'disputed') {
-        filter.escrowStatus = 'Disputed';
+      if (s === 'approved' || s === 'accepted') {
+        filter.status = 'accepted';
+      } else if (s === 'declined' || s === 'rejected') {
+        filter.status = 'rejected';
+      } else if (s === 'cancelled') {
+        filter.status = 'cancelled';
+      } else if (s === 'contacted' || s === 'contact') {
+        filter.status = 'contacted';
+      } else if (s === 'pending') {
+        filter.status = 'pending';
       } else {
-        filter.$or = [{ escrowStatus: status }, { status: status }];
+        filter.status = status;
       }
     }
 
@@ -49,7 +50,7 @@ exports.getAllTokens = async (req, res, next) => {
       filter.property = propertyId;
     }
 
-    // Keyword search across token ID, buyer name, phone, email, notes, UTR
+    // Keyword search across token ID, buyer name, phone, email, notes
     if (search && search.trim()) {
       const searchRegex = new RegExp(search.trim(), 'i');
       filter.$or = [
@@ -60,19 +61,27 @@ exports.getAllTokens = async (req, res, next) => {
         { 'clientDetails.name': searchRegex },
         { 'clientDetails.phone': searchRegex },
         { 'clientDetails.email': searchRegex },
-        { utrRef: searchRegex },
-        { transactionId: searchRegex },
+        { adminNotes: searchRegex },
+        { contactNotes: searchRegex },
+        { message: searchRegex },
       ];
     }
 
-    // Execute KPI queries & list query in parallel
+    const validProps = await Property.distinct('_id');
+    if (!filter.property) {
+      filter.property = { $in: validProps };
+    }
+
+    // Execute list query & status counts in parallel
+    const baseCountFilter = { property: { $in: validProps } };
     const [
       tokens,
       totalCount,
-      escrowAgg,
-      releasedAgg,
-      activeCount,
-      refundedCount,
+      pendingCount,
+      contactedCount,
+      acceptedCount,
+      rejectedCount,
+      cancelledCount,
       totalTokenCount
     ] = await Promise.all([
       TokenRequest.find(filter)
@@ -83,43 +92,45 @@ exports.getAllTokens = async (req, res, next) => {
         .skip(skip)
         .limit(limitNum),
       TokenRequest.countDocuments(filter),
-      TokenRequest.aggregate([
-        { $match: { escrowStatus: 'Escrow Held' } },
-        { $group: { _id: null, total: { $sum: '$tokenAmount' } } },
-      ]),
-      TokenRequest.aggregate([
-        { $match: { escrowStatus: 'Released' } },
-        { $group: { _id: null, total: { $sum: '$tokenAmount' } } },
-      ]),
-      TokenRequest.countDocuments({ escrowStatus: 'Escrow Held' }),
-      TokenRequest.countDocuments({ escrowStatus: 'Refunded' }),
-      TokenRequest.countDocuments(),
+      TokenRequest.countDocuments({ ...baseCountFilter, status: 'pending' }),
+      TokenRequest.countDocuments({ ...baseCountFilter, status: 'contacted' }),
+      TokenRequest.countDocuments({ ...baseCountFilter, status: 'accepted' }),
+      TokenRequest.countDocuments({ ...baseCountFilter, status: 'rejected' }),
+      TokenRequest.countDocuments({ ...baseCountFilter, status: 'cancelled' }),
+      TokenRequest.countDocuments(baseCountFilter),
     ]);
 
-    const totalHeldInEscrow = escrowAgg.length > 0 ? escrowAgg[0].total : 0;
-    const totalReleased = releasedAgg.length > 0 ? releasedAgg[0].total : 0;
     const totalPages = Math.ceil(totalCount / limitNum) || 1;
 
     // Format tokens cleanly for frontend consumption
     const formattedTokens = tokens.map((t) => {
-      const buyerName = t.personalDetails?.fullName || t.clientDetails?.name || t.client?.name || 'Prospective Buyer';
+      const buyerName = t.personalDetails?.fullName || t.clientDetails?.name || t.client?.name || 'Prospective Tenant';
       const buyerPhone = t.personalDetails?.mobileNumber || t.clientDetails?.phone || t.client?.phone || 'N/A';
       const buyerEmail = t.personalDetails?.email || t.clientDetails?.email || t.client?.email || 'N/A';
 
       const sellerName = t.owner?.companyName || t.owner?.name || 'Property Owner / Builder';
       const sellerRole = t.owner?.role === 'developer' ? 'Verified Developer' : t.owner?.role === 'agent' ? 'Certified Agent' : 'Property Owner';
+      const isRental = t.property?.listingFor === 'Rent' || t.property?.listingFor === 'Lease' || t.property?.listingFor === 'PG';
 
       return {
         id: t.tokenRequestId || `#TKN-${t._id.toString().slice(-6)}`,
         mongoId: t._id,
         propertyId: t.property?.submissionId || `#PROP-${t.property?._id.toString().slice(-4)}`,
-        propertyTitle: t.property?.title || 'Property Listing',
+        propertyTitle: t.property?.title || 'Rental Listing',
         propertyCity: t.property?.city || '',
         propertyLocality: t.property?.locality || '',
+        listingFor: t.property?.listingFor || 'Rent',
+        isRental,
         buyerName,
         buyerPhone,
         buyerEmail,
-        currentCity: t.personalDetails?.currentCity || '',
+        currentCity: t.personalDetails?.currentCity || t.clientDetails?.currentCity || '',
+        requestSource: t.requestSource || 'one_click',
+        handledByAdmin: t.handledByAdmin !== false,
+        outOfAppStatus: t.outOfAppStatus || (t.status === 'accepted' ? 'token_received' : t.status === 'contacted' ? 'contacted' : 'pending_contact'),
+        contactNotes: t.contactNotes || '',
+        lastContactedAt: t.lastContactedAt,
+        tokenReceivedAmount: t.tokenReceivedAmount || 0,
         familyDetails: t.familyDetails || {
           numberOfFamilyMembers: '1',
           adults: '1',
@@ -141,20 +152,16 @@ exports.getAllTokens = async (req, res, next) => {
         sellerEmail: t.owner?.email || '',
         tokenAmount: t.tokenAmount || 2000,
         monthlyRent: t.monthlyRent || t.property?.price || 0,
-        totalAgreedPrice: t.totalAgreedPrice || (t.property?.price ? `₹${t.property.price.toLocaleString('en-IN')}` : '₹28,000'),
+        totalAgreedPrice: t.totalAgreedPrice || (t.property?.price ? `₹${t.property.price.toLocaleString('en-IN')}` : '₹25,000'),
         paymentPlanType: t.paymentPlanType || 'full_payment',
         installmentPlan: t.installmentPlan || null,
         bookingDate: new Date(t.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
         bookingTimestamp: t.createdAt,
-        expiryDate: t.expiresAt ? new Date(t.expiresAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '14 Days From Booking',
-        escrowBank: t.escrowBank || 'GHARMB Escrow Trust #9910',
-        utrRef: t.utrRef || t.transactionId || 'UTR-VERIFIED',
-        status: t.escrowStatus || (t.status === 'accepted' ? 'Released' : t.status === 'rejected' ? 'Refunded' : 'Escrow Held'),
+        expiryDate: t.expiresAt ? new Date(t.expiresAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '7 Days From Booking',
+        status: t.status || 'pending',
         requestStatus: t.status || 'pending',
-        paymentStatus: t.paymentStatus || 'paid',
-        paymentMethod: t.paymentMethod || 'upi',
-        legalStatus: t.escrowStatus === 'Released' ? 'Sale Agreement Executed' : t.escrowStatus === 'Refunded' ? 'Cancelled / Refund Issued' : 'Escrow Booking Recorded',
-        notes: t.adminNotes || t.message || 'Platform verified token deposit. All KYC submitted.',
+        legalStatus: t.status === 'accepted' ? 'Token Received Offline' : t.status === 'contacted' ? 'Contacted / In Discussion' : t.status === 'rejected' ? 'Request Declined' : t.status === 'cancelled' ? 'Booking Cancelled' : 'Pending Admin Contact',
+        notes: t.adminNotes || t.contactNotes || t.message || '1-Click token request submitted directly to admin.',
         raw: t,
       };
     });
@@ -164,10 +171,16 @@ exports.getAllTokens = async (req, res, next) => {
       data: {
         tokens: formattedTokens,
         stats: {
-          totalHeldInEscrow,
-          totalReleased,
-          activeCount,
-          refundedCount,
+          totalRequests: totalTokenCount,
+          pendingCount,
+          contactedCount,
+          acceptedCount,
+          rejectedCount,
+          cancelledCount,
+          totalHeldInEscrow: 0,
+          totalReleased: 0,
+          activeCount: pendingCount + contactedCount,
+          refundedCount: cancelledCount,
           totalTokenCount,
         },
         pagination: {
@@ -214,13 +227,13 @@ exports.getTokenById = async (req, res, next) => {
   }
 };
 
-// @desc    Update Escrow Status (Release Payout / Refund Buyer / Lock Dispute)
+// @desc    Update Token Request Status (Accept / Reject / Cancel / Pending)
 // @route   PATCH /api/admin/tokens/:id/status
 // @access  Private (Admin only)
 exports.updateTokenStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status, action, notes, utrRef } = req.body;
+    const { status, action, notes } = req.body;
 
     const token = await TokenRequest.findById(id)
       .populate('property', 'title owner')
@@ -235,48 +248,59 @@ exports.updateTokenStatus = async (req, res, next) => {
     }
 
     const targetAction = (action || status || '').toLowerCase();
-    let newEscrowStatus = token.escrowStatus;
     let newStatus = token.status;
     let notifTitle = '';
     let notifMessage = '';
     let targetRecipient = null;
 
-    if (targetAction === 'release' || targetAction === 'released') {
-      newEscrowStatus = 'Released';
+    if (targetAction === 'contact' || targetAction === 'contacted') {
+      newStatus = 'contacted';
+      token.outOfAppStatus = 'contacted';
+      token.lastContactedAt = new Date();
+      token.contactNotes = notes || token.contactNotes || 'Admin contacted client out of the app.';
+      token.adminNotes = notes || 'Client contacted out of app.';
+      notifTitle = 'Token Request Update: Admin Contacted 📞';
+      notifMessage = `GharMB admin has initiated contact for your token request on "${token.property?.title}".`;
+      targetRecipient = token.client?._id;
+    } else if (targetAction === 'accept' || targetAction === 'accepted' || targetAction === 'token_received' || targetAction === 'release' || targetAction === 'released' || targetAction === 'approve' || targetAction === 'approved') {
       newStatus = 'accepted';
-      token.payoutDate = new Date();
+      token.outOfAppStatus = 'token_received';
       token.decisionDate = new Date();
-      if (utrRef) token.utrRef = utrRef;
-      token.adminNotes = notes || `Escrow token ₹${token.tokenAmount.toLocaleString('en-IN')} released to seller ${token.owner?.name || ''}.`;
+      token.tokenReceivedDate = new Date();
+      if (req.body.tokenReceivedAmount) {
+        token.tokenReceivedAmount = Number(req.body.tokenReceivedAmount);
+      }
+      token.adminNotes = notes || `Token deposit received out-of-app.`;
 
       // Update property counter
       if (token.property?._id) {
         await Property.findByIdAndUpdate(token.property._id, { $inc: { tokensCount: 1 } });
       }
 
-      notifTitle = 'Escrow Token Deposit Released! 💰';
-      notifMessage = `Escrow token deposit of ₹${token.tokenAmount.toLocaleString('en-IN')} for "${token.property?.title}" has been authorized and disbursed to your account.`;
-      targetRecipient = token.owner?._id;
-    } else if (targetAction === 'refund' || targetAction === 'refunded') {
-      newEscrowStatus = 'Refunded';
-      newStatus = 'cancelled';
-      token.refundDate = new Date();
-      token.decisionDate = new Date();
-      if (utrRef) token.utrRef = utrRef;
-      token.adminNotes = notes || `Token deposit of ₹${token.tokenAmount.toLocaleString('en-IN')} refunded to buyer ${token.client?.name || ''}.`;
-
-      notifTitle = 'Token Booking Refund Processed ↩️';
-      notifMessage = `Your token refund of ₹${token.tokenAmount.toLocaleString('en-IN')} for "${token.property?.title}" has been successfully processed.`;
+      notifTitle = 'Rental Token Booking Confirmed! 🎉';
+      notifMessage = `Your token booking request for rental property "${token.property?.title}" has been confirmed by Admin!`;
       targetRecipient = token.client?._id;
-    } else if (targetAction === 'dispute' || targetAction === 'disputed') {
-      newEscrowStatus = 'Disputed';
-      token.adminNotes = notes || 'Dispute raised on token deposit. Escrow funds locked.';
-    } else if (targetAction === 'escrow held' || targetAction === 'escrow_held') {
-      newEscrowStatus = 'Escrow Held';
-      token.adminNotes = notes || 'Token deposit held securely in GharMB Escrow.';
+    } else if (targetAction === 'reject' || targetAction === 'rejected' || targetAction === 'declined' || targetAction === 'refund' || targetAction === 'refunded') {
+      newStatus = 'rejected';
+      token.outOfAppStatus = 'rejected';
+      token.decisionDate = new Date();
+      token.rejectionReason = notes || 'Declined by administrator';
+      token.adminNotes = notes || 'Token booking request rejected.';
+
+      notifTitle = 'Token Booking Request Declined';
+      notifMessage = `Token booking request for "${token.property?.title}" was not accepted.`;
+      targetRecipient = token.client?._id;
+    } else if (targetAction === 'cancel' || targetAction === 'cancelled') {
+      newStatus = 'cancelled';
+      token.outOfAppStatus = 'cancelled';
+      token.decisionDate = new Date();
+      token.adminNotes = notes || 'Token booking request cancelled.';
+    } else if (targetAction === 'pending') {
+      newStatus = 'pending';
+      token.outOfAppStatus = 'pending_contact';
+      token.adminNotes = notes || 'Token booking set to pending contact.';
     }
 
-    token.escrowStatus = newEscrowStatus;
     token.status = newStatus;
     await token.save();
 
@@ -300,7 +324,7 @@ exports.updateTokenStatus = async (req, res, next) => {
 
     res.status(200).json({
       status: 'success',
-      message: `Token booking updated to "${newEscrowStatus}".`,
+      message: `Token booking request updated to "${newStatus}".`,
       data: {
         token,
       },
@@ -341,7 +365,6 @@ exports.updateTokenSettings = async (req, res, next) => {
       allowCustomAmount,
       adjustmentNote,
       validityDays,
-      escrowAutoReleaseDays,
     } = req.body;
 
     let settings = await TokenSetting.getSettings();
@@ -377,10 +400,6 @@ exports.updateTokenSettings = async (req, res, next) => {
 
     if (validityDays && !isNaN(Number(validityDays))) {
       settings.validityDays = Number(validityDays);
-    }
-
-    if (escrowAutoReleaseDays && !isNaN(Number(escrowAutoReleaseDays))) {
-      settings.escrowAutoReleaseDays = Number(escrowAutoReleaseDays);
     }
 
     if (req.user) {
@@ -486,9 +505,6 @@ exports.createToken = async (req, res, next) => {
       propertyId,
       tokenAmount,
       monthlyRent,
-      paymentMethod,
-      utrRef,
-      escrowBank,
       notes,
       familyDetails,
       occupationDetails
@@ -502,12 +518,19 @@ exports.createToken = async (req, res, next) => {
     }
 
     let prop = null;
+    let isRental = true;
     if (propertyId && propertyId.match(/^[0-9a-fA-F]{24}$/)) {
       prop = await Property.findById(propertyId);
+      if (prop) {
+        isRental = prop.listingFor === 'Rent' || prop.listingFor === 'Lease' || prop.listingFor === 'PG';
+      }
     }
 
     const tokenDoc = await TokenRequest.create({
       property: prop ? prop._id : undefined,
+      isRental,
+      isTokenApplicable: isRental,
+      tokenAmount: isRental ? (Number(tokenAmount) || 2000) : 0,
       personalDetails: {
         fullName: buyerName.trim(),
         mobileNumber: buyerPhone.trim(),
@@ -517,8 +540,12 @@ exports.createToken = async (req, res, next) => {
       clientDetails: {
         name: buyerName.trim(),
         phone: buyerPhone.trim(),
-        email: buyerEmail ? buyerEmail.trim().toLowerCase() : ''
+        email: buyerEmail ? buyerEmail.trim().toLowerCase() : '',
+        currentCity: currentCity || ''
       },
+      requestSource: 'admin_manual',
+      handledByAdmin: true,
+      outOfAppStatus: 'pending_contact',
       familyDetails: familyDetails || {
         numberOfFamilyMembers: '1',
         adults: '1',
@@ -535,11 +562,6 @@ exports.createToken = async (req, res, next) => {
       monthlyRent: monthlyRent ? Number(monthlyRent) : (prop?.price || 0),
       totalAgreedPrice: prop?.price ? `₹${Number(prop.price).toLocaleString('en-IN')}` : '₹25,000',
       paymentPlanType: 'full_payment',
-      paymentMethod: paymentMethod || 'upi',
-      paymentStatus: 'paid',
-      escrowStatus: 'Escrow Held',
-      escrowBank: escrowBank || 'ICICI Escrow Trust #9910',
-      utrRef: utrRef || `UTR-${Date.now()}`,
       status: 'pending',
       adminNotes: notes || 'Token booking recorded by administrator.'
     });

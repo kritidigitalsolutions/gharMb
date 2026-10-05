@@ -87,6 +87,90 @@ const getPagination = (queryPage, queryLimit, defaultLimit = 20) => {
   return { page, limit, skip };
 };
 
+// Helper to enrich commercial space with seller role details (Builder, Agent, Owner)
+const enrichCommercialSpaceWithSellerRole = (spaceDoc, fallbackOwner = null) => {
+  if (!spaceDoc) return spaceDoc;
+  const obj = spaceDoc.toObject ? spaceDoc.toObject({ virtuals: true }) : { ...spaceDoc };
+  const ownerObj = (obj.owner && typeof obj.owner === 'object') ? obj.owner : (fallbackOwner || {});
+  const ownerRole = (ownerObj.role || 'owner').toLowerCase();
+  const rawListing = (obj.listingAs || '').toLowerCase();
+  const rawUserRole = (obj.userRole || '').toLowerCase();
+
+  let effectiveRole = 'owner';
+  let effectivePostedByRole = 'Owner';
+  let effectiveListingAs = 'Owner';
+
+  if (rawListing.includes('builder') || rawListing.includes('developer') || rawUserRole === 'builder' || ownerRole === 'builder') {
+    effectiveRole = 'builder';
+    effectivePostedByRole = 'Builder';
+    effectiveListingAs = 'Developer / Builder';
+  } else if (rawListing.includes('agent') || rawListing.includes('broker') || rawUserRole === 'agent' || ownerRole === 'agent') {
+    effectiveRole = 'agent';
+    effectivePostedByRole = 'Agent';
+    effectiveListingAs = 'Agent / Broker';
+  } else {
+    effectiveRole = 'owner';
+    effectivePostedByRole = 'Owner';
+    effectiveListingAs = 'Owner';
+  }
+
+  const roleTitle =
+    effectiveRole === 'builder'
+      ? 'Builder Profile'
+      : effectiveRole === 'agent'
+      ? 'Agent Profile'
+      : 'Owner Profile';
+
+  const isOwnerVerified = Boolean(
+    ownerObj.isVerified ||
+    ownerObj.builderVerificationStatus === 'approved' ||
+    ownerObj.agentVerificationStatus === 'approved'
+  );
+
+  const postedBy = {
+    id: ownerObj._id || ownerObj.id || null,
+    _id: ownerObj._id || ownerObj.id || null,
+    name: ownerObj.name || '',
+    phone: ownerObj.phone || '',
+    email: ownerObj.email || '',
+    role: effectiveRole,
+    roleTitle,
+    isVerified: isOwnerVerified,
+    verificationBadge: isOwnerVerified ? 'Verified' : 'Unverified',
+    companyName: ownerObj.companyName || '',
+    reraNumber: ownerObj.reraNumber || '',
+    profilePicture: ownerObj.profilePicture || '',
+  };
+
+  obj.id = obj._id;
+  obj.listingAs = effectiveListingAs;
+  obj.userRole = effectiveRole;
+  obj.role = effectiveRole;
+  obj.roleTitle = roleTitle;
+  obj.postedByRole = effectivePostedByRole;
+  obj.listedBy = effectivePostedByRole;
+  obj.sellerRole = effectivePostedByRole;
+  obj.ownerRole = effectiveRole;
+  obj.companyName = ownerObj.companyName || '';
+  obj.reraNumber = ownerObj.reraNumber || '';
+  obj.postedBy = postedBy;
+  if (!obj.owner || typeof obj.owner !== 'object') {
+    obj.owner = postedBy;
+  } else {
+    obj.owner = {
+      ...obj.owner,
+      role: effectiveRole,
+      roleTitle,
+      isVerified: isOwnerVerified,
+      verificationBadge: isOwnerVerified ? 'Verified' : 'Unverified',
+      companyName: ownerObj.companyName || '',
+      reraNumber: ownerObj.reraNumber || '',
+    };
+  }
+
+  return obj;
+};
+
 // @desc    Get all approved live commercial spaces with filters & pagination
 // @route   GET /api/commercial-spaces
 // @access  Public
@@ -118,6 +202,14 @@ exports.getAllSpaces = async (req, res, next) => {
     const { page: pageNum, limit: limitNum, skip } = getPagination(page, limit, 20);
 
     const query = { approvalStatus: 'approved', isLive: true };
+
+    // Exclude spaces listed by current user in discovery feed
+    const currentUserId = req.user?._id || req.query.userId || req.query.excludeOwner || req.query.currentUserId;
+    if (req.query.owner) {
+      query.owner = req.query.owner;
+    } else if (currentUserId) {
+      query.owner = { $ne: currentUserId };
+    }
 
     if (spaceType)  query.spaceType  = new RegExp(`^${spaceType.trim()}$`, 'i');
     if (listingFor) query.listingFor = new RegExp(`^${listingFor.trim()}$`, 'i');
@@ -169,21 +261,22 @@ exports.getAllSpaces = async (req, res, next) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
-        .populate('owner', 'name phone profilePicture role isVerified companyName'),
+        .populate('owner', 'name email phone profilePicture role isVerified builderVerificationStatus agentVerificationStatus companyName reraNumber'),
       CommercialSpace.countDocuments(query),
     ]);
 
     const totalPages = Math.ceil(total / limitNum) || 1;
+    const enrichedSpaces = spaces.map((s) => enrichCommercialSpaceWithSellerRole(s));
 
     res.status(200).json({
       status: 'success',
-      results: spaces.length,
+      results: enrichedSpaces.length,
       total,
       page: pageNum,
       limit: limitNum,
       totalPages,
       hasMore: pageNum < totalPages,
-      data: { spaces },
+      data: { spaces: enrichedSpaces },
     });
   } catch (error) {
     next(error);
@@ -203,6 +296,14 @@ exports.getFeaturedSpaces = async (req, res, next) => {
       isLive: true,
       listingTier: { $in: ['Featured', 'Premium'] },
     };
+
+    // Exclude spaces listed by current user in discovery feed
+    const currentUserId = req.user?._id || req.query.userId || req.query.excludeOwner || req.query.currentUserId;
+    if (req.query.owner) {
+      query.owner = req.query.owner;
+    } else if (currentUserId) {
+      query.owner = { $ne: currentUserId };
+    }
 
     if (spaceType) query.spaceType = spaceType;
 
@@ -244,6 +345,14 @@ exports.getLatestSpaces = async (req, res, next) => {
       approvalStatus: 'approved',
       isLive: true,
     };
+
+    // Exclude spaces listed by current user in discovery feed
+    const currentUserId = req.user?._id || req.query.userId || req.query.excludeOwner || req.query.currentUserId;
+    if (req.query.owner) {
+      query.owner = req.query.owner;
+    } else if (currentUserId) {
+      query.owner = { $ne: currentUserId };
+    }
 
     if (spaceType)  query.spaceType  = new RegExp(`^${spaceType.trim()}$`, 'i');
     if (listingFor) query.listingFor = new RegExp(`^${listingFor.trim()}$`, 'i');
@@ -337,6 +446,15 @@ exports.getNearMeSpaces = async (req, res, next) => {
     const { page: pageNum, limit: limitNum, skip } = getPagination(page, limit, 10);
 
     const query = { approvalStatus: 'approved', isLive: true };
+
+    // Exclude spaces listed by current user in discovery feed
+    const currentUserId = req.user?._id || req.query.userId || req.query.excludeOwner || req.query.currentUserId;
+    if (req.query.owner) {
+      query.owner = req.query.owner;
+    } else if (currentUserId) {
+      query.owner = { $ne: currentUserId };
+    }
+
     if (spaceType) query.spaceType = new RegExp(`^${spaceType.trim()}$`, 'i');
     if (listingFor) query.listingFor = new RegExp(`^${listingFor.trim()}$`, 'i');
 
@@ -466,9 +584,16 @@ exports.getSpaceDetails = async (req, res, next) => {
       await CommercialSpace.findByIdAndUpdate(req.params.id, { $inc: { viewsCount: 1 } });
     }
 
+    const currentUserId = req.user?._id?.toString() || req.query.userId || req.query.currentUserId;
+    const isOwner = Boolean(
+      space.owner &&
+      currentUserId &&
+      (space.owner._id ? space.owner._id.toString() : space.owner.toString()) === currentUserId
+    );
+
     res.status(200).json({
       status: 'success',
-      data: { space },
+      data: { space, isOwner },
     });
   } catch (error) {
     next(error);
@@ -482,9 +607,28 @@ exports.createSpace = async (req, res, next) => {
   try {
     const user = req.user;
     const userRole = (user.role || '').toLowerCase();
-    const listingAs = (req.body.listingAs || '').toLowerCase();
+    const rawListingAs = (req.body.listingAs || '').toLowerCase();
 
-    if (userRole === 'agent' || listingAs.includes('agent') || listingAs.includes('broker')) {
+    // Determine normalized role and listingAs (Builder, Agent, Owner)
+    let normalizedListingAs = 'Owner';
+    let normalizedUserRole = userRole || 'owner';
+    let normalizedPostedByRole = 'Owner';
+
+    if (rawListingAs.includes('builder') || rawListingAs.includes('developer') || userRole === 'builder') {
+      normalizedListingAs = 'Developer / Builder';
+      normalizedUserRole = 'builder';
+      normalizedPostedByRole = 'Builder';
+    } else if (rawListingAs.includes('agent') || rawListingAs.includes('broker') || userRole === 'agent') {
+      normalizedListingAs = 'Agent / Broker';
+      normalizedUserRole = 'agent';
+      normalizedPostedByRole = 'Agent';
+    } else {
+      normalizedListingAs = 'Owner';
+      normalizedUserRole = 'owner';
+      normalizedPostedByRole = 'Owner';
+    }
+
+    if (normalizedUserRole === 'agent' || normalizedListingAs === 'Agent / Broker') {
       if (user.agentVerificationStatus !== 'approved') {
         const reason = user.agentVerificationStatus === 'rejected'
           ? `Your Agent profile was rejected: ${user.agentRejectionReason || 'Please re-upload documents.'}`
@@ -493,7 +637,7 @@ exports.createSpace = async (req, res, next) => {
       }
     }
 
-    if (userRole === 'builder' || listingAs.includes('developer') || listingAs.includes('builder')) {
+    if (normalizedUserRole === 'builder' || normalizedListingAs === 'Developer / Builder') {
       if (user.builderVerificationStatus !== 'approved') {
         const reason = user.builderVerificationStatus === 'rejected'
           ? `Your Developer profile was rejected: ${user.builderRejectionReason || 'Please re-upload documents.'}`
@@ -504,6 +648,9 @@ exports.createSpace = async (req, res, next) => {
 
     const spaceData = {
       ...req.body,
+      listingAs: normalizedListingAs,
+      userRole: normalizedUserRole,
+      postedByRole: normalizedPostedByRole,
       owner: user._id,
       approvalStatus: 'pending',
       isLive: false,
@@ -535,12 +682,14 @@ exports.createSpace = async (req, res, next) => {
       console.error('Error creating admin notification for commercial space:', notifErr);
     }
 
+    const enrichedSpace = enrichCommercialSpaceWithSellerRole(space, user);
+
     res.status(201).json({
       status: 'success',
       message: 'Commercial space listing submitted! Admin will verify before it goes live.',
       data: {
         submissionId: space.submissionId,
-        space,
+        space: enrichedSpace,
       },
     });
   } catch (error) {
@@ -557,7 +706,9 @@ exports.getMyDashboard = async (req, res, next) => {
     const { page = 1, limit = 10, status = 'all' } = req.query;
     const { page: pageNum, limit: limitNum, skip } = getPagination(page, limit, 10);
 
-    const allSpaces = await CommercialSpace.find({ owner: ownerId }).sort({ createdAt: -1 });
+    const allSpaces = await CommercialSpace.find({ owner: ownerId })
+      .populate('owner', 'name phone email role isVerified builderVerificationStatus agentVerificationStatus companyName reraNumber profilePicture address')
+      .sort({ createdAt: -1 });
 
     const live     = allSpaces.filter((s) => s.approvalStatus === 'approved' && s.isLive);
     const pending  = allSpaces.filter((s) => s.approvalStatus === 'pending');
@@ -575,7 +726,7 @@ exports.getMyDashboard = async (req, res, next) => {
     else if (status === 'pending') filteredListings = pending;
     else if (status === 'rejected') filteredListings = rejected;
 
-    const paginatedListings = filteredListings.slice(skip, skip + limitNum);
+    const paginatedListings = filteredListings.slice(skip, skip + limitNum).map((s) => enrichCommercialSpaceWithSellerRole(s, req.user));
     const totalListings = filteredListings.length;
     const totalPages = Math.ceil(totalListings / limitNum) || 1;
 
@@ -610,9 +761,9 @@ exports.getMyDashboard = async (req, res, next) => {
         },
         mySpaces: {
           paginated: paginatedListings,
-          live,
-          pending,
-          rejected,
+          live: live.map((s) => enrichCommercialSpaceWithSellerRole(s, req.user)),
+          pending: pending.map((s) => enrichCommercialSpaceWithSellerRole(s, req.user)),
+          rejected: rejected.map((s) => enrichCommercialSpaceWithSellerRole(s, req.user)),
         },
       },
     });

@@ -7,10 +7,13 @@
  * - Updates property counters and triggers in-app notifications
  */
 
+const mongoose = require('mongoose');
 const TokenRequest = require('../../models/token-request.model');
 const Property = require('../../models/property.model');
 const Notification = require('../../models/notification.model');
 const TokenSetting = require('../../models/token-setting.model');
+const User = require('../../models/user.model');
+const { notifyAdmin } = require('../../utils/adminNotification.helper');
 
 // Helper for pagination
 const getPagination = (page, limit, defaultLimit = 10) => {
@@ -21,61 +24,143 @@ const getPagination = (page, limit, defaultLimit = 10) => {
 };
 
 // @desc    Get Token Booking Configuration (Amounts configured by Admin)
-// @route   GET /api/token-requests/config OR GET /api/user/token-requests/config
+// @route   GET /api/token-requests/config OR GET /api/user/token-requests/config OR GET /api/properties/:id/token-config
 // @access  Public / Private
 exports.getTokenConfig = async (req, res, next) => {
   try {
-    const { propertyId } = req.query;
+    const propertyId = req.query.propertyId || req.params.id || req.params.propertyId || req.body?.propertyId;
     const globalSettings = await TokenSetting.getSettings();
 
+    // Base configuration from Admin Token Settings
+    const dynamicAmounts = Array.isArray(globalSettings.tokenAmounts) && globalSettings.tokenAmounts.length > 0
+      ? globalSettings.tokenAmounts
+      : [200, 2000, 5000, 7000];
+
+    const defAmount = globalSettings.defaultTokenAmount && dynamicAmounts.includes(globalSettings.defaultTokenAmount)
+      ? globalSettings.defaultTokenAmount
+      : dynamicAmounts[0];
+
     let config = {
-      tokenAmounts: globalSettings.tokenAmounts || [2000, 5000],
-      defaultTokenAmount: globalSettings.defaultTokenAmount || 2000,
+      tokenAmounts: dynamicAmounts,
+      defaultTokenAmount: defAmount,
       minTokenAmount: globalSettings.minTokenAmount || 1000,
       maxTokenAmount: globalSettings.maxTokenAmount || 100000,
       allowCustomAmount: globalSettings.allowCustomAmount || false,
       adjustmentNote: globalSettings.adjustmentNote || "Token amount will be adjusted in security deposit or first month's rent",
       allowTokenBooking: true,
+      validityDays: globalSettings.validityDays || 7,
+      isRentOnly: true,
       property: null,
     };
 
-    if (propertyId) {
+    if (propertyId && mongoose.Types.ObjectId.isValid(propertyId)) {
       const property = await Property.findById(propertyId)
-        .select('title price category listingFor allowTokenBooking tokenAmount tokenAmounts tokenAdjustmentNote securityDeposit owner city locality')
-        .populate('owner', 'name phone email companyName');
+        .populate('owner', 'name phone email companyName role profilePicture isVerified address');
 
       if (property) {
+        const coverImg = Array.isArray(property.images) && property.images.length > 0 ? property.images[0] : '';
+        const propImages = Array.isArray(property.images) && property.images.length > 0 ? property.images : (coverImg ? [coverImg] : []);
+
+        const isRental = property.listingFor === 'Rent' || property.listingFor === 'Lease' || property.listingFor === 'PG';
+
         config.property = {
+          _id: property._id,
           id: property._id,
           title: property.title,
           price: property.price,
-          monthlyRent: property.listingFor === 'Rent' || property.listingFor === 'Lease' || property.listingFor === 'PG' ? property.price : null,
-          category: property.category,
-          listingFor: property.listingFor,
-          city: property.city,
-          locality: property.locality,
-          owner: property.owner,
+          priceDisplay: property.price ? `₹${property.price.toLocaleString('en-IN')}` : 'Price on Request',
+          monthlyRent: isRental ? property.price : null,
+          category: property.category || 'Residential',
+          listingFor: property.listingFor || 'Sale',
+          isRental,
+          propertyType: property.propertyType || 'Apartment',
+          city: property.city || '',
+          locality: property.locality || '',
+          fullAddress: property.fullAddress || `${property.locality || ''}, ${property.city || ''}`,
+          address: property.fullAddress || `${property.locality || ''}, ${property.city || ''}`,
+          pincode: property.pincode || '',
+          bedrooms: property.bedrooms || '2',
+          bhk: property.bedrooms ? `${property.bedrooms} BHK` : '2 BHK',
+          bathrooms: property.bathrooms || '2',
+          carpetArea: property.carpetArea || 0,
+          builtUpArea: property.builtUpArea || property.carpetArea || 0,
+          area: property.builtUpArea || property.carpetArea || 0,
+          floorNo: property.floorNo || '',
+          totalFloors: property.totalFloors || '',
+          furnishing: property.furnishing || 'Semi-furnished',
+          facingDirection: property.facingDirection || '',
+          parking: property.parking || '',
+          amenities: Array.isArray(property.amenities) ? property.amenities : [],
+          availableFrom: property.availableFrom || 'Immediate',
+          possession: property.availableFrom || 'Immediate',
+          images: propImages,
+          photos: propImages,
+          coverImage: coverImg,
+          image: coverImg,
+          description: property.description || '',
+          submissionId: property.submissionId || '',
+          listingTier: property.listingTier || 'Standard',
+          securityDeposit: property.securityDeposit || 0,
+          allowInstallments: Boolean(property.allowInstallments),
+          installmentDetails: property.installmentDetails || null,
+          allowTokenBooking: isRental && property.allowTokenBooking !== false,
+          owner: property.owner ? {
+            _id: property.owner._id,
+            id: property.owner._id,
+            name: property.owner.name || 'Owner',
+            phone: property.owner.phone || '',
+            email: property.owner.email || '',
+            companyName: property.owner.companyName || '',
+            role: property.owner.role || 'owner',
+            profilePicture: property.owner.profilePicture || '',
+            isVerified: Boolean(property.owner.isVerified),
+          } : null,
         };
 
-        config.allowTokenBooking = property.allowTokenBooking !== false;
+        // Token amount is strictly available for rental properties only
+        if (!isRental) {
+          config.allowTokenBooking = true; // Same API supports booking for both rent and non-rent
+          config.isTokenApplicable = false;
+          config.isRental = false;
+          config.defaultTokenAmount = 0;
+          config.tokenAmounts = [];
+          config.rentNotice = 'Booking is available without token amount. GharMB Admin will coordinate with you directly.';
+        } else {
+          config.allowTokenBooking = property.allowTokenBooking !== false;
+          config.isTokenApplicable = true;
+          config.isRental = true;
+        }
 
-        // If property has specific token amounts configured by admin/owner
-        if (Array.isArray(property.tokenAmounts) && property.tokenAmounts.length > 0) {
+        // If property has specific custom token amounts configured by admin/owner
+        if (isRental && Array.isArray(property.tokenAmounts) && property.tokenAmounts.length > 0) {
           config.tokenAmounts = property.tokenAmounts;
         }
 
-        if (property.tokenAmount) {
-          config.defaultTokenAmount = property.tokenAmount;
+        if (isRental && property.tokenAmount && !isNaN(Number(property.tokenAmount))) {
+          config.defaultTokenAmount = Number(property.tokenAmount);
         }
 
-        if (property.tokenAdjustmentNote) {
-          config.adjustmentNote = property.tokenAdjustmentNote;
+        if (property.tokenAdjustmentNote && property.tokenAdjustmentNote.trim()) {
+          config.adjustmentNote = property.tokenAdjustmentNote.trim();
+        }
+
+        const currentUserId = req.user?._id?.toString() || req.query.userId || req.query.currentUserId;
+        const isCurrentOwner = Boolean(
+          property.owner &&
+          currentUserId &&
+          (property.owner._id ? property.owner._id.toString() : property.owner.toString()) === currentUserId
+        );
+        config.isOwner = isCurrentOwner;
+        if (isCurrentOwner) {
+          config.canBook = false;
+          config.bookingDisabledReason = 'You are the owner of this property listing. Self-booking is not allowed.';
         }
       }
     }
 
     res.status(200).json({
       status: 'success',
+      message: 'Token booking configuration retrieved successfully.',
       data: config,
     });
   } catch (error) {
@@ -83,17 +168,15 @@ exports.getTokenConfig = async (req, res, next) => {
   }
 };
 
-// @desc    Submit a new Token Booking Request for a property (5-Step Mobile & Web Workflow)
+// @desc    Submit a new Token Booking Request for a property (1-Click or Guided Rental Workflow)
 // @route   POST /api/user/token-requests OR POST /api/properties/:id/token-request
-// @access  Private (Buyer / Client)
+// @access  Public / Private (Authenticated user or Guest with contact info)
 exports.createTokenRequest = async (req, res, next) => {
   try {
     const propertyId = req.params.id || req.body.property || req.body.propertyId;
     const {
       tokenAmount,
       message,
-      paymentMethod,
-      transactionId,
       paymentPlanType,
       installmentPlan,
       personalDetails,
@@ -102,6 +185,7 @@ exports.createTokenRequest = async (req, res, next) => {
       idProof,
       monthlyRent,
       totalAgreedPrice,
+      requestSource,
     } = req.body;
 
     if (!propertyId) {
@@ -119,78 +203,134 @@ exports.createTokenRequest = async (req, res, next) => {
       });
     }
 
+    // Determine whether property is rental or sale/non-rental
+    const isRental = property.listingFor === 'Rent' || property.listingFor === 'Lease' || property.listingFor === 'PG';
+
     // Owner cannot send token request to their own property
-    if (property.owner && req.user && property.owner.toString() === req.user._id.toString()) {
+    const isOwner = property.owner && req.user && property.owner.toString() === req.user._id.toString();
+    if (isOwner) {
       return res.status(400).json({
         status: 'fail',
-        message: 'You cannot submit a token request for your own property listing.',
+        message: 'You cannot submit a booking or token request for your own property listing.',
       });
     }
 
-    // Check if token bookings are allowed for this property
+    const applicantUserId = req.user?._id?.toString() || req.body.userId || req.body.buyerId;
+    if (property.owner && applicantUserId && property.owner.toString() === applicantUserId.toString()) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'You cannot submit a booking or token request for your own property listing.',
+      });
+    }
+
+    // Check if bookings are allowed for this property
     if (property.allowTokenBooking === false) {
       return res.status(400).json({
         status: 'fail',
-        message: 'Token booking is temporarily unavailable for this property listing.',
+        message: 'Booking is temporarily unavailable for this property listing.',
       });
     }
 
-    // Validate installment plan selection against owner preference
-    const selectedPlan = (paymentPlanType || 'full_payment').toLowerCase();
-    if (selectedPlan === 'installment') {
-      if (!property.allowInstallments) {
-        return res.status(400).json({
-          status: 'fail',
-          message: 'The owner of this property requires direct full payment. Installment / EMI option is not enabled for this site.',
-        });
+    // Retrieve global settings for defaults
+    const globalSettings = await TokenSetting.getSettings();
+
+    // Determine token amount:
+    // If rental: use passed tokenAmount or default from property/global settings
+    // If NOT rental (Sale / non-rent): Token amount is NOT passed / not applicable (0)
+    let numericAmount = 0;
+    if (isRental) {
+      numericAmount = Number(tokenAmount);
+      if (!numericAmount || isNaN(numericAmount) || numericAmount <= 0) {
+        numericAmount = property.tokenAmount || globalSettings.defaultTokenAmount || 2000;
+      }
+    } else {
+      // Non-rental property (Sale): Token amount is not passed / 0 token
+      numericAmount = 0;
+    }
+
+    // 1-Click contact details parsing (extracts from body, personalDetails object, or logged-in user)
+    const parsedPersonal = typeof personalDetails === 'string' ? JSON.parse(personalDetails || '{}') : (personalDetails || {});
+
+    const clientName = (
+      req.body.name ||
+      req.body.fullName ||
+      req.body.clientName ||
+      parsedPersonal.fullName ||
+      parsedPersonal.name ||
+      req.user?.name ||
+      ''
+    ).trim();
+
+    const clientPhone = (
+      req.body.phone ||
+      req.body.contactNumber ||
+      req.body.mobileNumber ||
+      parsedPersonal.mobileNumber ||
+      parsedPersonal.phone ||
+      req.user?.phone ||
+      ''
+    ).trim();
+
+    const clientEmail = (
+      req.body.email ||
+      parsedPersonal.email ||
+      req.user?.email ||
+      ''
+    ).trim();
+
+    // Cross-check: Ensure applicant contact info does not match the property owner
+    if (property.owner) {
+      const ownerUser = await User.findById(property.owner).select('phone email');
+      if (ownerUser) {
+        const ownerPhone = (ownerUser.phone || '').trim();
+        const ownerEmail = (ownerUser.email || '').trim().toLowerCase();
+
+        const inputPhone = (clientPhone || '').trim();
+        const inputEmail = (clientEmail || '').trim().toLowerCase();
+
+        if (
+          (inputPhone && ownerPhone && inputPhone === ownerPhone) ||
+          (inputEmail && ownerEmail && inputEmail === ownerEmail)
+        ) {
+          return res.status(400).json({
+            status: 'fail',
+            message: 'You cannot submit a booking or token request for your own property listing.',
+          });
+        }
       }
     }
 
-    // Parse installment plan if provided
-    let parsedInstallment = undefined;
-    if (selectedPlan === 'installment') {
-      const rawInst = typeof installmentPlan === 'string' ? JSON.parse(installmentPlan || '{}') : (installmentPlan || {});
-      parsedInstallment = {
-        downPaymentAmount: Number(rawInst.downPaymentAmount || rawInst.downPayment) || property.installmentDetails?.downPaymentAmount || 0,
-        numberOfInstallments: Number(rawInst.numberOfInstallments) || property.installmentDetails?.numberOfInstallments || 0,
-        installmentFrequency: rawInst.installmentFrequency || property.installmentDetails?.installmentFrequency || 'Monthly',
-        installmentAmount: Number(rawInst.installmentAmount) || property.installmentDetails?.installmentAmount || 0,
-        totalPayable: Number(rawInst.totalPayable) || property.price || 0,
-        proposedTerms: (rawInst.proposedTerms || rawInst.terms || '').trim(),
-      };
-    }
+    const clientCity = (
+      req.body.currentCity ||
+      req.body.city ||
+      parsedPersonal.currentCity ||
+      parsedPersonal.city ||
+      req.user?.address?.city ||
+      ''
+    ).trim();
 
-    // Check if client already has a pending token request for this property
-    const existingPending = await TokenRequest.findOne({
-      property: propertyId,
-      client: req.user._id,
-      status: 'pending',
-    });
-
-    if (existingPending) {
+    if (!clientPhone) {
       return res.status(400).json({
         status: 'fail',
-        message: 'You already have a pending token request for this property.',
-        data: { tokenRequest: existingPending },
+        message: 'A contact phone number is required so our admin team can reach you regarding the token amount.',
       });
     }
 
-    // Determine token amount (from body, or property config, or global setting)
-    let numericAmount = Number(tokenAmount);
-    if (!numericAmount || isNaN(numericAmount) || numericAmount <= 0) {
-      numericAmount = property.tokenAmount || 2000;
-    }
-
-    // Parse Personal Details
-    const parsedPersonal = typeof personalDetails === 'string' ? JSON.parse(personalDetails || '{}') : (personalDetails || {});
     const finalPersonalDetails = {
-      fullName: parsedPersonal.fullName || parsedPersonal.name || req.user.name || '',
-      mobileNumber: parsedPersonal.mobileNumber || parsedPersonal.phone || req.user.phone || '',
-      email: parsedPersonal.email || req.user.email || '',
-      currentCity: parsedPersonal.currentCity || parsedPersonal.city || '',
+      fullName: clientName || 'Prospective Tenant',
+      mobileNumber: clientPhone,
+      email: clientEmail,
+      currentCity: clientCity,
     };
 
-    // Parse Family Details
+    const finalClientDetails = {
+      name: clientName || 'Prospective Tenant',
+      phone: clientPhone,
+      email: clientEmail,
+      currentCity: clientCity,
+    };
+
+    // Family Details (Optional - default to single member for 1-click)
     const parsedFamily = typeof familyDetails === 'string' ? JSON.parse(familyDetails || '{}') : (familyDetails || {});
     const finalFamilyDetails = {
       numberOfFamilyMembers: String(parsedFamily.numberOfFamilyMembers || parsedFamily.members || '1'),
@@ -199,15 +339,15 @@ exports.createTokenRequest = async (req, res, next) => {
       maritalStatus: String(parsedFamily.maritalStatus || 'Single'),
     };
 
-    // Parse Occupation Details
+    // Occupation Details (Optional)
     const parsedOccupation = typeof occupationDetails === 'string' ? JSON.parse(occupationDetails || '{}') : (occupationDetails || {});
     const finalOccupationDetails = {
-      profession: String(parsedOccupation.profession || ''),
+      profession: String(parsedOccupation.profession || 'Professional'),
       companyName: String(parsedOccupation.companyName || parsedOccupation.company || ''),
       monthlyIncome: String(parsedOccupation.monthlyIncome || parsedOccupation.income || ''),
     };
 
-    // Parse ID Proof Details (handles file upload if passed in multipart form)
+    // ID Proof Details (Optional - handles file upload if passed in multipart form)
     const parsedIdProof = typeof idProof === 'string' ? JSON.parse(idProof || '{}') : (idProof || {});
     let idProofDocUrl = parsedIdProof.documentUrl || '';
     let idProofOrigName = parsedIdProof.documentOriginalName || '';
@@ -226,50 +366,137 @@ exports.createTokenRequest = async (req, res, next) => {
       documentOriginalName: idProofOrigName,
     };
 
+    const selectedPlan = (paymentPlanType || 'full_payment').toLowerCase();
+    const defaultAdj = isRental
+      ? (property.tokenAdjustmentNote || globalSettings.adjustmentNote || "Token amount will be adjusted in security deposit or first month's rent")
+      : 'Direct property booking request with zero token amount. Handled directly by GharMB Admin.';
+    const finalAdjustmentNote = property.tokenAdjustmentNote || defaultAdj;
+    const detectedSource = requestSource || (idProofDocUrl || occupationDetails ? 'form' : 'one_click');
+
+    // Check if client already has a pending token request for this property
+    const existingFilter = {
+      property: propertyId,
+      status: { $in: ['pending', 'contacted'] },
+    };
+    if (req.user?._id) {
+      existingFilter.client = req.user._id;
+    } else {
+      existingFilter['clientDetails.phone'] = clientPhone;
+    }
+
+    const existingPending = await TokenRequest.findOne(existingFilter);
+
+    if (existingPending) {
+      // Update existing pending request gracefully so user can revise or re-click
+      existingPending.tokenAmount = numericAmount;
+      existingPending.isTokenApplicable = isRental;
+      existingPending.isRental = isRental;
+      existingPending.personalDetails = finalPersonalDetails;
+      existingPending.clientDetails = finalClientDetails;
+      existingPending.familyDetails = finalFamilyDetails;
+      existingPending.occupationDetails = finalOccupationDetails;
+      if (idProofDocUrl) existingPending.idProof = finalIdProof;
+      existingPending.monthlyRent = isRental ? (Number(monthlyRent) || property.price || 0) : 0;
+      existingPending.totalAgreedPrice = totalAgreedPrice || (property.price ? `₹${property.price.toLocaleString('en-IN')}${isRental ? '/mo' : ''}` : '');
+      existingPending.adjustmentNote = finalAdjustmentNote;
+      existingPending.message = message || existingPending.message || (isRental ? '1-Click Token Request for Rental Site' : 'Booking Request for Property (No Token Amount)');
+      existingPending.requestSource = detectedSource;
+      existingPending.handledByAdmin = true;
+      existingPending.expiresAt = new Date(Date.now() + (globalSettings.validityDays || 7) * 24 * 60 * 60 * 1000);
+      await existingPending.save();
+
+      const populatedToken = await TokenRequest.findById(existingPending._id)
+        .populate('property', 'title locality city price listingFor category images photos submissionId')
+        .populate('owner', 'name phone email companyName');
+
+      return res.status(200).json({
+        status: 'success',
+        message: isRental
+          ? 'Token amount request updated! GharMB Admin has received your request and will contact you directly out of the app via Call/WhatsApp.'
+          : 'Property booking request updated! GharMB Admin has received your request and will contact you directly out of the app via Call/WhatsApp.',
+        data: {
+          tokenRequest: populatedToken,
+        },
+      });
+    }
+
     const tokenRequest = await TokenRequest.create({
       property: propertyId,
-      client: req.user._id,
+      client: req.user?._id || undefined,
       owner: property.owner,
       personalDetails: finalPersonalDetails,
+      clientDetails: finalClientDetails,
       familyDetails: finalFamilyDetails,
       occupationDetails: finalOccupationDetails,
       idProof: finalIdProof,
-      monthlyRent: Number(monthlyRent) || property.price || 0,
-      totalAgreedPrice: totalAgreedPrice || `₹${(property.price || 0).toLocaleString('en-IN')}`,
+      monthlyRent: isRental ? (Number(monthlyRent) || property.price || 0) : 0,
+      totalAgreedPrice: totalAgreedPrice || (property.price ? `₹${property.price.toLocaleString('en-IN')}${isRental ? '/mo' : ''}` : (isRental ? '₹25,000/mo' : '₹50,00,000')),
       tokenAmount: numericAmount,
-      adjustmentNote: property.tokenAdjustmentNote || "Token amount will be adjusted in security deposit or first month's rent",
+      isTokenApplicable: isRental,
+      isRental: isRental,
+      adjustmentNote: finalAdjustmentNote,
       paymentPlanType: selectedPlan,
-      installmentPlan: parsedInstallment,
-      message: message || '',
-      paymentMethod: paymentMethod || 'upi',
-      transactionId: transactionId || `UTR-GHARMB-${Date.now()}`,
-      paymentStatus: 'paid', // Mark as paid for token reservation
+      message: message || (isRental ? '1-Click Token Amount Request (Rental Site)' : 'Property Booking Request (Sale Property - No Token Amount)'),
+      requestSource: detectedSource,
+      handledByAdmin: true,
+      outOfAppStatus: 'pending_contact',
       status: 'pending',
-      escrowStatus: 'Escrow Held',
-      escrowBank: 'ICICI Escrow Trust #9910',
-      utrRef: transactionId || `UTR-TXN-${Math.floor(10000000 + Math.random() * 90000000)}`,
-      clientDetails: {
-        name: finalPersonalDetails.fullName,
-        phone: finalPersonalDetails.mobileNumber,
-        email: finalPersonalDetails.email,
-      },
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days decision window
+      expiresAt: new Date(Date.now() + (globalSettings.validityDays || 7) * 24 * 60 * 60 * 1000),
     });
 
-    // Notify the property owner
+    // ⚡ DIRECT TO ADMIN NOTIFICATION: Admin receives request directly to handle out of the app
     try {
-      await Notification.create({
-        recipient: property.owner,
-        title: 'New Token Booking Request! 💰',
-        message: `${finalPersonalDetails.fullName || 'A prospective tenant/buyer'} booked "${property.title}" with a token deposit of ₹${numericAmount.toLocaleString('en-IN')}. Awaiting your decision.`,
+      const notifTitle = isRental
+        ? '⚡ New Rental Token Request'
+        : '⚡ New Property Booking Request (No Token Amount)';
+      const notifMessage = isRental
+        ? `${finalPersonalDetails.fullName || 'Prospective Tenant'} (${finalPersonalDetails.mobileNumber}) requested a token booking (₹${numericAmount.toLocaleString('en-IN')}) for rental property "${property.title}". Please contact user out of the app to handle token deposit.`
+        : `${finalPersonalDetails.fullName || 'Prospective Buyer'} (${finalPersonalDetails.mobileNumber}) requested to book sale property "${property.title}" (No Token Amount). Please contact user out of the app to coordinate next steps.`;
+
+      await notifyAdmin({
+        title: notifTitle,
+        message: notifMessage,
         type: 'token_request',
+        senderId: req.user?._id,
         metadata: {
           propertyId: property._id,
           tokenRequestId: tokenRequest._id,
+          listingFor: property.listingFor,
+          isRental,
+          tokenAmount: numericAmount,
+          clientDetails: {
+            name: finalPersonalDetails.fullName,
+            phone: finalPersonalDetails.mobileNumber,
+            email: finalPersonalDetails.email,
+          },
         },
       });
-    } catch (notifErr) {
-      console.error('Failed to create notification for token request:', notifErr.message);
+    } catch (adminNotifErr) {
+      console.error('Failed to notify admins of token request:', adminNotifErr.message);
+    }
+
+    // Also notify property owner as an informational update
+    if (property.owner) {
+      try {
+        await Notification.create({
+          recipient: property.owner,
+          title: isRental
+            ? 'Rental Token Request Received (Handled by Admin)'
+            : 'Property Booking Request Received (Handled by Admin)',
+          message: isRental
+            ? `A client requested a token reservation for rental listing "${property.title}". GharMB Admin is coordinating directly with the tenant out of the app.`
+            : `A client requested booking for listing "${property.title}". GharMB Admin is coordinating directly out of the app.`,
+          type: 'token_request',
+          metadata: {
+            propertyId: property._id,
+            tokenRequestId: tokenRequest._id,
+            listingFor: property.listingFor,
+            isRental,
+          },
+        });
+      } catch (ownerNotifErr) {
+        console.error('Failed to notify owner:', ownerNotifErr.message);
+      }
     }
 
     // Increment inquiry/token counter on property
@@ -277,11 +504,19 @@ exports.createTokenRequest = async (req, res, next) => {
       $inc: { inquiriesCount: 1 }
     }).catch(() => {});
 
+    const populatedNewToken = await TokenRequest.findById(tokenRequest._id)
+      .populate('property', 'title locality city price listingFor category images photos submissionId')
+      .populate('owner', 'name phone email companyName');
+
+    const successMsg = isRental
+      ? 'Token amount request submitted directly to GharMB Admin! Our team will contact you out of the app via Call/WhatsApp shortly to coordinate the token booking.'
+      : 'Property booking request submitted directly to GharMB Admin! Our team will contact you out of the app via Call/WhatsApp shortly to coordinate next steps.';
+
     res.status(201).json({
       status: 'success',
-      message: 'Token booking submitted successfully! Property reserved in escrow pending owner confirmation.',
+      message: successMsg,
       data: {
-        tokenRequest,
+        tokenRequest: populatedNewToken,
       },
     });
   } catch (error) {
@@ -528,7 +763,7 @@ exports.rejectTokenRequest = async (req, res, next) => {
       await Notification.create({
         recipient: tokenRequest.client,
         title: 'Token Request Update',
-        message: `Your token request for "${tokenRequest.property.title}" was not accepted: ${tokenRequest.rejectionReason}. Refund processing initiated if applicable.`,
+        message: `Your token request for "${tokenRequest.property.title}" was not accepted: ${tokenRequest.rejectionReason}.`,
         type: 'token_request',
         metadata: {
           propertyId: tokenRequest.property._id,
@@ -580,13 +815,11 @@ exports.cancelTokenRequest = async (req, res, next) => {
     }
 
     tokenRequest.status = 'cancelled';
-    tokenRequest.escrowStatus = 'Refunded';
-    tokenRequest.refundDate = new Date();
     await tokenRequest.save();
 
     res.status(200).json({
       status: 'success',
-      message: 'Token booking request cancelled and refund initiated.',
+      message: 'Token booking request cancelled successfully.',
       data: {
         tokenRequest,
       },

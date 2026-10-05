@@ -173,6 +173,192 @@ const normalizeInstallmentData = (body = {}, totalPrice = 0) => {
   };
 };
 
+// Helper to enrich and standardize property objects with seller/owner role metadata (Builder, Agent, Owner)
+const enrichPropertyWithSellerRole = (propertyDoc, fallbackOwner = null) => {
+  if (!propertyDoc) return propertyDoc;
+  const obj = propertyDoc.toObject ? propertyDoc.toObject({ virtuals: true }) : { ...propertyDoc };
+  const ownerObj = (obj.owner && typeof obj.owner === 'object') ? obj.owner : (fallbackOwner || {});
+  const ownerRole = (ownerObj.role || 'owner').toLowerCase();
+  const rawListing = (obj.listingAs || '').toLowerCase();
+  const rawUserRole = (obj.userRole || '').toLowerCase();
+
+  let effectiveRole = 'owner';
+  let effectivePostedByRole = 'Owner';
+  let effectiveListingAs = 'Owner';
+
+  if (rawListing.includes('builder') || rawListing.includes('developer') || rawUserRole === 'builder' || ownerRole === 'builder') {
+    effectiveRole = 'builder';
+    effectivePostedByRole = 'Builder';
+    effectiveListingAs = 'Developer / Builder';
+  } else if (rawListing.includes('agent') || rawListing.includes('broker') || rawUserRole === 'agent' || ownerRole === 'agent') {
+    effectiveRole = 'agent';
+    effectivePostedByRole = 'Agent';
+    effectiveListingAs = 'Agent / Broker';
+  } else {
+    effectiveRole = 'owner';
+    effectivePostedByRole = 'Owner';
+    effectiveListingAs = 'Owner';
+  }
+
+  const roleTitle =
+    effectiveRole === 'builder'
+      ? 'Builder Profile'
+      : effectiveRole === 'agent'
+      ? 'Agent Profile'
+      : 'Owner Profile';
+
+  const isOwnerVerified = Boolean(
+    ownerObj.isVerified ||
+    ownerObj.builderVerificationStatus === 'approved' ||
+    ownerObj.agentVerificationStatus === 'approved'
+  );
+
+  const postedBy = {
+    id: ownerObj._id || ownerObj.id || null,
+    _id: ownerObj._id || ownerObj.id || null,
+    name: ownerObj.name || '',
+    phone: ownerObj.phone || '',
+    email: ownerObj.email || '',
+    role: effectiveRole,
+    roleTitle,
+    isVerified: isOwnerVerified,
+    verificationBadge: isOwnerVerified ? 'Verified' : 'Unverified',
+    companyName: ownerObj.companyName || '',
+    reraNumber: ownerObj.reraNumber || '',
+    profilePicture: ownerObj.profilePicture || '',
+  };
+
+  obj.id = obj._id;
+  obj.listingAs = effectiveListingAs;
+  obj.userRole = effectiveRole;
+  obj.role = effectiveRole;
+  obj.roleTitle = roleTitle;
+  obj.postedByRole = effectivePostedByRole;
+  obj.listedBy = effectivePostedByRole;
+  obj.sellerRole = effectivePostedByRole;
+  obj.ownerRole = effectiveRole;
+  obj.companyName = ownerObj.companyName || '';
+  obj.reraNumber = ownerObj.reraNumber || '';
+  obj.postedBy = postedBy;
+  if (!obj.owner || typeof obj.owner !== 'object') {
+    obj.owner = postedBy;
+  } else {
+    obj.owner = {
+      ...obj.owner,
+      role: effectiveRole,
+      roleTitle,
+      isVerified: isOwnerVerified,
+      verificationBadge: isOwnerVerified ? 'Verified' : 'Unverified',
+      companyName: ownerObj.companyName || '',
+      reraNumber: ownerObj.reraNumber || '',
+    };
+  }
+
+  return obj;
+};
+
+// Unified helper to format property cards for dashboard tabs and list responses
+const formatPropertyCard = (p, fallbackUser = null) => {
+  const obj = p.toObject ? p.toObject({ virtuals: true }) : { ...p };
+  const localityPart = obj.locality ? obj.locality.trim() : '';
+  const cityPart = obj.city ? obj.city.trim() : '';
+  const locationText = [localityPart, cityPart].filter(Boolean).join(', ');
+
+  const ownerObj = (obj.owner && typeof obj.owner === 'object') ? obj.owner : (fallbackUser || {});
+  const ownerRole = (ownerObj.role || 'owner').toLowerCase();
+  const rawListing = (obj.listingAs || '').toLowerCase();
+  const rawUserRole = (obj.userRole || '').toLowerCase();
+
+  let effectiveRole = 'owner';
+  let effectivePostedByRole = 'Owner';
+  let effectiveListingAs = 'Owner';
+
+  if (rawListing.includes('builder') || rawListing.includes('developer') || rawUserRole === 'builder' || ownerRole === 'builder') {
+    effectiveRole = 'builder';
+    effectivePostedByRole = 'Builder';
+    effectiveListingAs = 'Developer / Builder';
+  } else if (rawListing.includes('agent') || rawListing.includes('broker') || rawUserRole === 'agent' || ownerRole === 'agent') {
+    effectiveRole = 'agent';
+    effectivePostedByRole = 'Agent';
+    effectiveListingAs = 'Agent / Broker';
+  } else {
+    effectiveRole = 'owner';
+    effectivePostedByRole = 'Owner';
+    effectiveListingAs = 'Owner';
+  }
+
+  const roleTitle =
+    effectiveRole === 'builder'
+      ? 'Builder Profile'
+      : effectiveRole === 'agent'
+      ? 'Agent Profile'
+      : 'Owner Profile';
+
+  const isOwnerVerified = Boolean(
+    ownerObj.isVerified ||
+    ownerObj.builderVerificationStatus === 'approved' ||
+    ownerObj.agentVerificationStatus === 'approved'
+  );
+
+  const postedBy = {
+    id: ownerObj._id || ownerObj.id || null,
+    _id: ownerObj._id || ownerObj.id || null,
+    name: ownerObj.name || '',
+    phone: ownerObj.phone || '',
+    email: ownerObj.email || '',
+    role: effectiveRole,
+    roleTitle,
+    isVerified: isOwnerVerified,
+    verificationBadge: isOwnerVerified ? 'Verified' : 'Unverified',
+    companyName: ownerObj.companyName || '',
+    reraNumber: ownerObj.reraNumber || '',
+    profilePicture: ownerObj.profilePicture || '',
+  };
+
+  return {
+    _id: obj._id,
+    id: obj._id,
+    submissionId: obj.submissionId || '',
+    title: obj.title,
+    locality: obj.locality || '',
+    city: obj.city || '',
+    location: locationText,
+    fullAddress: obj.fullAddress || locationText,
+    price: obj.price,
+    formattedPrice: formatIndianPrice(obj.price, obj.listingFor),
+    category: obj.category,
+    propertyType: obj.propertyType,
+    listingFor: obj.listingFor,
+    bedrooms: obj.bedrooms,
+    bathrooms: obj.bathrooms,
+    carpetArea: obj.carpetArea,
+    photos: obj.photos || [],
+    thumbnail: obj.photos && obj.photos.length > 0 ? obj.photos[0] : '',
+    approvalStatus: obj.approvalStatus,
+    isLive: obj.isLive,
+    rejectionReason: obj.rejectionReason || '',
+    viewsCount: obj.viewsCount || 0,
+    shortlistedCount: obj.shortlistedCount || 0,
+    inquiriesCount: obj.inquiriesCount || 0,
+    tokensCount: obj.tokensCount || 0,
+    createdAt: obj.createdAt,
+
+    // Seller Role metadata on the card (Builder, Agent, Owner)
+    listingAs: effectiveListingAs,
+    userRole: effectiveRole,
+    role: effectiveRole,
+    roleTitle,
+    postedByRole: effectivePostedByRole,
+    listedBy: effectivePostedByRole,
+    sellerRole: effectivePostedByRole,
+    ownerRole: effectiveRole,
+    companyName: ownerObj.companyName || '',
+    reraNumber: ownerObj.reraNumber || '',
+    postedBy,
+    owner: postedBy,
+  };
+};
+
 // @desc    Retrieve approved live properties for search feed
 // @route   GET /api/user/properties
 // @access  Public
@@ -202,6 +388,14 @@ exports.getAllProperties = async (req, res, next) => {
     } = req.query;
 
     const query = { approvalStatus: 'approved', isLive: true };
+
+    // Exclude properties listed by current user in discovery feed
+    const currentUserId = req.user?._id || req.query.userId || req.query.excludeOwner || req.query.currentUserId;
+    if (req.query.owner) {
+      query.owner = req.query.owner;
+    } else if (currentUserId) {
+      query.owner = { $ne: currentUserId };
+    }
 
     if (category) query.category = new RegExp(`^${category.trim()}$`, 'i');
     if (listingFor) query.listingFor = new RegExp(`^${listingFor.trim()}$`, 'i');
@@ -258,22 +452,23 @@ exports.getAllProperties = async (req, res, next) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
-        .populate('owner', 'name phone profilePicture role isVerified'),
+        .populate('owner', 'name email phone profilePicture role isVerified builderVerificationStatus agentVerificationStatus companyName reraNumber'),
       Property.countDocuments(query),
     ]);
 
     const totalPages = Math.ceil(total / limitNum) || 1;
+    const enrichedProperties = properties.map((p) => enrichPropertyWithSellerRole(p));
 
     res.status(200).json({
       status: 'success',
-      results: properties.length,
+      results: enrichedProperties.length,
       total,
       page: pageNum,
       limit: limitNum,
       totalPages,
       hasMore: pageNum < totalPages,
       data: {
-        properties,
+        properties: enrichedProperties,
       },
     });
   } catch (error) {
@@ -287,7 +482,7 @@ exports.getAllProperties = async (req, res, next) => {
 exports.getPropertyDetails = async (req, res, next) => {
   try {
     const property = await Property.findById(req.params.id)
-      .populate('owner', 'name email phone profilePicture isVerified role address');
+      .populate('owner', 'name email phone profilePicture isVerified builderVerificationStatus agentVerificationStatus companyName reraNumber role address');
 
     if (!property) {
       return res.status(404).json({
@@ -301,10 +496,20 @@ exports.getPropertyDetails = async (req, res, next) => {
       await Property.findByIdAndUpdate(req.params.id, { $inc: { viewsCount: 1 } });
     }
 
+    const currentUserId = req.user?._id?.toString() || req.query.userId || req.query.currentUserId;
+    const isOwner = Boolean(
+      property.owner &&
+      currentUserId &&
+      (property.owner._id ? property.owner._id.toString() : property.owner.toString()) === currentUserId
+    );
+
+    const enrichedProperty = enrichPropertyWithSellerRole(property);
+
     res.status(200).json({
       status: 'success',
       data: {
-        property,
+        property: enrichedProperty,
+        isOwner,
       },
     });
   } catch (error) {
@@ -319,10 +524,29 @@ exports.createProperty = async (req, res, next) => {
   try {
     const user = req.user;
     const userRole = (user.role || '').toLowerCase();
-    const listingAs = (req.body.listingAs || '').toLowerCase();
+    const rawListingAs = (req.body.listingAs || '').toLowerCase();
+
+    // Determine normalized role and listingAs (Builder, Agent, Owner)
+    let normalizedListingAs = 'Owner';
+    let normalizedUserRole = userRole || 'owner';
+    let normalizedPostedByRole = 'Owner';
+
+    if (rawListingAs.includes('builder') || rawListingAs.includes('developer') || userRole === 'builder') {
+      normalizedListingAs = 'Developer / Builder';
+      normalizedUserRole = 'builder';
+      normalizedPostedByRole = 'Builder';
+    } else if (rawListingAs.includes('agent') || rawListingAs.includes('broker') || userRole === 'agent') {
+      normalizedListingAs = 'Agent / Broker';
+      normalizedUserRole = 'agent';
+      normalizedPostedByRole = 'Agent';
+    } else {
+      normalizedListingAs = 'Owner';
+      normalizedUserRole = 'owner';
+      normalizedPostedByRole = 'Owner';
+    }
 
     // 1. Agent Verification Guard: Agent must be verified & approved by Admin before uploading
-    if (userRole === 'agent' || listingAs.includes('agent') || listingAs.includes('broker')) {
+    if (normalizedUserRole === 'agent' || normalizedListingAs === 'Agent / Broker') {
       if (user.agentVerificationStatus !== 'approved') {
         if (user.agentVerificationStatus === 'rejected') {
           return res.status(403).json({
@@ -338,7 +562,7 @@ exports.createProperty = async (req, res, next) => {
     }
 
     // 2. Developer / Builder Verification Guard: Developer must be verified & approved by Admin before uploading
-    if (userRole === 'builder' || listingAs.includes('developer') || listingAs.includes('builder')) {
+    if (normalizedUserRole === 'builder' || normalizedListingAs === 'Developer / Builder') {
       if (user.builderVerificationStatus !== 'approved') {
         if (user.builderVerificationStatus === 'rejected') {
           return res.status(403).json({
@@ -359,6 +583,9 @@ exports.createProperty = async (req, res, next) => {
     const propertyData = {
       ...req.body,
       ...installmentData,
+      listingAs: normalizedListingAs,
+      userRole: normalizedUserRole,
+      postedByRole: normalizedPostedByRole,
       owner: user._id,
       approvalStatus: 'pending',
       isLive: false,
@@ -392,12 +619,14 @@ exports.createProperty = async (req, res, next) => {
       console.error('Error creating admin notification for property creation:', notifErr);
     }
 
+    const enrichedProperty = enrichPropertyWithSellerRole(property, user);
+
     res.status(201).json({
       status: 'success',
       message: 'Property listing submitted successfully! Admin will verify and approve before it goes live.',
       data: {
         submissionId: property.submissionId,
-        property,
+        property: enrichedProperty,
       },
     });
   } catch (error) {
@@ -422,8 +651,10 @@ exports.getMyDashboard = async (req, res, next) => {
       });
     }
 
-    // Fetch all listings created by current user
-    const userProperties = await Property.find({ owner: ownerId }).sort({ createdAt: -1 });
+    // Fetch all listings created by current user with populated owner
+    const userProperties = await Property.find({ owner: ownerId })
+      .populate('owner', 'name phone email role isVerified builderVerificationStatus agentVerificationStatus companyName reraNumber profilePicture address')
+      .sort({ createdAt: -1 });
 
     const totalListings = userProperties.length;
     const liveListings = userProperties.filter((p) => p.approvalStatus === 'approved' && p.isLive);
@@ -508,47 +739,11 @@ exports.getMyDashboard = async (req, res, next) => {
       (typeof user.address === 'string' ? user.address : '') ||
       '';
 
-    // Helper to format property card
-    const formatPropertyCard = (p) => {
-      const obj = p.toObject ? p.toObject() : p;
-      const localityPart = obj.locality ? obj.locality.trim() : '';
-      const cityPart = obj.city ? obj.city.trim() : '';
-      const locationText = [localityPart, cityPart].filter(Boolean).join(', ');
-      return {
-        _id: obj._id,
-        id: obj._id,
-        submissionId: obj.submissionId || '',
-        title: obj.title,
-        locality: obj.locality || '',
-        city: obj.city || '',
-        location: locationText,
-        fullAddress: obj.fullAddress || locationText,
-        price: obj.price,
-        formattedPrice: formatIndianPrice(obj.price, obj.listingFor),
-        category: obj.category,
-        propertyType: obj.propertyType,
-        listingFor: obj.listingFor,
-        bedrooms: obj.bedrooms,
-        bathrooms: obj.bathrooms,
-        carpetArea: obj.carpetArea,
-        photos: obj.photos || [],
-        thumbnail: obj.photos && obj.photos.length > 0 ? obj.photos[0] : '',
-        approvalStatus: obj.approvalStatus,
-        isLive: obj.isLive,
-        rejectionReason: obj.rejectionReason || '',
-        viewsCount: obj.viewsCount || 0,
-        shortlistedCount: obj.shortlistedCount || 0,
-        inquiriesCount: obj.inquiriesCount || 0,
-        tokensCount: obj.tokensCount || 0,
-        createdAt: obj.createdAt,
-      };
-    };
-
-    // Format list for each tab
-    const formattedLive = liveListings.map(formatPropertyCard);
-    const formattedPending = pendingListings.map(formatPropertyCard);
-    const formattedRejected = rejectedListings.map(formatPropertyCard);
-    const formattedAll = userProperties.map(formatPropertyCard);
+    // Format list for each tab using the unified card formatter with seller role info
+    const formattedLive = liveListings.map((p) => formatPropertyCard(p, user));
+    const formattedPending = pendingListings.map((p) => formatPropertyCard(p, user));
+    const formattedRejected = rejectedListings.map((p) => formatPropertyCard(p, user));
+    const formattedAll = userProperties.map((p) => formatPropertyCard(p, user));
 
     // Active tab selection & pagination
     const activeTab = (tab || 'live').toLowerCase();
@@ -650,7 +845,9 @@ exports.getMyProperties = async (req, res, next) => {
     const ownerId = req.user._id;
     const { status = 'all', page = 1, limit = 10 } = req.query;
 
-    const userProperties = await Property.find({ owner: ownerId }).sort({ createdAt: -1 });
+    const userProperties = await Property.find({ owner: ownerId })
+      .populate('owner', 'name phone email role isVerified builderVerificationStatus agentVerificationStatus companyName reraNumber profilePicture address')
+      .sort({ createdAt: -1 });
 
     const live = userProperties.filter((p) => p.approvalStatus === 'approved' && p.isLive);
     const pending = userProperties.filter((p) => p.approvalStatus === 'pending');
@@ -662,45 +859,10 @@ exports.getMyProperties = async (req, res, next) => {
     else if (s === 'pending') filtered = pending;
     else if (s === 'rejected') filtered = rejected;
 
-    const formatPropertyCard = (p) => {
-      const obj = p.toObject ? p.toObject() : p;
-      const localityPart = obj.locality ? obj.locality.trim() : '';
-      const cityPart = obj.city ? obj.city.trim() : '';
-      const locationText = [localityPart, cityPart].filter(Boolean).join(', ');
-      return {
-        _id: obj._id,
-        id: obj._id,
-        submissionId: obj.submissionId || '',
-        title: obj.title,
-        locality: obj.locality || '',
-        city: obj.city || '',
-        location: locationText,
-        fullAddress: obj.fullAddress || locationText,
-        price: obj.price,
-        formattedPrice: formatIndianPrice(obj.price, obj.listingFor),
-        category: obj.category,
-        propertyType: obj.propertyType,
-        listingFor: obj.listingFor,
-        bedrooms: obj.bedrooms,
-        bathrooms: obj.bathrooms,
-        carpetArea: obj.carpetArea,
-        photos: obj.photos || [],
-        thumbnail: obj.photos && obj.photos.length > 0 ? obj.photos[0] : '',
-        approvalStatus: obj.approvalStatus,
-        isLive: obj.isLive,
-        rejectionReason: obj.rejectionReason || '',
-        viewsCount: obj.viewsCount || 0,
-        shortlistedCount: obj.shortlistedCount || 0,
-        inquiriesCount: obj.inquiriesCount || 0,
-        tokensCount: obj.tokensCount || 0,
-        createdAt: obj.createdAt,
-      };
-    };
-
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.max(1, parseInt(limit, 10) || 10);
     const skip = (pageNum - 1) * limitNum;
-    const paginated = filtered.slice(skip, skip + limitNum).map(formatPropertyCard);
+    const paginated = filtered.slice(skip, skip + limitNum).map((p) => formatPropertyCard(p, req.user));
     const totalPages = Math.ceil(filtered.length / limitNum) || 1;
 
     res.status(200).json({
@@ -752,6 +914,24 @@ exports.updateProperty = async (req, res, next) => {
 
     const updateFields = { ...req.body };
 
+    // Normalize listingAs if provided in update
+    if (updateFields.listingAs) {
+      const lower = updateFields.listingAs.toLowerCase();
+      if (lower.includes('builder') || lower.includes('developer')) {
+        updateFields.listingAs = 'Developer / Builder';
+        updateFields.userRole = 'builder';
+        updateFields.postedByRole = 'Builder';
+      } else if (lower.includes('agent') || lower.includes('broker')) {
+        updateFields.listingAs = 'Agent / Broker';
+        updateFields.userRole = 'agent';
+        updateFields.postedByRole = 'Agent';
+      } else {
+        updateFields.listingAs = 'Owner';
+        updateFields.userRole = 'owner';
+        updateFields.postedByRole = 'Owner';
+      }
+    }
+
     const coordsProvided =
       updateFields.latitude !== undefined ||
       updateFields.longitude !== undefined ||
@@ -793,13 +973,13 @@ exports.updateProperty = async (req, res, next) => {
     property = await Property.findByIdAndUpdate(req.params.id, updateFields, {
       new: true,
       runValidators: true,
-    });
+    }).populate('owner', 'name email phone profilePicture role isVerified builderVerificationStatus agentVerificationStatus companyName reraNumber');
 
     res.status(200).json({
       status: 'success',
       message: 'Property listing updated and re-submitted for admin verification.',
       data: {
-        property,
+        property: enrichPropertyWithSellerRole(property, req.user),
       },
     });
   } catch (error) {
@@ -914,6 +1094,14 @@ exports.getNearMeProperties = async (req, res, next) => {
       isLive: true,
     };
 
+    // Exclude properties listed by current user in discovery feed
+    const currentUserId = req.user?._id || req.query.userId || req.query.excludeOwner || req.query.currentUserId;
+    if (req.query.owner) {
+      query.owner = req.query.owner;
+    } else if (currentUserId) {
+      query.owner = { $ne: currentUserId };
+    }
+
     if (keyHandover !== undefined) {
       query.keyHandover = keyHandover === 'true' || keyHandover === true;
     }
@@ -974,22 +1162,23 @@ exports.getNearMeProperties = async (req, res, next) => {
     // Fetch matching properties
     const [rawProperties, total] = await Promise.all([
       Property.find(query)
-        .populate('owner', 'name phone profilePicture role isVerified companyName')
+        .populate('owner', 'name email phone profilePicture role isVerified builderVerificationStatus agentVerificationStatus companyName reraNumber')
         .lean(),
       Property.countDocuments(query),
     ]);
 
     // Compute exact distance and attach human-friendly distance metadata
     let properties = rawProperties.map((p) => {
+      const enriched = enrichPropertyWithSellerRole(p);
       let distanceKm = null;
       if (
         isGeospatial &&
-        p.location &&
-        Array.isArray(p.location.coordinates) &&
-        p.location.coordinates.length >= 2
+        enriched.location &&
+        Array.isArray(enriched.location.coordinates) &&
+        enriched.location.coordinates.length >= 2
       ) {
-        const propLng = p.location.coordinates[0];
-        const propLat = p.location.coordinates[1];
+        const propLng = enriched.location.coordinates[0];
+        const propLat = enriched.location.coordinates[1];
         distanceKm = calculateDistanceInKm(
           Number(targetLat),
           Number(targetLng),
@@ -998,8 +1187,7 @@ exports.getNearMeProperties = async (req, res, next) => {
         );
       }
       return {
-        ...p,
-        id: p._id,
+        ...enriched,
         distanceInKm: distanceKm,
         distance: distanceKm !== null ? `${distanceKm} km` : null,
       };
@@ -1060,6 +1248,14 @@ exports.getVerifiedProperties = async (req, res, next) => {
       isLive: true,
     };
 
+    // Exclude properties listed by current user in discovery feed
+    const currentUserId = req.user?._id || req.query.userId || req.query.excludeOwner || req.query.currentUserId;
+    if (req.query.owner) {
+      query.owner = req.query.owner;
+    } else if (currentUserId) {
+      query.owner = { $ne: currentUserId };
+    }
+
     if (category)     query.category     = new RegExp(`^${category.trim()}$`, 'i');
     if (listingFor)   query.listingFor   = new RegExp(`^${listingFor.trim()}$`, 'i');
     if (propertyType) query.propertyType = new RegExp(`^${propertyType.trim()}$`, 'i');
@@ -1093,22 +1289,23 @@ exports.getVerifiedProperties = async (req, res, next) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
-        .populate('owner', 'name email phone profilePicture role isVerified companyName'),
+        .populate('owner', 'name email phone profilePicture role isVerified builderVerificationStatus agentVerificationStatus companyName reraNumber'),
       Property.countDocuments(query),
     ]);
 
     const totalPages = Math.ceil(total / limitNum) || 1;
+    const enrichedProperties = properties.map((p) => enrichPropertyWithSellerRole(p));
 
     res.status(200).json({
       status: 'success',
-      results: properties.length,
+      results: enrichedProperties.length,
       total,
       page: pageNum,
       limit: limitNum,
       totalPages,
       hasMore: pageNum < totalPages,
       data: {
-        properties,
+        properties: enrichedProperties,
       },
     });
   } catch (error) {
@@ -1138,6 +1335,14 @@ exports.getLatestProperties = async (req, res, next) => {
       approvalStatus: 'approved',
       isLive: true,
     };
+
+    // Exclude properties listed by current user in discovery feed
+    const currentUserId = req.user?._id || req.query.userId || req.query.excludeOwner || req.query.currentUserId;
+    if (req.query.owner) {
+      query.owner = req.query.owner;
+    } else if (currentUserId) {
+      query.owner = { $ne: currentUserId };
+    }
 
     if (category)     query.category     = new RegExp(`^${category.trim()}$`, 'i');
     if (listingFor)   query.listingFor   = new RegExp(`^${listingFor.trim()}$`, 'i');
@@ -1172,22 +1377,23 @@ exports.getLatestProperties = async (req, res, next) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
-        .populate('owner', 'name email phone profilePicture role isVerified companyName'),
+        .populate('owner', 'name email phone profilePicture role isVerified builderVerificationStatus agentVerificationStatus companyName reraNumber'),
       Property.countDocuments(query),
     ]);
 
     const totalPages = Math.ceil(total / limitNum) || 1;
+    const enrichedProperties = properties.map((p) => enrichPropertyWithSellerRole(p));
 
     res.status(200).json({
       status: 'success',
-      results: properties.length,
+      results: enrichedProperties.length,
       total,
       page: pageNum,
       limit: limitNum,
       totalPages,
       hasMore: pageNum < totalPages,
       data: {
-        properties,
+        properties: enrichedProperties,
       },
     });
   } catch (error) {

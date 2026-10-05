@@ -33,7 +33,7 @@ const run = async () => {
     const BASE_URL = `http://localhost:${PORT}/api`;
 
     // 1. Setup Builder User "Kartik" matching the screenshot
-    await User.deleteMany({ email: 'kartikoffice8@gmail.com' });
+    await User.deleteMany({ $or: [{ email: 'kartikoffice8@gmail.com' }, { phone: '+919284253307' }] });
     const kartik = await User.create({
       name: 'Kartik',
       email: 'kartikoffice8@gmail.com',

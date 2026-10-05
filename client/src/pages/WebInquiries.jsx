@@ -18,15 +18,15 @@ import {
   ChevronRight,
   ChevronLeft,
   X,
-  ExternalLink,
   Copy,
   Check,
   Download,
   AlertTriangle,
-  Send,
   Calendar,
   Layers,
-  FileText
+  RotateCcw,
+  Sparkles,
+  ExternalLink
 } from 'lucide-react';
 import API from '../api/api';
 
@@ -75,12 +75,13 @@ export default function WebInquiries() {
 
   const triggerToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 4000);
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3500);
   };
 
   const copyToClipboard = (text, fieldName) => {
+    if (!text) return;
     navigator.clipboard.writeText(text);
-    setCopiedField(fieldName);
+    setCopiedField(text);
     triggerToast(`Copied ${fieldName} to clipboard!`, 'info');
     setTimeout(() => setCopiedField(''), 2000);
   };
@@ -157,7 +158,8 @@ export default function WebInquiries() {
     }
   };
 
-  const handleSelectOne = (id) => {
+  const handleSelectOne = (id, e) => {
+    if (e) e.stopPropagation();
     if (selectedIds.includes(id)) {
       setSelectedIds(selectedIds.filter((item) => item !== id));
     } else {
@@ -277,123 +279,141 @@ export default function WebInquiries() {
     triggerToast('CSV Export downloaded successfully!');
   };
 
-  // Helpers for Type & Status Styles
+  // Type Badges (Subtle, sleek, modern SaaS style)
   const getTypeBadge = (type) => {
     if (type === 'deletion_request') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
-          <Trash2 size={12} className="text-rose-600" />
-          <span>Delete Profile</span>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+          <Trash2 size={11} className="shrink-0" />
+          <span>Account Deletion</span>
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-        <MessageSquare size={12} className="text-blue-600" />
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+        <MessageSquare size={11} className="shrink-0" />
         <span>Contact Form</span>
       </span>
     );
   };
 
+  // Status Badges (Modern dot indicator style)
   const getStatusBadge = (status) => {
     switch (status) {
       case 'new':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 animate-pulse">
-            <Clock size={11} />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
             <span>New</span>
           </span>
         );
       case 'in_progress':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
-            <RefreshCw size={11} className="animate-spin" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
             <span>In Progress</span>
           </span>
         );
       case 'contacted':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-            <Mail size={11} />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
             <span>Contacted</span>
           </span>
         );
       case 'resolved':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <CheckCircle2 size={11} />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             <span>Resolved</span>
           </span>
         );
       case 'rejected':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-700 border border-gray-200">
-            <XCircle size={11} />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
             <span>Rejected</span>
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-50 text-gray-600 border border-gray-200">
-            {status}
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+            <span className="capitalize">{status}</span>
           </span>
         );
     }
   };
 
+  // Helper for initials
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  const hasActiveFilters = search || statusFilter !== 'all' || activeTab !== 'all';
+
+  const resetAllFilters = () => {
+    setSearch('');
+    setStatusFilter('all');
+    setActiveTab('all');
+    setPage(1);
+    setSelectedIds([]);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6 pb-16">
       
       {/* Toast Notification */}
       {toast.show && (
         <div
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border text-sm font-semibold animate-in fade-in slide-in-from-bottom-3 duration-200 ${
+          className={`fixed bottom-6 right-6 z-50 py-2.5 px-4 rounded-xl shadow-lg flex items-center gap-2.5 text-xs font-medium border backdrop-blur-md transition-all animate-slide-down ${
             toast.type === 'error'
-              ? 'bg-rose-900 text-white border-rose-800'
+              ? 'bg-rose-950/90 text-rose-200 border-rose-800'
               : toast.type === 'info'
-              ? 'bg-slate-900 text-white border-slate-800'
-              : 'bg-emerald-900 text-white border-emerald-800'
+              ? 'bg-zinc-900/90 dark:bg-zinc-100/90 text-white dark:text-zinc-900 border-zinc-800 dark:border-zinc-200'
+              : 'bg-zinc-900/90 dark:bg-zinc-100/90 text-white dark:text-zinc-900 border-zinc-800 dark:border-zinc-200'
           }`}
         >
           {toast.type === 'error' ? (
-            <AlertCircle size={18} className="text-rose-400" />
+            <AlertCircle className="text-rose-400 shrink-0" size={15} />
           ) : toast.type === 'info' ? (
-            <Copy size={18} className="text-sky-400" />
+            <Copy className="text-sky-400 dark:text-sky-600 shrink-0" size={15} />
           ) : (
-            <CheckCircle2 size={18} className="text-emerald-400" />
+            <CheckCircle2 className="text-emerald-400 dark:text-emerald-600 shrink-0" size={15} />
           )}
           <span>{toast.message}</span>
         </div>
       )}
 
       {/* ═══════════════════════════════════════════════════════════════
-          01 — HEADER & TOP KPI STATS
+          01 — HEADER SECTION
           ═══════════════════════════════════════════════════════════════ */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 rounded-xl bg-brand/10 text-brand flex items-center justify-center">
-              <Inbox size={18} />
-            </div>
-            <h1 className="text-2xl font-black text-[var(--text-primary)] tracking-tight">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
               Web Inquiries & Requests
             </h1>
+            {stats.newInquiries > 0 ? (
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                {stats.newInquiries} pending
+              </span>
+            ) : (
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[var(--bg-muted)] text-[var(--text-muted)] border border-[var(--border)]">
+                All up to date
+              </span>
+            )}
           </div>
-          <p className="text-xs text-[var(--text-muted)]">
-            Manage incoming contact queries from the landing page and account deletion requests from the website.
+          <p className="text-xs text-[var(--text-muted)] mt-1">
+            Manage incoming contact queries from the landing page and account deletion requests.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-all shadow-xs cursor-pointer"
-          >
-            <Download size={14} />
-            <span>Export CSV</span>
-          </button>
-
+        {/* Header Action Buttons */}
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -401,95 +421,157 @@ export default function WebInquiries() {
               fetchStats();
               triggerToast('Refreshed inquiries list', 'info');
             }}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-brand text-white hover:bg-brand/90 transition-all shadow-sm shadow-brand/20 cursor-pointer"
+            disabled={isLoading}
+            className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] rounded-lg transition-colors cursor-pointer disabled:opacity-50 border border-transparent hover:border-[var(--border)]"
+            title="Refresh"
           >
-            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-            <span>Refresh</span>
+            <RefreshCw size={15} className={isLoading ? 'animate-spin text-brand' : ''} />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            disabled={inquiries.length === 0}
+            className="px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] border border-[var(--border)] rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-40"
+          >
+            <Download size={13} className="text-[var(--text-muted)]" />
+            <span>Export CSV</span>
           </button>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ═══════════════════════════════════════════════════════════════
+          02 — MINIMAL STATS / KPI CARDS
+          ═══════════════════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
         
         {/* Total Inquiries */}
-        <div className="p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-xs flex items-center justify-between">
-          <div>
-            <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
-              Total Inquiries
-            </span>
-            <span className="text-2xl font-black text-[var(--text-primary)]">
+        <div
+          onClick={() => {
+            setActiveTab('all');
+            setStatusFilter('all');
+            setPage(1);
+          }}
+          className={`p-4 rounded-xl bg-[var(--bg-surface)] border transition-all cursor-pointer group ${
+            activeTab === 'all' && statusFilter === 'all'
+              ? 'border-brand/40 shadow-xs'
+              : 'border-[var(--border)] hover:border-[var(--text-muted)]/30'
+          }`}
+        >
+          <div className="flex items-center justify-between text-[var(--text-muted)] mb-2">
+            <span className="text-xs font-medium">Total Inquiries</span>
+            <Layers size={15} className="group-hover:text-[var(--text-primary)] transition-colors" />
+          </div>
+          <div className="flex items-baseline justify-between">
+            <span className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
               {stats.total}
             </span>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
-            <Layers size={18} />
+            <span className="text-[11px] text-[var(--text-muted)]">
+              All time
+            </span>
           </div>
         </div>
 
-        {/* New Submissions */}
-        <div className="p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-xs flex items-center justify-between">
-          <div>
-            <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
-              Pending / New
+        {/* Pending / New */}
+        <div
+          onClick={() => {
+            setStatusFilter('new');
+            setPage(1);
+          }}
+          className={`p-4 rounded-xl bg-[var(--bg-surface)] border transition-all cursor-pointer group ${
+            statusFilter === 'new'
+              ? 'border-amber-500/50 shadow-xs ring-1 ring-amber-500/20'
+              : 'border-[var(--border)] hover:border-[var(--text-muted)]/30'
+          }`}
+        >
+          <div className="flex items-center justify-between text-[var(--text-muted)] mb-2">
+            <span className="text-xs font-medium">Pending / New</span>
+            <Clock size={15} className="text-amber-500 group-hover:scale-110 transition-transform" />
+          </div>
+          <div className="flex items-baseline justify-between">
+            <span className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+              {stats.newInquiries}
             </span>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-black text-amber-600">
-                {stats.newInquiries}
+            {stats.newInquiries > 0 ? (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                Action needed
               </span>
-              {stats.newInquiries > 0 && (
-                <span className="px-1.5 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-100 text-amber-800">
-                  Action Needed
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-            <Clock size={18} />
+            ) : (
+              <span className="text-[11px] text-[var(--text-muted)]">
+                All reviewed
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Contact Us Messages */}
-        <div className="p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-xs flex items-center justify-between">
-          <div>
-            <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
-              Contact Queries
-            </span>
-            <span className="text-2xl font-black text-blue-600">
+        {/* Contact Queries */}
+        <div
+          onClick={() => {
+            setActiveTab('contact');
+            setPage(1);
+          }}
+          className={`p-4 rounded-xl bg-[var(--bg-surface)] border transition-all cursor-pointer group ${
+            activeTab === 'contact'
+              ? 'border-sky-500/50 shadow-xs ring-1 ring-sky-500/20'
+              : 'border-[var(--border)] hover:border-[var(--text-muted)]/30'
+          }`}
+        >
+          <div className="flex items-center justify-between text-[var(--text-muted)] mb-2">
+            <span className="text-xs font-medium">Contact Messages</span>
+            <MessageSquare size={15} className="text-sky-500 group-hover:scale-110 transition-transform" />
+          </div>
+          <div className="flex items-baseline justify-between">
+            <span className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
               {stats.contactTotal}
             </span>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <MessageSquare size={18} />
+            <span className="text-[11px] text-[var(--text-muted)]">
+              Landing page
+            </span>
           </div>
         </div>
 
-        {/* Account Deletion Requests */}
-        <div className="p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-xs flex items-center justify-between">
-          <div>
-            <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
-              Deletion Requests
-            </span>
-            <span className="text-2xl font-black text-rose-600">
+        {/* Deletion Requests */}
+        <div
+          onClick={() => {
+            setActiveTab('deletion_request');
+            setPage(1);
+          }}
+          className={`p-4 rounded-xl bg-[var(--bg-surface)] border transition-all cursor-pointer group ${
+            activeTab === 'deletion_request'
+              ? 'border-rose-500/50 shadow-xs ring-1 ring-rose-500/20'
+              : 'border-[var(--border)] hover:border-[var(--text-muted)]/30'
+          }`}
+        >
+          <div className="flex items-center justify-between text-[var(--text-muted)] mb-2">
+            <span className="text-xs font-medium">Deletion Requests</span>
+            <Trash2 size={15} className="text-rose-500 group-hover:scale-110 transition-transform" />
+          </div>
+          <div className="flex items-baseline justify-between">
+            <span className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
               {stats.deletionTotal}
             </span>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
-            <Trash2 size={18} />
+            {stats.deletionTotal > 0 ? (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                Review request
+              </span>
+            ) : (
+              <span className="text-[11px] text-[var(--text-muted)]">
+                Zero pending
+              </span>
+            )}
           </div>
         </div>
 
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════
-          02 — TABS, SEARCH & FILTER TOOLBAR
+          03 — TABS & FILTER CONTROLS
           ═══════════════════════════════════════════════════════════════ */}
-      <div className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border)] p-4 shadow-xs space-y-4">
+      <div className="space-y-3.5">
         
-        {/* Top Tab Switcher */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
-          
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+        {/* Navigation Tabs Bar */}
+        <div className="flex items-center justify-between border-b border-[var(--border)]">
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
             {[
               { id: 'all', label: 'All Inquiries', count: stats.total },
               { id: 'contact', label: 'Contact Messages', count: stats.contactTotal },
@@ -501,55 +583,58 @@ export default function WebInquiries() {
                   key={tab.id}
                   type="button"
                   onClick={() => handleTabChange(tab.id)}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`pb-2.5 px-3.5 text-xs font-medium transition-all whitespace-nowrap relative cursor-pointer flex items-center gap-2 ${
                     isActive
-                      ? 'bg-brand text-white shadow-xs shadow-brand/30'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)]'
+                      ? 'text-[var(--text-primary)] font-semibold'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                   }`}
                 >
                   <span>{tab.label}</span>
                   <span
-                    className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+                    className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
                       isActive
-                        ? 'bg-white/20 text-white'
+                        ? 'bg-[var(--text-primary)] text-[var(--bg-surface)]'
                         : tab.alert && tab.count > 0
-                        ? 'bg-rose-100 text-rose-700 font-black'
+                        ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 font-semibold'
                         : 'bg-[var(--bg-muted)] text-[var(--text-muted)]'
                     }`}
                   >
                     {tab.count}
                   </span>
+                  {isActive && (
+                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand rounded-full" />
+                  )}
                 </button>
               );
             })}
           </div>
 
-          {/* Bulk Action Button (if selected) */}
+          {/* Bulk Selection Actions (Inline) */}
           {selectedIds.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-brand">
+            <div className="flex items-center gap-2 pb-2">
+              <span className="text-xs font-medium text-brand">
                 {selectedIds.length} selected
               </span>
               <button
                 type="button"
                 onClick={() => setShowBulkDeleteModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 transition-colors cursor-pointer"
+                className="px-2.5 py-1 text-xs font-medium text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors"
               >
-                <Trash2 size={13} />
-                <span>Delete Selected</span>
+                <Trash2 size={12} />
+                <span>Delete</span>
               </button>
             </div>
           )}
         </div>
 
-        {/* Search & Filter Bar */}
-        <div className="flex flex-col sm:flex-row items-center gap-3">
+        {/* Search & Status Filter Controls */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           
           {/* Search Box */}
-          <div className="relative flex-1 w-full">
+          <div className="relative flex-1 max-w-md">
             <Search
-              size={15}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
             />
             <input
               type="text"
@@ -559,7 +644,7 @@ export default function WebInquiries() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              className="w-full pl-9 pr-4 py-2 rounded-xl text-xs bg-[var(--bg-muted)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all"
+              className="w-full pl-9 pr-8 py-1.5 text-xs bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border)] rounded-lg focus:outline-none focus:border-brand placeholder:text-[var(--text-muted)] transition-colors shadow-xs"
             />
             {search && (
               <button
@@ -568,28 +653,45 @@ export default function WebInquiries() {
                   setSearch('');
                   setPage(1);
                 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer p-0.5"
               >
-                Clear
+                <X size={13} />
               </button>
             )}
           </div>
 
-          {/* Status Dropdown */}
-          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-            <Filter size={14} className="text-[var(--text-muted)] hidden sm:block" />
-            <select
-              value={statusFilter}
-              onChange={(e) => handleStatusFilterChange(e.target.value)}
-              className="w-full sm:w-auto px-3 py-2 rounded-xl text-xs font-bold bg-[var(--bg-muted)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-brand cursor-pointer"
-            >
-              <option value="all">All Statuses</option>
-              <option value="new">New / Pending</option>
-              <option value="in_progress">In Progress</option>
-              <option value="contacted">Contacted</option>
-              <option value="resolved">Resolved</option>
-              <option value="rejected">Rejected</option>
-            </select>
+          {/* Right Filter Selectors */}
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => handleStatusFilterChange(e.target.value)}
+                className="w-full sm:w-auto appearance-none pl-3 pr-8 py-1.5 text-xs font-medium bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border)] rounded-lg focus:outline-none focus:border-brand cursor-pointer shadow-xs"
+              >
+                <option value="all">All Statuses</option>
+                <option value="new">New / Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="contacted">Contacted</option>
+                <option value="resolved">Resolved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+              <ChevronDown
+                size={13}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none"
+              />
+            </div>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={resetAllFilters}
+                className="px-2.5 py-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] border border-dashed border-[var(--border)] rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                title="Reset all filters"
+              >
+                <RotateCcw size={12} />
+                <span>Reset</span>
+              </button>
+            )}
           </div>
 
         </div>
@@ -597,45 +699,56 @@ export default function WebInquiries() {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════
-          03 — DATA TABLE & LIST
+          04 — DATA TABLE
           ═══════════════════════════════════════════════════════════════ */}
-      <div className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border)] shadow-xs overflow-hidden">
+      <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-xs">
         
         {isLoading ? (
-          <div className="p-12 text-center space-y-3">
-            <div className="w-8 h-8 border-3 border-brand/20 border-t-brand rounded-full animate-spin mx-auto" />
-            <p className="text-xs font-bold text-[var(--text-muted)]">Loading inquiries data...</p>
+          <div className="p-16 text-center space-y-3">
+            <div className="w-7 h-7 border-2 border-brand/20 border-t-brand rounded-full animate-spin mx-auto" />
+            <p className="text-xs text-[var(--text-muted)]">Loading inquiries...</p>
           </div>
         ) : error ? (
           <div className="p-10 text-center space-y-3">
-            <AlertCircle size={32} className="text-rose-500 mx-auto" />
-            <p className="text-sm font-bold text-[var(--text-primary)]">{error}</p>
+            <AlertCircle size={28} className="text-rose-500 mx-auto" />
+            <p className="text-xs font-medium text-[var(--text-primary)]">{error}</p>
             <button
               onClick={fetchInquiries}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-brand text-white cursor-pointer"
+              className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-brand text-white hover:bg-brand/90 cursor-pointer shadow-xs"
             >
-              Try Again
+              Retry
             </button>
           </div>
         ) : inquiries.length === 0 ? (
           <div className="py-16 px-4 text-center space-y-3">
-            <div className="w-14 h-14 rounded-2xl bg-[var(--bg-muted)] text-[var(--text-muted)] flex items-center justify-center mx-auto">
-              <Inbox size={28} />
+            <div className="w-12 h-12 rounded-xl bg-[var(--bg-muted)] text-[var(--text-muted)] flex items-center justify-center mx-auto">
+              <Inbox size={22} />
             </div>
-            <h3 className="text-base font-bold text-[var(--text-primary)]">
-              No inquiries found
-            </h3>
-            <p className="text-xs text-[var(--text-muted)] max-w-sm mx-auto">
-              {search || statusFilter !== 'all' || activeTab !== 'all'
-                ? 'No inquiries match your current search and filter criteria.'
-                : 'Submissions from the website Contact Us form and Delete Profile page will appear here.'}
-            </p>
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                No inquiries found
+              </h3>
+              <p className="text-xs text-[var(--text-muted)] mt-1 max-w-sm mx-auto">
+                {hasActiveFilters
+                  ? 'No records match your active search and filter conditions.'
+                  : 'Submissions from the landing page and account deletion requests will appear here.'}
+              </p>
+            </div>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={resetAllFilters}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-primary)] cursor-pointer transition-colors"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--bg-muted)]/50 text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
+                <tr className="border-b border-[var(--border)] bg-[var(--bg-muted)]/40 text-[11px] font-semibold text-[var(--text-muted)] tracking-wider uppercase">
                   <th className="py-3 px-4 w-10 text-center">
                     <input
                       type="checkbox"
@@ -644,18 +757,18 @@ export default function WebInquiries() {
                         if (input) input.indeterminate = isSomeSelected;
                       }}
                       onChange={handleSelectAll}
-                      className="w-4 h-4 rounded border-[var(--border)] text-brand focus:ring-brand cursor-pointer"
+                      className="w-3.5 h-3.5 rounded border-[var(--border)] text-brand focus:ring-brand cursor-pointer accent-brand"
                     />
                   </th>
-                  <th className="py-3 px-4">Reference & Type</th>
-                  <th className="py-3 px-4">User Contact</th>
-                  <th className="py-3 px-4">Role / Context</th>
-                  <th className="py-3 px-4">Date</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4 font-semibold">Reference & Type</th>
+                  <th className="py-3 px-4 font-semibold">User Contact</th>
+                  <th className="py-3 px-4 font-semibold">Role / Subject</th>
+                  <th className="py-3 px-4 font-semibold">Date</th>
+                  <th className="py-3 px-4 font-semibold">Status</th>
+                  <th className="py-3 px-4 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border)] text-xs">
+              <tbody className="divide-y divide-[var(--border)]/60 text-xs">
                 {inquiries.map((item) => {
                   const isSelected = selectedIds.includes(item._id);
                   const formattedDate = new Date(item.createdAt).toLocaleDateString('en-IN', {
@@ -663,100 +776,125 @@ export default function WebInquiries() {
                     month: 'short',
                     year: 'numeric',
                   });
+                  const formattedTime = new Date(item.createdAt).toLocaleTimeString('en-IN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+                  const isCopied = copiedField === (item.refId || item._id);
 
                   return (
                     <tr
                       key={item._id}
-                      className={`hover:bg-[var(--bg-muted)]/40 transition-colors ${
+                      onClick={() => openDetails(item)}
+                      className={`hover:bg-[var(--bg-muted)]/40 transition-colors cursor-pointer ${
                         isSelected ? 'bg-brand/5' : ''
                       }`}
                     >
-                      {/* Select Checkbox */}
-                      <td className="py-3.5 px-4 text-center">
+                      {/* Checkbox */}
+                      <td
+                        className="py-3 px-4 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={() => handleSelectOne(item._id)}
-                          className="w-4 h-4 rounded border-[var(--border)] text-brand focus:ring-brand cursor-pointer"
+                          onChange={(e) => handleSelectOne(item._id, e)}
+                          className="w-3.5 h-3.5 rounded border-[var(--border)] text-brand focus:ring-brand cursor-pointer accent-brand"
                         />
                       </td>
 
                       {/* Reference & Type */}
-                      <td className="py-3.5 px-4 space-y-1">
-                        <div className="flex items-center gap-2">
+                      <td className="py-3 px-4 space-y-1">
+                        <div className="flex items-center gap-1.5">
                           <button
                             type="button"
-                            onClick={() => copyToClipboard(item.refId || item._id, 'Ref ID')}
-                            className="font-mono font-bold text-[var(--text-primary)] hover:text-brand flex items-center gap-1 group cursor-pointer"
-                            title="Click to copy Reference ID"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(item.refId || item._id, 'Ref ID');
+                            }}
+                            className="font-mono text-xs font-semibold text-[var(--text-primary)] hover:text-brand flex items-center gap-1 group cursor-pointer"
+                            title="Click to copy ID"
                           >
                             <span>{item.refId || item._id.slice(-8).toUpperCase()}</span>
-                            <Copy size={10} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)]" />
+                            {isCopied ? (
+                              <Check size={11} className="text-emerald-500" />
+                            ) : (
+                              <Copy size={11} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] transition-opacity" />
+                            )}
                           </button>
                         </div>
                         <div>{getTypeBadge(item.type)}</div>
                       </td>
 
                       {/* User Contact */}
-                      <td className="py-3.5 px-4 space-y-0.5">
-                        <div className="font-bold text-[var(--text-primary)] text-[13px] flex items-center gap-1.5">
-                          <User size={13} className="text-[var(--text-muted)]" />
-                          <span>{item.fullName}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-[11.5px] text-[var(--text-muted)]">
-                          <a
-                            href={`mailto:${item.email}`}
-                            className="hover:text-brand hover:underline flex items-center gap-1 truncate max-w-[180px]"
-                            title={item.email}
-                          >
-                            <Mail size={11} />
-                            <span>{item.email}</span>
-                          </a>
-                        </div>
-                        <div className="flex items-center gap-1 text-[11.5px] text-[var(--text-muted)] font-mono">
-                          <Phone size={11} />
-                          <span>{item.phone}</span>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-brand/10 text-brand font-semibold text-[11px] flex items-center justify-center shrink-0">
+                            {getInitials(item.fullName)}
+                          </div>
+                          <div className="space-y-0.5 min-w-0">
+                            <span className="font-semibold text-[var(--text-primary)] text-xs block truncate">
+                              {item.fullName}
+                            </span>
+                            <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-[var(--text-muted)]">
+                              <a
+                                href={`mailto:${item.email}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="hover:text-brand hover:underline flex items-center gap-1 truncate max-w-[170px]"
+                                title={item.email}
+                              >
+                                <Mail size={10} className="shrink-0" />
+                                <span className="truncate">{item.email}</span>
+                              </a>
+                              <a
+                                href={`tel:${item.phone}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="hover:text-brand flex items-center gap-1 font-mono text-[10.5px]"
+                                title={item.phone}
+                              >
+                                <Phone size={10} className="shrink-0" />
+                                <span>{item.phone}</span>
+                              </a>
+                            </div>
+                          </div>
                         </div>
                       </td>
 
-                      {/* Role / Context */}
-                      <td className="py-3.5 px-4">
-                        <span className="font-semibold text-[var(--text-primary)] capitalize block">
-                          {item.role || 'General Seeker'}
+                      {/* Role & Context */}
+                      <td className="py-3 px-4">
+                        <span className="font-medium text-[var(--text-primary)] capitalize block text-xs">
+                          {item.role || 'General Inquiry'}
                         </span>
-                        {item.subject && (
-                          <span className="text-[11px] text-[var(--text-muted)] truncate max-w-[160px] block">
-                            {item.subject}
-                          </span>
-                        )}
+                        <p
+                          className="text-[11px] text-[var(--text-muted)] truncate max-w-[200px]"
+                          title={item.subject || item.message || item.reason}
+                        >
+                          {item.subject || item.message || item.reason || '—'}
+                        </p>
                       </td>
 
                       {/* Date */}
-                      <td className="py-3.5 px-4 text-[var(--text-muted)] whitespace-nowrap">
-                        <div className="font-medium text-[var(--text-primary)]">{formattedDate}</div>
-                        <div className="text-[10px]">
-                          {new Date(item.createdAt).toLocaleTimeString('en-IN', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </div>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="font-medium text-[var(--text-primary)] text-xs">{formattedDate}</div>
+                        <div className="text-[10px] text-[var(--text-muted)]">{formattedTime}</div>
                       </td>
 
                       {/* Status */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-1.5">
-                          {getStatusBadge(item.status)}
-                        </div>
+                      <td className="py-3 px-4">
+                        {getStatusBadge(item.status)}
                       </td>
 
                       {/* Action Buttons */}
-                      <td className="py-3.5 px-4 text-right space-x-1 whitespace-nowrap">
+                      <td
+                        className="py-3 px-4 text-right space-x-1 whitespace-nowrap"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <button
                           type="button"
                           onClick={() => openDetails(item)}
-                          className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-[var(--bg-muted)] hover:bg-brand hover:text-white text-[var(--text-primary)] transition-all cursor-pointer"
+                          className="px-2.5 py-1 rounded-lg text-xs font-medium text-[var(--text-primary)] bg-[var(--bg-muted)] hover:bg-brand hover:text-white transition-all cursor-pointer"
                         >
-                          View Details
+                          View
                         </button>
 
                         <button
@@ -770,10 +908,10 @@ export default function WebInquiries() {
                               isDeleting: false,
                             })
                           }
-                          className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
+                          className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-rose-600 hover:bg-rose-500/10 transition-colors cursor-pointer"
                           title="Delete Inquiry"
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={13} />
                         </button>
                       </td>
                     </tr>
@@ -791,18 +929,18 @@ export default function WebInquiries() {
               Showing {inquiries.length} of {pagination.total} records
             </span>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer font-bold"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer font-medium text-xs shadow-xs"
               >
-                <ChevronLeft size={14} />
+                <ChevronLeft size={13} />
                 <span>Prev</span>
               </button>
 
-              <span className="font-bold text-[var(--text-primary)] px-2">
+              <span className="font-medium text-[var(--text-primary)] px-2">
                 Page {page} of {pagination.totalPages || 1}
               </span>
 
@@ -810,10 +948,10 @@ export default function WebInquiries() {
                 type="button"
                 disabled={page >= pagination.totalPages}
                 onClick={() => setPage((p) => p + 1)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer font-bold"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer font-medium text-xs shadow-xs"
               >
                 <span>Next</span>
-                <ChevronRight size={14} />
+                <ChevronRight size={13} />
               </button>
             </div>
           </div>
@@ -822,30 +960,36 @@ export default function WebInquiries() {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════
-          04 — INQUIRY DETAILS DRAWER / MODAL
+          05 — INQUIRY DETAILS MODAL
           ═══════════════════════════════════════════════════════════════ */}
       {selectedInquiry && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 sm:p-8 space-y-6 text-left">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-xl p-5 sm:p-6 space-y-5 text-left">
             
             {/* Modal Header */}
-            <div className="flex items-start justify-between gap-4 pb-4 border-b border-[var(--border)]">
+            <div className="flex items-start justify-between gap-4 pb-3 border-b border-[var(--border)]">
               <div>
-                <div className="flex items-center gap-2.5 mb-1.5">
+                <div className="flex items-center gap-2 mb-1">
                   {getTypeBadge(selectedInquiry.type)}
-                  <span className="font-mono font-bold text-xs text-[var(--text-muted)]">
-                    {selectedInquiry.refId}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(selectedInquiry.refId, 'Reference ID')}
+                    className="font-mono text-xs font-medium text-[var(--text-muted)] hover:text-brand flex items-center gap-1 group cursor-pointer"
+                    title="Click to copy Reference ID"
+                  >
+                    <span>{selectedInquiry.refId}</span>
+                    <Copy size={11} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
                 </div>
-                <h3 className="text-xl font-black text-[var(--text-primary)]">
+                <h3 className="text-base font-bold text-[var(--text-primary)]">
                   {selectedInquiry.type === 'deletion_request'
                     ? 'Account Deletion Request'
                     : 'Website Contact Message'}
                 </h3>
-                <span className="text-xs text-[var(--text-muted)] flex items-center gap-1.5 mt-1">
-                  <Calendar size={12} />
+                <span className="text-[11px] text-[var(--text-muted)] flex items-center gap-1.5 mt-0.5">
+                  <Calendar size={11} />
                   <span>
-                    Received on{' '}
+                    Submitted on{' '}
                     {new Date(selectedInquiry.createdAt).toLocaleString('en-IN', {
                       dateStyle: 'medium',
                       timeStyle: 'short',
@@ -857,38 +1001,38 @@ export default function WebInquiries() {
               <button
                 type="button"
                 onClick={() => setSelectedInquiry(null)}
-                className="p-2 rounded-xl text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
-            {/* User Details Grid */}
-            <div className="grid sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-[var(--bg-muted)]/50 border border-[var(--border)]">
+            {/* User Info Grid */}
+            <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)]">
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] block mb-1">
+                <span className="text-[10.5px] font-medium uppercase tracking-wider text-[var(--text-muted)] block mb-0.5">
                   Full Name
                 </span>
-                <span className="text-sm font-bold text-[var(--text-primary)]">
+                <span className="text-xs font-semibold text-[var(--text-primary)]">
                   {selectedInquiry.fullName}
                 </span>
               </div>
 
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] block mb-1">
+                <span className="text-[10.5px] font-medium uppercase tracking-wider text-[var(--text-muted)] block mb-0.5">
                   Account Role
                 </span>
-                <span className="text-sm font-semibold text-[var(--text-primary)] capitalize">
+                <span className="text-xs font-medium text-[var(--text-primary)] capitalize">
                   {selectedInquiry.role || 'Property Seeker'}
                 </span>
               </div>
 
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] block mb-1">
+                <span className="text-[10.5px] font-medium uppercase tracking-wider text-[var(--text-muted)] block mb-0.5">
                   Email Address
                 </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-[var(--text-primary)] truncate">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-[var(--text-primary)] truncate">
                     {selectedInquiry.email}
                   </span>
                   <button
@@ -897,17 +1041,17 @@ export default function WebInquiries() {
                     className="text-[var(--text-muted)] hover:text-brand cursor-pointer"
                     title="Copy Email"
                   >
-                    <Copy size={13} />
+                    <Copy size={11} />
                   </button>
                 </div>
               </div>
 
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] block mb-1">
+                <span className="text-[10.5px] font-medium uppercase tracking-wider text-[var(--text-muted)] block mb-0.5">
                   Mobile Number
                 </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-mono font-bold text-[var(--text-primary)]">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-mono font-medium text-[var(--text-primary)]">
                     {selectedInquiry.phone}
                   </span>
                   <button
@@ -916,25 +1060,25 @@ export default function WebInquiries() {
                     className="text-[var(--text-muted)] hover:text-brand cursor-pointer"
                     title="Copy Phone"
                   >
-                    <Copy size={13} />
+                    <Copy size={11} />
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Inquiry Content / Deletion Reason */}
-            <div className="space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] block">
+            {/* Inquiry Content / Message */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)] block">
                 {selectedInquiry.type === 'deletion_request' ? 'Reason for Deletion' : 'Message / Requirements'}
               </span>
-              <div className="p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">
+              <div className="p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">
                 {selectedInquiry.message || selectedInquiry.reason || 'No message provided.'}
               </div>
             </div>
 
             {selectedInquiry.notes && (
-              <div className="space-y-1.5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] block">
+              <div className="space-y-1">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)] block">
                   Additional Notes
                 </span>
                 <p className="text-xs text-[var(--text-muted)] italic">
@@ -944,25 +1088,19 @@ export default function WebInquiries() {
             )}
 
             {/* Status & Admin Action Bar */}
-            <div className="space-y-4 pt-4 border-t border-[var(--border)]">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div>
-                  <span className="text-xs font-bold text-[var(--text-primary)] block">
-                    Workflow Status
-                  </span>
-                  <span className="text-[11px] text-[var(--text-muted)]">
-                    Change status to track review progress
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
+            <div className="space-y-3 pt-3 border-t border-[var(--border)]">
+              <div>
+                <span className="text-xs font-semibold text-[var(--text-primary)] block mb-1.5">
+                  Workflow Status
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
                   {['new', 'in_progress', 'contacted', 'resolved', 'rejected'].map((st) => (
                     <button
                       key={st}
                       type="button"
                       disabled={isUpdatingStatus}
                       onClick={() => handleUpdateInquiry(selectedInquiry._id, st, adminNotesInput)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition-all cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium capitalize transition-all cursor-pointer ${
                         selectedInquiry.status === st
                           ? 'bg-brand text-white shadow-xs'
                           : 'bg-[var(--bg-muted)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--border)]'
@@ -976,21 +1114,21 @@ export default function WebInquiries() {
 
               {/* Admin Internal Notes */}
               <div>
-                <label className="block text-xs font-bold text-[var(--text-primary)] mb-1.5">
+                <label className="block text-xs font-semibold text-[var(--text-primary)] mb-1">
                   Admin Internal Notes
                 </label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={adminNotesInput}
                   onChange={(e) => setAdminNotesInput(e.target.value)}
-                  placeholder="Add internal verification notes, contact log, or audit notes..."
-                  className="w-full p-3 rounded-xl text-xs bg-[var(--bg-muted)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-brand transition-all resize-none"
+                  placeholder="Add internal contact notes, verification status, or action log..."
+                  className="w-full p-2.5 rounded-lg text-xs bg-[var(--bg-muted)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-brand transition-all resize-none shadow-xs"
                 />
               </div>
             </div>
 
             {/* Modal Actions */}
-            <div className="flex items-center justify-between gap-3 pt-4 border-t border-[var(--border)]">
+            <div className="flex items-center justify-between gap-3 pt-3 border-t border-[var(--border)]">
               <button
                 type="button"
                 onClick={() => {
@@ -1002,17 +1140,17 @@ export default function WebInquiries() {
                     isDeleting: false,
                   });
                 }}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
               >
-                <Trash2 size={14} />
-                <span>Delete Record</span>
+                <Trash2 size={13} />
+                <span>Delete</span>
               </button>
 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setSelectedInquiry(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-primary)] transition-all cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-primary)] transition-all cursor-pointer"
                 >
                   Close
                 </button>
@@ -1020,7 +1158,7 @@ export default function WebInquiries() {
                   type="button"
                   disabled={isUpdatingStatus}
                   onClick={() => handleUpdateInquiry(selectedInquiry._id, selectedInquiry.status, adminNotesInput)}
-                  className="px-5 py-2 rounded-xl text-xs font-bold bg-brand text-white hover:bg-brand/90 transition-all shadow-sm shadow-brand/20 cursor-pointer"
+                  className="px-4 py-1.5 rounded-lg text-xs font-medium bg-brand text-white hover:bg-brand/90 transition-all shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   {isUpdatingStatus ? 'Saving...' : 'Save Notes'}
                 </button>
@@ -1032,29 +1170,29 @@ export default function WebInquiries() {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════
-          05 — SINGLE DELETE MODAL
+          06 — SINGLE DELETE MODAL
           ═══════════════════════════════════════════════════════════════ */}
       {deleteModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-3xl w-full max-w-md shadow-2xl p-6 text-center space-y-4">
-            <div className="w-14 h-14 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-200">
-              <Trash2 size={24} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl w-full max-w-sm shadow-xl p-5 text-center space-y-3.5">
+            <div className="w-10 h-10 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto border border-rose-500/20">
+              <Trash2 size={18} />
             </div>
 
             <div>
-              <h3 className="text-lg font-black text-[var(--text-primary)]">
-                Delete Web Inquiry?
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                Delete Inquiry?
               </h3>
               <p className="text-xs text-[var(--text-muted)] mt-1">
-                Are you sure you want to delete the record for <strong>{deleteModal.name}</strong> ({deleteModal.refId})? This action cannot be undone.
+                Are you sure you want to delete inquiry <strong>{deleteModal.refId || deleteModal.name}</strong>? This cannot be undone.
               </p>
             </div>
 
-            <div className="flex items-center justify-center gap-2 pt-2">
+            <div className="flex items-center justify-center gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => setDeleteModal({ open: false, id: null, refId: '', name: '', isDeleting: false })}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-[var(--bg-muted)] text-[var(--text-primary)] hover:bg-[var(--border)] cursor-pointer"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--bg-muted)] text-[var(--text-primary)] hover:bg-[var(--border)] cursor-pointer"
               >
                 Cancel
               </button>
@@ -1063,9 +1201,9 @@ export default function WebInquiries() {
                 type="button"
                 disabled={deleteModal.isDeleting}
                 onClick={handleDeleteSingle}
-                className="px-5 py-2 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-600/20 cursor-pointer disabled:opacity-50"
+                className="px-4 py-1.5 rounded-lg text-xs font-medium bg-rose-600 text-white hover:bg-rose-700 shadow-xs cursor-pointer disabled:opacity-50"
               >
-                {deleteModal.isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                {deleteModal.isDeleting ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>
@@ -1073,17 +1211,17 @@ export default function WebInquiries() {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════
-          06 — BULK DELETE MODAL
+          07 — BULK DELETE MODAL
           ═══════════════════════════════════════════════════════════════ */}
       {showBulkDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-3xl w-full max-w-md shadow-2xl p-6 text-center space-y-4">
-            <div className="w-14 h-14 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-200">
-              <AlertTriangle size={24} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl w-full max-w-sm shadow-xl p-5 text-center space-y-3.5">
+            <div className="w-10 h-10 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto border border-rose-500/20">
+              <AlertTriangle size={18} />
             </div>
 
             <div>
-              <h3 className="text-lg font-black text-[var(--text-primary)]">
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">
                 Delete {selectedIds.length} Inquiries?
               </h3>
               <p className="text-xs text-[var(--text-muted)] mt-1">
@@ -1091,11 +1229,11 @@ export default function WebInquiries() {
               </p>
             </div>
 
-            <div className="flex items-center justify-center gap-2 pt-2">
+            <div className="flex items-center justify-center gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => setShowBulkDeleteModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-[var(--bg-muted)] text-[var(--text-primary)] hover:bg-[var(--border)] cursor-pointer"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--bg-muted)] text-[var(--text-primary)] hover:bg-[var(--border)] cursor-pointer"
               >
                 Cancel
               </button>
@@ -1104,9 +1242,9 @@ export default function WebInquiries() {
                 type="button"
                 disabled={isBulkDeleting}
                 onClick={handleBulkDelete}
-                className="px-5 py-2 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-600/20 cursor-pointer disabled:opacity-50"
+                className="px-4 py-1.5 rounded-lg text-xs font-medium bg-rose-600 text-white hover:bg-rose-700 shadow-xs cursor-pointer disabled:opacity-50"
               >
-                {isBulkDeleting ? 'Deleting...' : 'Yes, Delete All'}
+                {isBulkDeleting ? 'Deleting...' : 'Delete All'}
               </button>
             </div>
           </div>

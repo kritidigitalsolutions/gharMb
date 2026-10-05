@@ -172,6 +172,30 @@ exports.bulkDeleteTestimonials = async (req, res) => {
   }
 };
 
+// Bulk update status
+exports.bulkUpdateStatus = async (req, res) => {
+  try {
+    const { ids, isActive } = req.body;
+    
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ status: 'error', message: 'Please provide an array of IDs' });
+    }
+
+    await Testimonial.updateMany(
+      { _id: { $in: ids } },
+      { $set: { isActive: Boolean(isActive) } }
+    );
+
+    res.status(200).json({
+      status: 'success',
+      message: `Testimonials ${isActive ? 'activated' : 'deactivated'} successfully`
+    });
+  } catch (error) {
+    console.error('Error bulk updating testimonial status:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to update testimonials' });
+  }
+};
+
 // Reorder testimonials
 exports.reorderTestimonials = async (req, res) => {
   try {

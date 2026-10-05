@@ -10,8 +10,17 @@ const notificationSchema = new mongoose.Schema(
     recipient: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Notification must have a recipient user.'],
+      required: false,
       index: true,
+    },
+    forAdmin: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    sender: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
     title: {
       type: String,
@@ -54,6 +63,20 @@ const notificationSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.ObjectId,
         ref: 'VisitRequest',
       },
+      clientDetails: {
+        name: String,
+        phone: String,
+        email: String,
+      },
+      scheduleDetails: {
+        date: String,
+        time: String,
+      },
+      agentId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+      reraNumber: String,
       customLink: String,
     },
   },

@@ -1,8 +1,10 @@
+import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   CheckSquare,
   Users,
+  UserCheck,
   Building2,
   Inbox,
   IndianRupee,
@@ -14,7 +16,7 @@ import {
   Info,
   Bell,
   Briefcase,
-  Lock,
+  FileCheck,
   Gift,
   Sparkles,
   MessageSquareQuote,
@@ -39,6 +41,32 @@ const Sidebar = ({
     else if (setCollapsed) setCollapsed(!collapsedState);
   };
 
+  const [pendingAgentsCount, setPendingAgentsCount] = useState(0);
+
+  useEffect(() => {
+    const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+    const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
+    const API_URL = `${API_BASE}/api`;
+
+    const fetchPendingCount = async () => {
+      try {
+        const token = localStorage.getItem('adminToken');
+        if (!token) return;
+        const res = await fetch(`${API_URL}/admin/users/pending-agents`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          setPendingAgentsCount(data.results || data.data?.agents?.length || 0);
+        }
+      } catch (_) {}
+    };
+
+    fetchPendingCount();
+    const timer = setInterval(fetchPendingCount, 25000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Grouped Navigation Structure for optimal UX & cognitive ease
   const navGroups = [
     {
@@ -52,10 +80,16 @@ const Sidebar = ({
     {
       group: 'Real Estate & CRM',
       items: [
+        {
+          name: 'Agents & Brokers',
+          path: '/admin/agents',
+          icon: UserCheck,
+          badge: pendingAgentsCount > 0 ? String(pendingAgentsCount) : null
+        },
         { name: 'Builders & RERA', path: '/admin/builders', icon: Building2 },
         { name: 'Leads & Enquiries', path: '/admin/leads', icon: Inbox },
         { name: 'Services Hub', path: '/admin/services', icon: Briefcase },
-        { name: 'Token Bookings', path: '/admin/tokens', icon: Lock },
+        { name: 'Token Bookings', path: '/admin/tokens', icon: FileCheck },
         { name: 'Referral Network', path: '/admin/references', icon: Gift },
       ]
     },

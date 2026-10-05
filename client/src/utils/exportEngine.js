@@ -109,10 +109,12 @@ export const formatRupeeForUI = (val) => {
  */
 export const exportToPDF = ({
   categoryTitle = 'Administrative Report',
+  reportSubtitle = '',
   dateScope = 'All Records',
   summaryMetrics = [],
   headers = [],
   rows = [],
+  summaryRow = null,
   columnAlignments = {},
   filename = `gharmb_report_${Date.now()}.pdf`
 }) => {
@@ -126,151 +128,209 @@ export const exportToPDF = ({
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 14;
 
-  // Header Top Accent Stripe (Gharmb Indigo)
-  doc.setFillColor(79, 70, 229); // #4f46e5 (Indigo 600)
-  doc.rect(0, 0, pageWidth, 4, 'F');
-
-  // Header Content
-  // Brand Logo / Monogram Box
-  doc.setFillColor(24, 32, 54); // Deep Navy Slate
-  doc.roundedRect(margin, 10, 14, 14, 2, 2, 'F');
+  // ─── 1. CLEAN REFINED HEADER ───
+  // Brand Logo Mark: Minimalist Slate Rounded Badge
+  doc.setFillColor(15, 23, 42); // slate-900
+  doc.roundedRect(margin, 10, 8.5, 8.5, 1.6, 1.6, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text('GH', margin + 3.5, 19);
+  doc.setFontSize(7.5);
+  doc.text('GH', margin + 2.1, 15.6);
 
-  // Platform Name and Report Title
+  // Brand Name & Tagline
   doc.setTextColor(15, 23, 42); // slate-900
-  doc.setFontSize(16);
+  doc.setFontSize(13);
   doc.setFont('helvetica', 'bold');
-  doc.text('GHARMB REAL ESTATE PLATFORM', margin + 18, 16);
+  doc.text('GHARMB', margin + 11.5, 14.2);
 
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139); // slate-500
-  doc.text(
-    `OFFICIAL ADMINISTRATIVE AUDIT & COMPLIANCE REPORT • CATEGORY: ${categoryTitle.toUpperCase()}`,
-    margin + 18,
-    21.5
-  );
+  doc.text('|   Real Estate Platform', margin + 35, 14.2);
 
-  // Right-hand Metadata Pill & Timestamp
+  // Subtitle / Report Title
+  const displaySubtitle =
+    reportSubtitle ||
+    (categoryTitle.toLowerCase().includes('report') ? categoryTitle : `${categoryTitle} Portfolio Report`);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(51, 65, 85); // slate-700
+  doc.text(displaySubtitle, margin + 11.5, 18.5);
+
+  // Right-hand Metadata (Clean, Professional, Right-Aligned)
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-  doc.setFillColor(241, 245, 249); // slate-100
-  doc.setDrawColor(203, 213, 225); // slate-300
-  doc.roundedRect(pageWidth - margin - 72, 10, 72, 14, 2, 2, 'FD');
-
-  doc.setFontSize(7.5);
+  const rightX = pageWidth - margin;
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(71, 85, 105);
-  doc.text('CLASSIFICATION: STRICTLY CONFIDENTIAL', pageWidth - margin - 70, 14.5);
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105); // slate-600
+  doc.text('EXECUTIVE OPERATIONS REPORT', rightX, 12, { align: 'right' });
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.setTextColor(100, 116, 139);
-  doc.text(`Scope: ${dateScope}`, pageWidth - margin - 70, 18.5);
-  doc.text(`Generated: ${dateStr}, ${timeStr}`, pageWidth - margin - 70, 22);
+  doc.setTextColor(100, 116, 139); // slate-500
+  doc.text(`Generated: ${dateStr}, ${timeStr}`, rightX, 15.6, { align: 'right' });
+  doc.text(`Scope: ${dateScope}`, rightX, 19, { align: 'right' });
 
-  // Summary KPI Cards (If provided)
-  let startTableY = 28;
+  // Subtle Header Divider Hairline
+  doc.setDrawColor(226, 232, 240); // slate-200
+  doc.setLineWidth(0.3);
+  doc.line(margin, 21.5, pageWidth - margin, 21.5);
+
+  // ─── 2. EXECUTIVE SUMMARY STATS STRIP ───
+  let startTableY = 25.5;
   if (summaryMetrics && summaryMetrics.length > 0) {
-    const cardGap = 4;
-    const totalCards = Math.min(summaryMetrics.length, 4);
+    const totalMetrics = Math.min(summaryMetrics.length, 4);
     const availableWidth = pageWidth - margin * 2;
-    const cardWidth = (availableWidth - (totalCards - 1) * cardGap) / totalCards;
-    const cardHeight = 15;
-    const cardY = 28;
+    const stripY = 24.5;
+    const stripHeight = 12.5;
+    const colWidth = availableWidth / totalMetrics;
+
+    // Single cohesive summary container
+    doc.setFillColor(248, 250, 252); // slate-50
+    doc.setDrawColor(226, 232, 240); // slate-200
+    doc.setLineWidth(0.25);
+    doc.roundedRect(margin, stripY, availableWidth, stripHeight, 1.8, 1.8, 'FD');
 
     summaryMetrics.slice(0, 4).forEach((metric, idx) => {
-      const cardX = margin + idx * (cardWidth + cardGap);
+      const colX = margin + idx * colWidth;
 
-      doc.setFillColor(248, 250, 252);
-      doc.setDrawColor(226, 232, 240);
-      doc.roundedRect(cardX, cardY, cardWidth, cardHeight, 1.5, 1.5, 'FD');
+      // Subtle vertical divider between metric columns
+      if (idx > 0) {
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.2);
+        doc.line(colX, stripY + 2, colX, stripY + stripHeight - 2);
+      }
 
-      const indicatorColor = metric.accentColor || [79, 70, 229];
-      doc.setFillColor(indicatorColor[0], indicatorColor[1], indicatorColor[2]);
-      doc.roundedRect(cardX, cardY, 2, cardHeight, 1, 1, 'F');
-
+      // Upper label
       doc.setFontSize(6.5);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(100, 116, 139);
-      doc.text(String(metric.label || '').toUpperCase(), cardX + 5, cardY + 5);
+      doc.setTextColor(100, 116, 139); // slate-500
+      doc.text(String(metric.label || '').toUpperCase(), colX + 5, stripY + 4.5);
 
+      // Value
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(15, 23, 42);
-      doc.text(String(metric.value || '—'), cardX + 5, cardY + 11.5);
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.text(String(metric.value || '0'), colX + 5, stripY + 9.8);
     });
 
-    startTableY = cardY + cardHeight + 5;
+    startTableY = stripY + stripHeight + 4.5;
   }
 
-  // Data Table via autoTable
+  // ─── 3. MINIMAL CLEAN DATA TABLE ───
+  // Format summaryRow with colSpan so totals don't wrap awkwardly in the first cell
+  let formattedFoot = undefined;
+  if (summaryRow && Array.isArray(summaryRow) && summaryRow.length > 0) {
+    if (typeof summaryRow[0] === 'object' && summaryRow[0] !== null) {
+      formattedFoot = [summaryRow];
+    } else {
+      let valIdx = -1;
+      for (let i = 1; i < summaryRow.length; i++) {
+        if (summaryRow[i] && String(summaryRow[i]).trim() !== '' && String(summaryRow[i]).trim() !== '—') {
+          valIdx = i;
+          break;
+        }
+      }
+      if (valIdx > 0) {
+        formattedFoot = [
+          [
+            { content: String(summaryRow[0]), colSpan: valIdx, styles: { halign: 'left', fontStyle: 'bold', textColor: [15, 23, 42] } },
+            { content: String(summaryRow[valIdx]), styles: { halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42] } },
+            ...(summaryRow.length - valIdx - 1 > 0 ? [{ content: '', colSpan: summaryRow.length - valIdx - 1 }] : [])
+          ]
+        ];
+      } else {
+        formattedFoot = [summaryRow];
+      }
+    }
+  }
+
   runAutoTable(doc, {
     startY: startTableY,
     head: [headers],
     body: rows,
-    theme: 'grid',
+    foot: formattedFoot,
+    theme: 'plain',
     styles: {
       font: 'helvetica',
-      fontSize: 8,
-      cellPadding: { top: 2.2, bottom: 2.2, left: 3, right: 3 },
-      textColor: [30, 41, 59],
-      lineColor: [226, 232, 240],
-      lineWidth: 0.15,
+      fontSize: 7.5,
+      cellPadding: { top: 2.8, bottom: 2.8, left: 2, right: 2 },
+      textColor: [30, 41, 59], // slate-800
       valign: 'middle',
-      overflow: 'linebreak'
+      overflow: 'linebreak',
+      lineWidth: { bottom: 0.15 },
+      lineColor: [241, 245, 249] // hairline row separator
     },
     headStyles: {
-      fillColor: [24, 32, 54],
-      textColor: [255, 255, 255],
+      fillColor: [248, 250, 252], // clean slate-50
+      textColor: [71, 85, 105],   // slate-600
       fontStyle: 'bold',
-      fontSize: 8,
-      halign: 'left',
-      cellPadding: { top: 3, bottom: 3, left: 3, right: 3 }
+      fontSize: 7,
+      valign: 'middle',
+      cellPadding: { top: 3.2, bottom: 3.2, left: 2, right: 2 },
+      lineWidth: { bottom: 0.5, top: 0.2 },
+      lineColor: [203, 213, 225]  // slate-300
     },
     alternateRowStyles: {
-      fillColor: [248, 250, 252]
+      fillColor: [253, 254, 255]
+    },
+    footStyles: {
+      fillColor: [248, 250, 252],
+      textColor: [15, 23, 42],
+      fontStyle: 'bold',
+      fontSize: 7.5,
+      cellPadding: { top: 3, bottom: 3, left: 2, right: 2 },
+      lineWidth: { top: 0.5, bottom: 0.5 },
+      lineColor: [203, 213, 225]
     },
     columnStyles: columnAlignments,
-    didDrawCell: (data) => {
+    didParseCell: (data) => {
       if (data.section === 'body') {
         const text = String(data.cell.raw || '').trim().toLowerCase();
+        // Semantic, subtle status styling
         if (['approved', 'active', 'settled', 'verified', 'resolved'].includes(text)) {
-          doc.setTextColor(5, 150, 105);
-        } else if (['pending', 'in progress', 'under review', 'escrow held', 'scheduled'].includes(text)) {
-          doc.setTextColor(217, 119, 6);
+          data.cell.styles.textColor = [4, 120, 87]; // emerald-700
+          data.cell.styles.fontStyle = 'bold';
+        } else if (['pending', 'in progress', 'under review', 'escrow held', 'scheduled', 'contacted'].includes(text)) {
+          data.cell.styles.textColor = [180, 83, 9]; // amber-700
+          data.cell.styles.fontStyle = 'bold';
         } else if (['rejected', 'suspended', 'cancelled', 'refunded', 'disputed'].includes(text)) {
-          doc.setTextColor(220, 38, 38);
+          data.cell.styles.textColor = [185, 28, 28]; // rose-700
+          data.cell.styles.fontStyle = 'bold';
         }
       }
     },
-    margin: { left: margin, right: margin, bottom: 16 }
+    margin: { left: margin, right: margin, bottom: 15 }
   });
 
-  // Multi-Page Footer with Page Numbers
+  // ─── 4. MULTI-PAGE SLENDER FOOTER ───
   const totalPages = doc.internal.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
-    doc.setDrawColor(226, 232, 240);
-    doc.setLineWidth(0.2);
-    doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
 
+    // Hairline divider
+    doc.setDrawColor(226, 232, 240); // slate-200
+    doc.setLineWidth(0.25);
+    doc.line(margin, pageHeight - 11, pageWidth - margin, pageHeight - 11);
+
+    // Left platform identifier
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(148, 163, 184);
-    doc.text(
-      'GHARMB REAL ESTATE PLATFORM • ADMINISTRATIVE CONSOLE • CONFIDENTIAL INTERNAL RECORD',
-      margin,
-      pageHeight - 7
-    );
+    doc.setFontSize(7);
+    doc.setTextColor(148, 163, 184); // slate-400
+    doc.text('GharMB Real Estate Platform  •  Administrative Audit & Operations Record', margin, pageHeight - 6.5);
 
-    const pageString = `Page ${i} of ${totalPages}`;
-    doc.text(pageString, pageWidth - margin - doc.getTextWidth(pageString), pageHeight - 7);
+    // Center confidentiality note
+    doc.setFontSize(6.5);
+    doc.setTextColor(160, 174, 192);
+    doc.text('Confidential  •  For Authorized Internal Operations Only', pageWidth / 2, pageHeight - 6.5, { align: 'center' });
+
+    // Right page number
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin, pageHeight - 6.5, { align: 'right' });
   }
 
   // Output genuine binary PDF Blob

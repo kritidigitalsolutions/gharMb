@@ -8,6 +8,7 @@ const Property = require('../../models/property.model');
 const DeveloperEnquiry = require('../../models/developer-enquiry.model');
 const User = require('../../models/user.model');
 const Notification = require('../../models/notification.model');
+const { notifyAdmin } = require('../../utils/adminNotification.helper');
 
 // @desc    Submit an enquiry for a property listing
 // @route   POST /api/users/enquiries
@@ -50,6 +51,23 @@ exports.createEnquiry = async (req, res, next) => {
       metadata: {
         propertyId: property._id,
         enquiryId: enquiry._id,
+      },
+    });
+
+    // Notify Admin Notification Panel directly
+    await notifyAdmin({
+      title: 'New Property Enquiry 📩',
+      message: `${req.user.name || 'A user'} submitted an enquiry for listing "${property.title}". Phone: ${req.user.phone || 'N/A'}${message ? ` | Message: "${message}"` : ''}`,
+      type: 'enquiry',
+      senderId: req.user._id,
+      metadata: {
+        propertyId: property._id,
+        enquiryId: enquiry._id,
+        clientDetails: {
+          name: req.user.name,
+          phone: req.user.phone,
+          email: req.user.email,
+        },
       },
     });
 
@@ -224,6 +242,22 @@ exports.createDeveloperEnquiry = async (req, res, next) => {
       type: 'enquiry',
       metadata: {
         enquiryId: enquiry._id,
+      },
+    });
+
+    // 5. Notify Admin Notification Panel directly
+    await notifyAdmin({
+      title: 'New Developer Enquiry 🏢',
+      message: `${req.user.name || 'A user'} submitted an enquiry for builder/developer "${developer.name}". Phone: ${req.user.phone || 'N/A'}${message ? ` | Message: "${message}"` : ''}`,
+      type: 'enquiry',
+      senderId: req.user._id,
+      metadata: {
+        enquiryId: enquiry._id,
+        clientDetails: {
+          name: req.user.name,
+          phone: req.user.phone,
+          email: req.user.email,
+        },
       },
     });
 

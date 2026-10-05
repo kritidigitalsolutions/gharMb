@@ -32,13 +32,15 @@ const safeUpload = (req, res, next) => {
   });
 };
 
+// 1-Click Token Request creation & config: Supports both authenticated users and public users with contact details
+const optionalAuth = userAuth.optionalUserAuth || userAuth;
+
 // Public/Optional auth: Get token booking configuration (Amounts configured by Admin)
-router.get('/config', tokenRequestController.getTokenConfig);
+router.get('/config', optionalAuth, tokenRequestController.getTokenConfig);
+router.post('/', optionalAuth, safeUpload, tokenRequestController.createTokenRequest);
 
-// All subsequent routes require user authentication
+// Management routes require user authentication
 router.use(userAuth);
-
-router.post('/', safeUpload, tokenRequestController.createTokenRequest);
 
 router.get('/', tokenRequestController.getReceivedTokenRequests);
 

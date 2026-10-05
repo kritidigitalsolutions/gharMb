@@ -4,6 +4,8 @@
  */
 
 const Project = require('../../models/project.model');
+const User = require('../../models/user.model');
+const DeveloperEnquiry = require('../../models/developer-enquiry.model');
 
 // @desc    Get all developer projects (with filters for status, projectType, approvalStatus)
 // @route   GET /api/admin/projects
@@ -12,6 +14,10 @@ exports.getAllProjects = async (req, res, next) => {
   try {
     const { approvalStatus, projectType, city, search } = req.query;
     const filter = {};
+
+    // Ensure projects belong to existing users
+    const validUserIds = await User.distinct('_id');
+    filter.developer = { $in: validUserIds };
 
     if (approvalStatus) filter.approvalStatus = approvalStatus;
     if (projectType) filter.projectType = projectType;
@@ -214,6 +220,8 @@ exports.deleteProject = async (req, res, next) => {
         message: 'No project found with that ID.',
       });
     }
+
+    await DeveloperEnquiry.deleteMany({ project: project._id });
 
     res.status(200).json({
       status: 'success',

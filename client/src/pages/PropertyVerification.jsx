@@ -826,6 +826,24 @@ const PropertyVerification = () => {
                 <RefreshCw size={16} className="animate-spin text-brand" />
                 <span>Loading listings...</span>
               </div>
+            ) : currentList.length === 0 ? (
+              <div className="p-8 text-center space-y-2">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+                  <CheckCircle2 size={18} />
+                </div>
+                <p className="text-xs font-bold text-[var(--text-primary)]">All Caught Up!</p>
+                <p className="text-[11px] text-[var(--text-muted)] max-w-xs mx-auto">
+                  No {activePipeline === 'properties' ? 'properties' : 'developer projects'} in queue. Real submissions from registered users will automatically appear here.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleManualRefresh}
+                  className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-[var(--bg-muted)] hover:bg-[var(--bg-hover)] text-brand border border-brand/30 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  <RefreshCw size={11} className={isRefreshing ? 'animate-spin' : ''} />
+                  <span>Refresh Queue</span>
+                </button>
+              </div>
             ) : filteredItems.length === 0 ? (
               <div className="p-8 text-center space-y-2">
                 <div className="w-8 h-8 rounded-full bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)] mx-auto">
@@ -965,12 +983,18 @@ const PropertyVerification = () => {
         {/* ─── RIGHT PANE: FOCUSED WORKBENCH WITH STICKY DECISION HEADER ─── */}
         <div className="flex-1 flex flex-col bg-[var(--bg-surface)] overflow-hidden">
           {!selectedItem ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)]">
-                <CheckSquare size={20} />
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-2.5">
+              <div className="w-12 h-12 rounded-2xl bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)] border border-[var(--border)]">
+                {currentList.length === 0 ? <ShieldCheck size={22} className="text-emerald-500" /> : <CheckSquare size={22} />}
               </div>
-              <p className="text-xs font-semibold text-[var(--text-primary)]">Select a listing to inspect</p>
-              <p className="text-[11px] text-[var(--text-muted)]">Choose any submission from the left queue.</p>
+              <p className="text-sm font-bold text-[var(--text-primary)]">
+                {currentList.length === 0 ? 'Verification Pipeline is Clean' : 'Select a listing to inspect'}
+              </p>
+              <p className="text-xs text-[var(--text-muted)] max-w-sm">
+                {currentList.length === 0 
+                  ? 'All verified and synced with live database records. When owners, agents, or builders create listings, they will populate here.' 
+                  : 'Choose any submission from the queue on the left to review photos, specifications, and owner documents.'}
+              </p>
             </div>
           ) : (
             <div className="flex-1 flex flex-col h-full overflow-hidden">

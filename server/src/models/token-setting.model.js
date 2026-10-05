@@ -48,10 +48,6 @@ const tokenSettingSchema = new mongoose.Schema(
       type: Number,
       default: 7,
     },
-    escrowAutoReleaseDays: {
-      type: Number,
-      default: 14,
-    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Admin',
@@ -73,9 +69,8 @@ tokenSettingSchema.statics.getSettings = async function () {
       minTokenAmount: 1000,
       maxTokenAmount: 100000,
       allowCustomAmount: false,
-      adjustmentNote: 'Token amount will be adjusted in security deposit or first month\'s rent',
+      adjustmentNote: 'Token reservation request. Deal terms and any token deposit are arranged directly between parties offline. No online payment is processed on the platform.',
       validityDays: 7,
-      escrowAutoReleaseDays: 14,
     });
   }
   return settings;

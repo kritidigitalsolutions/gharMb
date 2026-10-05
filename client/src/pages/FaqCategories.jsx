@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft, Plus, Edit, Trash2, CheckCircle2,
-  XCircle, Folder, Layers, AlertCircle, RefreshCw, FileText,
-  X, CheckSquare, Square
+  Folder, Layers, AlertCircle, RefreshCw, FileText,
+  X, Check, Search, CheckSquare, Square
 } from 'lucide-react';
 import API from '../api/api';
 
@@ -11,6 +11,7 @@ const FaqCategories = () => {
   const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Selection & Bulk Operations
   const [selectedCatIds, setSelectedCatIds] = useState([]);
@@ -57,7 +58,7 @@ const FaqCategories = () => {
       }
     } catch (err) {
       console.error('Error fetching categories:', err);
-      setError('Failed to load categories.');
+      setError('Failed to load categories. Please check database connection.');
     } finally {
       setIsLoading(false);
     }
@@ -67,15 +68,21 @@ const FaqCategories = () => {
     fetchCategories();
   }, []);
 
+  // Filtered categories based on search
+  const filteredCategories = categories.filter(c =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.slug.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   // Selection helpers
-  const isAllSelected = categories.length > 0 && selectedCatIds.length === categories.length;
-  const isSomeSelected = selectedCatIds.length > 0 && selectedCatIds.length < categories.length;
+  const isAllSelected = filteredCategories.length > 0 && selectedCatIds.length === filteredCategories.length;
+  const isSomeSelected = selectedCatIds.length > 0 && selectedCatIds.length < filteredCategories.length;
 
   const handleToggleSelectAll = () => {
     if (isAllSelected) {
       setSelectedCatIds([]);
     } else {
-      setSelectedCatIds(categories.map(c => c._id));
+      setSelectedCatIds(filteredCategories.map(c => c._id));
     }
   };
 
@@ -88,7 +95,6 @@ const FaqCategories = () => {
   // Bulk Delete Action
   const handleOpenBulkDelete = () => {
     setBulkDeleteError(null);
-    // Find first non-selected category for default reassignment
     const remainingCats = categories.filter(c => !selectedCatIds.includes(c._id));
     setBulkMoveToCategory(remainingCats.length > 0 ? remainingCats[0]._id : '');
     setShowBulkDeleteModal(true);
@@ -97,18 +103,16 @@ const FaqCategories = () => {
   const handleBulkDeleteConfirm = async () => {
     if (selectedCatIds.length === 0) return;
 
-    // Calculate how many faqs exist in selected categories
     const totalFAQs = categories
       .filter(c => selectedCatIds.includes(c._id))
       .reduce((sum, c) => sum + (c.faqCount || 0), 0);
-
     const remainingCats = categories.filter(c => !selectedCatIds.includes(c._id));
 
     if (totalFAQs > 0 && (!bulkMoveToCategory || remainingCats.length === 0)) {
       setBulkDeleteError(
         remainingCats.length === 0
-          ? 'Cannot delete all categories because faqs exist. Please leave at least one category to reassign faqs.'
-          : 'Please select a target category to reassign existing faqs.'
+          ? 'Cannot delete all categories because FAQs exist. Please leave at least one category to reassign FAQs.'
+          : 'Please select a valid remaining category to reassign FAQs to.'
       );
       return;
     }
@@ -117,8 +121,10 @@ const FaqCategories = () => {
     setBulkDeleteError(null);
 
     try {
-      const payload = { ids: selectedCatIds };
-      if (totalFAQs > 0) {
+      const payload = {
+        ids: selectedCatIds,
+      };
+      if (totalFAQs > 0 && bulkMoveToCategory) {
         payload.moveToCategory = bulkMoveToCategory;
       }
 
@@ -135,7 +141,7 @@ const FaqCategories = () => {
     }
   };
 
-  // Helper slug generator preview
+  // Preview generated slug
   const previewSlug = (name) => {
     return name
       .toLowerCase()
@@ -145,7 +151,7 @@ const FaqCategories = () => {
       .replace(/-+/g, '-');
   };
 
-  // Open Add Modal
+  // Open Create Modal
   const handleOpenAdd = () => {
     setModalState({
       open: true,
@@ -238,7 +244,7 @@ const FaqCategories = () => {
     if (cat.faqCount > 0 && !deleteModal.moveToCategory) {
       setDeleteModal(prev => ({
         ...prev,
-        error: 'Please select a category to reassign existing faqs.',
+        error: 'Please select a category to reassign existing FAQs.',
       }));
       return;
     }
@@ -263,235 +269,371 @@ const FaqCategories = () => {
     }
   };
 
+  // Quick toggle active status
+  const handleToggleActive = async (category) => {
+    try {
+      await API.put(`/admin/faq-categories/${category._id}`, {
+        name: category.name,
+        isActive: !category.isActive,
+      });
+      triggerToast(`Category ${!category.isActive ? 'activated' : 'hidden'} successfully!`);
+      fetchCategories();
+    } catch (err) {
+      console.error('Error updating status:', err);
+      triggerToast('Failed to update category status.', 'error');
+    }
+  };
+
+  // Real aggregations
+  const totalAssignedFaqs = categories.reduce((sum, c) => sum + (c.faqCount || 0), 0);
+  const activeCount = categories.filter(c => c.isActive).length;
+
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-20 max-w-7xl mx-auto">
       {/* Toast Notification */}
       {toast.show && (
-        <div className={`fixed top-5 right-5 z-50 px-4 py-3 rounded-xl shadow-lg border text-sm font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-200 ${
-          toast.type === 'error'
-            ? 'bg-red-50 border-red-200 text-red-700'
-            : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-        }`}>
-          {toast.type === 'error' ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
+        <div
+          className={`fixed top-5 right-5 z-50 px-4 py-3 rounded-xl shadow-lg border text-xs font-semibold flex items-center gap-2.5 transition-all animate-in fade-in slide-in-from-top-3 ${
+            toast.type === 'error'
+              ? 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/60 dark:border-red-900 dark:text-red-300'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/60 dark:border-emerald-900 dark:text-emerald-300'
+          }`}
+        >
+          {toast.type === 'error' ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
           <span>{toast.message}</span>
         </div>
       )}
 
-      {/* Top Breadcrumb & Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <Link
-            to="/admin/faqs"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--text-muted)] hover:text-brand transition-colors mb-2 cursor-pointer"
-          >
-            <ArrowLeft size={14} /> Back to FAQs
-          </Link>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black text-[var(--text-primary)] tracking-tight">
-              Faq Categories
-            </h1>
-            <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-md bg-brand-light text-brand tracking-wider">
-              {categories.length} Total
-            </span>
+      {/* Top Header & Breadcrumb */}
+      <div className="border-b border-[var(--border)] pb-5">
+        <Link
+          to="/admin/faq"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-brand transition-colors mb-2 cursor-pointer"
+        >
+          <ArrowLeft size={13} /> Back to FAQs
+        </Link>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-1">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">
+                FAQ Categories
+              </h1>
+              <span className="px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-md">
+                {categories.length} total
+              </span>
+            </div>
+            <p className="text-xs text-[var(--text-muted)] mt-1">
+              Organize frequently asked questions into topic taxonomies for discovery on the public portal.
+            </p>
           </div>
-          <p className="text-xs text-[var(--text-muted)] mt-1 font-medium">
-            Organize editorial faqs into topics. Active categories automatically appear as filter tabs on the public site.
-          </p>
-        </div>
 
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={fetchCategories}
-            title="Refresh"
-            className="p-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-muted)] transition-all cursor-pointer"
-          >
-            <RefreshCw size={15} className={isLoading ? 'animate-spin' : ''} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={fetchCategories}
+              title="Refresh categories"
+              className="p-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-muted)] transition-colors cursor-pointer"
+            >
+              <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+            </button>
 
-          <button
-            onClick={handleOpenAdd}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-brand hover:bg-brand-dark text-white transition-all shadow-md shadow-brand/20 hover:scale-[1.02] active:scale-95 cursor-pointer"
-          >
-            <Plus size={16} />
-            New Category
-          </button>
+            <button
+              onClick={handleOpenAdd}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-brand hover:bg-brand-dark text-white transition-all shadow-xs hover:shadow-sm active:scale-98 cursor-pointer"
+            >
+              <Plus size={15} />
+              New Category
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Floating Bulk Action Bar when categories are selected */}
+      {/* Real Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        {/* Total Categories */}
+        <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-[var(--text-muted)]">Total Categories</span>
+            <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+              <Layers size={14} />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+              {categories.length}
+            </span>
+            <span className="text-[11px] font-medium text-[var(--text-muted)]">Configured in DB</span>
+          </div>
+        </div>
+
+        {/* Active on Site */}
+        <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-[var(--text-muted)]">Active Topics</span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 size={14} />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tracking-tight">
+              {activeCount}
+            </span>
+            <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+              Live on website
+            </span>
+          </div>
+        </div>
+
+        {/* Total Assigned FAQs */}
+        <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-[var(--text-muted)]">Assigned FAQs</span>
+            <div className="w-7 h-7 rounded-lg bg-brand/10 flex items-center justify-center text-brand">
+              <FileText size={14} />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline justify-between">
+            <span className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+              {totalAssignedFaqs}
+            </span>
+            <span className="text-[11px] font-medium text-[var(--text-muted)]">Across all topics</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Floating Bulk Action Bar */}
       {selectedCatIds.length > 0 && (
-        <div className="p-3.5 rounded-2xl bg-white border border-[var(--border)] shadow-sm flex items-center justify-between flex-wrap gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <div className="flex items-center gap-2.5">
-            <span className="w-6 h-6 rounded-full bg-brand text-white flex items-center justify-center text-xs font-black shadow-sm">
+        <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-brand/30 shadow-sm flex items-center justify-between flex-wrap gap-3 animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="flex items-center gap-2.5 pl-1">
+            <span className="w-6 h-6 rounded-full bg-brand text-white flex items-center justify-center text-xs font-bold shadow-xs">
               {selectedCatIds.length}
             </span>
-            <span className="text-xs font-bold text-[var(--text-primary)]">
+            <span className="text-xs font-medium text-[var(--text-primary)]">
               {selectedCatIds.length} categor{selectedCatIds.length === 1 ? 'y' : 'ies'} selected
             </span>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               disabled={isBulkDeleting}
               onClick={handleOpenBulkDelete}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition-all shadow-md shadow-red-600/20 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer disabled:opacity-50"
             >
-              <Trash2 size={14} /> Delete Selected ({selectedCatIds.length})
+              <Trash2 size={13} />
+              Delete Selected
             </button>
-
             <button
               type="button"
               onClick={() => setSelectedCatIds([])}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-[var(--text-primary)] hover:bg-slate-100 transition-colors cursor-pointer"
-              title="Deselect All"
+              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+              title="Deselect all"
             >
-              <X size={16} />
+              <X size={15} />
             </button>
           </div>
         </div>
       )}
 
+      {/* Search Toolbar */}
+      <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] flex items-center justify-between gap-3">
+        <div className="relative w-full max-w-sm">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search categories by name or slug..."
+            className="w-full pl-9 pr-8 py-1.5 text-xs rounded-lg bg-[var(--bg-muted)] border border-transparent focus:border-[var(--border)] focus:bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-slate-400 transition-colors outline-none"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+
+        <span className="text-xs text-[var(--text-muted)] hidden sm:inline">
+          Showing {filteredCategories.length} of {categories.length} categories
+        </span>
+      </div>
+
       {/* Categories Table Card */}
-      <div className="rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-sm overflow-hidden">
+      <div className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-xs overflow-hidden">
         {isLoading ? (
           <div className="py-20 flex flex-col items-center justify-center text-[var(--text-muted)]">
-            <RefreshCw size={28} className="animate-spin text-brand mb-3" />
-            <p className="text-xs font-semibold">Loading categories...</p>
+            <RefreshCw size={24} className="animate-spin text-brand mb-2.5" />
+            <p className="text-xs font-medium">Loading categories...</p>
           </div>
         ) : error ? (
           <div className="py-16 text-center">
-            <p className="text-xs text-red-600 font-semibold">{error}</p>
+            <p className="text-xs text-red-600 font-semibold mb-2">{error}</p>
             <button
               onClick={fetchCategories}
-              className="mt-3 px-4 py-1.5 rounded-lg text-xs font-bold bg-brand text-white"
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-brand text-white cursor-pointer"
             >
               Try Again
             </button>
           </div>
-        ) : categories.length === 0 ? (
-          <div className="py-20 flex flex-col items-center justify-center text-center px-4">
-            <div className="w-14 h-14 rounded-2xl bg-brand-light flex items-center justify-center text-brand mb-4">
-              <Layers size={28} />
+        ) : filteredCategories.length === 0 ? (
+          <div className="py-16 flex flex-col items-center justify-center text-center px-4">
+            <div className="w-12 h-12 rounded-xl bg-[var(--bg-muted)] flex items-center justify-center text-slate-400 mb-3 border border-[var(--border)]">
+              <Layers size={20} />
             </div>
-            <h3 className="text-base font-bold text-[var(--text-primary)]">No categories created yet</h3>
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+              {searchQuery ? 'No categories matched your search' : 'No categories created yet'}
+            </h3>
             <p className="text-xs text-[var(--text-muted)] max-w-sm mt-1">
-              Create categories like "Market Trends", "Buyer Guides", "Investment", or "Legal & Tax".
+              {searchQuery
+                ? 'Try a different search query or clear the filter.'
+                : 'Create topics like "Platform", "Verification", or "Tools" to organize your FAQs.'}
             </p>
-            <button
-              onClick={handleOpenAdd}
-              className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-brand text-white shadow-md shadow-brand/20 hover:scale-105 transition-all cursor-pointer"
-            >
-              <Plus size={16} /> Create First Category
-            </button>
+            {searchQuery ? (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="mt-3.5 text-xs text-brand font-semibold hover:underline cursor-pointer"
+              >
+                Clear Search
+              </button>
+            ) : (
+              <button
+                onClick={handleOpenAdd}
+                className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-brand text-white cursor-pointer"
+              >
+                <Plus size={14} /> Create First Category
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--bg-muted)] text-[10px] font-extrabold uppercase text-[var(--text-muted)] tracking-wider">
-                  {/* Select All Checkbox */}
+                <tr className="border-b border-[var(--border)] bg-[var(--bg-muted)]/60 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
                   <th className="py-3 px-4 w-10">
-                    <input
-                      type="checkbox"
-                      checked={isAllSelected}
-                      ref={input => {
-                        if (input) input.indeterminate = isSomeSelected;
-                      }}
-                      onChange={handleToggleSelectAll}
-                      className="w-4 h-4 rounded accent-brand cursor-pointer"
-                      title="Select all categories"
-                    />
+                    <button
+                      type="button"
+                      onClick={handleToggleSelectAll}
+                      className="text-slate-400 hover:text-[var(--text-primary)] transition-colors flex items-center cursor-pointer"
+                    >
+                      {isAllSelected ? (
+                        <CheckSquare size={16} className="text-brand" />
+                      ) : isSomeSelected ? (
+                        <div className="relative">
+                          <Square size={16} />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-2 h-[2px] bg-brand rounded-xs" />
+                          </div>
+                        </div>
+                      ) : (
+                        <Square size={16} />
+                      )}
+                    </button>
                   </th>
                   <th className="py-3 px-4">Category Name</th>
                   <th className="py-3 px-4">Slug (URL Key)</th>
-                  <th className="py-3 px-4">FAQs Count</th>
-                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-center">FAQs Count</th>
+                  <th className="py-3 px-4 text-center">Status</th>
                   <th className="py-3 px-4">Created Date</th>
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)] text-xs">
-                {categories.map((cat) => {
+                {filteredCategories.map((cat) => {
                   const isSelected = selectedCatIds.includes(cat._id);
                   return (
                     <tr
                       key={cat._id}
                       className={`transition-colors duration-150 group ${
-                        isSelected ? 'bg-orange-50/40 dark:bg-orange-950/20' : 'hover:bg-[var(--bg-muted)]/50'
+                        isSelected
+                          ? 'bg-orange-50/40 dark:bg-orange-950/20'
+                          : 'hover:bg-[var(--bg-muted)]/50'
                       }`}
                     >
-                      {/* Individual Checkbox */}
-                      <td className="py-3.5 px-4">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleToggleSelectOne(cat._id)}
-                          className="w-4 h-4 rounded accent-brand cursor-pointer"
-                        />
+                      {/* Checkbox */}
+                      <td className="py-3 px-4">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSelectOne(cat._id)}
+                          className={`cursor-pointer transition-colors flex items-center ${
+                            isSelected ? 'text-brand' : 'text-slate-400 hover:text-[var(--text-primary)]'
+                          }`}
+                        >
+                          {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+                        </button>
                       </td>
 
                       {/* Category Name */}
-                      <td className="py-3.5 px-4 font-bold text-[var(--text-primary)] flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-brand-light text-brand flex items-center justify-center shrink-0">
-                          <Folder size={15} />
+                      <td className="py-3 px-4 font-semibold text-[var(--text-primary)]">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-md bg-brand/10 text-brand flex items-center justify-center shrink-0">
+                            <Folder size={13} />
+                          </div>
+                          <span className="group-hover:text-brand transition-colors">{cat.name}</span>
                         </div>
-                        <span>{cat.name}</span>
                       </td>
 
                       {/* Slug */}
-                      <td className="py-3.5 px-4 font-mono text-[11px] text-[var(--text-muted)]">
+                      <td className="py-3 px-4 font-mono text-[11px] text-[var(--text-muted)]">
                         /{cat.slug}
                       </td>
 
                       {/* FAQs count */}
-                      <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-bold text-[11px]">
-                          <FileText size={12} className="text-slate-400" />
-                          {cat.faqCount || 0} faq{cat.faqCount === 1 ? '' : 's'}
+                      <td className="py-3 px-4 text-center">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--bg-muted)] border border-[var(--border)] text-[var(--text-primary)] font-medium text-[11px]">
+                          <FileText size={11} className="text-slate-400" />
+                          {cat.faqCount || 0}
                         </span>
                       </td>
 
                       {/* Status */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                          cat.isActive
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-slate-100 text-slate-600'
-                        }`}>
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleActive(cat)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold cursor-pointer transition-all hover:scale-105 active:scale-95 ${
+                            cat.isActive
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                          }`}
+                          title={`Click to ${cat.isActive ? 'hide category from' : 'show category on'} public website`}
+                        >
                           <span className={`w-1.5 h-1.5 rounded-full ${cat.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                          {cat.isActive ? 'Active on Site' : 'Hidden'}
-                        </span>
+                          {cat.isActive ? 'Active' : 'Hidden'}
+                        </button>
                       </td>
 
                       {/* Created Date */}
-                      <td className="py-3.5 px-4 text-[11px] text-[var(--text-muted)] whitespace-nowrap">
+                      <td className="py-3 px-4 text-[11px] text-[var(--text-muted)] whitespace-nowrap">
                         {cat.createdAt
                           ? new Date(cat.createdAt).toLocaleDateString('en-US', {
                               month: 'short',
                               day: 'numeric',
-                              year: 'numeric'
+                              year: 'numeric',
                             })
                           : '—'}
                       </td>
 
                       {/* Actions */}
-                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
                           <button
+                            type="button"
                             onClick={() => handleOpenEdit(cat)}
-                            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-all cursor-pointer"
+                            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-brand hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
                             title="Edit Category"
                           >
-                            <Edit size={15} />
+                            <Edit size={14} />
                           </button>
 
                           <button
+                            type="button"
                             onClick={() => handleOpenDelete(cat)}
-                            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
+                            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
                             title="Delete Category"
                           >
-                            <Trash2 size={15} />
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </td>
@@ -504,61 +646,61 @@ const FaqCategories = () => {
         )}
       </div>
 
-      {/* Create / Edit Modal */}
+      {/* --- ADD / EDIT MODAL --- */}
       {modalState.open && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border)] max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] max-w-md w-full p-5 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-              <h3 className="text-base font-bold text-[var(--text-primary)]">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">
                 {modalState.mode === 'create' ? 'Create New Category' : 'Edit Category'}
               </h3>
               <button
                 type="button"
                 onClick={() => setModalState(prev => ({ ...prev, open: false }))}
-                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-sm"
+                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-sm cursor-pointer p-1 rounded-md"
               >
-                ✕
+                <X size={16} />
               </button>
             </div>
 
             {modalState.error && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-semibold flex items-center gap-2">
-                <AlertCircle size={16} />
+              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-xs text-red-700 dark:text-red-300 font-medium flex items-center gap-2">
+                <AlertCircle size={15} />
                 <span>{modalState.error}</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmitCategory} className="space-y-4">
+            <form onSubmit={handleSubmitCategory} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-[var(--text-primary)] mb-1">
+                <label className="block text-xs font-medium text-[var(--text-primary)] mb-1">
                   Category Name <span className="text-brand">*</span>
                 </label>
                 <input
                   type="text"
                   value={modalState.name}
                   onChange={(e) => setModalState(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g. Market Trends & Analysis"
+                  placeholder="e.g., Platform, Verification, Tools"
                   required
                   autoFocus
-                  className="w-full px-3.5 py-2 text-xs rounded-xl bg-[var(--bg-muted)] border border-[var(--border)] focus:border-brand focus:bg-[var(--bg-surface)] text-[var(--text-primary)] transition-all outline-none"
+                  className="w-full px-3 py-2 text-xs rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] focus:border-brand focus:bg-[var(--bg-surface)] text-[var(--text-primary)] outline-none transition-colors"
                 />
               </div>
 
               {/* Slug Preview */}
               <div>
-                <label className="block text-[11px] font-bold text-[var(--text-muted)] mb-1">
+                <label className="block text-[11px] font-medium text-[var(--text-muted)] mb-1">
                   Generated Slug (URL Path)
                 </label>
-                <div className="px-3.5 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 font-mono text-[var(--text-muted)]">
+                <div className="px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-muted)] font-mono text-[var(--text-muted)] border border-[var(--border)]">
                   /{previewSlug(modalState.name) || 'category-slug'}
                 </div>
               </div>
 
-              {/* Active Toggle */}
-              <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-muted)] border border-[var(--border)]">
+              {/* Active Toggle Switch */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)]">
                 <div>
-                  <p className="text-xs font-bold text-[var(--text-primary)]">Active Status</p>
-                  <p className="text-[10px] text-[var(--text-muted)]">Show this category as a filter tab on public website</p>
+                  <p className="text-xs font-medium text-[var(--text-primary)]">Active Status</p>
+                  <p className="text-[11px] text-[var(--text-muted)]">Show this category as a filter tab on public website</p>
                 </div>
                 <input
                   type="checkbox"
@@ -568,25 +710,22 @@ const FaqCategories = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[var(--border)]">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border)]">
                 <button
                   type="button"
                   disabled={modalState.isSubmitting}
                   onClick={() => setModalState(prev => ({ ...prev, open: false }))}
-                  className="px-4 py-2 rounded-xl text-xs font-bold border border-[var(--border)] hover:bg-[var(--bg-muted)] transition-all cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={modalState.isSubmitting}
-                  className="px-5 py-2 rounded-xl text-xs font-bold bg-brand hover:bg-brand-dark text-white transition-all shadow-md shadow-brand/20 cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-brand hover:bg-brand-dark text-white transition-colors cursor-pointer disabled:opacity-50"
                 >
-                  {modalState.isSubmitting
-                    ? 'Saving...'
-                    : modalState.mode === 'create'
-                    ? 'Create Category'
-                    : 'Save Changes'}
+                  {modalState.isSubmitting && <RefreshCw size={13} className="animate-spin" />}
+                  {modalState.mode === 'create' ? 'Create Category' : 'Save Changes'}
                 </button>
               </div>
             </form>
@@ -594,44 +733,43 @@ const FaqCategories = () => {
         </div>
       )}
 
-      {/* Single Delete Modal with FAQ Reassignment Safeguard */}
+      {/* --- SINGLE DELETE MODAL --- */}
       {deleteModal.open && deleteModal.category && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border)] max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="w-12 h-12 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
-              <Trash2 size={24} />
-            </div>
-
-            <div>
-              <h3 className="text-base font-bold text-[var(--text-primary)]">
-                Delete "{deleteModal.category.name}"?
-              </h3>
-              <p className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
-                This category will be permanently removed.
-              </p>
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] max-w-sm w-full p-5 shadow-xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-950/50 text-red-600 flex items-center justify-center shrink-0">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                  Delete "{deleteModal.category.name}"?
+                </h3>
+                <p className="text-xs text-[var(--text-muted)]">This category will be permanently removed.</p>
+              </div>
             </div>
 
             {deleteModal.error && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-semibold flex items-center gap-2">
-                <AlertCircle size={16} />
+              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-xs text-red-700 dark:text-red-300 font-medium flex items-center gap-2">
+                <AlertCircle size={15} />
                 <span>{deleteModal.error}</span>
               </div>
             )}
 
-            {/* If faqs exist, require reassignment */}
+            {/* If FAQs exist, require reassignment */}
             {deleteModal.category.faqCount > 0 && (
-              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 space-y-2.5">
-                <div className="flex items-center gap-2 text-xs font-bold text-amber-800">
-                  <AlertCircle size={15} />
-                  <span>{deleteModal.category.faqCount} faq(s) are using this category</span>
+              <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                  <AlertCircle size={14} />
+                  <span>{deleteModal.category.faqCount} FAQ(s) are using this category</span>
                 </div>
-                <p className="text-[11px] text-amber-700 leading-normal">
-                  To protect content integrity, select another category to move these faqs to before deleting:
+                <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                  Select a category to reassign these FAQs to before deleting:
                 </p>
                 <select
                   value={deleteModal.moveToCategory}
                   onChange={(e) => setDeleteModal(prev => ({ ...prev, moveToCategory: e.target.value }))}
-                  className="w-full px-3 py-2 text-xs rounded-lg bg-white border border-amber-300 text-slate-800 font-semibold outline-none"
+                  className="w-full px-2.5 py-1.5 text-xs rounded-md bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 text-[var(--text-primary)] font-medium outline-none cursor-pointer"
                 >
                   <option value="">-- Choose Reassignment Category --</option>
                   {categories
@@ -645,12 +783,12 @@ const FaqCategories = () => {
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[var(--border)]">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border)]">
               <button
                 type="button"
                 disabled={deleteModal.isDeleting}
                 onClick={() => setDeleteModal({ open: false, category: null, moveToCategory: '', isDeleting: false, error: null })}
-                className="px-4 py-2 rounded-xl text-xs font-bold border border-[var(--border)] hover:bg-[var(--bg-muted)] transition-all cursor-pointer"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -658,7 +796,7 @@ const FaqCategories = () => {
                 type="button"
                 disabled={deleteModal.isDeleting || (deleteModal.category.faqCount > 0 && !deleteModal.moveToCategory)}
                 onClick={handleDeleteConfirm}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition-all shadow-md shadow-red-600/20 cursor-pointer disabled:opacity-50"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer disabled:opacity-50"
               >
                 {deleteModal.isDeleting ? 'Deleting...' : 'Confirm Delete'}
               </button>
@@ -667,31 +805,30 @@ const FaqCategories = () => {
         </div>
       )}
 
-      {/* Bulk Delete Modal with FAQ Reassignment Safeguard */}
+      {/* --- BULK DELETE MODAL --- */}
       {showBulkDeleteModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border)] max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="w-12 h-12 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
-              <Trash2 size={24} />
-            </div>
-
-            <div>
-              <h3 className="text-base font-bold text-[var(--text-primary)]">
-                Delete {selectedCatIds.length} Categories?
-              </h3>
-              <p className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
-                The selected categories will be permanently removed from the system.
-              </p>
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] max-w-sm w-full p-5 shadow-xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-950/50 text-red-600 flex items-center justify-center shrink-0">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                  Delete {selectedCatIds.length} Categories?
+                </h3>
+                <p className="text-xs text-[var(--text-muted)]">Permanent removal from database</p>
+              </div>
             </div>
 
             {bulkDeleteError && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-semibold flex items-center gap-2">
-                <AlertCircle size={16} />
+              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-xs text-red-700 dark:text-red-300 font-medium flex items-center gap-2">
+                <AlertCircle size={15} />
                 <span>{bulkDeleteError}</span>
               </div>
             )}
 
-            {/* If faqs exist in selected categories, require reassignment */}
+            {/* If FAQs exist in selected categories, require reassignment */}
             {(() => {
               const totalFAQs = categories
                 .filter(c => selectedCatIds.includes(c._id))
@@ -701,20 +838,21 @@ const FaqCategories = () => {
               if (totalFAQs === 0) return null;
 
               return (
-                <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 space-y-2.5">
-                  <div className="flex items-center gap-2 text-xs font-bold text-amber-800">
-                    <AlertCircle size={15} />
-                    <span>{totalFAQs} faq(s) are using the selected categories</span>
+                <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                    <AlertCircle size={14} />
+                    <span>{totalFAQs} FAQ(s) are using the selected categories</span>
                   </div>
+
                   {remainingCats.length > 0 ? (
                     <>
-                      <p className="text-[11px] text-amber-700 leading-normal">
-                        To protect content integrity, select a remaining category to move these faqs to before deleting:
+                      <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                        Select a category to move these FAQs to before deleting:
                       </p>
                       <select
                         value={bulkMoveToCategory}
                         onChange={(e) => setBulkMoveToCategory(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-lg bg-white border border-amber-300 text-slate-800 font-semibold outline-none"
+                        className="w-full px-2.5 py-1.5 text-xs rounded-md bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 text-[var(--text-primary)] font-medium outline-none cursor-pointer"
                       >
                         <option value="">-- Choose Reassignment Category --</option>
                         {remainingCats.map(c => (
@@ -725,23 +863,20 @@ const FaqCategories = () => {
                       </select>
                     </>
                   ) : (
-                    <p className="text-[11px] text-red-600 font-semibold leading-normal">
-                      All existing categories are selected. You cannot delete all categories when faqs exist. Please deselect at least one category to keep faqs organized.
+                    <p className="text-[11px] text-red-600 dark:text-red-400 font-medium">
+                      All existing categories are selected. You cannot delete all categories when FAQs exist. Please deselect at least one category to keep FAQs organized.
                     </p>
                   )}
                 </div>
               );
             })()}
 
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[var(--border)]">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border)]">
               <button
                 type="button"
                 disabled={isBulkDeleting}
-                onClick={() => {
-                  setShowBulkDeleteModal(false);
-                  setBulkDeleteError(null);
-                }}
-                className="px-4 py-2 rounded-xl text-xs font-bold border border-[var(--border)] hover:bg-[var(--bg-muted)] transition-all cursor-pointer"
+                onClick={() => setShowBulkDeleteModal(false)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -757,9 +892,9 @@ const FaqCategories = () => {
                   return false;
                 })()}
                 onClick={handleBulkDeleteConfirm}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition-all shadow-md shadow-red-600/20 cursor-pointer disabled:opacity-50"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer disabled:opacity-50"
               >
-                {isBulkDeleting ? 'Deleting...' : `Confirm Bulk Delete (${selectedCatIds.length})`}
+                {isBulkDeleting ? 'Deleting...' : `Delete ${selectedCatIds.length} Categories`}
               </button>
             </div>
           </div>

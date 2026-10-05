@@ -4,6 +4,12 @@
  */
 
 const Property = require('../../models/property.model');
+const User = require('../../models/user.model');
+const TokenRequest = require('../../models/token-request.model');
+const VisitRequest = require('../../models/visit-request.model');
+const PropertyEnquiry = require('../../models/property-enquiry.model');
+const Favorite = require('../../models/favorite.model');
+const Notification = require('../../models/notification.model');
 
 // @desc    Get all properties (with category, status, approvalStatus, search filters)
 // @route   GET /api/admin/properties
@@ -12,6 +18,14 @@ exports.getAllProperties = async (req, res, next) => {
   try {
     const { category, listingFor, approvalStatus, search, owner, keyHandover } = req.query;
     const filter = {};
+
+    // Ensure only properties belonging to existing registered users are returned
+    const validUserIds = await User.distinct('_id');
+    if (owner) {
+      filter.owner = owner;
+    } else {
+      filter.owner = { $in: validUserIds };
+    }
 
     if (category) filter.category = category;
     if (listingFor) filter.listingFor = listingFor;
@@ -42,22 +56,91 @@ exports.getAllProperties = async (req, res, next) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
-        .populate('owner', 'name email phone role isVerified companyName'),
+        .populate('owner', 'name email phone role isVerified companyName reraNumber builderVerificationStatus agentVerificationStatus'),
       Property.countDocuments(filter),
     ]);
 
     const totalPages = Math.ceil(total / limitNum) || 1;
 
+    const enrichedProperties = properties.map((p) => {
+      const obj = p.toObject ? p.toObject({ virtuals: true }) : { ...p };
+      const ownerObj = (obj.owner && typeof obj.owner === 'object') ? obj.owner : {};
+      const ownerRole = (ownerObj.role || 'owner').toLowerCase();
+      const rawListing = (obj.listingAs || '').toLowerCase();
+      const rawUserRole = (obj.userRole || '').toLowerCase();
+
+      let effectiveRole = 'owner';
+      let effectivePostedByRole = 'Owner';
+      let effectiveListingAs = 'Owner';
+
+      if (rawListing.includes('builder') || rawListing.includes('developer') || rawUserRole === 'builder' || ownerRole === 'builder') {
+        effectiveRole = 'builder';
+        effectivePostedByRole = 'Builder';
+        effectiveListingAs = 'Developer / Builder';
+      } else if (rawListing.includes('agent') || rawListing.includes('broker') || rawUserRole === 'agent' || ownerRole === 'agent') {
+        effectiveRole = 'agent';
+        effectivePostedByRole = 'Agent';
+        effectiveListingAs = 'Agent / Broker';
+      } else {
+        effectiveRole = 'owner';
+        effectivePostedByRole = 'Owner';
+        effectiveListingAs = 'Owner';
+      }
+
+      const roleTitle =
+        effectiveRole === 'builder'
+          ? 'Builder Profile'
+          : effectiveRole === 'agent'
+          ? 'Agent Profile'
+          : 'Owner Profile';
+
+      const isOwnerVerified = Boolean(
+        ownerObj.isVerified ||
+        ownerObj.builderVerificationStatus === 'approved' ||
+        ownerObj.agentVerificationStatus === 'approved'
+      );
+
+      const postedBy = {
+        id: ownerObj._id || ownerObj.id || null,
+        _id: ownerObj._id || ownerObj.id || null,
+        name: ownerObj.name || '',
+        phone: ownerObj.phone || '',
+        email: ownerObj.email || '',
+        role: effectiveRole,
+        roleTitle,
+        isVerified: isOwnerVerified,
+        verificationBadge: isOwnerVerified ? 'Verified' : 'Unverified',
+        companyName: ownerObj.companyName || '',
+        reraNumber: ownerObj.reraNumber || '',
+      };
+
+      return {
+        ...obj,
+        id: obj._id,
+        listingAs: effectiveListingAs,
+        userRole: effectiveRole,
+        role: effectiveRole,
+        roleTitle,
+        postedByRole: effectivePostedByRole,
+        listedBy: effectivePostedByRole,
+        sellerRole: effectivePostedByRole,
+        ownerRole: effectiveRole,
+        companyName: ownerObj.companyName || '',
+        reraNumber: ownerObj.reraNumber || '',
+        postedBy,
+      };
+    });
+
     res.status(200).json({
       status: 'success',
-      results: properties.length,
+      results: enrichedProperties.length,
       total,
       page: pageNum,
       limit: limitNum,
       totalPages,
       hasMore: pageNum < totalPages,
       data: {
-        properties,
+        properties: enrichedProperties,
       },
     });
   } catch (error) {
@@ -185,9 +268,18 @@ exports.deleteProperty = async (req, res, next) => {
       });
     }
 
+    // Cascade delete all dependent records
+    await Promise.allSettled([
+      TokenRequest.deleteMany({ property: property._id }),
+      VisitRequest.deleteMany({ property: property._id }),
+      PropertyEnquiry.deleteMany({ property: property._id }),
+      Favorite.deleteMany({ property: property._id }),
+      Notification.deleteMany({ 'metadata.propertyId': property._id }),
+    ]);
+
     res.status(200).json({
       status: 'success',
-      message: 'Property listing deleted successfully.',
+      message: 'Property listing and associated records deleted successfully.',
     });
   } catch (error) {
     next(error);
