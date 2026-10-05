@@ -1,7 +1,7 @@
 /**
  * Admin Token Management Routes
- * Endpoints for administrators to view, audit, release, refund tokens,
- * and configure global and per-property token amounts.
+ * Endpoints for administrators to view, audit, moderate token booking requests,
+ * and configure global and per-property token reservation amounts.
  */
 
 const express = require('express');
@@ -25,7 +25,7 @@ router.route('/settings')
 router.route('/property/:propertyId/settings')
   .patch(tokenController.updatePropertyTokenSettings);
 
-// 3. Token Escrow Transactions List & Create
+// 3. Token Booking Requests List & Create
 router.route('/')
   .get(tokenController.getAllTokens)
   .post(tokenController.createToken);

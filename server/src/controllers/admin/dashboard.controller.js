@@ -20,6 +20,11 @@ const Referral = require('../../models/referral.model');
 // @access  Private (Admin only)
 exports.getDashboardStats = async (req, res, next) => {
   try {
+    // Valid user IDs for platform-wide consistency
+    const validUserIds = await User.distinct('_id');
+    const propOwnerFilter = { owner: { $in: validUserIds } };
+    const projDevFilter = { developer: { $in: validUserIds } };
+
     // 1. Core metric counts (Optimized with Promise.all for concurrency)
     const [
       totalUsers,
@@ -34,7 +39,6 @@ exports.getDashboardStats = async (req, res, next) => {
       devEnquiriesCount,
       siteVisits,
       tokenRequestsCount,
-      tokenAmountResult,
       featuredCount,
       premiumCount,
       pendingProps,
@@ -42,30 +46,28 @@ exports.getDashboardStats = async (req, res, next) => {
     ] = await Promise.all([
       User.countDocuments(),
       User.countDocuments({ status: 'Active' }),
-      Property.countDocuments(),
-      Property.countDocuments({ isLive: true }),
-      Property.countDocuments({ approvalStatus: 'pending' }),
-      Property.countDocuments({ approvalStatus: 'rejected' }),
+      Property.countDocuments(propOwnerFilter),
+      Property.countDocuments({ ...propOwnerFilter, isLive: true }),
+      Property.countDocuments({ ...propOwnerFilter, approvalStatus: 'pending' }),
+      Property.countDocuments({ ...propOwnerFilter, approvalStatus: 'rejected' }),
       User.countDocuments({ role: 'builder' }),
-      Project.countDocuments({ isLive: true }),
+      Project.countDocuments({ ...projDevFilter, isLive: true }),
       PropertyEnquiry.countDocuments(),
       DeveloperEnquiry.countDocuments(),
       PropertyEnquiry.countDocuments({ visitPreferredDate: { $ne: null } }),
       TokenRequest.countDocuments(),
-      TokenRequest.aggregate([{ $group: { _id: null, total: { $sum: '$tokenAmount' } } }]),
-      Property.countDocuments({ listingTier: 'Featured' }),
-      Property.countDocuments({ listingTier: 'Premium' }),
-      Property.find({ approvalStatus: 'pending' })
+      Property.countDocuments({ ...propOwnerFilter, listingTier: 'Featured' }),
+      Property.countDocuments({ ...propOwnerFilter, listingTier: 'Premium' }),
+      Property.find({ ...propOwnerFilter, approvalStatus: 'pending' })
         .select('title category listingFor propertyType listingAs city locality owner createdAt')
         .populate('owner', 'name companyName email')
         .sort({ createdAt: -1 })
         .limit(5),
-      Notification.find().sort({ createdAt: -1 }).limit(7)
+      Notification.find({ recipient: { $in: validUserIds } }).sort({ createdAt: -1 }).limit(7)
     ]);
 
     const totalEnquiries = propEnquiriesCount + devEnquiriesCount;
-    const tokenEscrowTotal = tokenAmountResult[0]?.total || 0;
-    const revenueGenerated = (featuredCount * 5000) + (premiumCount * 10000) + tokenEscrowTotal;
+    const revenueGenerated = (featuredCount * 5000) + (premiumCount * 10000);
 
     // 2. Dynamic Chart Data (Last 12 Months parallelized queries)
     const chartQueries = [];
@@ -78,19 +80,14 @@ exports.getDashboardStats = async (req, res, next) => {
       const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
       
       chartQueries.push((async () => {
-        const [mPropEnq, mDevEnq, mFeatured, mPremium, mTokensAgg] = await Promise.all([
+        const [mPropEnq, mDevEnq, mFeatured, mPremium] = await Promise.all([
           PropertyEnquiry.countDocuments({ createdAt: { $gte: startOfMonth, $lte: endOfMonth } }),
           DeveloperEnquiry.countDocuments({ createdAt: { $gte: startOfMonth, $lte: endOfMonth } }),
           Property.countDocuments({ listingTier: 'Featured', createdAt: { $gte: startOfMonth, $lte: endOfMonth } }),
           Property.countDocuments({ listingTier: 'Premium', createdAt: { $gte: startOfMonth, $lte: endOfMonth } }),
-          TokenRequest.aggregate([
-            { $match: { createdAt: { $gte: startOfMonth, $lte: endOfMonth } } },
-            { $group: { _id: null, total: { $sum: '$tokenAmount' } } }
-          ])
         ]);
         
-        const mTokenRev = mTokensAgg[0]?.total || 0;
-        const mRevenue = (mFeatured * 5000) + (mPremium * 10000) + mTokenRev;
+        const mRevenue = (mFeatured * 5000) + (mPremium * 10000);
 
         return {
           name: months[d.getMonth()],
@@ -424,19 +421,13 @@ exports.getRevenueStats = async (req, res, next) => {
     const subsRev = featuredRev + premiumRev;
     const boostRev = promotedCount * 2500;
     
-    // Total Escrow Collections across all token requests
-    const escrowCommission = tokenRequests.reduce((sum, t) => sum + (Number(t.tokenAmount) || 0), 0);
-    const heldEscrow = tokenRequests
-      .filter(t => t.escrowStatus === 'Escrow Held' || t.escrowStatus === 'Pending' || (!t.escrowStatus && t.status === 'pending'))
-      .reduce((sum, t) => sum + (Number(t.tokenAmount) || 0), 0);
-    const settledEscrow = tokenRequests
-      .filter(t => t.escrowStatus === 'Released' || t.status === 'accepted')
-      .reduce((sum, t) => sum + (Number(t.tokenAmount) || 0), 0);
-    const refundedEscrow = tokenRequests
-      .filter(t => t.escrowStatus === 'Refunded' || t.status === 'cancelled')
-      .reduce((sum, t) => sum + (Number(t.tokenAmount) || 0), 0);
+    // Token requests are direct booking requests without online payments
+    const escrowCommission = 0;
+    const heldEscrow = 0;
+    const settledEscrow = 0;
+    const refundedEscrow = 0;
 
-    const grossRevenue = subsRev + boostRev + escrowCommission;
+    const grossRevenue = subsRev + boostRev;
 
     // 3. Compute real 30-day comparison (current 30 days vs previous 30 days)
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -577,7 +568,7 @@ exports.getRevenueStats = async (req, res, next) => {
     const monthlyGross = monthlyTrend.map(m => ({ date: m.month, value: m.total }));
     const monthlyEscrow = monthlyTrend.map(m => ({ date: m.month, value: m.escrow }));
 
-    // 6. Build 100% Real Live Token Escrow Transactions List
+    // 6. Build Token Booking Requests List
     const tokenTransactions = tokenRequests.map((t) => {
       const buyerName = t.personalDetails?.fullName || t.clientDetails?.name || t.client?.name || 'Verified Client';
       const buyerPhone = t.personalDetails?.mobileNumber || t.clientDetails?.phone || t.client?.phone || '—';
@@ -589,10 +580,9 @@ exports.getRevenueStats = async (req, res, next) => {
       const sellerEmail = t.owner?.email || '—';
 
       let status = 'Pending';
-      if (t.escrowStatus === 'Released' || t.status === 'accepted') status = 'Approved';
-      else if (t.escrowStatus === 'Refunded' || t.status === 'cancelled') status = 'Refunded';
-      else if (t.escrowStatus === 'Disputed') status = 'Disputed';
-      else if (t.escrowStatus === 'Escrow Held') status = 'Pending';
+      if (t.status === 'accepted') status = 'Approved';
+      else if (t.status === 'rejected') status = 'Declined';
+      else if (t.status === 'cancelled') status = 'Cancelled';
 
       const amtNum = Number(t.tokenAmount) || 0;
 
@@ -613,11 +603,6 @@ exports.getRevenueStats = async (req, res, next) => {
         amountNum: amtNum,
         amount: `₹${amtNum.toLocaleString('en-IN')}`,
         status,
-        escrowStatus: t.escrowStatus || 'Escrow Held',
-        utrRef: t.utrRef || t.transactionId || 'Pending Verification',
-        escrowBank: t.escrowBank || 'Axis Custodial Escrow Node',
-        paymentMethod: t.paymentMethod ? t.paymentMethod.toUpperCase() : 'UPI',
-        paymentStatus: t.paymentStatus || 'paid',
         date: t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Unknown',
         createdAt: t.createdAt,
         occupation: t.occupationDetails?.profession ? `${t.occupationDetails.profession}${t.occupationDetails.companyName ? ` (${t.occupationDetails.companyName})` : ''}` : '—',

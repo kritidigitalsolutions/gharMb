@@ -1,8 +1,8 @@
 /**
  * Token Request Model
  * Handles property booking token requests submitted by prospective buyers / tenants to property owners,
- * including 5-step booking details (personal, family, occupation, ID proof upload, token amount selection),
- * escrow tracking, and admin settlement status.
+ * including 5-step booking details (personal, family, occupation, ID proof upload, proposed token amount selection),
+ * and owner decision workflow (accept / reject / cancel). No online payment is processed on the platform.
  */
 
 const mongoose = require('mongoose');
@@ -56,12 +56,12 @@ const tokenRequestSchema = new mongoose.Schema(
       monthlyIncome: { type: String, trim: true },
     },
 
-    // Step 4: Upload ID Proof (Aadhaar / PAN / Passport / Driving License)
+    // Step 4: Upload ID Proof (Aadhaar / PAN / Passport / Driving License / etc.)
     idProof: {
       idProofType: {
         type: String,
-        enum: ['Aadhaar', 'PAN', 'Passport', 'Driving License', 'Voter ID', 'Other'],
         default: 'Aadhaar',
+        trim: true,
       },
       documentUrl: { type: String, trim: true },
       documentOriginalName: { type: String, trim: true },
@@ -78,8 +78,15 @@ const tokenRequestSchema = new mongoose.Schema(
     },
     tokenAmount: {
       type: Number,
-      required: [true, 'Token amount is required.'],
-      default: 2000,
+      default: 0,
+    },
+    isTokenApplicable: {
+      type: Boolean,
+      default: true,
+    },
+    isRental: {
+      type: Boolean,
+      default: true,
     },
     adjustmentNote: {
       type: String,
@@ -102,41 +109,44 @@ const tokenRequestSchema = new mongoose.Schema(
       proposedTerms: { type: String, trim: true },
     },
 
-    // Request & Escrow Status
+    // Token Request Status (pending -> contacted -> accepted / rejected / cancelled)
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'rejected', 'cancelled'],
+      enum: ['pending', 'contacted', 'accepted', 'rejected', 'cancelled'],
       default: 'pending',
       index: true,
     },
-    escrowStatus: {
+    // Out-of-App Handling Tracking by Admin
+    requestSource: {
       type: String,
-      enum: ['Escrow Held', 'Released', 'Refunded', 'Disputed'],
-      default: 'Escrow Held',
+      enum: ['one_click', 'form', 'admin_manual'],
+      default: 'one_click',
       index: true,
     },
-    escrowBank: {
-      type: String,
-      default: 'GHARMB Escrow Trust Node #9910',
+    handledByAdmin: {
+      type: Boolean,
+      default: true,
+      index: true,
     },
-    utrRef: {
+    outOfAppStatus: {
+      type: String,
+      enum: ['pending_contact', 'contacted', 'token_received', 'deal_closed', 'rejected', 'cancelled'],
+      default: 'pending_contact',
+      index: true,
+    },
+    contactNotes: {
       type: String,
       trim: true,
     },
-    paymentStatus: {
-      type: String,
-      enum: ['pending', 'paid', 'failed', 'refunded'],
-      default: 'paid',
-      index: true,
+    lastContactedAt: {
+      type: Date,
     },
-    paymentMethod: {
-      type: String,
-      enum: ['upi', 'netbanking', 'card', 'cash', 'cheque', 'other'],
-      default: 'upi',
+    tokenReceivedAmount: {
+      type: Number,
+      default: 0,
     },
-    transactionId: {
-      type: String,
-      trim: true,
+    tokenReceivedDate: {
+      type: Date,
     },
     message: {
       type: String,
@@ -155,17 +165,12 @@ const tokenRequestSchema = new mongoose.Schema(
       name: { type: String, trim: true },
       phone: { type: String, trim: true },
       email: { type: String, trim: true },
+      currentCity: { type: String, trim: true },
     },
     decisionDate: {
       type: Date,
     },
     expiresAt: {
-      type: Date,
-    },
-    payoutDate: {
-      type: Date,
-    },
-    refundDate: {
       type: Date,
     },
   },
@@ -176,19 +181,27 @@ const tokenRequestSchema = new mongoose.Schema(
   }
 );
 
-// Auto-generate Token Request Tracker ID
+// Auto-generate Token Request Tracker ID and sync contact details
 tokenRequestSchema.pre('save', function () {
   if (!this.tokenRequestId) {
     const dateStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');
     const randomNum = Math.floor(1000 + Math.random() * 9000);
     this.tokenRequestId = `#TKN-${dateStr}-${randomNum}`;
   }
-  // Sync clientDetails if personalDetails are populated
+  // Sync clientDetails <-> personalDetails
   if (this.personalDetails && this.personalDetails.fullName) {
     this.clientDetails = {
       name: this.personalDetails.fullName,
       phone: this.personalDetails.mobileNumber,
       email: this.personalDetails.email,
+      currentCity: this.personalDetails.currentCity || this.clientDetails?.currentCity || '',
+    };
+  } else if (this.clientDetails && this.clientDetails.name) {
+    this.personalDetails = {
+      fullName: this.clientDetails.name,
+      mobileNumber: this.clientDetails.phone,
+      email: this.clientDetails.email,
+      currentCity: this.clientDetails.currentCity || '',
     };
   }
 });

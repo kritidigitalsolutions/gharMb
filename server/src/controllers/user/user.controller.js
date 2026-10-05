@@ -279,16 +279,28 @@ exports.registerAgent = async (req, res, next) => {
       const Admin = require('../../models/admin.model');
       const Notification = require('../../models/notification.model');
       const admins = await Admin.find().select('_id');
-      if (admins.length > 0) {
-        const notificationsData = admins.map((admin) => ({
-          recipient: admin._id,
-          title: 'New Agent Verification Pending',
-          message: `Agent ${user.name} (${user.cityOfOperation || 'India'}) has submitted RERA credentials (${user.reraNumber}) for review.`,
-          type: 'verification',
-          isRead: false,
-        }));
-        await Notification.insertMany(notificationsData);
-      }
+      const targetRecipients = admins.length > 0 ? admins.map((a) => a._id) : [null];
+
+      const notificationsData = targetRecipients.map((adminId) => ({
+        recipient: adminId,
+        forAdmin: true,
+        sender: user._id,
+        title: 'New Agent Verification Pending',
+        message: `Agent ${user.name} (${user.cityOfOperation || 'India'}) has submitted RERA credentials (${user.reraNumber}) for review.`,
+        type: 'verification',
+        isRead: false,
+        metadata: {
+          agentId: user._id,
+          customLink: `/admin/agents?agentId=${user._id}`,
+          clientDetails: {
+            name: user.name,
+            phone: user.phone,
+            email: user.email,
+          },
+          reraNumber: user.reraNumber,
+        },
+      }));
+      await Notification.insertMany(notificationsData);
     } catch (notifErr) {
       console.error('Error creating admin notification for agent registration:', notifErr);
     }

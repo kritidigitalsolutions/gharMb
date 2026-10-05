@@ -13,13 +13,15 @@ const router = express.Router();
 const tokenRequestController = require('../../controllers/user/token-request.controller');
 const visitRequestController = require('../../controllers/user/visit-request.controller');
 
-router.get('/', propertyController.getAllProperties);
+const optionalAuth = userAuth.optionalUserAuth || userAuth;
 
-router.get('/latest', propertyController.getLatestProperties);
+router.get('/', optionalAuth, propertyController.getAllProperties);
 
-router.get('/verified', propertyController.getVerifiedProperties);
+router.get('/latest', optionalAuth, propertyController.getLatestProperties);
 
-router.get('/near-me', propertyController.getNearMeProperties);
+router.get('/verified', optionalAuth, propertyController.getVerifiedProperties);
+
+router.get('/near-me', optionalAuth, propertyController.getNearMeProperties);
 
 router.get('/my-dashboard', userAuth, propertyController.getMyDashboard);
 
@@ -28,10 +30,14 @@ router.get('/my-properties', userAuth, propertyController.getMyProperties);
 router.get('/token-requests', userAuth, tokenRequestController.getReceivedTokenRequests);
 router.get('/visit-requests', userAuth, visitRequestController.getReceivedVisitRequests);
 
-router.get('/:id', propertyController.getPropertyDetails);
+router.get('/:id', optionalAuth, propertyController.getPropertyDetails);
 
-// Property token request submission
-router.post('/:id/token-request', userAuth, tokenRequestController.createTokenRequest);
+// Property token booking configuration (Amounts configured by Admin)
+router.get('/:id/token-config', optionalAuth, tokenRequestController.getTokenConfig);
+router.get('/:id/token-request/config', optionalAuth, tokenRequestController.getTokenConfig);
+
+// Property token request submission (1-Click or Form, authenticated or guest)
+router.post('/:id/token-request', optionalAuth, tokenRequestController.createTokenRequest);
 
 // Property site visit scheduling
 router.post('/:id/visit-request', userAuth, visitRequestController.createVisitRequest);

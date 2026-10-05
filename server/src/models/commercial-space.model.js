@@ -15,11 +15,33 @@ const commercialSpaceSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Listing metadata
+    // Listing metadata & Seller Role
     listingAs: {
       type: String,
-      enum: ['Owner', 'Agent / Broker', 'Developer / Builder'],
+      enum: [
+        'Owner',
+        'Agent / Broker',
+        'Developer / Builder',
+        'Builder',
+        'Agent',
+        'Developer',
+        'owner',
+        'agent',
+        'builder',
+      ],
       default: 'Owner',
+      index: true,
+    },
+    userRole: {
+      type: String,
+      enum: ['owner', 'agent', 'builder', 'buyer', 'tenant'],
+      default: 'owner',
+      index: true,
+    },
+    postedByRole: {
+      type: String,
+      default: 'Owner',
+      index: true,
     },
 
     // ─── Step 1: Basic Details ────────────────────────────────────────────────
@@ -330,18 +352,63 @@ const commercialSpaceSchema = new mongoose.Schema(
   }
 );
 
-// ─── Pre-save: Auto-generate Submission ID ────────────────────────────────────
+// ─── Pre-save: Auto-generate Submission ID & normalize seller role ────────────
 commercialSpaceSchema.pre('save', function () {
   if (!this.submissionId) {
     const dateStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');
     const randomNum = Math.floor(1000 + Math.random() * 9000);
     this.submissionId = `#GBM-COM-${dateStr}-${randomNum}`;
   }
+
+  // Normalize listingAs, userRole, and postedByRole (Builder, Agent, Owner)
+  const raw = (this.listingAs || '').toLowerCase();
+  const role = (this.userRole || '').toLowerCase();
+  if (raw.includes('builder') || raw.includes('developer') || role === 'builder') {
+    this.listingAs = 'Developer / Builder';
+    this.userRole = 'builder';
+    this.postedByRole = 'Builder';
+  } else if (raw.includes('agent') || raw.includes('broker') || role === 'agent') {
+    this.listingAs = 'Agent / Broker';
+    this.userRole = 'agent';
+    this.postedByRole = 'Agent';
+  } else {
+    this.listingAs = 'Owner';
+    this.userRole = 'owner';
+    this.postedByRole = 'Owner';
+  }
 });
 
 // ─── Virtual: isVerified badge ────────────────────────────────────────────────
 commercialSpaceSchema.virtual('isVerified').get(function () {
   return this.approvalStatus === 'approved';
+});
+
+// ─── Virtuals for seller role badges ──────────────────────────────────────────
+commercialSpaceSchema.virtual('role').get(function () {
+  if (this.userRole) return this.userRole;
+  const l = (this.listingAs || '').toLowerCase();
+  if (l.includes('builder') || l.includes('developer')) return 'builder';
+  if (l.includes('agent') || l.includes('broker')) return 'agent';
+  return 'owner';
+});
+
+commercialSpaceSchema.virtual('roleTitle').get(function () {
+  const r = this.role;
+  if (r === 'builder') return 'Builder Profile';
+  if (r === 'agent') return 'Agent Profile';
+  return 'Owner Profile';
+});
+
+commercialSpaceSchema.virtual('listedBy').get(function () {
+  if (this.postedByRole) return this.postedByRole;
+  const l = (this.listingAs || '').toLowerCase();
+  if (l.includes('builder') || l.includes('developer')) return 'Builder';
+  if (l.includes('agent') || l.includes('broker')) return 'Agent';
+  return 'Owner';
+});
+
+commercialSpaceSchema.virtual('sellerRole').get(function () {
+  return this.listedBy;
 });
 
 // ─── Indexes ──────────────────────────────────────────────────────────────────

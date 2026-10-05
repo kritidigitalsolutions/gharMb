@@ -114,7 +114,7 @@ exports.getAllBlogs = async (req, res, next) => {
 
     const skip = (Number(page) - 1) * Number(limit);
 
-    const [blogs, totalCount] = await Promise.all([
+    const [blogs, totalCount, statsAgg] = await Promise.all([
       Blog.find(query)
         .populate('category', 'name slug')
         .sort({ createdAt: sort === 'asc' ? 1 : -1 })
@@ -123,7 +123,25 @@ exports.getAllBlogs = async (req, res, next) => {
         .select('-content')
         .lean(),
       Blog.countDocuments(query),
+      Blog.aggregate([
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            published: { $sum: { $cond: [{ $eq: ['$isPublished', true] }, 1, 0] } },
+            draft: { $sum: { $cond: [{ $eq: ['$isPublished', false] }, 1, 0] } },
+            views: { $sum: { $ifNull: ['$views', 0] } },
+          },
+        },
+      ]),
     ]);
+
+    const globalStats = statsAgg[0] || {
+      total: totalCount,
+      published: 0,
+      draft: 0,
+      views: 0,
+    };
 
     res.status(200).json({
       status: 'success',
@@ -131,6 +149,12 @@ exports.getAllBlogs = async (req, res, next) => {
       totalCount,
       totalPages: Math.ceil(totalCount / Number(limit)),
       currentPage: Number(page),
+      stats: {
+        total: globalStats.total || 0,
+        published: globalStats.published || 0,
+        draft: globalStats.draft || 0,
+        views: globalStats.views || 0,
+      },
       data: { blogs },
     });
   } catch (error) {

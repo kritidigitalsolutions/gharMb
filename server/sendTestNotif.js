@@ -18,25 +18,44 @@ const run = async () => {
     await connectDB();
     console.log('Connected to MongoDB.');
 
-    require('./src/models/notification.model');
-    const Notification = mongoose.model('Notification');
+    const { notifyAdmin } = require('./src/utils/adminNotification.helper');
 
-    const adminId = '6a6727fb055dd4b7886ce8a4'; // Super Admin ID
-
-    const newNotification = await Notification.create({
-      recipient: adminId,
-      title: 'New Live Alert',
-      message: `Test alert triggered at ${new Date().toLocaleTimeString()}! It is working successfully!`,
+    const enqNotif = await notifyAdmin({
+      title: 'New Property Enquiry 📩',
+      message: 'Rajesh Kumar submitted an enquiry for listing "Luxury 3BHK Penthouse, Bandra West". Phone: +91 98765 43210 | Message: "Interested in viewing this Sunday afternoon."',
       type: 'enquiry',
-      isRead: false
+      metadata: {
+        clientDetails: {
+          name: 'Rajesh Kumar',
+          phone: '+91 98765 43210',
+          email: 'rajesh.kumar@example.com'
+        }
+      }
+    });
+
+    const visitNotif = await notifyAdmin({
+      title: 'New Site Visit Scheduled 🗓️',
+      message: 'Priya Sharma scheduled an in-person site visit for "Green Acres Villa #14" on Saturday, 12 Oct at 11:30 AM. Phone: +91 98220 12345 | Note: "Please have key holder ready on site."',
+      type: 'visit_booking',
+      metadata: {
+        clientDetails: {
+          name: 'Priya Sharma',
+          phone: '+91 98220 12345',
+          email: 'priya.sharma@example.com'
+        },
+        scheduleDetails: {
+          date: 'Sat, 12 Oct 2026',
+          time: '11:30 AM'
+        }
+      }
     });
 
     console.log('\n=============================================');
-    console.log('🎉 Notification created successfully in DB!');
-    console.log(`Title: ${newNotification.title}`);
-    console.log(`Message: ${newNotification.message}`);
+    console.log('🎉 Live Test Notifications created successfully in DB!');
+    console.log('1. Enquiry Notification ID:', enqNotif?._id);
+    console.log('2. Visit Schedule Notification ID:', visitNotif?._id);
     console.log('=============================================');
-    console.log('\nOpen your browser admin panel and watch the bell icon dropdown updates.');
+    console.log('Now refresh the Admin Notifications panel to see them live.');
 
     await mongoose.connection.close();
   } catch (err) {

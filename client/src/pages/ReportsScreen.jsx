@@ -326,17 +326,17 @@ const ReportsScreen = () => {
         summaryRow = ['TOTAL VALUATION', '', '', '', '', '', totalValuation, '', '', '', ''];
 
         columnAlignments = {
-          0: { cellWidth: 22 },
-          1: { cellWidth: 44 },
-          2: { cellWidth: 20 },
+          0: { cellWidth: 29 },
+          1: { cellWidth: 49 },
+          2: { cellWidth: 19 },
           3: { cellWidth: 18 },
-          4: { cellWidth: 20 },
-          5: { cellWidth: 22 },
-          6: { halign: 'right', cellWidth: 26 },
+          4: { cellWidth: 17 },
+          5: { cellWidth: 25 },
+          6: { halign: 'right', cellWidth: 27 },
           7: { halign: 'center', cellWidth: 18 },
-          8: { cellWidth: 16 },
-          9: { cellWidth: 26 },
-          10: { cellWidth: 20 }
+          8: { halign: 'center', cellWidth: 18 },
+          9: { cellWidth: 29 },
+          10: { halign: 'right', cellWidth: 20 }
         };
       } else if (reportType === 'users') {
         headers = [
@@ -366,16 +366,16 @@ const ReportsScreen = () => {
         ]);
 
         columnAlignments = {
-          0: { cellWidth: 20 },
+          0: { cellWidth: 22 },
           1: { cellWidth: 32 },
-          2: { cellWidth: 42 },
+          2: { cellWidth: 48 },
           3: { cellWidth: 26 },
-          4: { cellWidth: 18 },
-          5: { halign: 'center', cellWidth: 18 },
-          6: { halign: 'center', cellWidth: 20 },
-          7: { cellWidth: 30 },
-          8: { halign: 'center', cellWidth: 16 },
-          9: { cellWidth: 20 }
+          4: { halign: 'center', cellWidth: 18 },
+          5: { halign: 'center', cellWidth: 20 },
+          6: { halign: 'center', cellWidth: 22 },
+          7: { cellWidth: 33 },
+          8: { halign: 'center', cellWidth: 18 },
+          9: { halign: 'right', cellWidth: 30 }
         };
       } else if (reportType === 'revenue') {
         headers = [
@@ -414,16 +414,16 @@ const ReportsScreen = () => {
         summaryRow = ['TOTAL REVENUE', '', '', '', '', grossRevenue, '', '', '', ''];
 
         columnAlignments = {
-          0: { cellWidth: 24 },
-          1: { cellWidth: 30 },
-          2: { cellWidth: 24 },
-          3: { cellWidth: 30 },
-          4: { cellWidth: 36 },
-          5: { halign: 'right', cellWidth: 26 },
-          6: { halign: 'center', cellWidth: 20 },
+          0: { cellWidth: 26 },
+          1: { cellWidth: 32 },
+          2: { cellWidth: 26 },
+          3: { cellWidth: 32 },
+          4: { cellWidth: 43 },
+          5: { halign: 'right', cellWidth: 28 },
+          6: { halign: 'center', cellWidth: 22 },
           7: { cellWidth: 20 },
-          8: { cellWidth: 24 },
-          9: { cellWidth: 20 }
+          8: { cellWidth: 22 },
+          9: { halign: 'right', cellWidth: 18 }
         };
       } else {
         headers = [
@@ -451,15 +451,15 @@ const ReportsScreen = () => {
         ]);
 
         columnAlignments = {
-          0: { cellWidth: 20 },
-          1: { cellWidth: 24 },
-          2: { cellWidth: 28 },
-          3: { cellWidth: 24 },
-          4: { cellWidth: 38 },
-          5: { cellWidth: 40 },
+          0: { cellWidth: 24 },
+          1: { cellWidth: 26 },
+          2: { cellWidth: 32 },
+          3: { cellWidth: 26 },
+          4: { cellWidth: 44 },
+          5: { cellWidth: 47 },
           6: { halign: 'center', cellWidth: 20 },
-          7: { cellWidth: 24 },
-          8: { cellWidth: 20 }
+          7: { cellWidth: 26 },
+          8: { halign: 'right', cellWidth: 24 }
         };
       }
 
@@ -469,51 +469,67 @@ const ReportsScreen = () => {
 
       // Compute dynamic summary metrics for PDF header
       let summaryMetrics = [];
+      let pdfSummaryRow = null;
+      const reportSubtitles = {
+        properties: 'Property Portfolio & Inventory Report',
+        users: 'User Accounts & Partner Directory',
+        revenue: 'Financial Revenue & Escrow Ledger',
+        leads: 'Client Inquiries & Site Visits Report'
+      };
+
       if (reportType === 'properties') {
         const totalVal = filteredRecords.reduce((s, p) => s + (Number(p.price) || 0), 0);
         const liveCount = filteredRecords.filter((p) => (p.approvalStatus || '').toLowerCase() === 'approved').length;
         summaryMetrics = [
-          { label: 'Total In Scope', value: filteredRecords.length, accentColor: [79, 70, 229] },
-          { label: 'Live / Approved', value: liveCount, accentColor: [5, 150, 105] },
-          { label: 'Pending Review', value: filteredRecords.length - liveCount, accentColor: [217, 119, 6] },
-          { label: 'Total Valuation', value: formatRupeeForPDF(totalVal), accentColor: [79, 70, 229] }
+          { label: 'Total Properties', value: filteredRecords.length },
+          { label: 'Live & Approved', value: liveCount },
+          { label: 'Pending Review', value: filteredRecords.length - liveCount },
+          { label: 'Total Valuation', value: formatRupeeForPDF(totalVal) }
         ];
+        if (filteredRecords.length > 0) {
+          pdfSummaryRow = ['Total Portfolio Valuation', '', '', '', '', '', formatRupeeForPDF(totalVal), '', '', '', ''];
+        }
       } else if (reportType === 'users') {
         const verifiedCount = filteredRecords.filter((u) => u.isVerified).length;
         const builderCount = filteredRecords.filter((u) => (u.role || '').toLowerCase() === 'builder').length;
         summaryMetrics = [
-          { label: 'Total Users', value: filteredRecords.length, accentColor: [79, 70, 229] },
-          { label: 'Verified Accounts', value: verifiedCount, accentColor: [5, 150, 105] },
-          { label: 'Registered Builders', value: builderCount, accentColor: [14, 165, 233] },
-          { label: 'Standard Users', value: filteredRecords.length - builderCount, accentColor: [100, 116, 139] }
+          { label: 'Total Registered', value: filteredRecords.length },
+          { label: 'Verified Accounts', value: verifiedCount },
+          { label: 'Partner Builders', value: builderCount },
+          { label: 'Standard Users', value: filteredRecords.length - builderCount }
         ];
       } else if (reportType === 'revenue') {
         const grossRev = filteredRecords.reduce((s, t) => s + (Number(t.amountNum) || Number(String(t.amount || '').replace(/[^0-9.-]+/g, '')) || 0), 0);
         const settledCount = filteredRecords.filter((t) => ['settled', 'completed', 'success'].includes((t.status || '').toLowerCase())).length;
         summaryMetrics = [
-          { label: 'Transactions', value: filteredRecords.length, accentColor: [79, 70, 229] },
-          { label: 'Settled Escrows', value: settledCount, accentColor: [5, 150, 105] },
-          { label: 'Pending Escrow', value: filteredRecords.length - settledCount, accentColor: [217, 119, 6] },
-          { label: 'Gross Volume', value: formatRupeeForPDF(grossRev), accentColor: [79, 70, 229] }
+          { label: 'Total Transactions', value: filteredRecords.length },
+          { label: 'Settled Escrows', value: settledCount },
+          { label: 'Pending Escrow', value: filteredRecords.length - settledCount },
+          { label: 'Gross Volume', value: formatRupeeForPDF(grossRev) }
         ];
+        if (filteredRecords.length > 0) {
+          pdfSummaryRow = ['Total Gross Volume', '', '', '', '', formatRupeeForPDF(grossRev), '', '', '', ''];
+        }
       } else {
         const propEnqCount = filteredRecords.filter((e) => (e.inquiryType || '').includes('Property')).length;
         const siteVisitCount = filteredRecords.filter((e) => (e.inquiryType || '').includes('Visit')).length;
         summaryMetrics = [
-          { label: 'Total Leads', value: filteredRecords.length, accentColor: [79, 70, 229] },
-          { label: 'Property Inquiries', value: propEnqCount, accentColor: [14, 165, 233] },
-          { label: 'Site Visits', value: siteVisitCount, accentColor: [5, 150, 105] },
-          { label: 'Developer Leads', value: filteredRecords.length - propEnqCount - siteVisitCount, accentColor: [217, 119, 6] }
+          { label: 'Total Inquiries', value: filteredRecords.length },
+          { label: 'Property Inquiries', value: propEnqCount },
+          { label: 'Scheduled Visits', value: siteVisitCount },
+          { label: 'Developer Leads', value: filteredRecords.length - propEnqCount - siteVisitCount }
         ];
       }
 
       if (format === 'PDF') {
         exportToPDF({
           categoryTitle: safeCategoryName,
+          reportSubtitle: reportSubtitles[reportType] || `${safeCategoryName} Report`,
           dateScope: scopeLabel,
           summaryMetrics,
           headers,
           rows,
+          summaryRow: pdfSummaryRow,
           columnAlignments,
           filename: `gharmb_${reportType}_report_${fileDateSuffix}.pdf`
         });

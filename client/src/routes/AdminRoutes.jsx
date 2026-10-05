@@ -5,6 +5,7 @@ import Dashboard from '../pages/DashboardHome';
 import PropertyVerification from '../pages/PropertyVerification';
 import UserManagement from '../pages/UserManagement';
 import BuilderManagement from '../pages/BuilderManagement';
+import AgentManagement from '../pages/AgentManagement';
 import LeadsDashboard from '../pages/LeadsDashboard';
 import RevenueDashboard from '../pages/RevenueDashboard';
 import ServicesManagement from '../pages/ServicesManagement';
@@ -35,6 +36,8 @@ const AdminRoutes = () => {
                 <Route index element={<Dashboard />} />
                 <Route path="verification" element={<PropertyVerification />} />
                 <Route path="users" element={<UserManagement />} />
+                <Route path="agents" element={<AgentManagement />} />
+                <Route path="agent-verification" element={<Navigate to="/admin/agents" replace />} />
                 <Route path="builders" element={<BuilderManagement />} />
                 <Route path="leads" element={<LeadsDashboard />} />
                 <Route path="services" element={<ServicesManagement />} />
@@ -48,6 +51,8 @@ const AdminRoutes = () => {
                 <Route path="insights/edit/:id" element={<InsightsEditor />} />
                 <Route path="faq" element={<FaqManagement />} />
                 <Route path="faq/categories" element={<FaqCategories />} />
+                <Route path="faqs" element={<Navigate to="/admin/faq" replace />} />
+                <Route path="faqs/categories" element={<Navigate to="/admin/faq/categories" replace />} />
                 <Route path="testimonials" element={<TestimonialManagement />} />
                 <Route path="notifications" element={<AdminNotifications />} />
                 <Route path="settings" element={<Settings />} />

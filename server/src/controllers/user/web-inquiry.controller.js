@@ -4,6 +4,7 @@
  */
 
 const WebInquiry = require('../../models/web-inquiry.model');
+const { notifyAdmin } = require('../../utils/adminNotification.helper');
 
 // @desc    Submit a new web inquiry (Contact Form or Deletion Request)
 // @route   POST /api/web-inquiries
@@ -61,6 +62,21 @@ exports.createWebInquiry = async (req, res, next) => {
       ipAddress,
       userAgent,
       status: 'new',
+    });
+
+    // Notify Admin Notification Panel
+    await notifyAdmin({
+      title: type === 'deletion_request' ? 'Account Deletion Request ⚠️' : 'New Website Contact Inquiry 💬',
+      message: `${fullName} (${phone}, ${email}): "${subject || message || reason || 'No detail provided'}"`,
+      type: 'enquiry',
+      metadata: {
+        customLink: '/admin/web-inquiries',
+        clientDetails: {
+          name: fullName,
+          phone,
+          email,
+        },
+      },
     });
 
     res.status(201).json({

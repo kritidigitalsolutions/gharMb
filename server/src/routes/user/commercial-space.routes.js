@@ -9,28 +9,30 @@ const userAuth = require('../../middlewares/userAuth.middleware');
 
 const router = express.Router();
 
+const optionalAuth = userAuth.optionalUserAuth || userAuth;
+
 // ─── Public Routes ────────────────────────────────────────────────────────────
 
 // GET /api/commercial-spaces (Paginated search with spaceType, listingFor, city, locality, price, area, search...)
-router.get('/', commercialSpaceController.getAllSpaces);
+router.get('/', optionalAuth, commercialSpaceController.getAllSpaces);
 
 // GET /api/commercial-spaces/latest (Paginated latest commercial listings sorted newest first)
-router.get('/latest', commercialSpaceController.getLatestSpaces);
+router.get('/latest', optionalAuth, commercialSpaceController.getLatestSpaces);
 
 // GET /api/commercial-spaces/featured (Paginated featured/premium commercial listings)
-router.get('/featured', commercialSpaceController.getFeaturedSpaces);
+router.get('/featured', optionalAuth, commercialSpaceController.getFeaturedSpaces);
 
 // GET /api/commercial-spaces/types (Summary counts by spaceType: Shop, Office, Showroom, etc.)
 router.get('/types', commercialSpaceController.getSpaceTypes);
 
 // GET /api/commercial-spaces/near-me (Paginated geospatial or city proximity search)
-router.get('/near-me', commercialSpaceController.getNearMeSpaces);
+router.get('/near-me', optionalAuth, commercialSpaceController.getNearMeSpaces);
 
 // GET /api/commercial-spaces/my-dashboard (Protected – must come before /:id)
 router.get('/my-dashboard', userAuth, commercialSpaceController.getMyDashboard);
 
 // GET /api/commercial-spaces/:id (Get single commercial space detail)
-router.get('/:id', commercialSpaceController.getSpaceDetails);
+router.get('/:id', optionalAuth, commercialSpaceController.getSpaceDetails);
 
 // ─── Protected Write Routes ───────────────────────────────────────────────────
 router.use(userAuth);

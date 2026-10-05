@@ -36,11 +36,19 @@ const collection = {
     { key: "enquiryId", value: "", type: "string" },
     { key: "newsId", value: "", type: "string" },
     { key: "blogId", value: "", type: "string" },
+    { key: "blogCategoryId", value: "", type: "string" },
+    { key: "insightId", value: "", type: "string" },
+    { key: "insightSlug", value: "top-7-tips-for-first-time-home-buyers-in-2026", type: "string" },
+    { key: "insightCategoryId", value: "", type: "string" },
     { key: "policyId", value: "", type: "string" },
     { key: "testimonialId", value: "", type: "string" },
     { key: "inquiryId", value: "", type: "string" },
     { key: "tokenRequestId", value: "", type: "string" },
-    { key: "visitRequestId", value: "", type: "string" }
+    { key: "visitRequestId", value: "", type: "string" },
+    { key: "serviceId", value: "", type: "string" },
+    { key: "referralId", value: "", type: "string" },
+    { key: "faqId", value: "", type: "string" },
+    { key: "faqCategoryId", value: "", type: "string" }
   ],
   item: [
     // =========================================================================
@@ -300,6 +308,60 @@ const collection = {
                 },
                 description: "Exchanges a valid refresh token for a new access token and rotated refresh token."
               }
+            },
+            {
+              name: "09. Update Profile (PATCH /user/auth/update-profile)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    role: "buyer",
+                    intents: ["buy", "rent"],
+                    preferredLocations: ["Noida Sector 62", "Greater Noida West"],
+                    budgetMin: 4000000,
+                    budgetMax: 12000000
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/user/auth/update-profile",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "auth", "update-profile"]
+                }
+              }
+            },
+            {
+              name: "10. Current User Verification Status (GET /user/auth/verification-status)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/user/auth/verification-status",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "auth", "verification-status"]
+                },
+                description: "Returns authentication & verification status for the current logged-in user profile."
+              }
+            },
+            {
+              name: "11. Refresh Token Alias (POST /user/auth/refresh)",
+              request: {
+                method: "POST",
+                header: [{ key: "Content-Type", value: "application/json" }],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ refreshToken: "{{userRefreshToken}}" }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/user/auth/refresh",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "auth", "refresh"]
+                }
+              }
             }
           ]
         },
@@ -399,6 +461,30 @@ const collection = {
                   path: ["users", "register-developer"]
                 }
               }
+            },
+            {
+              name: "05. Get User Dashboard (GET /users/dashboard)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/users/dashboard",
+                  host: ["{{baseUrl}}"],
+                  path: ["users", "dashboard"]
+                }
+              }
+            },
+            {
+              name: "06. Get Verification Status Alias (GET /users/status)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/users/status",
+                  host: ["{{baseUrl}}"],
+                  path: ["users", "status"]
+                }
+              }
             }
           ]
         },
@@ -496,9 +582,7 @@ const collection = {
                       totalPayable: 8500000,
                       proposedTerms: "Buyer opting for 24-month installment option as listed by owner"
                     },
-                    message: "Ready to proceed with token booking under the 24-month installment plan.",
-                    paymentMethod: "upi",
-                    transactionId: "UPI-TXN-123456789"
+                    message: "Ready to proceed with token booking under the 24-month installment plan."
                   }, null, 2)
                 },
                 url: {
@@ -1254,6 +1338,77 @@ const collection = {
                   path: ["developers", "{{developerId}}", "reviews"]
                 }
               }
+            },
+            {
+              name: "05. Send Direct Developer Enquiry (POST /developers/:id/enquiry)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    name: "Rahul Mehra",
+                    phone: "+919876543210",
+                    email: "rahul.mehra@example.com",
+                    message: "Interested in upcoming Phase 2 launches and inventory pricing.",
+                    projectInterest: "ATS Knightsbridge"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/developers/{{developerId}}/enquiry",
+                  host: ["{{baseUrl}}"],
+                  path: ["developers", "{{developerId}}", "enquiry"]
+                }
+              }
+            },
+            {
+              name: "06. Submit Review via Direct Reviews Endpoint (POST /reviews)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    developerId: "{{developerId}}",
+                    rating: 5,
+                    review: "Exemplary transparency and on-time structural completion."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/reviews",
+                  host: ["{{baseUrl}}"],
+                  path: ["reviews"]
+                }
+              }
+            },
+            {
+              name: "07. Get Developer Reviews via Direct Route (GET /reviews/developer/:id)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/reviews/developer/{{developerId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["reviews", "developer", "{{developerId}}"]
+                }
+              }
+            },
+            {
+              name: "08. Delete Review by Review ID (DELETE /reviews/:id)",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/reviews/{{notificationId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["reviews", "{{notificationId}}"]
+                }
+              }
             }
           ]
         },
@@ -1262,7 +1417,7 @@ const collection = {
         // 08. In-App Notifications
         // ---------------------------------------------------------------------
         {
-          name: "08. In-App Notifications",
+          name: "09. In-App Notifications",
           description: "User inbox notifications for status updates, reviews, and admin approvals.",
           item: [
             {
@@ -1337,38 +1492,6 @@ const collection = {
                   raw: "{{baseUrl}}/notifications/clear-all",
                   host: ["{{baseUrl}}"],
                   path: ["notifications", "clear-all"]
-                }
-              }
-            }
-          ]
-        },
-
-        // ---------------------------------------------------------------------
-        // 09. Reviews & Ratings
-        // ---------------------------------------------------------------------
-        {
-          name: "09. Reviews & Ratings",
-          description: "Submit client reviews and ratings for verified developers.",
-          item: [
-            {
-              name: "01. Submit Developer Review",
-              request: {
-                method: "POST",
-                header: [
-                  { key: "Content-Type", value: "application/json" },
-                  { key: "Authorization", value: "Bearer {{userToken}}" }
-                ],
-                body: {
-                  mode: "raw",
-                  raw: JSON.stringify({
-                    rating: 5,
-                    review: "Top notch construction quality, delivered clubhouse amenities ahead of possession deadline!"
-                  }, null, 2)
-                },
-                url: {
-                  raw: "{{baseUrl}}/developers/{{developerId}}/reviews",
-                  host: ["{{baseUrl}}"],
-                  path: ["developers", "{{developerId}}", "reviews"]
                 }
               }
             }
@@ -1662,6 +1785,239 @@ const collection = {
               }
             }
           ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 13. Property Booking & Token Requests (Rent with Token • Sale with 0 Token)
+        // ---------------------------------------------------------------------
+        {
+          name: "13. Property Booking & Token Requests (Rent with Token • Sale with 0 Token)",
+          description: "Unified endpoints for booking properties. For rental listings, token amount deposit is requested. For sale / non-rental listings, requests are submitted through the same API with zero token amount. Handled directly by GharMB Admin out of the app via Call/WhatsApp.",
+          item: [
+            {
+              name: "01. Get Token Booking Config (GET /tokens/config?propertyId=:id)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/tokens/config?propertyId={{propertyId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["tokens", "config"],
+                  query: [
+                    { key: "propertyId", value: "{{propertyId}}" }
+                  ]
+                },
+                description: "Fetches booking configuration. For Rent: returns isTokenApplicable: true and defaultTokenAmount. For Sale: returns isTokenApplicable: false and defaultTokenAmount: 0."
+              }
+            },
+            {
+              name: "02. 1-Click Rental Token Request (Rent Listing - Token Deposit Passed - POST /tokens)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.tokenRequest) {",
+                      "    pm.collectionVariables.set('tokenRequestId', jsonData.data.tokenRequest._id || jsonData.data.tokenRequest.tokenRequestId);",
+                      "    console.log('✅ tokenRequestId set to: ' + (jsonData.data.tokenRequest._id || jsonData.data.tokenRequest.tokenRequestId));",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    propertyId: "{{propertyId}}",
+                    tokenAmount: 2000,
+                    requestSource: "one_click",
+                    personalDetails: {
+                      fullName: "Rohan Sharma",
+                      mobileNumber: "+91 98765 00112",
+                      email: "rohan.sharma@example.com",
+                      currentCity: "Noida"
+                    },
+                    message: "1-Click rental token booking request. Admin please contact via Call/WhatsApp."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/tokens",
+                  host: ["{{baseUrl}}"],
+                  path: ["tokens"]
+                },
+                description: "Rental property token booking request. Token amount is passed and assigned to Admin."
+              }
+            },
+            {
+              name: "03. 1-Click Booking Request (Sale / Non-Rent Listing - 0 Token Amount - POST /tokens)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    propertyId: "{{propertyId}}",
+                    requestSource: "one_click",
+                    personalDetails: {
+                      fullName: "Rohan Sharma",
+                      mobileNumber: "+91 98765 00112",
+                      email: "rohan.sharma@example.com",
+                      currentCity: "Delhi NCR"
+                    },
+                    message: "Booking request for sale property. No token amount needed."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/tokens",
+                  host: ["{{baseUrl}}"],
+                  path: ["tokens"]
+                },
+                description: "Sale / non-rental booking request through the same API. No token amount is passed (tokenAmount: 0). Handled out of the app by Admin."
+              }
+            },
+            {
+              name: "04. 1-Click Booking via Property Route (POST /properties/:id/token-request)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    tokenAmount: 2000,
+                    requestSource: "one_click",
+                    message: "Interested in this site. Please contact me."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/properties/{{propertyId}}/token-request",
+                  host: ["{{baseUrl}}"],
+                  path: ["properties", "{{propertyId}}", "token-request"]
+                }
+              }
+            },
+            {
+              name: "04. Submit Full Form Rental Token Request (POST /tokens)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    propertyId: "{{propertyId}}",
+                    personalDetails: {
+                      fullName: "Rohan Sharma",
+                      mobileNumber: "+91 98765 00112",
+                      email: "rohan.sharma@example.com",
+                      currentCity: "Delhi NCR"
+                    },
+                    familyDetails: {
+                      numberOfFamilyMembers: "3",
+                      adults: "2",
+                      children: "1",
+                      maritalStatus: "Married"
+                    },
+                    occupationDetails: {
+                      profession: "Software Architect",
+                      companyName: "Infosys Ltd",
+                      monthlyIncome: "₹1,50,000 - ₹2,00,000"
+                    },
+                    idProof: {
+                      idProofType: "Aadhaar",
+                      documentUrl: "/uploads/sample_aadhaar.pdf",
+                      documentOriginalName: "Aadhaar_RohanSharma.pdf"
+                    },
+                    tokenAmount: 2000,
+                    monthlyRent: 28000,
+                    totalAgreedPrice: "₹28,000/mo",
+                    requestSource: "form",
+                    message: "Rental booking request submitted with family and occupation details."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/tokens",
+                  host: ["{{baseUrl}}"],
+                  path: ["tokens"]
+                }
+              }
+            },
+            {
+              name: "05. Get My Sent Token Requests (Tenant / Buyer - GET /tokens/my-requests)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/tokens/my-requests",
+                  host: ["{{baseUrl}}"],
+                  path: ["tokens", "my-requests"]
+                },
+                description: "Returns list of rental token requests submitted by the logged-in user with status and admin out-of-app progress."
+              }
+            },
+            {
+              name: "06. Get Received Token Requests (Owner / Landlord - GET /tokens)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{ownerToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/tokens?status=pending",
+                  host: ["{{baseUrl}}"],
+                  path: ["tokens"],
+                  query: [
+                    { key: "status", value: "pending", description: "pending | contacted | accepted | rejected | cancelled | all" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "07. Get Token Booking Details by ID (GET /tokens/:id)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/tokens/{{tokenRequestId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["tokens", "{{tokenRequestId}}"]
+                }
+              }
+            },
+            {
+              name: "08. Cancel Token Request (Tenant Action - PATCH /tokens/:id/cancel)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    cancelReason: "Change of moving plans due to office relocation."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/tokens/{{tokenRequestId}}/cancel",
+                  host: ["{{baseUrl}}"],
+                  path: ["tokens", "{{tokenRequestId}}", "cancel"]
+                }
+              }
+            }
+          ]
         }
       ]
     },
@@ -1804,6 +2160,53 @@ const collection = {
                 },
                 description: "Exchanges a valid admin refresh token for a new access token and rotated refresh token."
               }
+            },
+            {
+              name: "05. Admin Firebase Sign-In (POST /admin/auth/firebase)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.token || (jsonData.data && jsonData.data.token)) {",
+                      "    pm.collectionVariables.set('adminToken', jsonData.token || jsonData.data.token);",
+                      "    console.log('✅ adminToken saved from Firebase Admin Sign-In');",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [{ key: "Content-Type", value: "application/json" }],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ idToken: "FIREBASE_ADMIN_ID_TOKEN" }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/auth/firebase",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "auth", "firebase"]
+                }
+              }
+            },
+            {
+              name: "06. Refresh Admin Auth Token Alias (POST /admin/auth/refresh)",
+              request: {
+                method: "POST",
+                header: [{ key: "Content-Type", value: "application/json" }],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ refreshToken: "{{adminRefreshToken}}" }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/auth/refresh",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "auth", "refresh"]
+                }
+              }
             }
           ]
         },
@@ -1883,6 +2286,56 @@ const collection = {
                   raw: "{{baseUrl}}/admin/dashboard/enquiries/{{enquiryId}}",
                   host: ["{{baseUrl}}"],
                   path: ["admin", "dashboard", "enquiries", "{{enquiryId}}"]
+                }
+              }
+            },
+            {
+              name: "06. Admin - Create Lead / Enquiry from Dashboard (POST /admin/dashboard/enquiries)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    name: "Harish Chandra",
+                    phone: "+91 99881 12233",
+                    email: "harish@example.com",
+                    enquiryType: "Property Purchase",
+                    propertyTitle: "Green Valley Penthouse",
+                    message: "Customer inquired at back-office desk regarding payment schemes.",
+                    status: "contacted"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/dashboard/enquiries",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "dashboard", "enquiries"]
+                }
+              }
+            },
+            {
+              name: "07. Admin - Update Token Status via Dashboard (PATCH /admin/dashboard/tokens/:id/status)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    status: "refunded",
+                    reason: "Refund approved from admin overview table",
+                    utrRef: "UTR-REFUND-DASH-1002"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/dashboard/tokens/{{tokenRequestId}}/status",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "dashboard", "tokens", "{{tokenRequestId}}", "status"]
                 }
               }
             }
@@ -2084,6 +2537,25 @@ const collection = {
                   path: ["admin", "users", "{{userId}}"]
                 }
               }
+            },
+            {
+              name: "10. Admin - Verify User Account (PATCH /admin/users/:id/verify-user)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ isVerified: true, verificationBadge: "Verified Resident" }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/users/{{userId}}/verify-user",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "users", "{{userId}}", "verify-user"]
+                }
+              }
             }
           ]
         },
@@ -2214,6 +2686,51 @@ const collection = {
                   raw: "{{baseUrl}}/admin/projects/{{projectId}}",
                   host: ["{{baseUrl}}"],
                   path: ["admin", "projects", "{{projectId}}"]
+                }
+              }
+            },
+            {
+              name: "04. Admin - Create Developer Project (POST /admin/projects)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.project) {",
+                      "    pm.collectionVariables.set('projectId', jsonData.data.project._id);",
+                      "    console.log('✅ projectId set to: ' + jsonData.data.project._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    title: "Godrej Palm Retreat",
+                    tagline: "Resort Style Living in Noida Sector 150",
+                    projectType: "residential",
+                    description: "Ultra luxury residential complex designed around green expanses.",
+                    city: "Noida",
+                    locality: "Sector 150",
+                    minPrice: 9500000,
+                    maxPrice: 28500000,
+                    possessionDate: "2027-12-31",
+                    approvalStatus: "approved"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/projects",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "projects"]
                 }
               }
             }
@@ -2439,14 +2956,14 @@ const collection = {
         },
 
         // ---------------------------------------------------------------------
-        // 08. CMS - Blogs & Categories
+        // 08. CMS - Market Insights & Blogs
         // ---------------------------------------------------------------------
         {
-          name: "08. CMS - Blogs & Categories",
-          description: "Author and publish editorial blog posts and topics.",
+          name: "08. CMS - Market Insights & Blogs",
+          description: "Author, categorize, publish, and manage real estate market insights, articles, and educational content. (Supports /admin/blogs and /admin/insights)",
           item: [
             {
-              name: "01. Admin - List All Blogs (Auto-saves blogId)",
+              name: "01. Admin - List All Insight Articles (Auto-saves insightId & blogId)",
               event: [
                 {
                   listen: "test",
@@ -2454,8 +2971,13 @@ const collection = {
                     exec: [
                       "var jsonData = pm.response.json();",
                       "if (jsonData.data && jsonData.data.blogs && jsonData.data.blogs.length > 0) {",
-                      "    pm.collectionVariables.set('blogId', jsonData.data.blogs[0]._id);",
-                      "    console.log('✅ blogId set to: ' + jsonData.data.blogs[0]._id);",
+                      "    var firstBlog = jsonData.data.blogs[0];",
+                      "    pm.collectionVariables.set('blogId', firstBlog._id);",
+                      "    pm.collectionVariables.set('insightId', firstBlog._id);",
+                      "    if (firstBlog.slug) {",
+                      "        pm.collectionVariables.set('insightSlug', firstBlog.slug);",
+                      "    }",
+                      "    console.log('✅ insightId & blogId set to: ' + firstBlog._id);",
                       "}"
                     ],
                     type: "text/javascript"
@@ -2466,18 +2988,52 @@ const collection = {
                 method: "GET",
                 header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
                 url: {
-                  raw: "{{baseUrl}}/admin/blogs?page=1&limit=10",
+                  raw: "{{baseUrl}}/admin/blogs?page=1&limit=10&status=&search=&sort=desc",
                   host: ["{{baseUrl}}"],
                   path: ["admin", "blogs"],
                   query: [
                     { key: "page", value: "1" },
-                    { key: "limit", value: "10" }
+                    { key: "limit", value: "10" },
+                    { key: "status", value: "" },
+                    { key: "search", value: "" },
+                    { key: "sort", value: "desc" }
                   ]
                 }
               }
             },
             {
-              name: "02. Admin - Create Blog Article",
+              name: "02. Admin - Get Insight Article by ID (GET /admin/blogs/:id)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/blogs/{{insightId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "blogs", "{{insightId}}"]
+                }
+              }
+            },
+            {
+              name: "03. Admin - Create Insight Article (POST /admin/blogs)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.blog) {",
+                      "    pm.collectionVariables.set('blogId', jsonData.data.blog._id);",
+                      "    pm.collectionVariables.set('insightId', jsonData.data.blog._id);",
+                      "    if (jsonData.data.blog.slug) {",
+                      "        pm.collectionVariables.set('insightSlug', jsonData.data.blog.slug);",
+                      "    }",
+                      "    console.log('✅ Created insight article with ID: ' + jsonData.data.blog._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
               request: {
                 method: "POST",
                 header: [
@@ -2488,10 +3044,22 @@ const collection = {
                   mode: "raw",
                   raw: JSON.stringify({
                     title: "Top 7 Tips for First-Time Home Buyers in 2026",
-                    excerpt: "A complete guide on home loan interest rates, registry fees, and RERA due diligence.",
-                    content: "Buying a home is one of life's biggest milestones. Here is our expert guide on credit score planning, carpet area verification, and legal checklist.",
-                    category: "Guides",
-                    isPublished: true
+                    slug: "top-7-tips-for-first-time-home-buyers-in-2026",
+                    category: "{{insightCategoryId}}",
+                    excerpt: "A complete strategic guide on home loan interest rates, registry fees, carpet area calculations, and RERA due diligence.",
+                    content: "<h2>1. Assess Your Financial Health</h2><p>Buying a home is one of life's biggest milestones. Start by checking your CIBIL score and maintaining a healthy debt-to-income ratio.</p><h2>2. Verify RERA Compliance</h2><p>Always verify the developer's RERA registration number and approved building sanctions before placing token money.</p><h2>3. Hidden Cost Checklist</h2><p>Account for GST, registry stamp duty, maintenance deposits, and parking fees in your total budget.</p>",
+                    bannerImage: "http://localhost:5001/uploads/sample-insight-banner.jpg",
+                    author: "GharMB Editorial Team",
+                    readTime: 6,
+                    status: "published",
+                    isFeatured: true,
+                    tags: ["Home Buying", "RERA", "Finance", "Investment"],
+                    seo: {
+                      metaTitle: "Top 7 Tips for First-Time Home Buyers in 2026 | GharMB Insights",
+                      metaDescription: "Discover essential tips for buying your first home in India, from RERA checks to stamp duty savings.",
+                      ogImage: "http://localhost:5001/uploads/sample-insight-banner.jpg",
+                      canonicalUrl: "https://gharmb.com/insights/top-7-tips-for-first-time-home-buyers-in-2026"
+                    }
                   }, null, 2)
                 },
                 url: {
@@ -2502,43 +3070,160 @@ const collection = {
               }
             },
             {
-              name: "03. Admin - Publish Blog",
+              name: "04. Admin - Update Insight Article (PUT /admin/blogs/:id)",
               request: {
-                method: "PATCH",
-                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                method: "PUT",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    title: "Top 7 Tips for First-Time Home Buyers in 2026 (Updated Edition)",
+                    excerpt: "Updated guide with the latest 2026 RBI repo rate adjustments, stamp duty rebates, and RERA guidelines.",
+                    content: "<p>Updated analysis of micro-market yields and home loan tax exemptions under Section 24 and Section 80C.</p>",
+                    readTime: 7,
+                    isFeatured: true,
+                    status: "published",
+                    tags: ["Home Buying", "RERA", "Finance", "Tax Benefits"]
+                  }, null, 2)
+                },
                 url: {
-                  raw: "{{baseUrl}}/admin/blogs/{{blogId}}/publish",
+                  raw: "{{baseUrl}}/admin/blogs/{{insightId}}",
                   host: ["{{baseUrl}}"],
-                  path: ["admin", "blogs", "{{blogId}}", "publish"]
+                  path: ["admin", "blogs", "{{insightId}}"]
                 }
               }
             },
             {
-              name: "04. Admin - Unpublish Blog",
+              name: "05. Admin - Publish Insight Article (PATCH /admin/blogs/:id/publish)",
               request: {
                 method: "PATCH",
                 header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
                 url: {
-                  raw: "{{baseUrl}}/admin/blogs/{{blogId}}/unpublish",
+                  raw: "{{baseUrl}}/admin/blogs/{{insightId}}/publish",
                   host: ["{{baseUrl}}"],
-                  path: ["admin", "blogs", "{{blogId}}", "unpublish"]
+                  path: ["admin", "blogs", "{{insightId}}", "publish"]
                 }
               }
             },
             {
-              name: "05. Admin - Delete Blog",
+              name: "06. Admin - Unpublish Insight Article (PATCH /admin/blogs/:id/unpublish)",
+              request: {
+                method: "PATCH",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/blogs/{{insightId}}/unpublish",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "blogs", "{{insightId}}", "unpublish"]
+                }
+              }
+            },
+            {
+              name: "07. Admin - Upload Insight Banner / Media (POST /admin/blogs/upload)",
+              request: {
+                method: "POST",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                body: {
+                  mode: "formdata",
+                  formdata: [{ key: "image", type: "file", src: [] }]
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/blogs/upload",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "blogs", "upload"]
+                }
+              }
+            },
+            {
+              name: "08. Admin - Bulk Update Publication Status (PATCH /admin/blogs/bulk-status)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ ids: ["{{insightId}}"], isPublished: true, status: "published" }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/blogs/bulk-status",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "blogs", "bulk-status"]
+                }
+              }
+            },
+            {
+              name: "09. Admin - Reorder Insight Articles (PUT /admin/blogs/reorder)",
+              request: {
+                method: "PUT",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ orders: [{ id: "{{insightId}}", order: 1 }] }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/blogs/reorder",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "blogs", "reorder"]
+                }
+              }
+            },
+            {
+              name: "10. Admin - Bulk Delete Insight Articles (POST /admin/blogs/bulk-delete)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ ids: ["{{insightId}}"] }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/blogs/bulk-delete",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "blogs", "bulk-delete"]
+                }
+              }
+            },
+            {
+              name: "11. Admin - Delete Single Insight Article (DELETE /admin/blogs/:id)",
               request: {
                 method: "DELETE",
                 header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
                 url: {
-                  raw: "{{baseUrl}}/admin/blogs/{{blogId}}",
+                  raw: "{{baseUrl}}/admin/blogs/{{insightId}}",
                   host: ["{{baseUrl}}"],
-                  path: ["admin", "blogs", "{{blogId}}"]
+                  path: ["admin", "blogs", "{{insightId}}"]
                 }
               }
             },
             {
-              name: "06. Admin - List Blog Categories",
+              name: "12. Admin - List Insight Categories (Auto-saves insightCategoryId)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.categories && jsonData.data.categories.length > 0) {",
+                      "    var firstCat = jsonData.data.categories[0];",
+                      "    pm.collectionVariables.set('blogCategoryId', firstCat._id);",
+                      "    pm.collectionVariables.set('insightCategoryId', firstCat._id);",
+                      "    console.log('✅ insightCategoryId & blogCategoryId set to: ' + firstCat._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
               request: {
                 method: "GET",
                 header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
@@ -2550,7 +3235,23 @@ const collection = {
               }
             },
             {
-              name: "07. Admin - Create Blog Category",
+              name: "13. Admin - Create Insight Category (POST /admin/blog-categories)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.category) {",
+                      "    pm.collectionVariables.set('blogCategoryId', jsonData.data.category._id);",
+                      "    pm.collectionVariables.set('insightCategoryId', jsonData.data.category._id);",
+                      "    console.log('✅ Created insight category with ID: ' + jsonData.data.category._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
               request: {
                 method: "POST",
                 header: [
@@ -2560,15 +3261,67 @@ const collection = {
                 body: {
                   mode: "raw",
                   raw: JSON.stringify({
-                    name: "Home Loans & Finance",
-                    slug: "finance",
-                    description: "Articles on home loan subsidies, interest rate cycles, and EMIs."
+                    name: "Market Trends & Price Index",
+                    isActive: true
                   }, null, 2)
                 },
                 url: {
                   raw: "{{baseUrl}}/admin/blog-categories",
                   host: ["{{baseUrl}}"],
                   path: ["admin", "blog-categories"]
+                }
+              }
+            },
+            {
+              name: "14. Admin - Update Insight Category (PUT /admin/blog-categories/:id)",
+              request: {
+                method: "PUT",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    name: "Market Trends & Real Estate Analytics",
+                    isActive: true
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/blog-categories/{{insightCategoryId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "blog-categories", "{{insightCategoryId}}"]
+                }
+              }
+            },
+            {
+              name: "15. Admin - Bulk Delete Insight Categories (POST /admin/blog-categories/bulk-delete)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ ids: ["{{insightCategoryId}}"] }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/blog-categories/bulk-delete",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "blog-categories", "bulk-delete"]
+                }
+              }
+            },
+            {
+              name: "16. Admin - Delete Single Insight Category (DELETE /admin/blog-categories/:id)",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/blog-categories/{{insightCategoryId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "blog-categories", "{{insightCategoryId}}"]
                 }
               }
             }
@@ -2782,6 +3535,20 @@ const collection = {
             },
             {
               name: "04. Admin - Create FAQ Category",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.category) {",
+                      "    pm.collectionVariables.set('faqCategoryId', jsonData.data.category._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
               request: {
                 method: "POST",
                 header: [
@@ -2799,6 +3566,63 @@ const collection = {
                   raw: "{{baseUrl}}/admin/faq-categories",
                   host: ["{{baseUrl}}"],
                   path: ["admin", "faq-categories"]
+                }
+              }
+            },
+            {
+              name: "05. Admin - Bulk Delete FAQs (POST /admin/faqs/bulk-delete)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ ids: ["{{faqId}}"] }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/faqs/bulk-delete",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "faqs", "bulk-delete"]
+                }
+              }
+            },
+            {
+              name: "06. Admin - Reorder FAQs (PUT /admin/faqs/reorder)",
+              request: {
+                method: "PUT",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ orders: [{ id: "{{faqId}}", order: 1 }] }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/faqs/reorder",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "faqs", "reorder"]
+                }
+              }
+            },
+            {
+              name: "07. Admin - Bulk Delete FAQ Categories (POST /admin/faq-categories/bulk-delete)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ ids: ["{{faqCategoryId}}"] }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/faq-categories/bulk-delete",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "faq-categories", "bulk-delete"]
                 }
               }
             }
@@ -2890,6 +3714,56 @@ const collection = {
                   path: ["admin", "testimonials", "{{testimonialId}}"]
                 }
               }
+            },
+            {
+              name: "05. Admin - Get Testimonial by ID (GET /admin/testimonials/:id)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/testimonials/{{testimonialId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "testimonials", "{{testimonialId}}"]
+                }
+              }
+            },
+            {
+              name: "06. Admin - Bulk Delete Testimonials (POST /admin/testimonials/bulk-delete)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ ids: ["{{testimonialId}}"] }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/testimonials/bulk-delete",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "testimonials", "bulk-delete"]
+                }
+              }
+            },
+            {
+              name: "07. Admin - Reorder Testimonials (PUT /admin/testimonials/reorder)",
+              request: {
+                method: "PUT",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ orders: [{ id: "{{testimonialId}}", order: 1 }] }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/testimonials/reorder",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "testimonials", "reorder"]
+                }
+              }
             }
           ]
         },
@@ -2955,6 +3829,59 @@ const collection = {
                   path: ["admin", "web-inquiries", "{{inquiryId}}"]
                 }
               }
+            },
+            {
+              name: "04. Admin - Get Web Inquiry by ID (GET /admin/web-inquiries/:id)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/web-inquiries/{{inquiryId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "web-inquiries", "{{inquiryId}}"]
+                }
+              }
+            },
+            {
+              name: "05. Admin - Update Web Inquiry (PATCH /admin/web-inquiries/:id)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    status: "contacted",
+                    adminNotes: "Client called regarding property consultation."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/web-inquiries/{{inquiryId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "web-inquiries", "{{inquiryId}}"]
+                }
+              }
+            },
+            {
+              name: "06. Admin - Bulk Delete Web Inquiries (POST /admin/web-inquiries/bulk-delete)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ ids: ["{{inquiryId}}"] }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/web-inquiries/bulk-delete",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "web-inquiries", "bulk-delete"]
+                }
+              }
             }
           ]
         },
@@ -2963,7 +3890,7 @@ const collection = {
         // 11. Admin - Commercial Space Moderation
         // ---------------------------------------------------------------------
         {
-          name: "11. Admin - Commercial Space Moderation",
+          name: "13. Admin - Commercial Space Moderation",
           description: "Review, approve, reject, feature, or delete commercial space listings.",
           item: [
             {
@@ -3035,7 +3962,7 @@ const collection = {
         // 12. Admin - Home Banners Management
         // ---------------------------------------------------------------------
         {
-          name: "12. Admin - Home Banners Management",
+          name: "14. Admin - Home Banners Management",
           description: "Create, update, toggle status, reorder, and delete home screen promotional banners.",
           item: [
             {
@@ -3152,6 +4079,664 @@ const collection = {
                   raw: "{{baseUrl}}/admin/banners/{{bannerId}}",
                   host: ["{{baseUrl}}"],
                   path: ["admin", "banners", "{{bannerId}}"]
+                }
+              }
+            },
+            {
+              name: "07. Admin - Bulk Delete Banners (POST /admin/banners/bulk-delete)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({ ids: ["{{bannerId}}"] }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/banners/bulk-delete",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "banners", "bulk-delete"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 15. Admin - Rental Token Booking & Out-of-App Followup
+        // ---------------------------------------------------------------------
+        {
+          name: "15. Admin - Rental Token Booking & Out-of-App Followup",
+          description: "Manage rental token requests, direct-to-admin notifications, out-of-app discussion states (call / whatsapp notes), offline token collection confirmation, and property-specific token amount settings.",
+          item: [
+            {
+              name: "01. Get Token Amount Settings (GET /admin/tokens/settings)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/tokens/settings",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "tokens", "settings"]
+                }
+              }
+            },
+            {
+              name: "02. Update Token Amount Settings (PATCH /admin/tokens/settings)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    tokenAmounts: [2000, 5000],
+                    defaultTokenAmount: 2000,
+                    minTokenAmount: 1000,
+                    maxTokenAmount: 100000,
+                    allowCustomAmount: false,
+                    adjustmentNote: "Rental site token amount. Transaction is coordinated out-of-the-app by GharMB Admin via Phone/WhatsApp. No online payment gateway.",
+                    validityDays: 7
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/tokens/settings",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "tokens", "settings"]
+                }
+              }
+            },
+            {
+              name: "03. Update Property-Specific Token Settings (PATCH /admin/tokens/property/:propertyId/settings)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    tokenAmounts: [2000, 5000],
+                    defaultTokenAmount: 2000,
+                    adjustmentNote: "Rental token deposit will be adjusted in security deposit or 1st month rent."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/tokens/property/{{propertyId}}/settings",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "tokens", "property", "{{propertyId}}", "settings"]
+                }
+              }
+            },
+            {
+              name: "04. List All Token Booking Requests (GET /admin/tokens)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.tokens && jsonData.data.tokens.length > 0) {",
+                      "    var first = jsonData.data.tokens[0];",
+                      "    pm.collectionVariables.set('tokenRequestId', first._id || first.id);",
+                      "    console.log('✅ tokenRequestId auto-saved from tokens list: ' + (first._id || first.id));",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/tokens?status=All&page=1&limit=50",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "tokens"],
+                  query: [
+                    { key: "status", value: "All", description: "All | pending_contact | contacted | accepted | rejected | cancelled" },
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "50" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "05. List Pending Contact Rental Tokens (GET /admin/tokens?status=pending_contact)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/tokens?status=pending_contact&page=1&limit=50",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "tokens"],
+                  query: [
+                    { key: "status", value: "pending_contact" },
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "50" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "06. List In-Discussion Contacted Tokens (GET /admin/tokens?status=contacted)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/tokens?status=contacted&page=1&limit=50",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "tokens"],
+                  query: [
+                    { key: "status", value: "contacted" },
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "50" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "07. List Token Received / Accepted (GET /admin/tokens?status=accepted)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/tokens?status=accepted&page=1&limit=50",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "tokens"],
+                  query: [
+                    { key: "status", value: "accepted" },
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "50" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "08. Record Rental Token Booking Manually (POST /admin/tokens)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.tokenRequest) {",
+                      "    pm.collectionVariables.set('tokenRequestId', jsonData.data.tokenRequest._id);",
+                      "    console.log('✅ tokenRequestId set from manual admin booking');",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    propertyId: "{{propertyId}}",
+                    buyerName: "Rohan Sharma",
+                    buyerPhone: "+91 98765 00112",
+                    buyerEmail: "rohan.sharma@example.com",
+                    currentCity: "Delhi NCR",
+                    tokenAmount: 2000,
+                    monthlyRent: 28000,
+                    totalAgreedPrice: "₹28,000/mo",
+                    message: "Rental token booking reservation recorded manually by Admin"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/tokens",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "tokens"]
+                }
+              }
+            },
+            {
+              name: "09. Get Token Booking by ID (GET /admin/tokens/:id)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/tokens/{{tokenRequestId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "tokens", "{{tokenRequestId}}"]
+                }
+              }
+            },
+            {
+              name: "10. Log Out-of-App Contact & Discussion Notes (PATCH /admin/tokens/:id/status)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    action: "contact",
+                    status: "contacted",
+                    contactNotes: "Called prospective tenant. Confirmed move-in date and coordinated offline token deposit."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/tokens/{{tokenRequestId}}/status",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "tokens", "{{tokenRequestId}}", "status"]
+                },
+                description: "Logs that GharMB admin contacted the user out-of-the-app (Phone/WhatsApp) and saves discussion notes."
+              }
+            },
+            {
+              name: "11. Confirm Offline Token Received (PATCH /admin/tokens/:id/status)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    action: "accept",
+                    tokenReceivedAmount: 2000,
+                    tokenReceivedDate: "2026-10-05T15:30:00.000Z",
+                    notes: "Token amount collected offline via UPI / cash payment directly."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/tokens/{{tokenRequestId}}/status",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "tokens", "{{tokenRequestId}}", "status"]
+                },
+                description: "Admin marks token booking accepted upon receiving token offline."
+              }
+            },
+            {
+              name: "12. Reject / Decline Token Booking (PATCH /admin/tokens/:id/status)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    action: "reject",
+                    reason: "Tenant changed requirements or property already reserved."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/tokens/{{tokenRequestId}}/status",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "tokens", "{{tokenRequestId}}", "status"]
+                }
+              }
+            },
+            {
+              name: "13. Delete Token Booking (DELETE /admin/tokens/:id)",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/tokens/{{tokenRequestId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "tokens", "{{tokenRequestId}}"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 16. Admin - Services Management (Loans, Interiors, Movers, Legal)
+        // ---------------------------------------------------------------------
+        {
+          name: "16. Admin - Services Management (Loans, Interiors, Movers, Legal)",
+          description: "Full lifecycle tracking, partner assignments, milestone progression, and quotations for platform services.",
+          item: [
+            {
+              name: "01. List All Service Requests & KPI Counts (GET /admin/services)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.services && jsonData.data.services.length > 0) {",
+                      "    var s = jsonData.data.services[0];",
+                      "    pm.collectionVariables.set('serviceId', s._id);",
+                      "    console.log('✅ serviceId auto-saved: ' + s._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/services?serviceType=ALL&status=All",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "services"],
+                  query: [
+                    { key: "serviceType", value: "ALL", description: "ALL | Loan | Interior | Movers | Legal" },
+                    { key: "status", value: "All", description: "All | Pending | In Progress | In Review | Completed | Cancelled" },
+                    { key: "search", value: "", disabled: true }
+                  ]
+                }
+              }
+            },
+            {
+              name: "02. Filter Services by Category (GET /admin/services?serviceType=Loan)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/services?serviceType=Loan",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "services"],
+                  query: [
+                    { key: "serviceType", value: "Loan" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "03. Create New Service Request (POST /admin/services)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.service) {",
+                      "    pm.collectionVariables.set('serviceId', jsonData.data.service._id);",
+                      "    console.log('✅ serviceId set to: ' + jsonData.data.service._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    serviceType: "Loan",
+                    serviceName: "Home Loan Assistance",
+                    clientName: "Vikram Malhotra",
+                    clientPhone: "+91 98112 34567",
+                    clientEmail: "vikram.malhotra@example.com",
+                    location: "Gurugram, Sector 54",
+                    propertyRef: "DLF The Crest 3BHK",
+                    propertyValue: "₹3.50 Cr",
+                    loanRequired: "₹2.20 Cr",
+                    employmentType: "Salaried - MNC",
+                    monthlyIncome: "₹2,75,000",
+                    cibilScore: "785",
+                    preferredBank: "HDFC Bank",
+                    assignedPartner: "HDFC Home Loans Direct",
+                    quotation: "₹2,20,00,000 @ 8.45% ROI",
+                    status: "In Progress",
+                    notes: "Fast-track loan processing requested for upcoming property registration."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/services",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "services"]
+                }
+              }
+            },
+            {
+              name: "04. Get Service Request Details by ID (GET /admin/services/:id)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/services/{{serviceId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "services", "{{serviceId}}"]
+                }
+              }
+            },
+            {
+              name: "05. Update Service Request (PATCH /admin/services/:id)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    status: "In Review",
+                    assignedPartner: "SBI Home Finance Special Desk",
+                    quotation: "₹2,20,00,000 @ 8.35% ROI",
+                    notes: "Bank sanction letter issued pending disbursal cheque.",
+                    notesAuthor: "Admin"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/services/{{serviceId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "services", "{{serviceId}}"]
+                }
+              }
+            },
+            {
+              name: "06. Delete Service Request (DELETE /admin/services/:id)",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/services/{{serviceId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "services", "{{serviceId}}"]
+                }
+              }
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 17. Admin - Referral & Ambassador Network
+        // ---------------------------------------------------------------------
+        {
+          name: "17. Admin - Referral & Ambassador Network",
+          description: "Manage ambassador referral recommendations, milestone deal progression, reward calculation, and payout settlements.",
+          item: [
+            {
+              name: "01. List All Referrals & Payout KPI Metrics (GET /admin/referrals)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.referrals && jsonData.data.referrals.length > 0) {",
+                      "    var ref = jsonData.data.referrals[0];",
+                      "    pm.collectionVariables.set('referralId', ref._id);",
+                      "    console.log('✅ referralId auto-saved: ' + ref._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/referrals?status=All&page=1&limit=50",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "referrals"],
+                  query: [
+                    { key: "status", value: "All", description: "All | Deal In Progress | Eligible for Payout | Paid" },
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "50" },
+                    { key: "search", value: "", disabled: true }
+                  ]
+                }
+              }
+            },
+            {
+              name: "02. Record New Referral Deal (POST /admin/referrals)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.referral) {",
+                      "    pm.collectionVariables.set('referralId', jsonData.data.referral._id);",
+                      "    console.log('✅ referralId set to: ' + jsonData.data.referral._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    referrerName: "Anand Verma",
+                    referrerPhone: "+91 98201 12345",
+                    referrerEmail: "anand.verma@example.com",
+                    referrerRole: "Resident Ambassador",
+                    referralCode: "ANAND-2026",
+                    refereeName: "Suresh Gupta",
+                    refereePhone: "+91 99887 66554",
+                    refereeEmail: "suresh.gupta@example.com",
+                    propertyTitle: "Ace Parkway 3BHK Tower B",
+                    dealValue: "₹1.45 Cr",
+                    rewardAmount: 25000,
+                    payoutStatus: "Deal In Progress",
+                    bankDetails: "HDFC Bank A/C 50100234567891 IFSC HDFC0001234",
+                    upiId: "anandverma@okhdfcbank",
+                    notes: "Lead submitted via referral network card."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/referrals",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "referrals"]
+                }
+              }
+            },
+            {
+              name: "03. Get Referral Details by ID (GET /admin/referrals/:id)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/referrals/{{referralId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "referrals", "{{referralId}}"]
+                }
+              }
+            },
+            {
+              name: "04. Update Referral Information (PATCH /admin/referrals/:id)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    dealValue: "₹1.50 Cr",
+                    rewardAmount: 30000,
+                    notes: "Final registration scheduled with Sub-Registrar this Friday."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/referrals/{{referralId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "referrals", "{{referralId}}"]
+                }
+              }
+            },
+            {
+              name: "05. Transition Referral Status Lifecycle (PATCH /admin/referrals/:id/status)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    payoutStatus: "Eligible for Payout",
+                    notes: "Registry completed and commission cleared for disbursement."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/referrals/{{referralId}}/status",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "referrals", "{{referralId}}", "status"]
+                }
+              }
+            },
+            {
+              name: "06. Settle Referral Commission Payout (PATCH /admin/referrals/:id/payout)",
+              request: {
+                method: "PATCH",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    payoutRefId: "NEFT-UTR-8910237490",
+                    notes: "Commission ₹30,000 transferred via NEFT to verified bank account."
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/referrals/{{referralId}}/payout",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "referrals", "{{referralId}}", "payout"]
+                }
+              }
+            },
+            {
+              name: "07. Delete Referral Record (DELETE /admin/referrals/:id)",
+              request: {
+                method: "DELETE",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/referrals/{{referralId}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "referrals", "{{referralId}}"]
                 }
               }
             }
@@ -3403,11 +4988,11 @@ const collection = {
         },
 
         // ---------------------------------------------------------------------
-        // 05. News, Articles & Blogs
+        // 05. Real Estate News Feed
         // ---------------------------------------------------------------------
         {
-          name: "05. News, Articles & Blogs",
-          description: "Public feeds for real estate market news and informative articles.",
+          name: "05. Real Estate News Feed",
+          description: "Public feeds for real estate industry news, policy updates, and market trends.",
           item: [
             {
               name: "01. Get All Published News (GET /news)",
@@ -3460,24 +5045,86 @@ const collection = {
                   path: ["news", "{{newsId}}"]
                 }
               }
-            },
+            }
+          ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 06. Market Insights & Knowledge Hub
+        // ---------------------------------------------------------------------
+        {
+          name: "06. Market Insights & Knowledge Hub",
+          description: "Public editorial portal for comprehensive real estate guides, market insights, and legal knowledge. (Supports /blogs and /insights)",
+          item: [
             {
-              name: "05. Get All Published Blogs (GET /blogs)",
+              name: "01. Get All Published Market Insights (GET /blogs)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.blogs && jsonData.data.blogs.length > 0) {",
+                      "    var first = jsonData.data.blogs[0];",
+                      "    pm.collectionVariables.set('blogId', first._id);",
+                      "    pm.collectionVariables.set('insightId', first._id);",
+                      "    if (first.slug) {",
+                      "        pm.collectionVariables.set('insightSlug', first.slug);",
+                      "    }",
+                      "    console.log('✅ insightId & insightSlug set from public feed: ' + first._id);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
               request: {
                 method: "GET",
                 url: {
-                  raw: "{{baseUrl}}/blogs?page=1&limit=10",
+                  raw: "{{baseUrl}}/blogs?page=1&limit=12",
                   host: ["{{baseUrl}}"],
                   path: ["blogs"],
                   query: [
                     { key: "page", value: "1" },
-                    { key: "limit", value: "10" }
+                    { key: "limit", value: "12" }
                   ]
                 }
               }
             },
             {
-              name: "06. Get Blog Categories (GET /blogs/categories)",
+              name: "02. Filter Insights by Category Slug (GET /blogs?category=:slug)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/blogs?category=finance&page=1&limit=12",
+                  host: ["{{baseUrl}}"],
+                  path: ["blogs"],
+                  query: [
+                    { key: "category", value: "finance" },
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "12" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "03. Search Insights by Query (GET /blogs?search=:query)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/blogs?search=RERA&page=1&limit=12",
+                  host: ["{{baseUrl}}"],
+                  path: ["blogs"],
+                  query: [
+                    { key: "search", value: "RERA" },
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "12" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "04. Get Active Insight Categories for Navigation Tabs (GET /blogs/categories)",
               request: {
                 method: "GET",
                 url: {
@@ -3486,15 +5133,26 @@ const collection = {
                   path: ["blogs", "categories"]
                 }
               }
+            },
+            {
+              name: "05. Get Single Published Insight Article by Slug (GET /blogs/:slug)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/blogs/{{insightSlug}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["blogs", "{{insightSlug}}"]
+                }
+              }
             }
           ]
         },
 
         // ---------------------------------------------------------------------
-        // 06. Policies & Static Content
+        // 07. Policies & Static Content
         // ---------------------------------------------------------------------
         {
-          name: "06. Policies & Static Content",
+          name: "07. Policies & Static Content",
           description: "Read legal disclosures, Terms of Service, Privacy Policy, and company information.",
           item: [
             {
@@ -3552,15 +5210,26 @@ const collection = {
                   path: ["pages", "help-support"]
                 }
               }
+            },
+            {
+              name: "06. Get Specific Legal Policy by Type (GET /legal/policy/:type)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/legal/policy/privacy-policy",
+                  host: ["{{baseUrl}}"],
+                  path: ["legal", "policy", "privacy-policy"]
+                }
+              }
             }
           ]
         },
 
         // ---------------------------------------------------------------------
-        // 07. FAQs, Testimonials & Contact
+        // 08. FAQs, Testimonials & Contact
         // ---------------------------------------------------------------------
         {
-          name: "07. FAQs, Testimonials & Contact",
+          name: "08. FAQs, Testimonials & Contact",
           description: "Frequently Asked Questions, client reviews, and direct web portal inquiries.",
           item: [
             {
@@ -3606,15 +5275,26 @@ const collection = {
                   path: ["web-inquiries"]
                 }
               }
+            },
+            {
+              name: "04. Get Active FAQ Categories (GET /faqs/categories)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/faqs/categories",
+                  host: ["{{baseUrl}}"],
+                  path: ["faqs", "categories"]
+                }
+              }
             }
           ]
         },
 
         // ---------------------------------------------------------------------
-        // 08. Commercial Spaces (Public Search & Details)
+        // 09. Commercial Spaces (Public Feed)
         // ---------------------------------------------------------------------
         {
-          name: "08. Commercial Spaces (Public Feed)",
+          name: "09. Commercial Spaces (Public Feed)",
           description: "Search, filter, geospatial proximity lookup, and detailed view of commercial spaces.",
           item: [
             {
@@ -3662,15 +5342,56 @@ const collection = {
                   path: ["commercial-spaces", "{{commercialSpaceId}}"]
                 }
               }
+            },
+            {
+              name: "04. Get Latest Commercial Spaces (GET /commercial-spaces/latest)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/commercial-spaces/latest?page=1&limit=10",
+                  host: ["{{baseUrl}}"],
+                  path: ["commercial-spaces", "latest"],
+                  query: [
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "10" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "05. Get Featured Commercial Spaces (GET /commercial-spaces/featured)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/commercial-spaces/featured?page=1&limit=10",
+                  host: ["{{baseUrl}}"],
+                  path: ["commercial-spaces", "featured"],
+                  query: [
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "10" }
+                  ]
+                }
+              }
+            },
+            {
+              name: "06. Get Commercial Space Types Breakdown (GET /commercial-spaces/types)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/commercial-spaces/types",
+                  host: ["{{baseUrl}}"],
+                  path: ["commercial-spaces", "types"]
+                }
+              }
             }
           ]
         },
 
         // ---------------------------------------------------------------------
-        // 09. Home Banners (Public Feed)
+        // 10. Home Banners (Public Feed)
         // ---------------------------------------------------------------------
         {
-          name: "09. Home Banners (Public Feed)",
+          name: "10. Home Banners (Public Feed)",
           description: "Public endpoints for fetching home screen banners and hero slides.",
           item: [
             {
@@ -3705,11 +5426,16 @@ const collection = {
   ]
 };
 
-// Generate Postman Collection file in project root
+// Generate Postman Collection file in both project root and server directory
 const rootOutputPath = path.join(__dirname, '../gharmb.postman_collection.json');
+const serverOutputPath = path.join(__dirname, './gharmb.postman_collection.json');
 
 const jsonString = JSON.stringify(collection, null, 2);
 
 fs.writeFileSync(rootOutputPath, jsonString, 'utf-8');
+fs.writeFileSync(serverOutputPath, jsonString, 'utf-8');
 console.log('✅ Successfully updated root Postman Collection at:', rootOutputPath);
+console.log('✅ Successfully updated server Postman Collection at:', serverOutputPath);
+
+module.exports = collection;
 
