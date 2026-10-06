@@ -1,7 +1,8 @@
 /**
  * Referral / Reference Network Model
- * Stores ambassador referrals, peer recommendations, channel partner deals,
- * commission reward eligibility, and payout settlement records.
+ * Stores both:
+ * 1. "Refer & Earn" app program (₹250 GharMB coins for both referrer and referee when referee lists first property)
+ * 2. Ambassador / Channel Partner offline deal recommendations and payout settlement records.
  */
 
 const mongoose = require('mongoose');
@@ -15,7 +16,21 @@ const referralSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Referrer (Ambassador / Advocate)
+    // Program category
+    programType: {
+      type: String,
+      enum: ['refer_and_earn', 'ambassador_deal'],
+      default: 'refer_and_earn',
+      index: true,
+    },
+
+    // Referrer (Ambassador / Advocate / Existing User)
+    referrerUser: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+      index: true,
+    },
     referrerName: {
       type: String,
       required: [true, 'Referrer name is required.'],
@@ -37,11 +52,6 @@ const referralSchema = new mongoose.Schema(
       trim: true,
       default: 'Resident Ambassador', // 'Resident Ambassador', 'Channel Partner', 'Existing Homeowner', 'Verified Agent'
     },
-    referrerUser: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: false,
-    },
     referralCode: {
       type: String,
       trim: true,
@@ -49,7 +59,13 @@ const referralSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Referee (Referred Buyer / Tenant)
+    // Referee (Referred Friend / Buyer / Tenant)
+    refereeUser: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+      index: true,
+    },
     refereeName: {
       type: String,
       required: [true, 'Referee name is required.'],
@@ -65,6 +81,36 @@ const referralSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
       default: '',
+    },
+
+    // Refer & Earn Coin Milestone Details
+    coinsRewarded: {
+      type: Number,
+      default: 250,
+      min: 0,
+    },
+    refereeCoinsRewarded: {
+      type: Number,
+      default: 250,
+      min: 0,
+    },
+    referralStatus: {
+      type: String,
+      enum: ['pending_listing', 'listing_posted', 'rewarded', 'expired', 'cancelled'],
+      default: 'pending_listing',
+      index: true,
+    },
+    propertyListed: {
+      type: Boolean,
+      default: false,
+    },
+    rewardCreditedAt: {
+      type: Date,
+      default: null,
+    },
+    coinsExpiryDate: {
+      type: Date,
+      default: null,
     },
 
     // Linked Property / Deal Details
@@ -84,15 +130,49 @@ const referralSchema = new mongoose.Schema(
       default: 'On Request',
     },
 
-    // Financial Reward & Commission
+    // Financial Reward & Commission (Settled out of app by Admin)
     rewardAmount: {
       type: Number,
-      default: 20000,
+      default: 250,
       min: 0,
+    },
+    claimedAmount: {
+      type: Number,
+      default: 250,
+      min: 0,
+    },
+    claimStatus: {
+      type: String,
+      enum: ['unclaimed', 'claim_submitted', 'pending_admin_payout', 'paid', 'rejected'],
+      default: 'unclaimed',
+      index: true,
+    },
+    claimedAt: {
+      type: Date,
+      default: null,
+    },
+    claimedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    claimNotes: {
+      type: String,
+      trim: true,
+      default: '',
     },
     payoutStatus: {
       type: String,
-      enum: ['Eligible for Payout', 'Paid', 'Deal In Progress', 'Pending Audit', 'Cancelled'],
+      enum: [
+        'Eligible for Payout',
+        'Claim Submitted',
+        'Pending Admin Payout',
+        'Paid',
+        'Deal In Progress',
+        'Pending Audit',
+        'Cancelled',
+        'Rejected',
+      ],
       default: 'Deal In Progress',
       index: true,
     },
@@ -103,21 +183,31 @@ const referralSchema = new mongoose.Schema(
     payoutRefId: {
       type: String,
       trim: true,
-      default: '',
+      default: '', // External UTR / Transaction No / Payment Receipt Ref
     },
     payoutMethod: {
       type: String,
       trim: true,
-      default: 'UPI',
+      default: 'UPI', // 'UPI', 'Bank Transfer', 'NEFT', 'IMPS', 'RTGS', 'Cash'
     },
 
-    // Payout Settlement Banking Information
+    // Payout Settlement Banking Information (Out-of-app transfer details)
     bankDetails: {
       type: String,
       trim: true,
       default: '',
     },
     upiId: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    adminSettlementNotes: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    rejectionReason: {
       type: String,
       trim: true,
       default: '',
@@ -144,7 +234,7 @@ const referralSchema = new mongoose.Schema(
   }
 );
 
-// Auto-generate unique referral ID and Referral Code before saving
+// Auto-generate unique referral ID and Referral Code before saving if not present
 referralSchema.pre('save', async function () {
   if (!this.referralId) {
     const timestampPart = Date.now().toString().slice(-6);
@@ -157,7 +247,7 @@ referralSchema.pre('save', async function () {
       .slice(0, 4)
       .toUpperCase();
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    this.referralCode = `${namePrefix}-${randomSuffix}`;
+    this.referralCode = `GHARMB-${namePrefix}${randomSuffix}`;
   }
 });
 

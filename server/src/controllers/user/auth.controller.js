@@ -168,6 +168,12 @@ const buildUserResponse = (user) => {
     verificationDocs: user.verificationDocs || {},
     builderDocs: user.builderDocs || {},
     verification: verification || {},
+    referralCode: user.referralCode || null,
+    walletCoins: user.walletCoins || 0,
+    referralCoinsEarned: user.referralCoinsEarned || 0,
+    referralCount: user.referralCount || 0,
+    referredBy: user.referredBy || null,
+    appliedReferralCode: user.appliedReferralCode || null,
   };
 };
 
@@ -194,6 +200,8 @@ exports.registerUser = async (req, res, next) => {
       firebaseUid,
       profilePicture,
       registrationToken,
+      referralCode,
+      refCode,
     } = req.body;
 
     // ── Resolve Google details if registrationToken is provided ──────────────
@@ -264,6 +272,24 @@ exports.registerUser = async (req, res, next) => {
       }
     }
 
+    // ── Referral Code Validation (Optional during signup) ───────────────────
+    let referrerUser = null;
+    let sanitizedReferralCode = null;
+    const candidateCode = referralCode || refCode || req.body.referredByCode;
+    if (candidateCode && String(candidateCode).trim()) {
+      sanitizedReferralCode = String(candidateCode).trim().toUpperCase();
+      referrerUser = await User.findOne({
+        referralCode: sanitizedReferralCode,
+        status: { $ne: 'Blocked' },
+      });
+      if (!referrerUser) {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'Invalid referral code. Please check your code or leave blank to continue.',
+        });
+      }
+    }
+
     // ── Build address / location objects ───────────────────────────────────
     let addressObj;
     if (typeof address === 'string') {
@@ -300,12 +326,58 @@ exports.registerUser = async (req, res, next) => {
       isVerified: true,
       isBasicInfoCompleted: true,
       isOnboardingCompleted: Boolean(sanitizedRole),
+      referredBy: referrerUser ? referrerUser._id : undefined,
+      appliedReferralCode: sanitizedReferralCode || undefined,
     });
 
     // Clean up verified phone session so it cannot be reused
     googleVerifiedPhones.delete(normalizedPhone);
     otpStore.delete(normalizedPhone);
     googleOtpStore.delete(normalizedPhone);
+
+    // ── Record Refer & Earn Linkage ─────────────────────────────────────────
+    if (referrerUser) {
+      try {
+        const Referral = require('../../models/referral.model');
+        await Referral.create({
+          programType: 'refer_and_earn',
+          referrerUser: referrerUser._id,
+          referrerName: referrerUser.name,
+          referrerPhone: referrerUser.phone,
+          referrerEmail: referrerUser.email,
+          referralCode: sanitizedReferralCode,
+          refereeUser: newUser._id,
+          refereeName: newUser.name,
+          refereePhone: newUser.phone,
+          refereeEmail: newUser.email,
+          coinsRewarded: 250,
+          refereeCoinsRewarded: 250,
+          referralStatus: 'pending_listing',
+          payoutStatus: 'Deal In Progress',
+          notes: `User signed up using referral code ${sanitizedReferralCode}. ₹250 coins will unlock upon first property listing.`,
+        });
+
+        await User.findByIdAndUpdate(referrerUser._id, { $inc: { referralCount: 1 } });
+
+        // Notify Referrer
+        await Notification.create({
+          recipient: referrerUser._id,
+          title: '🎉 New Friend Joined via Referral!',
+          message: `Your friend ${newUser.name} registered using your referral code ${sanitizedReferralCode}. You will both receive ₹250 GharMB coins once they list their first property!`,
+          type: 'system',
+        });
+
+        // Notify Referee
+        await Notification.create({
+          recipient: newUser._id,
+          title: '🎁 Referral Bonus Activated!',
+          message: `You signed up with ${referrerUser.name}'s referral code. Post your first property listing to unlock ₹250 GharMB coins!`,
+          type: 'system',
+        });
+      } catch (refErr) {
+        console.warn('⚠️ [Auth Referral Link Error]:', refErr.message);
+      }
+    }
 
     // ── Welcome notification ────────────────────────────────────────────────
     await Notification.create({
@@ -1205,6 +1277,8 @@ exports.googleRegister = async (req, res, next) => {
       latitude,
       longitude,
       role,
+      referralCode,
+      refCode,
     } = req.body;
 
     // 1. Resolve Google-verified claims if registrationToken is provided
@@ -1289,6 +1363,24 @@ exports.googleRegister = async (req, res, next) => {
       });
     }
 
+    // ── Referral Code Validation (Optional during signup details screen) ───
+    let referrerUser = null;
+    let sanitizedReferralCode = null;
+    const candidateCode = referralCode || refCode || req.body.referredByCode;
+    if (candidateCode && String(candidateCode).trim()) {
+      sanitizedReferralCode = String(candidateCode).trim().toUpperCase();
+      referrerUser = await User.findOne({
+        referralCode: sanitizedReferralCode,
+        status: { $ne: 'Blocked' },
+      });
+      if (!referrerUser) {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'Invalid referral code. Please check your code or leave blank to continue.',
+        });
+      }
+    }
+
     // 6. Format address & location
     let addressObj;
     if (typeof address === 'string') {
@@ -1325,12 +1417,58 @@ exports.googleRegister = async (req, res, next) => {
       isVerified: true,
       isBasicInfoCompleted: true,
       isOnboardingCompleted: Boolean(sanitizedRole),
+      referredBy: referrerUser ? referrerUser._id : undefined,
+      appliedReferralCode: sanitizedReferralCode || undefined,
     });
 
     // Clean up verified phone session so it cannot be reused
     googleVerifiedPhones.delete(normalizedPhone);
     otpStore.delete(normalizedPhone);
     googleOtpStore.delete(normalizedPhone);
+
+    // ── Record Refer & Earn Linkage ─────────────────────────────────────────
+    if (referrerUser) {
+      try {
+        const Referral = require('../../models/referral.model');
+        await Referral.create({
+          programType: 'refer_and_earn',
+          referrerUser: referrerUser._id,
+          referrerName: referrerUser.name,
+          referrerPhone: referrerUser.phone,
+          referrerEmail: referrerUser.email,
+          referralCode: sanitizedReferralCode,
+          refereeUser: newUser._id,
+          refereeName: newUser.name,
+          refereePhone: newUser.phone,
+          refereeEmail: newUser.email,
+          coinsRewarded: 250,
+          refereeCoinsRewarded: 250,
+          referralStatus: 'pending_listing',
+          payoutStatus: 'Deal In Progress',
+          notes: `Google user registered using referral code ${sanitizedReferralCode}. Post first property listing to unlock ₹250 coins.`,
+        });
+
+        await User.findByIdAndUpdate(referrerUser._id, { $inc: { referralCount: 1 } });
+
+        // Notify Referrer
+        await Notification.create({
+          recipient: referrerUser._id,
+          title: '🎉 New Friend Joined via Referral!',
+          message: `Your friend ${newUser.name} registered using your referral code ${sanitizedReferralCode}. You will both receive ₹250 GharMB coins once they list their first property!`,
+          type: 'system',
+        });
+
+        // Notify Referee
+        await Notification.create({
+          recipient: newUser._id,
+          title: '🎁 Referral Bonus Activated!',
+          message: `You registered with ${referrerUser.name}'s referral code. Post your first property listing to unlock ₹250 GharMB coins!`,
+          type: 'system',
+        });
+      } catch (refErr) {
+        console.warn('⚠️ [Google Auth Referral Link Error]:', refErr.message);
+      }
+    }
 
     // 8. Welcome notification
     await Notification.create({

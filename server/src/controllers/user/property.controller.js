@@ -619,6 +619,14 @@ exports.createProperty = async (req, res, next) => {
       console.error('Error creating admin notification for property creation:', notifErr);
     }
 
+    // ── Refer & Earn Reward Trigger (When friend posts their first listing) ─
+    try {
+      const { processFirstListingReferralReward } = require('../../utils/referralCode.helper');
+      await processFirstListingReferralReward(user._id, property._id, property.title);
+    } catch (refRewardErr) {
+      console.warn('⚠️ [Property Referral Reward Error]:', refRewardErr.message);
+    }
+
     const enrichedProperty = enrichPropertyWithSellerRole(property, user);
 
     res.status(201).json({

@@ -197,6 +197,14 @@ exports.updatePropertyStatus = async (req, res, next) => {
           type: 'verification',
           isRead: false,
         });
+
+        // Ensure refer & earn reward is credited for first verified listing
+        try {
+          const { processFirstListingReferralReward } = require('../../utils/referralCode.helper');
+          await processFirstListingReferralReward(property.owner._id, property._id, property.title);
+        } catch (refErr) {
+          console.warn('⚠️ [Admin Property Approval Referral Reward Notice]:', refErr.message);
+        }
       } else if (rawStatus === 'rejected') {
         await Notification.create({
           recipient: property.owner._id,

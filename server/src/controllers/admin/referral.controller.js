@@ -21,10 +21,20 @@ const getPagination = (page, limit, defaultLimit = 20) => {
 // @access  Private (Admin only)
 exports.getAllReferrals = async (req, res, next) => {
   try {
-    const { status, search, page = 1, limit = 50 } = req.query;
+    const { status, programType, referralStatus, search, page = 1, limit = 50 } = req.query;
     const { page: pageNum, limit: limitNum, skip } = getPagination(page, limit, 50);
 
     const filter = {};
+
+    // Program type filter (refer_and_earn vs ambassador_deal)
+    if (programType && programType !== 'All' && programType !== 'all') {
+      filter.programType = programType;
+    }
+
+    // Referral status filter (pending_listing, rewarded, etc.)
+    if (referralStatus && referralStatus !== 'All' && referralStatus !== 'all') {
+      filter.referralStatus = referralStatus;
+    }
 
     // Status filter
     if (status && status !== 'All' && status !== 'all') {
@@ -59,11 +69,14 @@ exports.getAllReferrals = async (req, res, next) => {
       dealInProgressCount,
       paidCount,
       eligibleCount,
-      totalReferralsCount
+      totalReferralsCount,
+      referAndEarnCount,
+      referAndEarnRewardedCount,
     ] = await Promise.all([
       Referral.find(filter)
         .populate('linkedProperty', 'title city locality price submissionId')
         .populate('referrerUser', 'name phone email role')
+        .populate('refereeUser', 'name phone email role')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum),
@@ -80,6 +93,8 @@ exports.getAllReferrals = async (req, res, next) => {
       Referral.countDocuments({ payoutStatus: 'Paid' }),
       Referral.countDocuments({ payoutStatus: 'Eligible for Payout' }),
       Referral.countDocuments(),
+      Referral.countDocuments({ programType: 'refer_and_earn' }),
+      Referral.countDocuments({ programType: 'refer_and_earn', referralStatus: 'rewarded' }),
     ]);
 
     const totalRewardsPaid = paidAgg.length > 0 ? paidAgg[0].total : 0;
@@ -94,14 +109,19 @@ exports.getAllReferrals = async (req, res, next) => {
       return {
         id: r.referralId || `#REF-${r._id.toString().slice(-6)}`,
         mongoId: r._id,
-        referrerName: r.referrerName,
-        referrerPhone: r.referrerPhone,
-        referrerEmail: r.referrerEmail || '',
+        programType: r.programType || 'refer_and_earn',
+        referrerName: r.referrerName || r.referrerUser?.name || '',
+        referrerPhone: r.referrerPhone || r.referrerUser?.phone || '',
+        referrerEmail: r.referrerEmail || r.referrerUser?.email || '',
         referrerRole: r.referrerRole || 'Resident Ambassador',
         referralCode: r.referralCode || 'REF-ACTIVE',
-        refereeName: r.refereeName,
-        refereePhone: r.refereePhone,
-        refereeEmail: r.refereeEmail || '',
+        refereeName: r.refereeName || r.refereeUser?.name || '',
+        refereePhone: r.refereePhone || r.refereeUser?.phone || '',
+        refereeEmail: r.refereeEmail || r.refereeUser?.email || '',
+        referralStatus: r.referralStatus || 'pending_listing',
+        propertyListed: r.propertyListed || false,
+        coinsRewarded: r.coinsRewarded || 250,
+        rewardCreditedAt: r.rewardCreditedAt || null,
         linkedProperty: propTitle,
         propertySubId: propSubId,
         propertyCity: r.linkedProperty?.city || '',
@@ -130,6 +150,8 @@ exports.getAllReferrals = async (req, res, next) => {
           paidCount,
           eligibleCount,
           totalReferralsCount,
+          referAndEarnCount,
+          referAndEarnRewardedCount,
         },
         pagination: {
           page: pageNum,
@@ -257,13 +279,102 @@ exports.createReferral = async (req, res, next) => {
   }
 };
 
-// @desc    Process Referral Payout Settlement
-// @route   PATCH /api/admin/referrals/:id/payout
+// @desc    Process Referral Out-of-App Payment Settlement by Admin
+// @route   PATCH /api/admin/referrals/:id/payout  OR  PATCH /api/admin/referrals/:id/settle-payout
 // @access  Private (Admin only)
 exports.processPayout = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { payoutRefId, payoutMethod, notes } = req.body;
+    const { payoutRefId, payoutMethod, notes, adminSettlementNotes, payoutDate, amountPaid } = req.body;
+
+    const referral = await Referral.findById(id)
+      .populate('referrerUser', 'name phone email')
+      .populate('refereeUser', 'name phone email');
+
+    if (!referral) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'Referral record not found.',
+      });
+    }
+
+    const settledAmount = Number(amountPaid) || referral.claimedAmount || referral.rewardAmount || 250;
+    const method = payoutMethod ? payoutMethod.trim() : (referral.payoutMethod || 'UPI');
+    const refId = payoutRefId ? payoutRefId.trim() : `UTR-${Date.now().toString().slice(-6)}`;
+    const dateStr = payoutDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+    referral.payoutStatus = 'Paid';
+    referral.claimStatus = 'paid';
+    referral.payoutDate = dateStr;
+    referral.payoutRefId = refId;
+    referral.payoutMethod = method;
+    if (adminSettlementNotes || notes) {
+      referral.adminSettlementNotes = (adminSettlementNotes || notes).trim();
+      referral.notes = `${referral.notes || ''} | Out-of-app payment settled: ${adminSettlementNotes || notes} (Ref: ${refId})`.trim();
+    }
+
+    await referral.save();
+
+    const Notification = require('../../models/notification.model');
+
+    // ── 1. Notify Referrer User ─────────────────────────────────────────────
+    const referrerId = referral.referrerUser?._id || referral.claimedBy;
+    if (referrerId) {
+      await Notification.create({
+        recipient: referrerId,
+        title: '✅ Referral Payment Settled by Admin!',
+        message: `Admin has funded and transferred ₹${settledAmount.toLocaleString()} to your account via ${method} out of the app. Transaction / UTR Ref: ${refId}.`,
+        type: 'payment',
+        metadata: {
+          referralId: referral._id,
+          payoutRefId: refId,
+          amount: settledAmount,
+        },
+      });
+    }
+
+    // ── 2. Notify Claimed / Referee User ────────────────────────────────────
+    if (referral.refereeUser && (!referrerId || referral.refereeUser._id.toString() !== referrerId.toString())) {
+      await Notification.create({
+        recipient: referral.refereeUser._id,
+        title: '✅ Referral Reward Deal Settled!',
+        message: `Your referral deal reward on GharMB has been settled and funded by Admin via ${method}. Thank you for being part of GharMB!`,
+        type: 'system',
+        metadata: {
+          referralId: referral._id,
+        },
+      });
+    }
+
+    console.log(`\n==================================================`);
+    console.log(`💰 [REFERRAL PAYMENT SETTLED OUT OF THE APP BY ADMIN]`);
+    console.log(`   Referral ID  : ${referral.referralId}`);
+    console.log(`   Amount Paid  : ₹${settledAmount}`);
+    console.log(`   Method       : ${method}`);
+    console.log(`   UTR / Ref ID : ${refId}`);
+    console.log(`   Referrer     : ${referral.referrerName}`);
+    console.log(`   Referee      : ${referral.refereeName}`);
+    console.log(`==================================================\n`);
+
+    res.status(200).json({
+      status: 'success',
+      message: `Out-of-app payment of ₹${settledAmount.toLocaleString()} settled successfully. Both referrer and claimed referee have been notified.`,
+      data: {
+        referral,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Reject Referral Claim by Admin
+// @route   PATCH /api/admin/referrals/:id/reject-claim
+// @access  Private (Admin only)
+exports.rejectClaim = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { rejectionReason, notes } = req.body;
 
     const referral = await Referral.findById(id);
     if (!referral) {
@@ -273,17 +384,31 @@ exports.processPayout = async (req, res, next) => {
       });
     }
 
-    referral.payoutStatus = 'Paid';
-    referral.payoutDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    if (payoutRefId) referral.payoutRefId = payoutRefId.trim();
-    if (payoutMethod) referral.payoutMethod = payoutMethod.trim();
-    if (notes) referral.notes = `${referral.notes || ''} | Payout Ref: ${payoutRefId || 'Settled'} - ${notes}`.trim();
+    const reason = rejectionReason || notes || 'Details could not be verified.';
+    referral.claimStatus = 'rejected';
+    referral.payoutStatus = 'Rejected';
+    referral.rejectionReason = reason;
+    referral.notes = `${referral.notes || ''} | Claim rejected by admin: ${reason}`.trim();
 
     await referral.save();
 
+    const Notification = require('../../models/notification.model');
+    const targetUserId = referral.claimedBy || referral.referrerUser;
+    if (targetUserId) {
+      await Notification.create({
+        recipient: targetUserId,
+        title: '❌ Referral Claim Update',
+        message: `Your referral reward claim for ${referral.referralId} could not be approved. Reason: ${reason}. Please update your details.`,
+        type: 'payment',
+        metadata: {
+          referralId: referral._id,
+        },
+      });
+    }
+
     res.status(200).json({
       status: 'success',
-      message: `Commission payout of ₹${referral.rewardAmount.toLocaleString()} marked as Paid.`,
+      message: 'Referral claim rejected and user notified.',
       data: {
         referral,
       },
@@ -376,6 +501,52 @@ exports.deleteReferral = async (req, res, next) => {
     res.status(200).json({
       status: 'success',
       message: 'Referral record permanently deleted.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Manually Credit / Override Refer & Earn Coins Reward by Admin
+// @route   POST /api/admin/referrals/:id/credit-coins
+// @access  Private (Admin only)
+exports.creditReferralCoins = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const referral = await Referral.findById(id);
+
+    if (!referral) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'Referral record not found.',
+      });
+    }
+
+    if (referral.referralStatus === 'rewarded') {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'This referral has already been rewarded with coins.',
+      });
+    }
+
+    const { processFirstListingReferralReward } = require('../../utils/referralCode.helper');
+    const result = await processFirstListingReferralReward(
+      referral.refereeUser,
+      referral.linkedProperty || null,
+      referral.propertyTitle || 'Listing Approved by Admin'
+    );
+
+    const updated = await Referral.findById(id)
+      .populate('referrerUser', 'name phone email walletCoins')
+      .populate('refereeUser', 'name phone email walletCoins');
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Refer & Earn coins credited successfully to both users.',
+      data: {
+        referral: updated,
+        result,
+      },
     });
   } catch (error) {
     next(error);

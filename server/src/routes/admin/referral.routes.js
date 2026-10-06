@@ -26,11 +26,24 @@ router.route('/:id')
   .patch(referralController.updateReferral)
   .delete(referralController.deleteReferral);
 
-// 3. Referral Payout Settlement
+// 3. Referral Out-of-App Payout Settlement
 router.route('/:id/payout')
   .patch(referralController.processPayout);
+router.route('/:id/settle-payout')
+  .patch(referralController.processPayout)
+  .post(referralController.processPayout);
 
-// 4. Referral Status Lifecycle Transition
+// 4. Reject Referral Claim
+router.route('/:id/reject-claim')
+  .patch(referralController.rejectClaim)
+  .post(referralController.rejectClaim);
+
+// 5. Manual Refer & Earn Coins Credit Override
+router.route('/:id/credit-coins')
+  .post(referralController.creditReferralCoins)
+  .patch(referralController.creditReferralCoins);
+
+// 5. Referral Status Lifecycle Transition
 router.route('/:id/status')
   .patch(referralController.updateReferralStatus);
 

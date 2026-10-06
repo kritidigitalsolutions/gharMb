@@ -64,6 +64,7 @@ const appTokenRequestRoutes = require('./src/routes/user/token-request.routes');
 const appVisitRequestRoutes = require('./src/routes/user/visit-request.routes');
 const appServiceEnquiryRoutes = require('./src/routes/user/service-enquiry.routes');
 const appFcmRoutes = require('./src/routes/user/fcm.routes');
+const appReferralRoutes = require('./src/routes/user/referral.routes');
 
 const app = express();
 
@@ -385,6 +386,12 @@ app.use('/api/user/properties/visit-requests', appVisitRequestRoutes);
 // Customer Service Enquiries (Packers & Movers, Legal, Interior, Loan)
 app.use('/api/services', appServiceEnquiryRoutes);
 app.use('/api/user/services', appServiceEnquiryRoutes);
+
+// Refer & Earn Program and GharMB Coins Wallet
+app.use('/api/referrals', appReferralRoutes);
+app.use('/api/user/referrals', appReferralRoutes);
+app.use('/api/wallet', appReferralRoutes);
+app.use('/api/user/wallet', appReferralRoutes);
 
 // 10. Fallback 404 Route handler
 app.use((req, res, next) => {
