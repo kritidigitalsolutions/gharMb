@@ -30,8 +30,8 @@ import {
   ShieldCheck,
   Inbox,
   FilterX,
-  Plus,
-  MessageCircle
+  MessageCircle,
+  Radio
 } from 'lucide-react';
 
 const AdminNotifications = () => {
@@ -598,7 +598,7 @@ const AdminNotifications = () => {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-16">
+    <div className="w-full space-y-4 pb-16">
       {/* Toast Notification */}
       {toast.show && (
         <div
@@ -638,7 +638,7 @@ const AdminNotifications = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+            <h1 className="text-base sm:text-lg font-bold tracking-tight text-[var(--text-primary)]">
               Notifications
             </h1>
             {counts.unread > 0 ? (
@@ -693,11 +693,12 @@ const AdminNotifications = () => {
 
           <button
             type="button"
-            onClick={() => setShowBroadcastModal(true)}
+            onClick={() => navigate('/admin/broadcasts')}
             className="px-3.5 py-1.5 bg-brand hover:bg-brand-dark text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ml-1"
+            title="Open Dedicated Broadcast Messages Hub"
           >
-            <Send size={13} />
-            <span>Broadcast</span>
+            <Radio size={13} />
+            <span>Manage Broadcasts</span>
           </button>
         </div>
       </div>

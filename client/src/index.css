@@ -203,7 +203,13 @@ body {
   background-color: var(--bg-main);
   color: var(--text-primary);
   font-family: 'Inter', sans-serif;
-  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Fallback color transition only for legacy browsers without View Transitions */
+@supports not (view-transition-name: none) {
+  body {
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
 }
 
 /* Custom scrollbar styling for premium UI */
@@ -259,11 +265,23 @@ body {
   color: var(--text-primary) !important;
 }
 
+
+
 /* ─── Hardware-Accelerated Smooth Radial View Transition ────────────── */
+::view-transition-group(root) {
+  animation-duration: 480ms;
+}
+
+::view-transition-image-pair(root) {
+  isolation: isolate;
+}
+
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none !important;
   mix-blend-mode: normal !important;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 ::view-transition-old(root) {
@@ -274,12 +292,13 @@ body {
   z-index: 9999;
 }
 
-/* Eliminate child CSS transition stutter during theme snapshot */
+/* Eliminate child CSS transition lag/jitter during theme snapshot */
 html.theme-transitioning,
 html.theme-transitioning *,
 html.theme-transitioning *::before,
 html.theme-transitioning *::after {
   transition: none !important;
+  animation-play-state: paused !important;
 }
 
 /* ─── Fix Chrome / Edge Browser Autofill in Dark Mode ─────────── */
@@ -312,11 +331,13 @@ select:-webkit-autofill:focus {
   caret-color: #DDDDDD !important;
 }
 
-/* Custom Theme Toggle Switch */
+/* ─── Custom Theme Toggle Switch ───────────────────────────────── */
 .theme-toggle-switch {
-  display: inline-block;
-  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
   position: relative;
+  user-select: none;
+  cursor: pointer;
 }
 
 .theme-toggle-switch .toggle-checkbox {
@@ -325,25 +346,36 @@ select:-webkit-autofill:focus {
   cursor: pointer;
   height: 0;
   width: 0;
+  pointer-events: none;
 }
 
 .theme-toggle-switch .toggle-slot {
   font-size: 8px;
   position: relative;
   height: 3.5em;
-  width: 7em;
-  border: 1px solid var(--border);
-  border-radius: 10em;
+  width: 7.2em;
+  border: 1.5px solid var(--border);
+  border-radius: 9999px;
   background-color: var(--bg-surface);
-  transition: background-color 250ms, border-color 250ms;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: background-color 350ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 350ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 350ms cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
+  cursor: pointer;
+}
+
+.theme-toggle-switch:hover .toggle-slot {
+  border-color: rgba(255, 90, 60, 0.45);
 }
 
 .theme-toggle-switch .toggle-checkbox:checked ~ .toggle-slot {
-  background-color: var(--bg-muted);
-  border-color: var(--border);
+  background-color: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.45);
 }
 
+/* Outer Thumb Circle */
 .theme-toggle-switch .toggle-button {
   position: absolute;
   top: 50%;
@@ -352,22 +384,59 @@ select:-webkit-autofill:focus {
   height: 2.9em;
   width: 2.9em;
   border-radius: 50%;
-  background-color: #FF5A3C;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
-  transition: background-color 250ms, border-color 250ms, transform 450ms cubic-bezier(.26,2,.46,.71);
+  background: linear-gradient(135deg, #FF6B4A 0%, #FF5A3C 60%, #E84528 100%);
+  box-shadow: 0 2px 6px rgba(255, 90, 60, 0.38), 0 1px 2px rgba(0, 0, 0, 0.16);
+  transition: transform 380ms cubic-bezier(0.34, 1.25, 0.64, 1),
+              box-shadow 350ms ease,
+              background 350ms ease;
+  z-index: 2;
 }
 
 .theme-toggle-switch .toggle-checkbox:checked ~ .toggle-slot .toggle-button {
-  background-color: #FF5A3C;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
-  transform: translate(3.8em, -50%);
+  transform: translate(4.0em, -50%);
+  background: linear-gradient(135deg, #FF6B4A 0%, #FF5A3C 60%, #E84528 100%);
+  box-shadow: 0 2px 8px rgba(255, 90, 60, 0.52), 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
+.theme-toggle-switch:hover .toggle-button {
+  box-shadow: 0 3px 10px rgba(255, 90, 60, 0.55), 0 1px 3px rgba(0, 0, 0, 0.22);
+}
+
+/* Subtle micro-press on active click */
+.theme-toggle-switch:active .toggle-button {
+  transform: translate(0.3em, -50%) scale(0.93);
+}
+
+.theme-toggle-switch:active .toggle-checkbox:checked ~ .toggle-slot .toggle-button,
+.theme-toggle-switch .toggle-checkbox:checked ~ .toggle-slot:active .toggle-button {
+  transform: translate(4.0em, -50%) scale(0.93);
+}
+
+/* Single Centered Hole (turns the thumb circle into an elegant ring) */
+.theme-toggle-switch .toggle-button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 1.25em;
+  height: 1.25em;
+  border-radius: 50%;
+  background-color: var(--bg-surface);
+  pointer-events: none;
+  transition: background-color 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-toggle-switch .toggle-checkbox:checked ~ .toggle-slot .toggle-button::after {
+  background-color: #1a1a1a;
+}
+
+/* Sun Icon */
 .theme-toggle-switch .sun-icon {
   position: absolute;
   height: 1.8em;
   width: 1.8em;
-  color: #FF5A3C; /* Brand coral */
+  color: #FF5A3C;
   fill: #FF5A3C;
 }
 
@@ -376,16 +445,18 @@ select:-webkit-autofill:focus {
   height: 1.8em;
   width: 1.8em;
   opacity: 1;
-  transform: translate(4.3em, 0.85em) rotate(15deg);
+  transform: translate(4.5em, 0.85em) rotate(0deg) scale(1);
   transform-origin: 50% 50%;
-  transition: opacity 150ms, transform 400ms cubic-bezier(0.25, 1, 0.5, 1);
+  transition: opacity 250ms ease, transform 380ms cubic-bezier(0.34, 1.25, 0.64, 1);
+  z-index: 1;
 }
 
 .theme-toggle-switch .toggle-checkbox:checked ~ .toggle-slot .sun-icon-wrapper {
   opacity: 0;
-  transform: translate(3em, 0.85em) rotate(0deg);
+  transform: translate(3.0em, 0.85em) rotate(-45deg) scale(0.4);
 }
 
+/* Moon Icon */
 .theme-toggle-switch .moon-icon {
   position: absolute;
   height: 1.8em;
@@ -399,14 +470,15 @@ select:-webkit-autofill:focus {
   height: 1.8em;
   width: 1.8em;
   opacity: 0;
-  transform: translate(6em, 0.85em) rotate(0deg);
+  transform: translate(5.8em, 0.85em) rotate(45deg) scale(0.4);
   transform-origin: 50% 50%;
-  transition: opacity 150ms, transform 400ms cubic-bezier(0.25, 1, 0.5, 1);
+  transition: opacity 250ms ease, transform 380ms cubic-bezier(0.34, 1.25, 0.64, 1);
+  z-index: 1;
 }
 
 .theme-toggle-switch .toggle-checkbox:checked ~ .toggle-slot .moon-icon-wrapper {
   opacity: 1;
-  transform: translate(0.85em, 0.85em) rotate(-15deg);
+  transform: translate(0.95em, 0.85em) rotate(0deg) scale(1);
 }
 
 /* ─── TipTap Editorial CMS Editor Styles ───────────────────────── */
@@ -541,5 +613,14 @@ select:-webkit-autofill:focus {
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+}
+
+/* ─── Hide Scrollbar Utility ──────────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 

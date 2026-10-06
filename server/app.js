@@ -24,6 +24,7 @@ const adminUserRoutes = require('./src/routes/admin/user.routes');
 const adminPropertyRoutes = require('./src/routes/admin/property.routes');
 const adminProjectRoutes = require('./src/routes/admin/project.routes');
 const adminNotificationRoutes = require('./src/routes/admin/notification.routes');
+const adminBroadcastRoutes = require('./src/routes/admin/broadcast.routes');
 const adminLegalRoutes = require('./src/routes/admin/legal.routes');
 const adminPageRoutes = require('./src/routes/admin/page.routes');
 const adminNewsRoutes = require('./src/routes/admin/news.routes');
@@ -61,6 +62,8 @@ const appCommercialSpaceRoutes = require('./src/routes/user/commercial-space.rou
 const appBannerRoutes = require('./src/routes/user/banner.routes');
 const appTokenRequestRoutes = require('./src/routes/user/token-request.routes');
 const appVisitRequestRoutes = require('./src/routes/user/visit-request.routes');
+const appServiceEnquiryRoutes = require('./src/routes/user/service-enquiry.routes');
+const appFcmRoutes = require('./src/routes/user/fcm.routes');
 
 const app = express();
 
@@ -188,15 +191,28 @@ const initAdmin = async () => {
   isSeedingAdmin = true;
   try {
     await connectDB();
-    const existingAdmin = await Admin.findOne({ email: "admin@gmail.com" });
+    const adminEmail = (process.env.ADMIN_EMAIL || "annika9070@gmail.com").toLowerCase().trim();
+    const existingAdmin = await Admin.findOne({ email: adminEmail });
     if (!existingAdmin) {
-      const hashedPassword = await bcrypt.hash("admin123", 10);
-      await Admin.create({
-        name: "Super Admin",
-        email: "admin@gmail.com",
-        password: hashedPassword
-      });
-      console.log("Super Admin seeded successfully");
+      // Check if dummy admin exists and migrate to real email
+      const dummyAdmin = await Admin.findOne({ email: "admin@gmail.com" });
+      if (dummyAdmin) {
+        dummyAdmin.email = adminEmail;
+        dummyAdmin.name = "Admin";
+        dummyAdmin.isActive = true;
+        await dummyAdmin.save();
+        console.log(`Migrated Admin email to ${adminEmail}`);
+      } else {
+        const hashedPassword = await bcrypt.hash("admin123", 10);
+        await Admin.create({
+          name: "Admin",
+          email: adminEmail,
+          password: hashedPassword,
+          role: "ADMIN",
+          isActive: true
+        });
+        console.log(`Admin (${adminEmail}) seeded successfully`);
+      }
     }
   } catch (err) {
     console.log("Admin initialization note:", err.message);
@@ -257,6 +273,7 @@ app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin/properties', adminPropertyRoutes);
 app.use('/api/admin/projects', adminProjectRoutes);
 app.use('/api/admin/notifications', adminNotificationRoutes);
+app.use('/api/admin/broadcasts', adminBroadcastRoutes);
 app.use('/api/admin/legal', adminLegalRoutes);
 app.use('/api/admin/pages', adminPageRoutes);
 app.use('/api/admin/news', adminNewsRoutes);
@@ -312,9 +329,31 @@ app.use('/api/developer-reviews', appReviewRoutes);
 
 app.use('/api/notifications', appNotificationRoutes); // Notifications enabled
 app.use('/api/user/notifications', appNotificationRoutes);
+app.use('/notifications', appNotificationRoutes); // Supports $baseUrl/notifications when baseUrl is host without /api
+
+// Firebase Cloud Messaging (FCM) Push Notifications
+app.use('/api/fcm', appFcmRoutes);
+app.use('/api/user/fcm', appFcmRoutes);
+app.use('/api/admin/fcm', appFcmRoutes);
 
 app.use('/api/legal', appLegalRoutes);
 app.use('/api/pages', appPageRoutes);
+app.use('/api/user/pages', appPageRoutes);
+
+// Direct convenience routes for Mobile App & Webpage conventions
+const publicPageController = require('./src/controllers/user/page.controller');
+app.get(['/api/about', '/api/about-us', '/api/user/about', '/api/user/about-us'], (req, res, next) => {
+  req.params.type = 'about-us';
+  publicPageController.getPageContent(req, res, next);
+});
+app.get(['/api/contact', '/api/contact-us', '/api/user/contact', '/api/user/contact-us'], (req, res, next) => {
+  req.params.type = 'contact-us';
+  publicPageController.getPageContent(req, res, next);
+});
+app.get(['/api/help', '/api/help-support', '/api/user/help', '/api/user/help-support'], (req, res, next) => {
+  req.params.type = 'help-support';
+  publicPageController.getPageContent(req, res, next);
+});
 app.use('/api/news', appNewsRoutes);
 app.use('/api/blogs', appBlogRoutes);
 app.use('/api/insights', appBlogRoutes);
@@ -342,6 +381,10 @@ app.use('/api/user/visit-requests', appVisitRequestRoutes);
 app.use('/api/site-visits', appVisitRequestRoutes);
 app.use('/api/user/site-visits', appVisitRequestRoutes);
 app.use('/api/user/properties/visit-requests', appVisitRequestRoutes);
+
+// Customer Service Enquiries (Packers & Movers, Legal, Interior, Loan)
+app.use('/api/services', appServiceEnquiryRoutes);
+app.use('/api/user/services', appServiceEnquiryRoutes);
 
 // 10. Fallback 404 Route handler
 app.use((req, res, next) => {

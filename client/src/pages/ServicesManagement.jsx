@@ -3,7 +3,8 @@ import {
   CreditCard, Home, Truck, Scale, Search, Plus,
   MapPin, UserCheck, X, Eye, Layers, Check, Edit2,
   Phone, Mail, ArrowUpRight, Sparkles, Clock, CheckCircle2,
-  Trash2, RefreshCw, MessageCircle, AlertTriangle, Send
+  Trash2, RefreshCw, MessageCircle, AlertTriangle, Send,
+  Smartphone, Globe
 } from 'lucide-react';
 
 const ServicesManagement = () => {
@@ -116,6 +117,14 @@ const ServicesManagement = () => {
           designStyle: item.designStyle || '',
           scope: item.scope || [],
           moveType: item.moveType || '',
+          moveFrom: item.moveFrom || '',
+          moveTo: item.moveTo || '',
+          bhkType: item.bhkType || item.propertySize || '',
+          selectedMover: item.selectedMover || '',
+          packageSelected: item.packageSelected || '',
+          legalServiceType: item.legalServiceType || item.legalServiceScope || '',
+          consultationDate: item.consultationDate || '',
+          source: item.source || 'app',
           shiftingDate: item.shiftingDate || '',
           packingQuality: item.packingQuality || '',
           insuranceRequired: item.insuranceRequired || '',
@@ -1449,6 +1458,13 @@ const ServicesManagement = () => {
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border shadow-2xs ${getStatusBadge(selectedEnquiry.status).pill}`}>
                     {selectedEnquiry.status}
                   </span>
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-[var(--text-muted)] border border-[var(--border)]">
+                    {selectedEnquiry.source === 'app' ? (
+                      <><Smartphone size={10} className="text-brand" /> App</>
+                    ) : (
+                      <><Globe size={10} className="text-blue-500" /> Web</>
+                    )}
+                  </span>
                 </div>
                 <h3 className="text-sm font-bold text-[var(--text-primary)] mt-1.5">
                   {selectedEnquiry.serviceName}
@@ -1531,6 +1547,54 @@ const ServicesManagement = () => {
               <div className="space-y-1.5">
                 <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">Specifications</span>
                 <div className="rounded-lg border border-[var(--border)] divide-y divide-[var(--border)] text-xs bg-[var(--bg-surface)]">
+                  {selectedEnquiry.moveFrom && (
+                    <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
+                      <span className="text-[var(--text-muted)]">Pickup Location</span>
+                      <span className="font-medium text-[var(--text-primary)] text-right">{selectedEnquiry.moveFrom}</span>
+                    </div>
+                  )}
+                  {selectedEnquiry.moveTo && (
+                    <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
+                      <span className="text-[var(--text-muted)]">Destination</span>
+                      <span className="font-medium text-[var(--text-primary)] text-right">{selectedEnquiry.moveTo}</span>
+                    </div>
+                  )}
+                  {selectedEnquiry.bhkType && (
+                    <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
+                      <span className="text-[var(--text-muted)]">Move / BHK Size</span>
+                      <span className="font-semibold text-brand">{selectedEnquiry.bhkType}</span>
+                    </div>
+                  )}
+                  {selectedEnquiry.selectedMover && (
+                    <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
+                      <span className="text-[var(--text-muted)]">Preferred Mover</span>
+                      <span className="font-medium text-emerald-600">{selectedEnquiry.selectedMover}</span>
+                    </div>
+                  )}
+                  {selectedEnquiry.legalServiceType && (
+                    <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
+                      <span className="text-[var(--text-muted)]">Legal Service</span>
+                      <span className="font-medium text-[var(--text-primary)] text-right">{selectedEnquiry.legalServiceType}</span>
+                    </div>
+                  )}
+                  {selectedEnquiry.designStyle && (
+                    <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
+                      <span className="text-[var(--text-muted)]">Interior Style</span>
+                      <span className="font-medium text-[var(--text-primary)]">{selectedEnquiry.designStyle}</span>
+                    </div>
+                  )}
+                  {selectedEnquiry.packageSelected && (
+                    <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
+                      <span className="text-[var(--text-muted)]">Design Package</span>
+                      <span className="font-semibold text-amber-600">{selectedEnquiry.packageSelected}</span>
+                    </div>
+                  )}
+                  {selectedEnquiry.consultationDate && (
+                    <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
+                      <span className="text-[var(--text-muted)]">Consultation Date</span>
+                      <span className="font-medium text-[var(--text-primary)]">{selectedEnquiry.consultationDate}</span>
+                    </div>
+                  )}
                   {selectedEnquiry.propertyRef && (
                     <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
                       <span className="text-[var(--text-muted)]">Property</span>

@@ -289,7 +289,7 @@ const FaqCategories = () => {
   const activeCount = categories.filter(c => c.isActive).length;
 
   return (
-    <div className="space-y-6 pb-20 max-w-7xl mx-auto">
+    <div className="w-full space-y-4 pb-20">
       {/* Toast Notification */}
       {toast.show && (
         <div
@@ -305,7 +305,7 @@ const FaqCategories = () => {
       )}
 
       {/* Top Header & Breadcrumb */}
-      <div className="border-b border-[var(--border)] pb-5">
+      <div className="border-b border-[var(--border)] pb-3">
         <Link
           to="/admin/faq"
           className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-brand transition-colors mb-2 cursor-pointer"
@@ -315,7 +315,7 @@ const FaqCategories = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-1">
           <div>
             <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">
+              <h1 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
                 FAQ Categories
               </h1>
               <span className="px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-md">

@@ -5,6 +5,7 @@
 
 const Notification = require('../models/notification.model');
 const User = require('../models/user.model');
+const fcmService = require('../services/fcm.service');
 
 /**
  * Dispatch an in-app notification directly to the Admin notification panel.
@@ -48,6 +49,22 @@ exports.notifyAdmin = async ({ title, message, type = 'enquiry', metadata = {}, 
       isRead: false,
     });
 
+    // Asynchronously dispatch FCM push notification to active Admins
+    fcmService
+      .sendToAdmins({
+        title,
+        body: message,
+        data: {
+          notificationId: notification._id.toString(),
+          type: String(type),
+          forAdmin: 'true',
+          ...metadata,
+        },
+      })
+      .catch((pushErr) => {
+        console.warn('⚠️ FCM admin push notification notice:', pushErr.message);
+      });
+
     return notification;
   } catch (err) {
     console.error('Error dispatching admin notification:', err.message);
@@ -72,6 +89,21 @@ exports.notifyUser = async ({ recipientId, title, message, type = 'system', meta
       metadata,
       isRead: false,
     });
+
+    // Asynchronously dispatch FCM push notification to recipient's mobile devices
+    fcmService
+      .sendToUser(recipientId, {
+        title,
+        body: message,
+        data: {
+          notificationId: notification._id.toString(),
+          type: String(type),
+          ...metadata,
+        },
+      })
+      .catch((pushErr) => {
+        console.warn('⚠️ FCM user push notification notice:', pushErr.message);
+      });
 
     return notification;
   } catch (err) {

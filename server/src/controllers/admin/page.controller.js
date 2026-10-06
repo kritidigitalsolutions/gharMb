@@ -13,7 +13,7 @@ exports.getPageContent = async (req, res, next) => {
     const { type } = req.params;
 
     // Validate type parameter
-    const allowedTypes = ['about-us', 'help-support'];
+    const allowedTypes = ['about-us', 'help-support', 'contact-us'];
     if (!allowedTypes.includes(type)) {
       return res.status(400).json({
         status: 'fail',
@@ -50,10 +50,10 @@ exports.getPageContent = async (req, res, next) => {
 exports.updatePageContent = async (req, res, next) => {
   try {
     const { type } = req.params;
-    const { title, content } = req.body;
+    const { title, content, metadata } = req.body;
 
     // 1. Validate content type
-    const allowedTypes = ['about-us', 'help-support'];
+    const allowedTypes = ['about-us', 'help-support', 'contact-us'];
     if (!allowedTypes.includes(type)) {
       return res.status(400).json({
         status: 'fail',
@@ -79,14 +79,21 @@ exports.updatePageContent = async (req, res, next) => {
       });
     }
 
-    // 3. Upsert content (create if not exists, update if exists)
+    // 3. Prepare update payload
+    const updatePayload = {
+      title: title.trim(),
+      content: content.trim(),
+      lastUpdatedBy: req.user._id
+    };
+
+    if (metadata !== undefined) {
+      updatePayload.metadata = metadata;
+    }
+
+    // 4. Upsert content (create if not exists, update if exists)
     const pageContent = await PageContent.findOneAndUpdate(
       { type },
-      {
-        title: title.trim(),
-        content: content.trim(),
-        lastUpdatedBy: req.user._id
-      },
+      updatePayload,
       {
         new: true,
         upsert: true,

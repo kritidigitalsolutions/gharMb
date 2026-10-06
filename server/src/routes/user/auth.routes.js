@@ -48,8 +48,12 @@ router.patch('/update-profile', userAuth, authController.updateProfile);
 router.post('/basic-info', authController.submitBasicInfo);
 router.patch('/basic-info', authController.submitBasicInfo);
 
-// ── Google / Firebase Auth ────────────────────────────────────────────────────
+// ── Google / Firebase Auth Flow ───────────────────────────────────────────────
 router.post('/google', authController.googleAuth);
+router.post('/google/send-otp', authController.googleSendOtp);
+router.post('/google/verify-otp', authController.googleVerifyOtp);
+router.post('/google/register', authController.googleRegister);
+router.post('/google-register', authController.googleRegister);
 
 // ── Refresh Auth Token ────────────────────────────────────────────────────────
 router.post('/refresh-token', authController.refreshToken);

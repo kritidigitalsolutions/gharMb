@@ -346,52 +346,19 @@ const DashboardHome = () => {
 
   const revenueSeries = useMemo(() => {
     if (!chartData || !chartData.length) return [];
-    const nonZero = chartData.filter(d => Number(d.revenue || 0) > 0);
-    const currentRev = Number(stats?.revenueGenerated || nonZero[nonZero.length - 1]?.revenue || 20100);
-
-    const weights = [
-      0.18, 0.22, 0.26, 0.30, 0.34, 0.38, 0.42, 0.46, 0.50, 0.55, 0.60, 0.65,
-      0.70, 0.74, 0.78, 0.82, 0.85, 0.88, 0.91, 0.94, 0.96, 0.98, 0.99, 1.0
-    ];
-
-    if (nonZero.length >= 3 && nonZero.some(d => d.revenue > 10000)) {
-      const subRatios = [0.45, 0.55];
-      return expandSeries(chartData, (item, mIdx, sIdx, date) => ({
-        date,
-        value: Math.round(Number(item.revenue || 0) * subRatios[sIdx]),
-      }));
-    }
-
-    return expandSeries(chartData, (item, mIdx, sIdx, date, globalIdx) => ({
-      date,
-      value: Math.round(currentRev * (weights[globalIdx % weights.length] ?? 1.0)),
+    return chartData.map((item) => ({
+      date: item.name,
+      value: Number(item.revenue || 0),
     }));
-  }, [chartData, stats]);
+  }, [chartData]);
 
   const inquiriesSeries = useMemo(() => {
     if (!chartData || !chartData.length) return [];
-    const nonZero = chartData.filter(d => Number(d.enquiries || 0) > 0);
-    const currentEnq = Number(stats?.totalEnquiries || nonZero[nonZero.length - 1]?.enquiries || 2);
-
-    // Exact chunky bar rhythm preserving the visual peaks and rounded shape across 24 points
-    const rhythm = [
-      1, 2, 2, 3, 2, 3, 3, 4, 3, 4, 4, 3,
-      2, 3, 3, 4, 3, 3, 4, 5, 4, 4, 3, Math.max(currentEnq, 2)
-    ];
-
-    if (nonZero.length >= 3 && nonZero.some(d => d.enquiries > 10)) {
-      const subRatios = [0.45, 0.55];
-      return expandSeries(chartData, (item, mIdx, sIdx, date) => ({
-        date,
-        value: Math.max(1, Math.round(Number(item.enquiries || 0) * subRatios[sIdx])),
-      }));
-    }
-
-    return expandSeries(chartData, (item, mIdx, sIdx, date, globalIdx) => ({
-      date,
-      value: rhythm[globalIdx % rhythm.length] ?? 3,
+    return chartData.map((item) => ({
+      date: item.name,
+      value: Number(item.enquiries || 0),
     }));
-  }, [chartData, stats]);
+  }, [chartData]);
 
 
   const fetchDashboardStats = async () => {
@@ -470,10 +437,10 @@ const DashboardHome = () => {
       id: 'total-users',
       title: 'Total Users',
       value: stats?.totalUsers?.toLocaleString('en-IN') ?? '0',
-      change: '+12.4%',
+      change: 'Live',
       trend: 'up',
       status: 'good',
-      subtitle: 'Compared to last 30d',
+      subtitle: 'Registered accounts',
       path: '/admin/users',
       hint: 'Manage all platform users'
     },
@@ -481,10 +448,10 @@ const DashboardHome = () => {
       id: 'active-users',
       title: 'Active Users',
       value: stats?.activeUsers?.toLocaleString('en-IN') ?? '0',
-      change: '+8.2%',
+      change: 'Active',
       trend: 'up',
       status: 'good',
-      subtitle: 'Compared to last 30d',
+      subtitle: 'Active account status',
       path: '/admin/users',
       hint: 'Inspect active users'
     },
@@ -492,10 +459,10 @@ const DashboardHome = () => {
       id: 'total-properties',
       title: 'Total Properties',
       value: stats?.totalProperties?.toLocaleString('en-IN') ?? '0',
-      change: '+15.1%',
+      change: 'Catalog',
       trend: 'up',
       status: 'good',
-      subtitle: 'Compared to last 30d',
+      subtitle: 'Platform inventory',
       path: '/admin/verification',
       hint: 'Inspect all listings'
     },
@@ -503,10 +470,10 @@ const DashboardHome = () => {
       id: 'live-properties',
       title: 'Live Properties',
       value: stats?.liveProperties?.toLocaleString('en-IN') ?? '0',
-      change: '+14.2%',
+      change: 'Verified',
       trend: 'up',
       status: 'good',
-      subtitle: 'Compared to last 30d',
+      subtitle: 'Publicly searchable',
       path: '/admin/verification',
       hint: 'View live verified properties'
     },
@@ -514,10 +481,10 @@ const DashboardHome = () => {
       id: 'pending-verification',
       title: 'Pending Verification',
       value: stats?.pendingProperties?.toLocaleString('en-IN') ?? '0',
-      change: '-4.3%',
-      trend: 'down',
-      status: 'bad',
-      subtitle: 'Compared to last 30d',
+      change: stats?.pendingProperties > 0 ? 'Action' : 'Cleared',
+      trend: stats?.pendingProperties > 0 ? 'down' : 'up',
+      status: stats?.pendingProperties > 0 ? 'bad' : 'good',
+      subtitle: 'Awaiting admin review',
       path: '/admin/verification',
       hint: 'Review pending submissions'
     },
@@ -525,10 +492,10 @@ const DashboardHome = () => {
       id: 'rejected-properties',
       title: 'Rejected Properties',
       value: stats?.rejectedProperties?.toLocaleString('en-IN') ?? '0',
-      change: '-2.1%',
+      change: 'Rejected',
       trend: 'down',
       status: 'bad',
-      subtitle: 'Compared to last 30d',
+      subtitle: 'Did not meet compliance',
       path: '/admin/verification',
       hint: 'Inspect rejected listings'
     },
@@ -536,10 +503,10 @@ const DashboardHome = () => {
       id: 'total-builders',
       title: 'Total Builders',
       value: stats?.totalBuilders?.toLocaleString('en-IN') ?? '0',
-      change: '+22.5%',
+      change: 'Partners',
       trend: 'up',
       status: 'good',
-      subtitle: 'Compared to last 30d',
+      subtitle: 'Developer entities',
       path: '/admin/builders',
       hint: 'Manage builder partnerships'
     },
@@ -547,10 +514,10 @@ const DashboardHome = () => {
       id: 'active-projects',
       title: 'Active Projects',
       value: stats?.activeProjects?.toLocaleString('en-IN') ?? '0',
-      change: '+11.8%',
+      change: 'RERA',
       trend: 'up',
       status: 'good',
-      subtitle: 'Compared to last 30d',
+      subtitle: 'Verified developments',
       path: '/admin/builders',
       hint: 'View active builder developments'
     },
@@ -558,10 +525,10 @@ const DashboardHome = () => {
       id: 'total-enquiries',
       title: 'Total Enquiries',
       value: stats?.totalEnquiries?.toLocaleString('en-IN') ?? '0',
-      change: '+18.6%',
+      change: 'Leads',
       trend: 'up',
       status: 'good',
-      subtitle: 'Compared to last 30d',
+      subtitle: 'Buyer interest forms',
       path: '/admin/leads',
       hint: 'Manage buyer leads and enquiries'
     },
@@ -569,10 +536,10 @@ const DashboardHome = () => {
       id: 'site-visits',
       title: 'Site Visits',
       value: stats?.siteVisits?.toLocaleString('en-IN') ?? '0',
-      change: '+5.7%',
+      change: 'Booked',
       trend: 'up',
       status: 'good',
-      subtitle: 'Compared to last 30d',
+      subtitle: 'Scheduled walkthroughs',
       path: '/admin/leads',
       hint: 'Track scheduled visits'
     },
@@ -580,10 +547,10 @@ const DashboardHome = () => {
       id: 'token-requests',
       title: 'Token Requests',
       value: stats?.tokenRequests?.toLocaleString('en-IN') ?? '0',
-      change: '+34.2%',
+      change: 'Escrow',
       trend: 'up',
       status: 'good',
-      subtitle: 'Compared to last 30d',
+      subtitle: 'Booking intent tokens',
       path: '/admin/tokens',
       hint: 'Review token bookings'
     },
@@ -597,10 +564,10 @@ const DashboardHome = () => {
             ? `₹${(stats.revenueGenerated / 100000).toFixed(1)}L`
             : `₹${Number(stats.revenueGenerated).toLocaleString('en-IN')}`)
         : '₹0',
-      change: '+26.8%',
+      change: 'Monetized',
       trend: 'up',
       status: 'good',
-      subtitle: 'Compared to last 30d',
+      subtitle: 'Listing tiers & boost billing',
       path: '/admin/revenue',
       hint: 'Open Revenue Analytics'
     }

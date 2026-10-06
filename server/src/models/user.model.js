@@ -49,9 +49,10 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: {
-        values: ['buyer', 'tenant', 'owner', 'agent', 'builder'],
+        values: ['buyer', 'tenant', 'owner', 'agent', 'builder', null, ''],
         message: 'Role must be: buyer, tenant, owner, agent, or builder.',
       },
+      default: null,
     },
     address: {
       formattedAddress: { type: String, trim: true },
@@ -176,6 +177,36 @@ const userSchema = new mongoose.Schema(
       platformUpdates: { type: Boolean, default: true },
     },
 
+    // FCM Device Tokens for Push Notifications
+    fcmTokens: [
+      {
+        token: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        deviceType: {
+          type: String,
+          enum: ['android', 'ios', 'web', 'unknown'],
+          default: 'android',
+        },
+        deviceId: {
+          type: String,
+          default: null,
+          trim: true,
+        },
+        deviceName: {
+          type: String,
+          default: null,
+          trim: true,
+        },
+        lastActiveAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+
     isOnboardingCompleted: {
       type: Boolean,
       default: false,
@@ -211,6 +242,7 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.index({ location: '2dsphere' });
+userSchema.index({ 'fcmTokens.token': 1 });
 
 const User = mongoose.model('User', userSchema);
 

@@ -5,6 +5,28 @@
 
 const LegalContent = require('../../models/legal-content.model');
 
+// Helper to convert rich HTML into clean formatted text for mobile apps
+const htmlToCleanPlainText = (html) => {
+  if (!html) return '';
+  return html
+    .replace(/<h[1-2][^>]*>(.*?)<\/h[1-2]>/gi, '\n\n$1\n\n')
+    .replace(/<h[3-6][^>]*>(.*?)<\/h[3-6]>/gi, '\n\n$1\n')
+    .replace(/<li[^>]*>(.*?)<\/li>/gi, '• $1\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<br\s*[\/]?>/gi, '\n')
+    .replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gi, '\n> $1\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\r\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+};
+
 const defaultContent = {
   terms: `1. Acceptance of Terms\nBy accessing and using the GHARMB platform, you accept and agree to be bound by the terms and provision of this agreement.\n\n2. User & Administrator Responsibilities\nAs an authorized user or administrator, you are responsible for maintaining the confidentiality of your account credentials.\n\n3. Data Usage & Modification\nThe platform aggregates real estate data. You agree not to reproduce, duplicate, copy, sell, or exploit any portion of the Service without express written permission.`,
   'privacy-policy': `1. Information We Collect\nWe collect information regarding user actions, property interactions, and system modifications within the GHARMB platform.\n\n2. Security & Compliance\nWe implement industry-grade encryption protocols and strict role-based access control to ensure unauthorized personnel cannot tamper with real estate assets.\n\n3. Third-Party Disclosures\nNo client real estate records will be sold or rented to third-party marketing services.`
@@ -154,7 +176,7 @@ exports.getLegalContent = async (req, res, next) => {
 // @access  Private (Admin only)
 exports.createPolicy = async (req, res, next) => {
   try {
-    const { title, slug, shortDescription, content, status, platform, showInFooter, displayOrder } = req.body;
+    const { title, slug, shortDescription, content, plainText, status, platform, showInFooter, displayOrder } = req.body;
 
     if (!title || !title.trim()) {
       return res.status(400).json({
@@ -195,6 +217,7 @@ exports.createPolicy = async (req, res, next) => {
     }
 
     const validPlatform = ['both', 'web', 'app'].includes(platform) ? platform : 'both';
+    const computedPlainText = (plainText && plainText.trim()) || htmlToCleanPlainText(content);
 
     const newPolicy = await LegalContent.create({
       type: finalSlug,
@@ -202,6 +225,7 @@ exports.createPolicy = async (req, res, next) => {
       title: title.trim(),
       shortDescription: shortDescription ? shortDescription.trim() : '',
       content: content.trim(),
+      plainText: computedPlainText,
       status: status === 'draft' ? 'draft' : 'published',
       platform: validPlatform,
       showInFooter: showInFooter !== false,
@@ -234,7 +258,7 @@ exports.updateLegalContent = async (req, res, next) => {
   try {
     const rawType = req.params.type;
     const type = normalizeType(rawType);
-    const { title, slug, shortDescription, content, status, platform, showInFooter, displayOrder } = req.body;
+    const { title, slug, shortDescription, content, plainText, status, platform, showInFooter, displayOrder } = req.body;
 
     if (!type) {
       return res.status(400).json({
@@ -261,10 +285,12 @@ exports.updateLegalContent = async (req, res, next) => {
     }
 
     const isSystemPolicy = (type === 'terms' || type === 'privacy-policy');
+    const computedPlainText = (plainText && plainText.trim()) || htmlToCleanPlainText(content);
 
     const updatePayload = {
       title: title.trim(),
       content: content.trim(),
+      plainText: computedPlainText,
       lastUpdatedBy: req.user._id
     };
 

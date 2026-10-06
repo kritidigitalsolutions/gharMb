@@ -64,13 +64,13 @@ const API = axios.create({
 
 // Request interceptor: attach token & check expiration before dispatch
 API.interceptors.request.use((config) => {
-  const isAuthPath = config.url?.includes('/auth/');
+  const isPublicAuthPath = config.url?.includes('/login') || config.url?.includes('/register') || config.url?.includes('/firebase');
   const token = localStorage.getItem("adminToken");
   const refreshToken = localStorage.getItem("adminRefreshToken");
 
-  if (token && !isAuthPath) {
-    // If token is expired and no refresh token exists, clear session immediately
-    if (isTokenExpired(token) && !refreshToken) {
+  if (token) {
+    // If token is expired and no refresh token exists, clear session immediately (except on public login endpoints)
+    if (isTokenExpired(token) && !refreshToken && !isPublicAuthPath) {
       clearAuthSession("Your admin session has expired. Please log in again.");
       if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
         window.location.href = "/login?expired=1";
@@ -101,9 +101,9 @@ API.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    const isAuthPath = originalRequest?.url?.includes('/auth/');
+    const isPublicAuthPath = originalRequest?.url?.includes('/login') || originalRequest?.url?.includes('/register') || originalRequest?.url?.includes('/firebase') || originalRequest?.url?.includes('/refresh');
 
-    if (error.response?.status === 401 && !isAuthPath && !originalRequest?._retry) {
+    if (error.response?.status === 401 && !isPublicAuthPath && !originalRequest?._retry) {
       const refreshToken = localStorage.getItem("adminRefreshToken");
 
       if (refreshToken) {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   Mail,
   Lock,
@@ -8,12 +8,14 @@ import {
   EyeOff,
   Loader2,
   Info,
-  ShieldCheck,
+  AlertCircle,
+  CheckCircle2,
   ArrowRight,
-  Sparkles
+  KeyRound,
+  Check
 } from 'lucide-react';
 import API, { isTokenExpired, clearAuthSession } from "../../api/api";
-import { signInWithFirebaseEmail } from "../../config/firebase";
+import { signInWithFirebaseEmail, sendFirebasePasswordReset } from "../../config/firebase";
 import AnimatedGradientBackground from "../../components/common/AnimatedGradientBackground";
 
 const Login = () => {
@@ -22,14 +24,26 @@ const Login = () => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [error, setError] = useState("");
   const [sessionNotice, setSessionNotice] = useState("");
   const [success, setSuccess] = useState("");
+  const [isFilled, setIsFilled] = useState(false);
 
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
+
+  const handleAutoFill = () => {
+    setFormData({
+      email: 'annika9070@gmail.com',
+      password: '123123'
+    });
+    setError('');
+    setIsFilled(true);
+    setTimeout(() => setIsFilled(false), 2000);
+  };
 
   // Always force Dark Mode on the Login Page
   useEffect(() => {
@@ -71,6 +85,41 @@ const Login = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleForgotPassword = async () => {
+    setError('');
+    setSuccess('');
+    const emailToReset = (formData.email || '').trim().toLowerCase();
+
+    if (!emailToReset) {
+      setError('Please enter your admin email address first, then click Forgot password.');
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      // 1. Send via Firebase Client SDK
+      const fbResult = await sendFirebasePasswordReset(emailToReset);
+
+      if (fbResult && fbResult.success) {
+        setSuccess(`Password reset email sent to ${emailToReset}. Check your inbox or spam folder.`);
+      } else {
+        // Fallback: Trigger backend password reset link handler
+        try {
+          const backendRes = await API.post('/admin/auth/forgot-password', { email: emailToReset });
+          setSuccess(backendRes.data?.message || `Password reset link sent to ${emailToReset}. Please check your email.`);
+        } catch (backendErr) {
+          const errMsg = fbResult?.error || backendErr.response?.data?.message || 'Failed to send password reset email.';
+          setError(errMsg);
+        }
+      }
+    } catch (err) {
+      console.error('Forgot password error:', err);
+      setError(err.message || 'Error sending password reset email.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
@@ -78,42 +127,36 @@ const Login = () => {
     setSuccess('');
     setLoading(true);
 
-    const { email, password } = formData;
-
     try {
-      // 1. Authenticate via Firebase Email & Password
+      const cleanEmail = (formData.email || '').trim().toLowerCase();
+      const password = formData.password;
+
+      if (!cleanEmail || !password) {
+        setError('Please enter both email and password.');
+        setLoading(false);
+        return;
+      }
+
+      // 1. Fast attempt with Firebase Email Login Service
       let firebaseToken = null;
       try {
-        const fbResult = await signInWithFirebaseEmail(email, password);
-        if (fbResult && fbResult.success) {
+        const fbResult = await Promise.race([
+          signInWithFirebaseEmail(cleanEmail, password),
+          new Promise((resolve) => setTimeout(() => resolve(null), 2000))
+        ]);
+        if (fbResult && fbResult.success && fbResult.idToken) {
           firebaseToken = fbResult.idToken;
         }
       } catch (fbErr) {
-        console.warn("Firebase email auth notice:", fbErr);
+        console.warn("Firebase Email Login notice:", fbErr?.message || fbErr);
       }
 
-      // 2. Authenticate / verify session with backend
-      let response;
-      if (firebaseToken) {
-        try {
-          response = await API.post('/admin/auth/firebase', {
-            idToken: firebaseToken,
-            email,
-            password
-          });
-        } catch (_) {
-          // Fallback to standard admin auth endpoint if /admin/auth/firebase is not available
-          response = await API.post('/admin/auth/login', {
-            email,
-            password
-          });
-        }
-      } else {
-        response = await API.post('/admin/auth/login', {
-          email,
-          password
-        });
-      }
+      // 2. Strict backend verification
+      const response = await API.post('/admin/auth/login', {
+        email: cleanEmail,
+        password,
+        firebaseToken
+      });
 
       const token = response?.data?.token || response?.data?.data?.token;
       const adminData = response?.data?.admin || response?.data?.data?.admin;
@@ -133,13 +176,14 @@ const Login = () => {
         const destination = location.state?.from?.pathname || '/admin';
         setTimeout(() => {
           navigate(destination, { replace: true });
-        }, 300);
+        }, 200);
       } else {
         setError(response?.data?.message || 'Login failed. Invalid response from server.');
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Login failed. Please check your email and password.');
       console.error('Login error:', err);
+      const msg = err.response?.data?.message || err.message || 'Invalid email or password.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -151,174 +195,128 @@ const Login = () => {
       className="dark relative min-h-screen w-full flex flex-col items-center justify-center bg-[#111111] text-[#DDDDDD] p-4 sm:p-6 font-sans overflow-hidden select-none"
     >
       
-      {/* ── Animated Breathing Radial Gradient Background ── */}
+      {/* ── Background Ambient Glow ── */}
       <AnimatedGradientBackground 
         startingGap={115}
         Breathing={true}
         forceDark={true}
-        animationSpeed={0.035}
-        breathingRange={8}
+        animationSpeed={0.025}
+        breathingRange={6}
       />
 
-      {/* ── Main Clean Animated Dark Card with Entrance & Floating Breathing Loop ── */}
+      {/* ── Main Clean Animated Dark Card ── */}
       <motion.div 
-        initial={{ opacity: 0, y: 28, scale: 0.95 }}
-        animate={{ 
-          opacity: 1, 
-          y: [0, -6, 0],
-          scale: 1,
-        }}
-        transition={{
-          opacity: { duration: 0.6, ease: [0.22, 1, 0.36, 1] },
-          scale: { duration: 0.6, ease: [0.22, 1, 0.36, 1] },
-          y: {
-            duration: 5,
-            repeat: Infinity,
-            repeatType: "reverse",
-            ease: "easeInOut",
-            delay: 0.6,
-          }
-        }}
-        className="relative w-full max-w-[420px] rounded-[28px] p-7 sm:p-9 z-10 transition-colors duration-300 bg-[#111111]/80 backdrop-blur-xl border border-[#444444]/80 shadow-2xl"
+        initial={{ opacity: 0, y: 18, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="relative w-full max-w-[420px] rounded-[28px] p-7 sm:p-9 z-10 bg-[#111111]/90 backdrop-blur-xl border border-[#444444]/80 shadow-2xl"
       >
 
-        {/* Brand Header & Clean Logo */}
-        <div className="flex flex-col items-center mb-7 text-center">
-          
-          {/* Logo with gentle spring entrance */}
-          <motion.div 
-            initial={{ scale: 0.7, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.15, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="mb-4"
-          >
-            <img 
-              src="/logo.png" 
-              alt="GHARMB Logo" 
-              className="w-16 h-16 object-contain" 
-            />
-          </motion.div>
+        {/* Logo and Admin Panel Heading */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
+          className="flex flex-col items-center mb-5 text-center"
+        >
+          <img 
+            src="/logo.png" 
+            alt="GHARMB Logo" 
+            className="w-16 h-16 object-contain mb-2.5" 
+          />
+          <h1 className="text-xl sm:text-2xl font-black text-[#DDDDDD] tracking-tight">
+            Admin Panel
+          </h1>
+        </motion.div>
 
-          {/* Brand Name & Pill Badge */}
-          <motion.div 
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25, duration: 0.4 }}
-            className="flex items-center gap-2.5"
-          >
-            <h1 className="text-2xl font-black text-[#DDDDDD] tracking-tight">
-              GHAR<span className="text-[#FF5A3C]">MB</span>
-            </h1>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest bg-[#FF5A3C]/10 text-[#FF5A3C] border border-[#FF5A3C]/30">
-              Admin Portal
-            </span>
-          </motion.div>
 
-          <motion.p 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.32, duration: 0.4 }}
-            className="text-xs font-medium text-[#888888] mt-1.5"
-          >
-            Real Estate Management & Live Control System
-          </motion.p>
-        </div>
-
-        {/* Animated Alert & Notice Banners */}
+        {/* Alert & Notice Banners */}
         <AnimatePresence mode="wait">
           {sessionNotice && (
             <motion.div 
               key="session-notice"
-              initial={{ opacity: 0, height: 0, y: -6 }}
-              animate={{ opacity: 1, height: "auto", y: 0 }}
-              exit={{ opacity: 0, height: 0, y: -6 }}
-              transition={{ duration: 0.3 }}
-              className="mb-5 p-3.5 bg-[#444444]/30 border border-[#444444] text-[#DDDDDD] text-xs rounded-xl flex items-center gap-2.5 font-medium overflow-hidden"
+              initial={{ opacity: 0, y: -6, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -4, scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+              className="mb-4 px-3.5 py-2.5 bg-blue-500/[0.08] border border-blue-500/20 rounded-xl flex items-start gap-2.5 text-left"
             >
-              <Info size={16} className="text-[#FF5A3C] shrink-0" />
-              <span>{sessionNotice}</span>
+              <Info size={15} className="text-blue-400 shrink-0 mt-0.5" />
+              <span className="text-[12px] font-medium text-blue-200/90 leading-snug">{sessionNotice}</span>
             </motion.div>
           )}
 
           {error && (
             <motion.div 
               key="auth-error"
-              initial={{ opacity: 0, height: 0, y: -6 }}
+              initial={{ opacity: 0, y: -6, scale: 0.98 }}
               animate={{ 
                 opacity: 1, 
-                height: "auto", 
-                y: 0,
-                x: [-6, 6, -4, 4, -2, 2, 0]
+                y: 0, 
+                scale: 1,
+                x: [-3, 3, -2, 2, 0]
               }}
-              exit={{ opacity: 0, height: 0, y: -6 }}
-              transition={{ duration: 0.35 }}
-              className="mb-5 p-3.5 bg-[#DD543C]/15 border border-[#DD543C]/40 text-[#DDDDDD] text-xs rounded-xl text-center font-semibold leading-relaxed flex items-center justify-center gap-2 overflow-hidden"
+              exit={{ opacity: 0, y: -4, scale: 0.98 }}
+              transition={{ duration: 0.25 }}
+              className="mb-4 px-3.5 py-2.5 bg-rose-500/[0.08] border border-rose-500/25 rounded-xl flex items-start gap-2.5 text-left"
             >
-              <div className="w-1.5 h-1.5 rounded-full bg-[#FF5A3C] shrink-0" />
-              <span>{error}</span>
+              <AlertCircle size={15} className="text-rose-400 shrink-0 mt-0.5" />
+              <span className="text-[12px] font-medium text-rose-200/90 leading-snug">{error}</span>
             </motion.div>
           )}
           
           {success && (
             <motion.div 
               key="auth-success"
-              initial={{ opacity: 0, height: 0, y: -6 }}
-              animate={{ opacity: 1, height: "auto", y: 0 }}
-              exit={{ opacity: 0, height: 0, y: -6 }}
-              transition={{ duration: 0.3 }}
-              className="mb-5 p-3.5 bg-[#FF5A3C]/15 border border-[#FF5A3C]/40 text-[#DDDDDD] text-xs rounded-xl text-center font-semibold flex items-center justify-center gap-2 overflow-hidden"
+              initial={{ opacity: 0, y: -6, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -4, scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+              className="mb-4 px-3.5 py-2.5 bg-emerald-500/[0.08] border border-emerald-500/25 rounded-xl flex items-start gap-2.5 text-left"
             >
-              <ShieldCheck size={16} className="text-[#FF5A3C] shrink-0" />
-              <span>{success}</span>
+              <CheckCircle2 size={15} className="text-emerald-400 shrink-0 mt-0.5" />
+              <span className="text-[12px] font-medium text-emerald-200/90 leading-snug">{success}</span>
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* Email & Password Authentication Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-3.5">
           
           {/* Email Field */}
           <motion.div 
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.38, duration: 0.4 }}
-            className="space-y-1.5"
+            transition={{ delay: 0.14, duration: 0.3 }}
+            className="group relative flex items-center rounded-xl border border-[#444444]/80 bg-[#111111] hover:border-[#888888]/60 focus-within:border-[#FF5A3C] focus-within:ring-2 focus-within:ring-[#FF5A3C]/20 transition-all duration-200 overflow-hidden"
           >
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#888888] ml-1">
-              Admin Email Address
-            </label>
-            <div className="group relative flex items-center rounded-xl border border-[#444444]/80 bg-[#111111] hover:border-[#888888]/60 focus-within:border-[#FF5A3C] focus-within:ring-2 focus-within:ring-[#FF5A3C]/20 transition-all duration-200 overflow-hidden">
-              <div className="pl-3.5 pr-2.5 text-[#888888] flex items-center pointer-events-none group-focus-within:text-[#FF5A3C] transition-colors">
-                <Mail size={16} />
-              </div>
-              <input
-                type="email"
-                name="email"
-                required
-                value={formData.email}
-                onChange={handleChange}
-                autoComplete="email"
-                placeholder="admin@gmail.com"
-                style={{
-                  colorScheme: 'dark',
-                  WebkitBoxShadow: '0 0 0 1000px #111111 inset',
-                  WebkitTextFillColor: '#DDDDDD'
-                }}
-                className="w-full py-2.5 sm:py-3 pr-3.5 bg-[#111111] text-xs sm:text-sm text-[#DDDDDD] placeholder:text-[#888888]/50 focus:outline-none font-medium"
-              />
+            <div className="pl-3.5 pr-2.5 text-[#888888] flex items-center pointer-events-none group-focus-within:text-[#FF5A3C] transition-colors">
+              <Mail size={16} />
             </div>
+            <input
+              type="email"
+              name="email"
+              required
+              value={formData.email}
+              onChange={handleChange}
+              autoComplete="email"
+              placeholder="Email"
+              style={{
+                colorScheme: 'dark',
+                WebkitBoxShadow: '0 0 0 1000px #111111 inset',
+                WebkitTextFillColor: '#DDDDDD'
+              }}
+              className="w-full py-2.5 sm:py-3 pr-3.5 bg-[#111111] text-xs sm:text-sm text-[#DDDDDD] placeholder:text-[#888888]/60 focus:outline-none font-medium"
+            />
           </motion.div>
 
           {/* Password Field */}
           <motion.div 
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45, duration: 0.4 }}
+            transition={{ delay: 0.2, duration: 0.3 }}
             className="space-y-1.5"
           >
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#888888] ml-1">
-              Password
-            </label>
             <div className="group relative flex items-center rounded-xl border border-[#444444]/80 bg-[#111111] hover:border-[#888888]/60 focus-within:border-[#FF5A3C] focus-within:ring-2 focus-within:ring-[#FF5A3C]/20 transition-all duration-200 overflow-hidden">
               <div className="pl-3.5 pr-2.5 text-[#888888] flex items-center pointer-events-none group-focus-within:text-[#FF5A3C] transition-colors">
                 <Lock size={16} />
@@ -330,13 +328,13 @@ const Login = () => {
                 value={formData.password}
                 onChange={handleChange}
                 autoComplete="current-password"
-                placeholder="••••••••"
+                placeholder="Password"
                 style={{
                   colorScheme: 'dark',
                   WebkitBoxShadow: '0 0 0 1000px #111111 inset',
                   WebkitTextFillColor: '#DDDDDD'
                 }}
-                className="w-full py-2.5 sm:py-3 pr-2 bg-[#111111] text-xs sm:text-sm text-[#DDDDDD] placeholder:text-[#888888]/50 focus:outline-none font-medium"
+                className="w-full py-2.5 sm:py-3 pr-2 bg-[#111111] text-xs sm:text-sm text-[#DDDDDD] placeholder:text-[#888888]/60 focus:outline-none font-medium"
               />
               <button
                 type="button"
@@ -347,44 +345,73 @@ const Login = () => {
                 {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
+
+            {/* Forgot Password Link */}
+            <div className="flex justify-end pr-1 pt-0.5">
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={resetLoading || loading}
+                className="text-[11px] font-semibold text-[#FF5A3C] hover:text-[#DD543C] transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
+              >
+                {resetLoading ? (
+                  <>
+                    <Loader2 size={11} className="animate-spin" />
+                    <span>Sending email...</span>
+                  </>
+                ) : (
+                  <span>Forgot password?</span>
+                )}
+              </button>
+            </div>
           </motion.div>
 
-          {/* Submit Action Button with interactive hover & tap physics */}
+          {/* Submit Action Button */}
           <motion.button
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.52, duration: 0.4 }}
+            transition={{ delay: 0.26, duration: 0.3 }}
             whileHover={{ scale: 1.015 }}
             whileTap={{ scale: 0.985 }}
             type="submit"
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-[#FF5A3C] hover:bg-[#DD543C] text-white font-bold rounded-xl transition-all duration-150 disabled:opacity-60 disabled:pointer-events-none mt-5 cursor-pointer text-xs sm:text-sm tracking-wide shadow-xs hover:shadow-sm"
+            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-[#FF5A3C] hover:bg-[#DD543C] text-white font-bold rounded-xl transition-all duration-150 disabled:opacity-60 disabled:pointer-events-none mt-5 cursor-pointer text-xs sm:text-sm tracking-wide shadow-md"
           >
             {loading ? (
               <>
                 <Loader2 size={17} className="animate-spin text-white" />
-                <span>Authenticating Session...</span>
+                <span>Authenticating Credentials...</span>
               </>
             ) : (
               <>
-                <span>Sign In with Firebase</span>
-                <ArrowRight size={15} className="transition-transform duration-200 hover:translate-x-0.5" />
+                <span>Sign In to Admin Workspace</span>
+                <ArrowRight size={15} />
               </>
             )}
           </motion.button>
         </form>
 
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6, duration: 0.4 }}
-          className="mt-6 pt-4 border-t border-[#444444]/60 flex items-center justify-center gap-2"
-        >
-          <div className="flex items-center gap-1.5 text-[10px] text-[#888888] font-semibold">
-            <ShieldCheck size={13} className="text-[#FF5A3C] shrink-0" />
-            <span>Secure System Access</span>
-          </div>
-        </motion.div>
+        {/* Small Auto Credential Button */}
+        <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-center">
+          <button
+            type="button"
+            onClick={handleAutoFill}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-[#FF5A3C]/10 border border-white/[0.08] hover:border-[#FF5A3C]/40 text-[#888888] hover:text-[#FF5A3C] transition-all duration-150 cursor-pointer text-[11px] font-medium"
+            title="Auto-fill credentials"
+          >
+            {isFilled ? (
+              <>
+                <Check size={12} className="text-emerald-400" />
+                <span className="text-emerald-400 font-semibold">Credentials filled</span>
+              </>
+            ) : (
+              <>
+                <KeyRound size={12} className="text-[#FF5A3C]" />
+                <span>Auto Credential</span>
+              </>
+            )}
+          </button>
+        </div>
       </motion.div>
     </div>
   );

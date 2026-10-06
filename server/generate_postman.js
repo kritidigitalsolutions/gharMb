@@ -46,9 +46,12 @@ const collection = {
     { key: "tokenRequestId", value: "", type: "string" },
     { key: "visitRequestId", value: "", type: "string" },
     { key: "serviceId", value: "", type: "string" },
+    { key: "serviceRequestIdCode", value: "SRV-MOV-131", type: "string" },
     { key: "referralId", value: "", type: "string" },
     { key: "faqId", value: "", type: "string" },
-    { key: "faqCategoryId", value: "", type: "string" }
+    { key: "faqCategoryId", value: "", type: "string" },
+    { key: "googleRegistrationToken", value: "", type: "string" },
+    { key: "googlePhoneVerificationToken", value: "", type: "string" }
   ],
   item: [
     // =========================================================================
@@ -174,7 +177,7 @@ const collection = {
               }
             },
             {
-              name: "05. Google Sign-In / Firebase Auth (Auto-saves userToken)",
+              name: "05. Google Sign-In / Firebase Auth (POST /user/auth/google)",
               event: [
                 {
                   listen: "test",
@@ -186,11 +189,15 @@ const collection = {
                       "    if (jsonData.data && jsonData.data.user && jsonData.data.user.id) {",
                       "        pm.collectionVariables.set('userId', jsonData.data.user.id);",
                       "    }",
-                      "    console.log('✅ userToken & userId set successfully from Google Sign-In');",
+                      "    console.log('✅ Existing user logged in: userToken & userId set');",
                       "}",
                       "if (jsonData.refreshToken) {",
                       "    pm.collectionVariables.set('userRefreshToken', jsonData.refreshToken);",
-                      "    console.log('✅ userRefreshToken set successfully from Google Sign-In');",
+                      "    console.log('✅ userRefreshToken set from Google Sign-In');",
+                      "}",
+                      "if (jsonData.registrationToken) {",
+                      "    pm.collectionVariables.set('googleRegistrationToken', jsonData.registrationToken);",
+                      "    console.log('✅ New user detected: googleRegistrationToken saved for form completion');",
                       "}"
                     ],
                     type: "text/javascript"
@@ -203,20 +210,122 @@ const collection = {
                 body: {
                   mode: "raw",
                   raw: JSON.stringify({
-                    idToken: "PASTE_FIREBASE_OR_GOOGLE_ID_TOKEN_HERE",
-                    role: "buyer",
-                    phone: "+919876543210"
+                    idToken: "PASTE_FIREBASE_OR_GOOGLE_ID_TOKEN_HERE"
                   }, null, 2)
                 },
                 url: {
                   raw: "{{baseUrl}}/user/auth/google",
                   host: ["{{baseUrl}}"],
                   path: ["user", "auth", "google"]
-                }
+                },
+                description: "Authenticates via Google OAuth or Firebase ID token. If user already exists, logs in directly. If new user, returns isNewUser: true with locked email and registrationToken without registering in DB yet."
               }
             },
             {
-              name: "06. Get Current User Profile (GET /user/auth/me)",
+              name: "06. Google Sign-In Step 2: Send Phone Verification OTP (POST /user/auth/google/send-otp)",
+              request: {
+                method: "POST",
+                header: [{ key: "Content-Type", value: "application/json" }],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    phone: "9876543210",
+                    email: "rohan@gmail.com",
+                    registrationToken: "{{googleRegistrationToken}}"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/user/auth/google/send-otp",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "auth", "google", "send-otp"]
+                },
+                description: "Sends 6-digit OTP to mobile number. Verifies that the phone number is unique and not already linked to an existing account (409 Conflict if taken)."
+              }
+            },
+            {
+              name: "07. Google Sign-In Step 3: Verify Phone OTP (POST /user/auth/google/verify-otp)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.phoneVerificationToken) {",
+                      "    pm.collectionVariables.set('googlePhoneVerificationToken', jsonData.phoneVerificationToken);",
+                      "    console.log('✅ googlePhoneVerificationToken saved successfully');",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [{ key: "Content-Type", value: "application/json" }],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    phone: "9876543210",
+                    otp: "123456"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/user/auth/google/verify-otp",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "auth", "google", "verify-otp"]
+                },
+                description: "Verifies the OTP submitted by the user and issues a phoneVerificationToken for form submission."
+              }
+            },
+            {
+              name: "08. Google Sign-In Step 4: Complete Google Registration (POST /user/auth/google/register)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.token) {",
+                      "    pm.collectionVariables.set('userToken', jsonData.token);",
+                      "    if (jsonData.data && jsonData.data.user && jsonData.data.user.id) {",
+                      "        pm.collectionVariables.set('userId', jsonData.data.user.id);",
+                      "    }",
+                      "    console.log('✅ userToken & userId set from Google Registration');",
+                      "}",
+                      "if (jsonData.refreshToken) {",
+                      "    pm.collectionVariables.set('userRefreshToken', jsonData.refreshToken);",
+                      "    console.log('✅ userRefreshToken set from Google Registration');",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [{ key: "Content-Type", value: "application/json" }],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    name: "Rohan Sharma",
+                    email: "rohan@gmail.com",
+                    phone: "9876543210",
+                    phoneVerificationToken: "{{googlePhoneVerificationToken}}",
+                    registrationToken: "{{googleRegistrationToken}}",
+                    role: "buyer",
+                    address: "Flat 302, Palm Greens, Sector 62, Noida"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/user/auth/google/register",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "auth", "google", "register"]
+                },
+                description: "Registers user in MongoDB only after details are filled and phone OTP is verified. Enforces email and phone uniqueness."
+              }
+            },
+            {
+              name: "09. Get Current User Profile (GET /user/auth/me)",
               request: {
                 method: "GET",
                 header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
@@ -228,7 +337,7 @@ const collection = {
               }
             },
             {
-              name: "07. Submit Basic Info (Screen 1: Basic Info)",
+              name: "10. Submit Basic Info (Screen 1: Basic Info)",
               event: [
                 {
                   listen: "test",
@@ -269,7 +378,7 @@ const collection = {
               }
             },
             {
-              name: "08. Refresh User Auth Token (Auto-updates userToken & userRefreshToken)",
+              name: "11. Refresh User Auth Token (Auto-updates userToken & userRefreshToken)",
               event: [
                 {
                   listen: "test",
@@ -310,7 +419,7 @@ const collection = {
               }
             },
             {
-              name: "09. Update Profile (PATCH /user/auth/update-profile)",
+              name: "12. Update Profile (PATCH /user/auth/update-profile)",
               request: {
                 method: "PATCH",
                 header: [
@@ -335,7 +444,7 @@ const collection = {
               }
             },
             {
-              name: "10. Current User Verification Status (GET /user/auth/verification-status)",
+              name: "13. Current User Verification Status (GET /user/auth/verification-status)",
               request: {
                 method: "GET",
                 header: [{ key: "Authorization", value: "Bearer {{userToken}}" }],
@@ -348,7 +457,7 @@ const collection = {
               }
             },
             {
-              name: "11. Refresh Token Alias (POST /user/auth/refresh)",
+              name: "14. Refresh Token Alias (POST /user/auth/refresh)",
               request: {
                 method: "POST",
                 header: [{ key: "Content-Type", value: "application/json" }],
@@ -2018,6 +2127,221 @@ const collection = {
               }
             }
           ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 14. Customer Services & Enquiries (Packers & Movers, Legal, Interior, Loan)
+        // ---------------------------------------------------------------------
+        {
+          name: "14. Customer Services & Enquiries (Packers & Movers, Legal, Interior, Loan)",
+          description: "Customer service request submission and dynamic catalogs for Movers, Legal, and Interior design. Inquiries are automatically routed exclusively to Admin.",
+          item: [
+            {
+              name: "01. Get Dynamic Service Catalogs (Movers, Legal, Interior) - GET /services/catalogs",
+              request: {
+                method: "GET",
+                header: [],
+                url: {
+                  raw: "{{baseUrl}}/services/catalogs",
+                  host: ["{{baseUrl}}"],
+                  path: ["services", "catalogs"]
+                }
+              }
+            },
+            {
+              name: "02. Submit Packers & Movers Quote Request (POST /services/movers/enquiry)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.service) {",
+                      "    pm.collectionVariables.set('serviceId', jsonData.data.service._id);",
+                      "    pm.collectionVariables.set('serviceRequestIdCode', jsonData.data.service.serviceRequestId);",
+                      "    console.log('✅ serviceId and serviceRequestIdCode auto-saved: ' + jsonData.data.service.serviceRequestId);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}", description: "Optional" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    clientName: "Aarav Mehta",
+                    clientPhone: "9876543210",
+                    clientEmail: "aarav@example.com",
+                    moveFrom: "Sector 62, Noida",
+                    moveTo: "Indirapuram, Ghaziabad",
+                    shiftingDate: "2026-10-25",
+                    bhkType: "3 BHK",
+                    selectedMover: "SafeMove Packers",
+                    notes: "Fragile glassware and heavy double-door refrigerator. 2nd floor with elevator.",
+                    source: "app"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/services/movers/enquiry",
+                  host: ["{{baseUrl}}"],
+                  path: ["services", "movers", "enquiry"]
+                }
+              }
+            },
+            {
+              name: "03. Book Legal Services Consultation (POST /services/legal/enquiry)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.service) {",
+                      "    pm.collectionVariables.set('serviceId', jsonData.data.service._id);",
+                      "    pm.collectionVariables.set('serviceRequestIdCode', jsonData.data.service.serviceRequestId);",
+                      "    console.log('✅ serviceId and serviceRequestIdCode auto-saved: ' + jsonData.data.service.serviceRequestId);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}", description: "Optional" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    clientName: "Pooja Verma",
+                    clientPhone: "9811223344",
+                    clientEmail: "pooja.verma@example.com",
+                    legalServiceType: "Sale deed drafting",
+                    propertyRef: "Apex Golf Avenue, Greater Noida West",
+                    location: "Noida",
+                    consultationDate: "2026-10-12",
+                    notes: "Resale registry agreement drafting and legal verification.",
+                    source: "app"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/services/legal/enquiry",
+                  host: ["{{baseUrl}}"],
+                  path: ["services", "legal", "enquiry"]
+                }
+              }
+            },
+            {
+              name: "04. Book Interior Design Consultation (POST /services/interior/enquiry)",
+              event: [
+                {
+                  listen: "test",
+                  script: {
+                    exec: [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.service) {",
+                      "    pm.collectionVariables.set('serviceId', jsonData.data.service._id);",
+                      "    pm.collectionVariables.set('serviceRequestIdCode', jsonData.data.service.serviceRequestId);",
+                      "    console.log('✅ serviceId and serviceRequestIdCode auto-saved: ' + jsonData.data.service.serviceRequestId);",
+                      "}"
+                    ],
+                    type: "text/javascript"
+                  }
+                }
+              ],
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}", description: "Optional" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    clientName: "Kunal Malhotra",
+                    clientPhone: "9988776655",
+                    clientEmail: "kunal.m@example.com",
+                    designStyle: "Modern",
+                    packageSelected: "Premium",
+                    bhkType: "3 BHK",
+                    budgetRange: "₹5.0 Lakhs",
+                    location: "Gurgaon, DLF Phase 5",
+                    consultationDate: "2026-10-15",
+                    notes: "Looking for modular kitchen, false ceiling, and woodwork.",
+                    source: "app"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/services/interior/enquiry",
+                  host: ["{{baseUrl}}"],
+                  path: ["services", "interior", "enquiry"]
+                }
+              }
+            },
+            {
+              name: "05. Unified Generic Service Enquiry (POST /services/enquiry)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}", description: "Optional" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    serviceType: "Movers",
+                    clientName: "Rahul Sharma",
+                    clientPhone: "9876543210",
+                    clientEmail: "rahul@example.com",
+                    moveFrom: "Sector 62, Noida",
+                    moveTo: "Indirapuram, Ghaziabad",
+                    bhkType: "3 BHK",
+                    shiftingDate: "2026-10-25",
+                    source: "web"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/services/enquiry",
+                  host: ["{{baseUrl}}"],
+                  path: ["services", "enquiry"]
+                }
+              }
+            },
+            {
+              name: "06. Get My Personal Service Enquiries - Authenticated (GET /services/my-enquiries)",
+              request: {
+                method: "GET",
+                header: [
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                url: {
+                  raw: "{{baseUrl}}/services/my-enquiries",
+                  host: ["{{baseUrl}}"],
+                  path: ["services", "my-enquiries"]
+                }
+              }
+            },
+            {
+              name: "07. Public Live Enquiry Status & Milestone Tracking (GET /services/track/:id)",
+              request: {
+                method: "GET",
+                header: [],
+                url: {
+                  raw: "{{baseUrl}}/services/track/{{serviceRequestIdCode}}",
+                  host: ["{{baseUrl}}"],
+                  path: ["services", "track", "{{serviceRequestIdCode}}"]
+                }
+              }
+            }
+          ]
         }
       ]
     },
@@ -3473,6 +3797,58 @@ const collection = {
                   raw: "{{baseUrl}}/admin/pages/help-support",
                   host: ["{{baseUrl}}"],
                   path: ["admin", "pages", "help-support"]
+                }
+              }
+            },
+            {
+              name: "08. Admin - Get Contact Us Details (GET /admin/pages/contact-us)",
+              request: {
+                method: "GET",
+                header: [{ key: "Authorization", value: "Bearer {{adminToken}}" }],
+                url: {
+                  raw: "{{baseUrl}}/admin/pages/contact-us",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "pages", "contact-us"]
+                }
+              }
+            },
+            {
+              name: "09. Admin - Update Contact Us Details (PUT /admin/pages/contact-us)",
+              request: {
+                method: "PUT",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{adminToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    title: "Get in Touch with GharMB",
+                    content: "Have questions about property verification, builder tracking, or partnership opportunities? Reach out to our dedicated advisory team.",
+                    metadata: {
+                      helpline: "+91 98765 43210",
+                      tollFree: "1800-120-GHARMB",
+                      whatsapp: "+91 98765 43210",
+                      supportEmail: "support@gharmb.in",
+                      salesEmail: "sales@gharmb.in",
+                      partnershipEmail: "partner@gharmb.in",
+                      workingHours: "Monday – Saturday: 9:00 AM – 8:00 PM IST",
+                      weekendSupport: "Sunday: Emergency WhatsApp Support Only",
+                      responseGuarantee: "⚡ Fast Resolution: First response within 15 minutes",
+                      headquarters: {
+                        building: "GHARMB Tower, Sector 29, Cyber City Phase 2",
+                        city: "Gurugram",
+                        state: "Haryana",
+                        pincode: "122002",
+                        country: "India"
+                      }
+                    }
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/admin/pages/contact-us",
+                  host: ["{{baseUrl}}"],
+                  path: ["admin", "pages", "contact-us"]
                 }
               }
             }
@@ -5221,6 +5597,17 @@ const collection = {
                   path: ["legal", "policy", "privacy-policy"]
                 }
               }
+            },
+            {
+              name: "07. Get Public Contact Us Details (GET /pages/contact-us)",
+              request: {
+                method: "GET",
+                url: {
+                  raw: "{{baseUrl}}/pages/contact-us",
+                  host: ["{{baseUrl}}"],
+                  path: ["pages", "contact-us"]
+                }
+              }
             }
           ]
         },
@@ -5426,16 +5813,13 @@ const collection = {
   ]
 };
 
-// Generate Postman Collection file in both project root and server directory
+// Generate single Postman Collection file in project root
 const rootOutputPath = path.join(__dirname, '../gharmb.postman_collection.json');
-const serverOutputPath = path.join(__dirname, './gharmb.postman_collection.json');
 
 const jsonString = JSON.stringify(collection, null, 2);
 
 fs.writeFileSync(rootOutputPath, jsonString, 'utf-8');
-fs.writeFileSync(serverOutputPath, jsonString, 'utf-8');
-console.log('✅ Successfully updated root Postman Collection at:', rootOutputPath);
-console.log('✅ Successfully updated server Postman Collection at:', serverOutputPath);
+console.log('✅ Successfully updated Postman Collection at:', rootOutputPath);
 
 module.exports = collection;
 

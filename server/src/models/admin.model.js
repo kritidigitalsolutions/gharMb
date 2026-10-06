@@ -57,10 +57,36 @@ const adminSchema = new mongoose.Schema(
     lockUntil: {
       type: Date,
     },
+
+    // FCM Device Tokens for Push Notifications
+    fcmTokens: [
+      {
+        token: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        deviceType: {
+          type: String,
+          enum: ['android', 'ios', 'web', 'unknown'],
+          default: 'unknown',
+        },
+        deviceId: {
+          type: String,
+          default: null,
+        },
+        lastActiveAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
   }
 );
+
+adminSchema.index({ "fcmTokens.token": 1 });
 
 module.exports = mongoose.model("Admin", adminSchema);

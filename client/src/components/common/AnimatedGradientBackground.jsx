@@ -88,7 +88,7 @@ const AnimatedGradientBackground = ({
 
   return (
     <motion.div
-      key={`animated-gradient-bg-${isDark ? "dark" : "light"}`}
+      key="animated-gradient-bg"
       initial={{
         opacity: 0,
         scale: 1.15,

@@ -48,7 +48,7 @@ const AdminLayout = () => {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-[var(--bg-main)] text-[var(--text-primary)] transition-colors duration-300">
+    <div className="flex min-h-screen bg-[var(--bg-main)] text-[var(--text-primary)]">
       
       {/* Mobile Backdrop Overlay */}
       <div 

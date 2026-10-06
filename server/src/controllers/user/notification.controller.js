@@ -68,14 +68,21 @@ exports.markAsRead = async (req, res, next) => {
 // @access  Private
 exports.markAllAsRead = async (req, res, next) => {
   try {
-    await Notification.updateMany(
-      { recipient: req.user._id, isRead: false },
-      { isRead: true }
-    );
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.role === 'ADMIN' || req.user.role === 'superadmin');
+    const filter = isAdmin
+      ? { $or: [{ recipient: req.user._id }, { forAdmin: true }], isRead: false }
+      : { recipient: req.user._id, isRead: false };
+
+    const result = await Notification.updateMany(filter, { isRead: true });
 
     res.status(200).json({
       status: 'success',
       message: 'All notifications marked as read.',
+      unreadCount: 0,
+      data: {
+        modifiedCount: result.modifiedCount || 0,
+        unreadCount: 0,
+      },
     });
   } catch (error) {
     next(error);

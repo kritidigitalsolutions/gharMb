@@ -35,7 +35,7 @@ const notificationSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: {
-        values: ['enquiry', 'visit_booking', 'property_status', 'verification', 'payment', 'token_request', 'system'],
+        values: ['enquiry', 'visit_booking', 'property_status', 'verification', 'payment', 'token_request', 'service_enquiry', 'system'],
         message: 'Invalid notification type.',
       },
       default: 'system',
@@ -47,6 +47,12 @@ const notificationSchema = new mongoose.Schema(
     },
     // Meta object to hold IDs of triggering actions for in-app client navigation
     metadata: {
+      serviceRequestId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'ServiceRequest',
+      },
+      serviceRequestRef: String,
+      serviceType: String,
       propertyId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Property',
@@ -78,12 +84,54 @@ const notificationSchema = new mongoose.Schema(
       },
       reraNumber: String,
       customLink: String,
+      broadcastId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Broadcast',
+      },
     },
   },
   {
     timestamps: true,
   }
 );
+
+// Post-save hook: automatically dispatch FCM push notifications
+notificationSchema.post('save', function (doc) {
+  // Prevent duplicate dispatch if already handled by helper
+  if (doc._fcmDispatched) return;
+
+  try {
+    const fcmService = require('../services/fcm.service');
+    if (doc.recipient && !doc.forAdmin) {
+      fcmService
+        .sendToUser(doc.recipient, {
+          title: doc.title,
+          body: doc.message,
+          data: {
+            notificationId: doc._id.toString(),
+            type: doc.type || 'system',
+            ...(doc.metadata ? (typeof doc.metadata.toObject === 'function' ? doc.metadata.toObject() : doc.metadata) : {}),
+          },
+        })
+        .catch((e) => console.warn('⚠️ FCM notification hook user dispatch notice:', e.message));
+    } else if (doc.forAdmin) {
+      fcmService
+        .sendToAdmins({
+          title: doc.title,
+          body: doc.message,
+          data: {
+            notificationId: doc._id.toString(),
+            type: doc.type || 'system',
+            forAdmin: 'true',
+            ...(doc.metadata ? (typeof doc.metadata.toObject === 'function' ? doc.metadata.toObject() : doc.metadata) : {}),
+          },
+        })
+        .catch((e) => console.warn('⚠️ FCM notification hook admin dispatch notice:', e.message));
+    }
+  } catch (err) {
+    console.warn('⚠️ FCM notification post-save hook notice:', err.message);
+  }
+});
 
 const Notification = mongoose.model('Notification', notificationSchema);
 

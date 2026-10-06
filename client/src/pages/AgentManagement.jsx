@@ -304,64 +304,6 @@ const AgentManagement = () => {
         </div>
       </div>
 
-      {/* MINIMAL KPI STAT STRIP */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div
-          onClick={() => setActiveTab('all')}
-          className={`p-3.5 rounded-xl border bg-[var(--bg-surface)] cursor-pointer transition-all ${
-            activeTab === 'all'
-              ? 'border-brand/40 bg-brand/[0.015]'
-              : 'border-[var(--border)] hover:border-zinc-300 dark:hover:border-zinc-700'
-          }`}
-        >
-          <div className="text-[11px] font-medium text-[var(--text-muted)]">Total Registered</div>
-          <div className="text-xl font-bold text-[var(--text-primary)] mt-1">{counts.total}</div>
-        </div>
-
-        <div
-          onClick={() => setActiveTab('pending')}
-          className={`p-3.5 rounded-xl border bg-[var(--bg-surface)] cursor-pointer transition-all ${
-            activeTab === 'pending'
-              ? 'border-amber-500/40 bg-amber-500/[0.02]'
-              : 'border-[var(--border)] hover:border-zinc-300 dark:hover:border-zinc-700'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-[var(--text-muted)]">Pending Audit</span>
-            {counts.pending > 0 && (
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-            )}
-          </div>
-          <div className={`text-xl font-bold mt-1 ${counts.pending > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-[var(--text-primary)]'}`}>
-            {counts.pending}
-          </div>
-        </div>
-
-        <div
-          onClick={() => setActiveTab('approved')}
-          className={`p-3.5 rounded-xl border bg-[var(--bg-surface)] cursor-pointer transition-all ${
-            activeTab === 'approved'
-              ? 'border-emerald-500/40 bg-emerald-500/[0.02]'
-              : 'border-[var(--border)] hover:border-zinc-300 dark:hover:border-zinc-700'
-          }`}
-        >
-          <div className="text-[11px] font-medium text-[var(--text-muted)]">Verified Active</div>
-          <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{counts.approved}</div>
-        </div>
-
-        <div
-          onClick={() => setActiveTab('rejected')}
-          className={`p-3.5 rounded-xl border bg-[var(--bg-surface)] cursor-pointer transition-all ${
-            activeTab === 'rejected'
-              ? 'border-rose-500/40 bg-rose-500/[0.02]'
-              : 'border-[var(--border)] hover:border-zinc-300 dark:hover:border-zinc-700'
-          }`}
-        >
-          <div className="text-[11px] font-medium text-[var(--text-muted)]">Declined</div>
-          <div className="text-xl font-bold text-rose-600 dark:text-rose-400 mt-1">{counts.rejected}</div>
-        </div>
-      </div>
-
       {/* CLEAN UNDERLINE TABS BAR */}
       <div className="flex items-center gap-1 border-b border-[var(--border)] overflow-x-auto no-scrollbar pt-1">
         {tabs.map((tab) => {
@@ -451,7 +393,7 @@ const AgentManagement = () => {
           ))}
         </div>
       ) : filteredAgents.length === 0 ? (
-        <div className="py-16 text-center border border-[var(--border)] rounded-2xl bg-[var(--bg-surface)] px-4">
+        <div className="py-16 text-center border border-[var(--border)] rounded-xl bg-[var(--bg-surface)] px-4">
           <div className="w-10 h-10 rounded-full bg-[var(--bg-muted)] text-[var(--text-muted)] flex items-center justify-center mx-auto mb-2.5">
             <UserCheck size={18} />
           </div>

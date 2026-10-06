@@ -152,6 +152,11 @@
       "type": "string"
     },
     {
+      "key": "serviceRequestIdCode",
+      "value": "SRV-MOV-131",
+      "type": "string"
+    },
+    {
       "key": "referralId",
       "value": "",
       "type": "string"
@@ -163,6 +168,16 @@
     },
     {
       "key": "faqCategoryId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "googleRegistrationToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "googlePhoneVerificationToken",
       "value": "",
       "type": "string"
     }
@@ -324,7 +339,7 @@
               }
             },
             {
-              "name": "05. Google Sign-In / Firebase Auth (Auto-saves userToken)",
+              "name": "05. Google Sign-In / Firebase Auth (POST /user/auth/google)",
               "event": [
                 {
                   "listen": "test",
@@ -336,11 +351,15 @@
                       "    if (jsonData.data && jsonData.data.user && jsonData.data.user.id) {",
                       "        pm.collectionVariables.set('userId', jsonData.data.user.id);",
                       "    }",
-                      "    console.log('✅ userToken & userId set successfully from Google Sign-In');",
+                      "    console.log('✅ Existing user logged in: userToken & userId set');",
                       "}",
                       "if (jsonData.refreshToken) {",
                       "    pm.collectionVariables.set('userRefreshToken', jsonData.refreshToken);",
-                      "    console.log('✅ userRefreshToken set successfully from Google Sign-In');",
+                      "    console.log('✅ userRefreshToken set from Google Sign-In');",
+                      "}",
+                      "if (jsonData.registrationToken) {",
+                      "    pm.collectionVariables.set('googleRegistrationToken', jsonData.registrationToken);",
+                      "    console.log('✅ New user detected: googleRegistrationToken saved for form completion');",
                       "}"
                     ],
                     "type": "text/javascript"
@@ -357,7 +376,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"idToken\": \"PASTE_FIREBASE_OR_GOOGLE_ID_TOKEN_HERE\",\n  \"role\": \"buyer\",\n  \"phone\": \"+919876543210\"\n}"
+                  "raw": "{\n  \"idToken\": \"PASTE_FIREBASE_OR_GOOGLE_ID_TOKEN_HERE\"\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/user/auth/google",
@@ -369,11 +388,136 @@
                     "auth",
                     "google"
                   ]
-                }
+                },
+                "description": "Authenticates via Google OAuth or Firebase ID token. If user already exists, logs in directly. If new user, returns isNewUser: true with locked email and registrationToken without registering in DB yet."
               }
             },
             {
-              "name": "06. Get Current User Profile (GET /user/auth/me)",
+              "name": "06. Google Sign-In Step 2: Send Phone Verification OTP (POST /user/auth/google/send-otp)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"9876543210\",\n  \"email\": \"rohan@gmail.com\",\n  \"registrationToken\": \"{{googleRegistrationToken}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/user/auth/google/send-otp",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "user",
+                    "auth",
+                    "google",
+                    "send-otp"
+                  ]
+                },
+                "description": "Sends 6-digit OTP to mobile number. Verifies that the phone number is unique and not already linked to an existing account (409 Conflict if taken)."
+              }
+            },
+            {
+              "name": "07. Google Sign-In Step 3: Verify Phone OTP (POST /user/auth/google/verify-otp)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.phoneVerificationToken) {",
+                      "    pm.collectionVariables.set('googlePhoneVerificationToken', jsonData.phoneVerificationToken);",
+                      "    console.log('✅ googlePhoneVerificationToken saved successfully');",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"9876543210\",\n  \"otp\": \"123456\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/user/auth/google/verify-otp",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "user",
+                    "auth",
+                    "google",
+                    "verify-otp"
+                  ]
+                },
+                "description": "Verifies the OTP submitted by the user and issues a phoneVerificationToken for form submission."
+              }
+            },
+            {
+              "name": "08. Google Sign-In Step 4: Complete Google Registration (POST /user/auth/google/register)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.token) {",
+                      "    pm.collectionVariables.set('userToken', jsonData.token);",
+                      "    if (jsonData.data && jsonData.data.user && jsonData.data.user.id) {",
+                      "        pm.collectionVariables.set('userId', jsonData.data.user.id);",
+                      "    }",
+                      "    console.log('✅ userToken & userId set from Google Registration');",
+                      "}",
+                      "if (jsonData.refreshToken) {",
+                      "    pm.collectionVariables.set('userRefreshToken', jsonData.refreshToken);",
+                      "    console.log('✅ userRefreshToken set from Google Registration');",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Rohan Sharma\",\n  \"email\": \"rohan@gmail.com\",\n  \"phone\": \"9876543210\",\n  \"phoneVerificationToken\": \"{{googlePhoneVerificationToken}}\",\n  \"registrationToken\": \"{{googleRegistrationToken}}\",\n  \"role\": \"buyer\",\n  \"address\": \"Flat 302, Palm Greens, Sector 62, Noida\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/user/auth/google/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "user",
+                    "auth",
+                    "google",
+                    "register"
+                  ]
+                },
+                "description": "Registers user in MongoDB only after details are filled and phone OTP is verified. Enforces email and phone uniqueness."
+              }
+            },
+            {
+              "name": "09. Get Current User Profile (GET /user/auth/me)",
               "request": {
                 "method": "GET",
                 "header": [
@@ -396,7 +540,7 @@
               }
             },
             {
-              "name": "07. Submit Basic Info (Screen 1: Basic Info)",
+              "name": "10. Submit Basic Info (Screen 1: Basic Info)",
               "event": [
                 {
                   "listen": "test",
@@ -442,7 +586,7 @@
               }
             },
             {
-              "name": "08. Refresh User Auth Token (Auto-updates userToken & userRefreshToken)",
+              "name": "11. Refresh User Auth Token (Auto-updates userToken & userRefreshToken)",
               "event": [
                 {
                   "listen": "test",
@@ -490,7 +634,7 @@
               }
             },
             {
-              "name": "09. Update Profile (PATCH /user/auth/update-profile)",
+              "name": "12. Update Profile (PATCH /user/auth/update-profile)",
               "request": {
                 "method": "PATCH",
                 "header": [
@@ -521,7 +665,7 @@
               }
             },
             {
-              "name": "10. Current User Verification Status (GET /user/auth/verification-status)",
+              "name": "13. Current User Verification Status (GET /user/auth/verification-status)",
               "request": {
                 "method": "GET",
                 "header": [
@@ -545,7 +689,7 @@
               }
             },
             {
-              "name": "11. Refresh Token Alias (POST /user/auth/refresh)",
+              "name": "14. Refresh Token Alias (POST /user/auth/refresh)",
               "request": {
                 "method": "POST",
                 "header": [
@@ -2920,6 +3064,244 @@
               }
             }
           ]
+        },
+        {
+          "name": "14. Customer Services & Enquiries (Packers & Movers, Legal, Interior, Loan)",
+          "description": "Customer service request submission and dynamic catalogs for Movers, Legal, and Interior design. Inquiries are automatically routed exclusively to Admin.",
+          "item": [
+            {
+              "name": "01. Get Dynamic Service Catalogs (Movers, Legal, Interior) - GET /services/catalogs",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/services/catalogs",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "services",
+                    "catalogs"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "02. Submit Packers & Movers Quote Request (POST /services/movers/enquiry)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.service) {",
+                      "    pm.collectionVariables.set('serviceId', jsonData.data.service._id);",
+                      "    pm.collectionVariables.set('serviceRequestIdCode', jsonData.data.service.serviceRequestId);",
+                      "    console.log('✅ serviceId and serviceRequestIdCode auto-saved: ' + jsonData.data.service.serviceRequestId);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{userToken}}",
+                    "description": "Optional"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clientName\": \"Aarav Mehta\",\n  \"clientPhone\": \"9876543210\",\n  \"clientEmail\": \"aarav@example.com\",\n  \"moveFrom\": \"Sector 62, Noida\",\n  \"moveTo\": \"Indirapuram, Ghaziabad\",\n  \"shiftingDate\": \"2026-10-25\",\n  \"bhkType\": \"3 BHK\",\n  \"selectedMover\": \"SafeMove Packers\",\n  \"notes\": \"Fragile glassware and heavy double-door refrigerator. 2nd floor with elevator.\",\n  \"source\": \"app\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/services/movers/enquiry",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "services",
+                    "movers",
+                    "enquiry"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "03. Book Legal Services Consultation (POST /services/legal/enquiry)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.service) {",
+                      "    pm.collectionVariables.set('serviceId', jsonData.data.service._id);",
+                      "    pm.collectionVariables.set('serviceRequestIdCode', jsonData.data.service.serviceRequestId);",
+                      "    console.log('✅ serviceId and serviceRequestIdCode auto-saved: ' + jsonData.data.service.serviceRequestId);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{userToken}}",
+                    "description": "Optional"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clientName\": \"Pooja Verma\",\n  \"clientPhone\": \"9811223344\",\n  \"clientEmail\": \"pooja.verma@example.com\",\n  \"legalServiceType\": \"Sale deed drafting\",\n  \"propertyRef\": \"Apex Golf Avenue, Greater Noida West\",\n  \"location\": \"Noida\",\n  \"consultationDate\": \"2026-10-12\",\n  \"notes\": \"Resale registry agreement drafting and legal verification.\",\n  \"source\": \"app\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/services/legal/enquiry",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "services",
+                    "legal",
+                    "enquiry"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "04. Book Interior Design Consultation (POST /services/interior/enquiry)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.service) {",
+                      "    pm.collectionVariables.set('serviceId', jsonData.data.service._id);",
+                      "    pm.collectionVariables.set('serviceRequestIdCode', jsonData.data.service.serviceRequestId);",
+                      "    console.log('✅ serviceId and serviceRequestIdCode auto-saved: ' + jsonData.data.service.serviceRequestId);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{userToken}}",
+                    "description": "Optional"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clientName\": \"Kunal Malhotra\",\n  \"clientPhone\": \"9988776655\",\n  \"clientEmail\": \"kunal.m@example.com\",\n  \"designStyle\": \"Modern\",\n  \"packageSelected\": \"Premium\",\n  \"bhkType\": \"3 BHK\",\n  \"budgetRange\": \"₹5.0 Lakhs\",\n  \"location\": \"Gurgaon, DLF Phase 5\",\n  \"consultationDate\": \"2026-10-15\",\n  \"notes\": \"Looking for modular kitchen, false ceiling, and woodwork.\",\n  \"source\": \"app\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/services/interior/enquiry",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "services",
+                    "interior",
+                    "enquiry"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "05. Unified Generic Service Enquiry (POST /services/enquiry)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{userToken}}",
+                    "description": "Optional"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"serviceType\": \"Movers\",\n  \"clientName\": \"Rahul Sharma\",\n  \"clientPhone\": \"9876543210\",\n  \"clientEmail\": \"rahul@example.com\",\n  \"moveFrom\": \"Sector 62, Noida\",\n  \"moveTo\": \"Indirapuram, Ghaziabad\",\n  \"bhkType\": \"3 BHK\",\n  \"shiftingDate\": \"2026-10-25\",\n  \"source\": \"web\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/services/enquiry",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "services",
+                    "enquiry"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "06. Get My Personal Service Enquiries - Authenticated (GET /services/my-enquiries)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{userToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/services/my-enquiries",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "services",
+                    "my-enquiries"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "07. Public Live Enquiry Status & Milestone Tracking (GET /services/track/:id)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/services/track/{{serviceRequestIdCode}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "services",
+                    "track",
+                    "{{serviceRequestIdCode}}"
+                  ]
+                }
+              }
+            }
+          ]
         }
       ]
     },
@@ -5035,6 +5417,60 @@
                     "admin",
                     "pages",
                     "help-support"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "08. Admin - Get Contact Us Details (GET /admin/pages/contact-us)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{adminToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/pages/contact-us",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "pages",
+                    "contact-us"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "09. Admin - Update Contact Us Details (PUT /admin/pages/contact-us)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{adminToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Get in Touch with GharMB\",\n  \"content\": \"Have questions about property verification, builder tracking, or partnership opportunities? Reach out to our dedicated advisory team.\",\n  \"metadata\": {\n    \"helpline\": \"+91 98765 43210\",\n    \"tollFree\": \"1800-120-GHARMB\",\n    \"whatsapp\": \"+91 98765 43210\",\n    \"supportEmail\": \"support@gharmb.in\",\n    \"salesEmail\": \"sales@gharmb.in\",\n    \"partnershipEmail\": \"partner@gharmb.in\",\n    \"workingHours\": \"Monday – Saturday: 9:00 AM – 8:00 PM IST\",\n    \"weekendSupport\": \"Sunday: Emergency WhatsApp Support Only\",\n    \"responseGuarantee\": \"⚡ Fast Resolution: First response within 15 minutes\",\n    \"headquarters\": {\n      \"building\": \"GHARMB Tower, Sector 29, Cyber City Phase 2\",\n      \"city\": \"Gurugram\",\n      \"state\": \"Haryana\",\n      \"pincode\": \"122002\",\n      \"country\": \"India\"\n    }\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/pages/contact-us",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "pages",
+                    "contact-us"
                   ]
                 }
               }
@@ -7591,6 +8027,22 @@
                     "legal",
                     "policy",
                     "privacy-policy"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "07. Get Public Contact Us Details (GET /pages/contact-us)",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/pages/contact-us",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pages",
+                    "contact-us"
                   ]
                 }
               }
