@@ -46,7 +46,9 @@ This documentation provides an exhaustive, role-based technical blueprint of all
 12. [CMS, News, Blogs, FAQs & Static Legal Content](#12-cms-news-blogs-faqs--static-content)
 13. [Admin Panel: Authentication & Platform Dashboard](#13-admin-panel-authentication--platform-dashboard)
 14. [Admin Panel: Moderation, Approvals & Content Control](#14-admin-panel-moderation-approvals--content-control)
+14. [Admin Panel: Moderation, Approvals & Content Control](#14-admin-panel-moderation-approvals--content-control)
 15. [Admin Panel: Services & Referral Network](#15-admin-panel-services--referral-network)
+16. [Refer & Earn Program and GharMB Coins Wallet APIs](#16-refer--earn-program-and-gharmb-coins-wallet-apis)
 
 ---
 
@@ -56,11 +58,11 @@ This documentation provides an exhaustive, role-based technical blueprint of all
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/api/auth/send-otp` | Sends a 6-digit verification code to a mobile number | User login or registration step 1 (Buyer, Tenant, Owner, Agent) | **Body:** `{ "phone": "9876543210" }` | `{ status: "success", message: "OTP sent" }` |
 | `POST` | `/api/auth/verify-otp` | Validates submitted OTP and logs in / issues JWT | Completing phone-based authentication | **Body:** `{ "phone": "9876543210", "otp": "123456" }` | User record, `token`, and `isNewUser: true/false` |
-| `POST` | `/api/auth/register` | Sets initial name & email for new phone signups | New user profile completion after first OTP | **Body:** `{ "name": "Rohan", "phone": "9876543210", "email": "rohan@test.com" }` | Created user object + active JWT `token` |
-| `POST` | `/api/auth/google` | Authenticates via Google OAuth / Firebase ID Token | 1-tap Google login on App & Web. Existing user → direct login. New user → returns `isNewUser: true` with locked email & registrationToken (does not register in DB yet). | **Body:** `{ "idToken": "firebase_id_token_string..." }` | User record + session `token` (if existing), or `{ isNewUser: true, email, registrationToken }` (if new user) |
+| `POST` | `/api/auth/register` | Sets initial name, email & optional referral code | New user account creation after OTP verification | **Body:** `{ "name": "Rohan", "phone": "9876543210", "email": "rohan@test.com", "referralCode": "GHARMB-RAHUL42" }` | Created user object (with lifetime unique referralCode) + active JWT `token` |
+| `POST` | `/api/auth/google` | Authenticates via Google OAuth / Firebase ID Token | 1-tap Google login on App & Web. Existing user → direct login. New user → returns `isNewUser: true` with locked email & registrationToken. | **Body:** `{ "idToken": "firebase_id_token_string..." }` | User record + session `token` (if existing), or `{ isNewUser: true, email, registrationToken }` (if new user) |
 | `POST` | `/api/auth/google/send-otp` | Sends phone verification code for new Google users | Verifying mobile number during Google registration (checks uniqueness) | **Body:** `{ "phone": "9876543210", "registrationToken": "..." }` | `{ status: "success", message: "OTP sent" }` |
 | `POST` | `/api/auth/google/verify-otp` | Verifies submitted OTP for mobile number during Google registration | Confirming ownership of phone number | **Body:** `{ "phone": "9876543210", "otp": "123456" }` | `{ phoneVerified: true, phoneVerificationToken }` |
-| `POST` | `/api/auth/google/register` | Completes registration for new Google users after phone OTP verification | Final step: registers user in DB only after details & phone OTP verification completed | **Body:** `{ "name": "Rohan", "email": "rohan@gmail.com", "phone": "9876543210", "phoneVerificationToken": "...", "role": "buyer" }` | Created user record + JWT session `token` |
+| `POST` | `/api/auth/google/register` | Completes registration for Google users after detail add & phone OTP | Final step: registers user in DB only after details, phone OTP & optional referralCode completed | **Body:** `{ "name": "Rohan", "email": "rohan@gmail.com", "phone": "9876543210", "phoneVerificationToken": "...", "role": "buyer", "referralCode": "GHARMB-RAHUL42" }` | Created user record + JWT session `token` |
 | `POST` | `/api/auth/refresh` | Refreshes expired session tokens silently | Keeping mobile app users logged in without prompting OTP | **Body:** `{ "refreshToken": "<userRefreshToken>" }` | Fresh `token` and `refreshToken` |
 | `POST` | `/api/auth/logout` | Revokes current session and clears refresh tokens | Logging out safely from device | **Header:** `Authorization: Bearer <userToken>` | `{ status: "success", message: "Logged out" }` |
 
@@ -285,6 +287,59 @@ This documentation provides an exhaustive, role-based technical blueprint of all
 | `POST` | `/api/admin/referrals` | Records a new referral transaction | Logging an affiliate / partner closed deal | **Header:** `Bearer <adminToken>`<br>**Body:** `{ referrerName, referrerPhone, clientName, dealValue, commissionAmount }` | Created referral record |
 | `PATCH` | `/api/admin/referrals/:id/status` | Advances referral lifecycle (`lead` ➔ `site_visit` ➔ `closed`) | Referral progression | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "status": "closed" }` | Updated referral deal |
 | `PATCH` | `/api/admin/referrals/:id/payout` | Marks referral payout as settled | Recording offline payout to ambassador | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "payoutStatus": "paid", "payoutDate": "2026-10-05", "utrRef": "..." }` | Payout marked settled |
+| `POST` | `/api/admin/referrals/:id/credit-coins` | Manually credits ₹250 coins reward to both referrer & referee | Admin manual approval / override of Refer & Earn coins reward | **Header:** `Bearer <adminToken>`<br>**Path:** `:id` | Updated referral record with coins granted confirmation |
+
+---
+
+## 16. Refer & Earn Program and GharMB Coins Wallet APIs
+
+The Refer & Earn system allows users to invite friends and earn **₹250 in GharMB Coins** once their referred friend signs up and posts their first verified property listing. Each user receives a **lifetime unique referral code** (e.g. `GHARMB-RAHUL42`).
+
+### 📱 How It Works (The 4-Step Lifecycle)
+1. **Share your code:** Send unique referral code to friends via WhatsApp, SMS, Email, or Social Channels.
+2. **Friend signs up:** Friend downloads GharMB and inputs referral code on the registration or details add page.
+3. **They list a property:** Once your friend posts their first verified property listing, the milestone unlocks.
+4. **You both get ₹250:** ₹250 GharMB Coins are automatically credited to both Referrer and Referee wallets (valid for 6 months).
+
+---
+
+### 📋 Refer & Earn API Endpoints
+
+| Method | Endpoint | What it Does | For What (Use Case & Role) | From What (Required Inputs) | What it Returns |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/api/user/referrals/validate-code`<br>*(alias `/api/referrals/validate-code`)* | Validates a referral code in real-time | Public check on login detail add page / signup before user registers | **Body:** `{ "referralCode": "GHARMB-RAHUL42" }` | `{ isValid: true, referrerName: "Rahul S...", rewardAmount: 250, rewardCoinBonus: "250 GharMB Coins" }` |
+| `GET` | `/api/user/referrals/validate/:code` | Validates a referral code via URL parameter | Real-time inline field check during registration | **Path:** `:code` | Validation status and referrer display name |
+| `GET` | `/api/user/referrals/dashboard`<br>*(alias `/api/user/referrals/my-code`)* | Fetches the full Refer & Earn screen details | Rendering the "Invite Friends & Earn ₹250" screen (matching mobile UI) | **Header:** `Bearer <userToken>` | User's lifetime code (`GHARMB-RAHUL42`), stats (`friendsInvited`, `coinsEarned`, `rewardPerReferral`), deep links, share templates (WhatsApp, SMS, Email), 4-step "How It Works" guide, and Terms & Conditions |
+| `GET` | `/api/user/referrals/history`<br>*(alias `/api/user/referrals/my-friends`)* | Returns paginated list of all invited friends | Friends Referral History tab | **Header:** `Bearer <userToken>`<br>**Query:** `page=1, limit=20, status=pending_listing \| rewarded` | Array of invited friends, masked phone, join date, listing status, coins rewarded |
+| `POST` | `/api/user/referrals/apply-code` | Applies a referral code post-signup | For users who registered without a code and want to link one before listing their first property | **Header:** `Bearer <userToken>`<br>**Body:** `{ "referralCode": "GHARMB-RAHUL42" }` | Success message, linked referrer details, and reward activation |
+| `POST` | `/api/user/referrals/:id/claim`<br>*(alias `/api/user/referrals/claim`)* | Submits 1-tap claim for referral reward | User claiming reward. **ZERO bank details needed** — sends user contact to admin to call & settle out of app | **Header:** `Bearer <userToken>`<br>**Body (All Optional):** `{ "notes": "Please call after 4 PM", "alternatePhone": "9876543210" }` | Claim submitted confirmation; notifies Referrer, Referee & Admin with user's phone to call |
+| `GET` | `/api/user/referrals/claims`<br>*(alias `/api/user/referrals/my-claims`)* | Lists all submitted claims and their out-of-app payment status | Viewing pending/settled reward claims and admin contact status | **Header:** `Bearer <userToken>` | Claims array with `claimStatus`, `payoutStatus`, `contactPhone`, `payoutDate`, and notes |
+| `PATCH` | `/api/admin/referrals/:id/settle-payout`<br>*(alias `.../payout`)* | Records out-of-app funding/payment settlement | Admin contacts user, transfers funds out of app, and marks record settled | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "payoutRefId": "UTR12345678", "payoutMethod": "Direct Contact / UPI / Cash", "amountPaid": 250, "adminSettlementNotes": "Spoke to user and settled out of the app" }` | Payout marked `Paid`; notifies both Referrer and Referee |
+| `PATCH` | `/api/admin/referrals/:id/reject-claim` | Rejects an invalid referral claim | Admin reviewing claim and providing reason | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "rejectionReason": "Property listing did not meet policy" }` | Claim marked `Rejected` and user notified |
+| `GET` | `/api/user/wallet/coins`<br>*(alias `/api/user/referrals/wallet`)* | Fetches GharMB coin wallet balance & transactions | User Wallet screen showing spendable coins & history | **Header:** `Bearer <userToken>`<br>**Query:** `page=1, limit=20` | Current balance, lifetime earned, expiring soon (in 30 days) coins, redeemable perks, and paginated transaction ledger |
+
+---
+
+### 📞 100% Out-of-App Payment & Admin Contact Flow (No Bank Details Needed)
+There is **ZERO bank account / UPI data collection** from the user. Everything is handled out of the app via direct Admin contact:
+1. **User Taps Claim (1-Click):** User simply taps "Claim Reward" (`POST /api/user/referrals/:id/claim`). No bank details or payment gateway required.
+2. **Dual User Notifications:**
+   - **Referrer User:** Receives notification: *"Your claim has been received! Admin will contact you directly on your registered phone number to process your reward."*
+   - **Referee User (Friend):** Receives notification: *"[Referrer Name] has claimed the referral reward for your connection. Admin will contact them to complete the process out of the app."*
+3. **Admin Call Alert:** All active Admins receive a high-priority notification with the user's name, registered phone number, and friend's info: *"Referral Claim: Call [Name] at [Phone] for out-of-app settlement."*
+4. **Admin Contacts User:** Admin calls the user, discusses the deal/payout, and transfers or settles the payment completely outside the platform.
+5. **Admin Marks Record Settled:** Admin opens Admin Panel and records settlement (`PATCH /api/admin/referrals/:id/settle-payout`).
+6. **Dual Settlement Notifications:**
+   - **Referrer User:** Receives notification: *"Admin has settled your referral payment out of the app."*
+   - **Referee User:** Receives notification: *"Referral deal reward has been completed and settled."*
+
+---
+
+### 🎁 Coin Reward Milestone Trigger
+When any user creates their first property listing via `POST /api/user/properties` (or upon admin property approval via `PATCH /api/admin/properties/:id/status`), the system automatically checks if the user has an active referral link:
+- **Referrer:** Automatically credited **+250 GharMB Coins** (`friend_listing_bonus`), notification sent.
+- **Referee:** Automatically credited **+250 GharMB Coins** (`signup_bonus`), notification sent.
+- **Referral record:** Status updated to `rewarded`, expiry set to 6 months from credit date.
 
 ---
 

@@ -2342,6 +2342,129 @@ const collection = {
               }
             }
           ]
+        },
+
+        // ---------------------------------------------------------------------
+        // 09. Refer & Earn and Coins Wallet (No Bank Details Needed)
+        // ---------------------------------------------------------------------
+        {
+          name: "09. Refer & Earn and Coins Wallet",
+          description: "Refer friends, earn ₹250 GharMB Coins, and 1-tap claim reward without entering bank details. Admin contacts user and pays out of the app.",
+          item: [
+            {
+              name: "01. Validate Referral Code Before Signup (POST /user/referrals/validate-code)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    referralCode: "GHARMB-RAHUL42"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/user/referrals/validate-code",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "referrals", "validate-code"]
+                },
+                description: "Real-time validation for registration and login detail add screen before user registers."
+              }
+            },
+            {
+              name: "02. Refer & Earn Dashboard Screen (GET /user/referrals/dashboard)",
+              request: {
+                method: "GET",
+                header: [
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                url: {
+                  raw: "{{baseUrl}}/user/referrals/dashboard",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "referrals", "dashboard"]
+                },
+                description: "Live dashboard matching UI: user unique lifetime referral code, stats (friends invited, coins earned, ₹250 per referral), share deep links, 4 steps, and terms."
+              }
+            },
+            {
+              name: "03. Invited Friends Referral History (GET /user/referrals/history)",
+              request: {
+                method: "GET",
+                header: [
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                url: {
+                  raw: "{{baseUrl}}/user/referrals/history?page=1&limit=20",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "referrals", "history"],
+                  query: [
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "20" }
+                  ]
+                },
+                description: "Paginated list of friends invited, registration dates, masked phone, and reward status."
+              }
+            },
+            {
+              name: "04. 1-Tap Claim Reward - No Bank Details Required (POST /user/referrals/claim)",
+              request: {
+                method: "POST",
+                header: [
+                  { key: "Content-Type", value: "application/json" },
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                body: {
+                  mode: "raw",
+                  raw: JSON.stringify({
+                    referralId: "{{referralId}}",
+                    notes: "Please call after 5 PM",
+                    alternatePhone: "9876543210"
+                  }, null, 2)
+                },
+                url: {
+                  raw: "{{baseUrl}}/user/referrals/claim",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "referrals", "claim"]
+                },
+                description: "ZERO bank details required. Submits claim, sends notifications to Referrer and Referee, and alerts Admin with contact phone number to call and settle out of the app."
+              }
+            },
+            {
+              name: "05. My Submitted Claims & Status (GET /user/referrals/claims)",
+              request: {
+                method: "GET",
+                header: [
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                url: {
+                  raw: "{{baseUrl}}/user/referrals/claims",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "referrals", "claims"]
+                },
+                description: "Lists all claims submitted by the user and their out-of-app payment / admin contact status."
+              }
+            },
+            {
+              name: "06. GharMB Coins Wallet & Ledger (GET /user/wallet/coins)",
+              request: {
+                method: "GET",
+                header: [
+                  { key: "Authorization", value: "Bearer {{userToken}}" }
+                ],
+                url: {
+                  raw: "{{baseUrl}}/user/wallet/coins?page=1&limit=20",
+                  host: ["{{baseUrl}}"],
+                  path: ["user", "wallet", "coins"],
+                  query: [
+                    { key: "page", value: "1" },
+                    { key: "limit", value: "20" }
+                  ]
+                },
+                description: "Shows coins balance, coins expiring in next 30 days, redeemable perks, and paginated transaction history."
+              }
+            }
+          ]
         }
       ]
     },

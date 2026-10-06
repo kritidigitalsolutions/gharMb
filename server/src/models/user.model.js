@@ -235,6 +235,43 @@ const userSchema = new mongoose.Schema(
       enum: ['local', 'google', 'facebook', 'mobile'],
       default: 'local',
     },
+
+    // ── Refer & Earn Program Fields ──────────────────────────────────────
+    referralCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      uppercase: true,
+      trim: true,
+      index: true,
+    },
+    referredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+      index: true,
+    },
+    appliedReferralCode: {
+      type: String,
+      uppercase: true,
+      trim: true,
+      default: null,
+    },
+    walletCoins: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    referralCoinsEarned: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    referralCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   {
     timestamps: true,
@@ -243,6 +280,23 @@ const userSchema = new mongoose.Schema(
 
 userSchema.index({ location: '2dsphere' });
 userSchema.index({ 'fcmTokens.token': 1 });
+
+// Auto-generate lifetime unique referral code before saving if not already set
+userSchema.pre('save', async function () {
+  if (!this.referralCode) {
+    try {
+      const { generateUniqueReferralCode } = require('../utils/referralCode.helper');
+      this.referralCode = await generateUniqueReferralCode(this.name, this.constructor);
+    } catch (err) {
+      const base = (this.name || 'GHAR')
+        .toUpperCase()
+        .replace(/[^A-Z]/g, '')
+        .slice(0, 4) || 'GHAR';
+      const suffix = Math.floor(1000 + Math.random() * 9000);
+      this.referralCode = `GHARMB-${base}${suffix}`;
+    }
+  }
+});
 
 const User = mongoose.model('User', userSchema);
 
