@@ -248,7 +248,7 @@ const BannerManagement = () => {
   };
 
   return (
-    <div className="space-y-5 p-4 sm:p-6 max-w-7xl mx-auto">
+    <div className="w-full space-y-4">
       {/* Toast Notification */}
       {toast.show && (
         <div className="fixed bottom-5 right-5 z-50 animate-fade-in">
@@ -266,7 +266,7 @@ const BannerManagement = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">App Banners</h1>
+          <h1 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">App Banners</h1>
           <p className="text-xs text-[var(--text-muted)]">Upload and manage promotional banners for the mobile app</p>
         </div>
 
@@ -275,17 +275,17 @@ const BannerManagement = () => {
             type="button"
             onClick={fetchBanners}
             title="Refresh"
-            className="p-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+            className="p-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
           >
-            <RefreshCw size={15} className={isLoading ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={isLoading ? 'animate-spin text-brand' : ''} />
           </button>
 
           <button
             type="button"
             onClick={() => setModalState({ ...defaultForm, open: true })}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand text-white text-xs font-semibold hover:bg-brand/90 transition-all cursor-pointer shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand text-white text-xs font-semibold hover:bg-brand-dark transition-all cursor-pointer shadow-2xs"
           >
-            <Plus size={15} />
+            <Plus size={14} />
             <span>Upload Banner</span>
           </button>
         </div>

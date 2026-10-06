@@ -15,7 +15,9 @@ import ReportsScreen from '../pages/ReportsScreen';
 import Settings from '../pages/Settings';
 import Legal from '../pages/Legal';
 import About from '../pages/About';
+import ContactManagement from '../pages/ContactManagement';
 import AdminNotifications from '../pages/AdminNotifications';
+import BroadcastManagement from '../pages/BroadcastManagement';
 import InsightsManagement from '../pages/InsightsManagement';
 import InsightsCategories from '../pages/InsightsCategories';
 import InsightsEditor from '../pages/InsightsEditor';
@@ -55,9 +57,15 @@ const AdminRoutes = () => {
                 <Route path="faqs/categories" element={<Navigate to="/admin/faq/categories" replace />} />
                 <Route path="testimonials" element={<TestimonialManagement />} />
                 <Route path="notifications" element={<AdminNotifications />} />
+                <Route path="broadcasts" element={<BroadcastManagement />} />
+                <Route path="broadcasts/compose" element={<Navigate to="/admin/broadcasts?tab=compose" replace />} />
+                <Route path="broadcast" element={<Navigate to="/admin/broadcasts" replace />} />
+                <Route path="broadcast/compose" element={<Navigate to="/admin/broadcasts?tab=compose" replace />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="legal" element={<Legal />} />
                 <Route path="about" element={<About />} />
+                <Route path="contact" element={<ContactManagement />} />
+                <Route path="contact-us" element={<Navigate to="/admin/contact" replace />} />
                 <Route path="web-inquiries" element={<WebInquiries />} />
                 <Route path="banners" element={<BannerManagement />} />
                 <Route path="*" element={<Navigate to="/admin" replace />} />

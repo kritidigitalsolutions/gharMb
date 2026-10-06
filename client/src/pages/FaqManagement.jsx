@@ -4,7 +4,7 @@ import {
   Plus, Search, Edit, Trash2,
   CheckCircle2, Clock, Folder, AlertCircle, RefreshCw, 
   Layers, CheckSquare, Square, X, Check, ArrowUpDown,
-  FileQuestion, HelpCircle, RotateCcw
+  FileQuestion, HelpCircle, RotateCcw, ChevronDown
 } from 'lucide-react';
 import API from '../api/api';
 
@@ -335,84 +335,11 @@ const FaqManagement = () => {
         </div>
       </div>
 
-      {/* Metric Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {/* Total FAQs */}
-        <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] transition-all hover:border-slate-300 dark:hover:border-slate-700">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-[var(--text-muted)]">Total FAQs</span>
-            <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
-              <FileQuestion size={14} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
-              {Number(stats.total).toLocaleString()}
-            </span>
-            <span className="text-[11px] font-medium text-[var(--text-muted)]">In database</span>
-          </div>
-        </div>
-
-        {/* Active FAQs */}
-        <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] transition-all hover:border-slate-300 dark:hover:border-slate-700">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-[var(--text-muted)]">Active</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 size={14} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tracking-tight">
-              {Number(stats.active).toLocaleString()}
-            </span>
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              Live on site
-            </span>
-          </div>
-        </div>
-
-        {/* Inactive FAQs */}
-        <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] transition-all hover:border-slate-300 dark:hover:border-slate-700">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-[var(--text-muted)]">Inactive</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-600 dark:text-amber-400">
-              <Clock size={14} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-amber-600 dark:text-amber-400 tracking-tight">
-              {Number(stats.inactive).toLocaleString()}
-            </span>
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              Hidden
-            </span>
-          </div>
-        </div>
-
-        {/* Categories */}
-        <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] transition-all hover:border-slate-300 dark:hover:border-slate-700">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-[var(--text-muted)]">Categories</span>
-            <div className="w-7 h-7 rounded-lg bg-brand/10 flex items-center justify-center text-brand">
-              <Folder size={14} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
-              {categories.length}
-            </span>
-            <span className="text-[11px] font-medium text-[var(--text-muted)]">Topics</span>
-          </div>
-        </div>
-      </div>
-
       {/* Floating Bulk Action Bar */}
       {selectedFaqIds.length > 0 && (
-        <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-brand/30 shadow-sm flex items-center justify-between flex-wrap gap-3 animate-in fade-in slide-in-from-top-2 duration-150">
-          <div className="flex items-center gap-2.5 pl-1">
-            <span className="w-6 h-6 rounded-full bg-brand text-white flex items-center justify-center text-xs font-bold shadow-xs">
+        <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-brand/30 shadow-2xs flex items-center justify-between flex-wrap gap-3 animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="flex items-center gap-2 pl-1">
+            <span className="w-5 h-5 rounded-full bg-brand text-white flex items-center justify-center text-xs font-bold">
               {selectedFaqIds.length}
             </span>
             <span className="text-xs font-medium text-[var(--text-primary)]">
@@ -443,21 +370,21 @@ const FaqManagement = () => {
       )}
 
       {/* Search & Filter Toolbar */}
-      <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] flex flex-col md:flex-row gap-2.5 items-center justify-between">
+      <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xs flex flex-col md:flex-row gap-2.5 items-stretch md:items-center justify-between">
         {/* Search */}
-        <div className="relative w-full md:w-80">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <div className="relative flex-1 max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
           <input
             type="text"
             placeholder="Search questions or answers..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-8 py-1.5 text-xs rounded-lg bg-[var(--bg-muted)] border border-transparent focus:border-[var(--border)] focus:bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-slate-400 transition-colors outline-none"
+            className="w-full pl-9 pr-8 h-8 text-xs rounded-lg bg-[var(--bg-muted)]/50 border border-[var(--border)] focus:bg-[var(--bg-surface)] focus:border-brand text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors outline-none"
           />
           {search && (
             <button
               onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
               title="Clear search"
             >
               <X size={13} />
@@ -466,34 +393,61 @@ const FaqManagement = () => {
         </div>
 
         {/* Filter Controls */}
-        <div className="flex items-center gap-2 w-full md:w-auto flex-wrap justify-end">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Status filter pills */}
+          <div className="flex items-center p-0.5 bg-[var(--bg-muted)]/60 rounded-lg border border-[var(--border)] text-xs">
+            <button
+              type="button"
+              onClick={() => setSelectedStatus('')}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                !selectedStatus || selectedStatus === 'all'
+                  ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-2xs font-semibold'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              All ({stats.total})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedStatus('active')}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1 ${
+                selectedStatus === 'active'
+                  ? 'bg-[var(--bg-surface)] text-emerald-600 dark:text-emerald-400 shadow-2xs font-semibold'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Live ({stats.active})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedStatus('inactive')}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1 ${
+                selectedStatus === 'inactive'
+                  ? 'bg-[var(--bg-surface)] text-amber-600 dark:text-amber-400 shadow-2xs font-semibold'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              Hidden ({stats.inactive})
+            </button>
+          </div>
+
           {/* Category Filter */}
           <div className="relative">
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="pl-3 pr-7 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors outline-none cursor-pointer appearance-none"
+              className="h-8 pl-3 pr-7 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors outline-none cursor-pointer appearance-none"
             >
               <option value="">All Categories</option>
               {categories.map((cat) => (
                 <option key={cat._id} value={cat._id}>{cat.name}</option>
               ))}
             </select>
-            <Folder size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
-          </div>
-
-          {/* Status Filter */}
-          <div className="relative">
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="pl-3 pr-7 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors outline-none cursor-pointer appearance-none"
-            >
-              <option value="">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-            <div className="w-1.5 h-1.5 rounded-full absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none bg-slate-400" />
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)]">
+              <ChevronDown size={12} />
+            </div>
           </div>
 
           {/* Sort Direction Toggle */}

@@ -1,9 +1,11 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef } from "react";
+import { flushSync } from "react-dom";
 
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => localStorage.getItem("adminTheme") || "light");
+  const isTransitioningRef = useRef(false);
 
   useEffect(() => {
     document.body.classList.remove("theme-dark", "theme-light");
@@ -19,7 +21,10 @@ export const ThemeProvider = ({ children }) => {
   const toggleTheme = (e) => {
     const nextTheme = theme === "dark" ? "light" : "dark";
 
-    // If View Transitions API is not supported or user prefers reduced motion
+    // Prevent concurrent/overlapping transitions if user clicks rapidly
+    if (isTransitioningRef.current) return;
+
+    // Fallback if View Transitions API is not supported or user prefers reduced motion
     if (
       typeof document === "undefined" ||
       !document.startViewTransition ||
@@ -29,63 +34,90 @@ export const ThemeProvider = ({ children }) => {
       return;
     }
 
-    // Calculate the radial ripple origin from click or element bounding rect
+    isTransitioningRef.current = true;
+
+    // Calculate radial ripple origin from exact element center or mouse click
     let x, y;
-    if (e && typeof e.clientX === "number" && (e.clientX !== 0 || e.clientY !== 0)) {
-      x = e.clientX;
-      y = e.clientY;
-    } else if (e && e.currentTarget && typeof e.currentTarget.getBoundingClientRect === "function") {
+    if (e?.currentTarget && typeof e.currentTarget.getBoundingClientRect === "function") {
       const rect = e.currentTarget.getBoundingClientRect();
-      x = rect.left + rect.width / 2;
-      y = rect.top + rect.height / 2;
-    } else if (e && e.target && typeof e.target.getBoundingClientRect === "function") {
+      x = Math.round(rect.left + rect.width / 2);
+      y = Math.round(rect.top + rect.height / 2);
+    } else if (e && typeof e.clientX === "number" && (e.clientX !== 0 || e.clientY !== 0)) {
+      x = Math.round(e.clientX);
+      y = Math.round(e.clientY);
+    } else if (e?.target && typeof e.target.getBoundingClientRect === "function") {
       const rect = e.target.getBoundingClientRect();
-      x = rect.left + rect.width / 2;
-      y = rect.top + rect.height / 2;
+      x = Math.round(rect.left + rect.width / 2);
+      y = Math.round(rect.top + rect.height / 2);
     } else {
-      x = window.innerWidth - 60;
+      x = Math.round(window.innerWidth - 60);
       y = 32;
     }
 
-    const endRadius = Math.hypot(
-      Math.max(x, window.innerWidth - x),
-      Math.max(y, window.innerHeight - y)
+    // Exact radius needed to fully encompass all four viewport corners + safety margin
+    const endRadius = Math.ceil(
+      Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y)
+      ) + 20
     );
 
-    // Disable uncoordinated element transitions during snapshot to avoid shutter
+    // Disable CSS transition delays while taking the new state snapshot to prevent shutter
     document.documentElement.classList.add("theme-transitioning");
 
-    const transition = document.startViewTransition(() => {
-      setTheme(nextTheme);
-      document.body.classList.remove("theme-dark", "theme-light");
-      document.body.classList.add(nextTheme === "light" ? "theme-light" : "theme-dark");
-      if (nextTheme === "dark") {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-      localStorage.setItem("adminTheme", nextTheme);
-    });
+    try {
+      const transition = document.startViewTransition(() => {
+        // flushSync forces React to synchronously render the new theme DOM
+        // before the browser captures the ::view-transition-new(root) snapshot
+        flushSync(() => {
+          setTheme(nextTheme);
+          document.body.classList.remove("theme-dark", "theme-light");
+          document.body.classList.add(nextTheme === "light" ? "theme-light" : "theme-dark");
+          if (nextTheme === "dark") {
+            document.documentElement.classList.add("dark");
+          } else {
+            document.documentElement.classList.remove("dark");
+          }
+          localStorage.setItem("adminTheme", nextTheme);
+        });
+      });
 
-    transition.ready.then(() => {
-      document.documentElement.animate(
-        {
-          clipPath: [
-            `circle(0px at ${x}px ${y}px)`,
-            `circle(${endRadius}px at ${x}px ${y}px)`
-          ]
-        },
-        {
-          duration: 480,
-          easing: "cubic-bezier(0.22, 1, 0.36, 1)",
-          pseudoElement: "::view-transition-new(root)"
-        }
-      );
-    });
+      transition.ready
+        .then(() => {
+          // Re-enable normal interactive transitions once the snapshot has been captured
+          document.documentElement.classList.remove("theme-transitioning");
 
-    transition.finished.finally(() => {
+          const anim = document.documentElement.animate(
+            {
+              clipPath: [
+                `circle(0px at ${x}px ${y}px)`,
+                `circle(${endRadius}px at ${x}px ${y}px)`
+              ]
+            },
+            {
+              duration: 480,
+              easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+              pseudoElement: "::view-transition-new(root)"
+            }
+          );
+
+          return anim.finished;
+        })
+        .catch((err) => {
+          console.warn("View transition animation interrupted:", err);
+          document.documentElement.classList.remove("theme-transitioning");
+        });
+
+      transition.finished.finally(() => {
+        document.documentElement.classList.remove("theme-transitioning");
+        isTransitioningRef.current = false;
+      });
+    } catch (err) {
+      console.warn("View transition failed, falling back to direct switch:", err);
       document.documentElement.classList.remove("theme-transitioning");
-    });
+      isTransitioningRef.current = false;
+      setTheme(nextTheme);
+    }
   };
 
   return (

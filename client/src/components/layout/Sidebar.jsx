@@ -21,7 +21,9 @@ import {
   Sparkles,
   MessageSquareQuote,
   MailCheck,
-  Layers
+  Layers,
+  PhoneCall,
+  Radio
 } from 'lucide-react';
 
 const Sidebar = ({
@@ -109,6 +111,7 @@ const Sidebar = ({
         { name: 'Testimonials', path: '/admin/testimonials', icon: MessageSquareQuote },
         { name: 'Web Inquiries', path: '/admin/web-inquiries', icon: MailCheck },
         { name: 'Notifications', path: '/admin/notifications', icon: Bell },
+        { name: 'Broadcast Messages', path: '/admin/broadcasts', icon: Radio },
       ]
     },
     {
@@ -117,6 +120,7 @@ const Sidebar = ({
         { name: 'Settings', path: '/admin/settings', icon: Settings },
         { name: 'Legal Policies', path: '/admin/legal', icon: FileText },
         { name: 'About Platform', path: '/admin/about', icon: Info },
+        { name: 'Contact Details', path: '/admin/contact', icon: PhoneCall },
       ]
     }
   ];

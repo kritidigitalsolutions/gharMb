@@ -30,14 +30,14 @@ import { logOutOfFirebase } from '../../config/firebase';
 // ── Helper: read admin user from localStorage ──────────────────────────────
 const getAdminUser = () => {
   const raw = localStorage.getItem('adminUser') || localStorage.getItem('admin');
-  let user = { name: 'Super Admin', role: 'SaaS Admin', avatar: null };
+  let user = { name: 'Admin', role: 'Admin', avatar: null };
   if (raw && raw !== 'undefined' && raw !== 'null') {
     try {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object') {
         user = {
-          name: parsed.name || (parsed.email ? parsed.email.split('@')[0] : 'Super Admin'),
-          role: parsed.role || 'SaaS Admin',
+          name: parsed.name || (parsed.email ? parsed.email.split('@')[0] : 'Admin'),
+          role: parsed.role || 'Admin',
           avatar: parsed.avatar || parsed.photoUrl || parsed.profilePicture || null,
         };
       }
@@ -77,6 +77,7 @@ const ROUTE_PAGE_NAMES = {
   '/admin/settings': 'Settings',
   '/admin/legal': 'Legal Policies',
   '/admin/about': 'About Platform',
+  '/admin/contact': 'Contact Details',
 };
 
 const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) => {
@@ -125,7 +126,7 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
     { title: 'Revenue & Financials', category: 'Analytics', path: '/admin/revenue', icon: <Zap size={14} /> },
     { title: 'Reports & Export', category: 'Analytics', path: '/admin/reports', icon: <ExternalLink size={14} /> },
     { title: 'Market Insights & Articles', category: 'Content', path: '/admin/insights', icon: <Sparkles size={14} /> },
-    { title: 'System Settings', category: 'Configuration', path: '/admin/settings', icon: <Settings size={14} /> },
+    { title: 'Settings', category: 'Configuration', path: '/admin/settings', icon: <Settings size={14} /> },
   ];
 
   const filteredModules = searchQuery.trim() === ''
@@ -353,7 +354,7 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
   };
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-6 bg-[var(--bg-surface)]/90 backdrop-blur-md border-b border-[var(--border)] shrink-0 transition-colors duration-250">
+    <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-6 bg-[var(--bg-surface)]/90 backdrop-blur-md border-b border-[var(--border)] shrink-0">
       <div className="flex items-center gap-2 md:gap-3 min-w-0">
         {/* Mobile menu trigger */}
         <button
@@ -615,15 +616,16 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
           {isFullscreen ? <ScanLine size={16} strokeWidth={2} /> : <Scan size={16} strokeWidth={2} />}
         </button>
 
-        {/* Theme Toggle Switch with Smooth Radial Ripple Trigger */}
+        {/* Theme Toggle Switch */}
         <div className="h-8 flex items-center shrink-0">
           <div
             className="theme-toggle-switch flex items-center cursor-pointer select-none" 
-            style={{ transform: 'scale(0.72)', transformOrigin: 'center' }}
+            style={{ transform: 'scale(0.82)', transformOrigin: 'center' }}
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             onClick={(e) => toggleTheme(e)}
             role="button"
             tabIndex={0}
+            aria-label="Toggle dark/light theme"
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -642,7 +644,7 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
               <div className="sun-icon-wrapper">
                 <Sun className="sun-icon" />
               </div>
-              <div className="toggle-button" />
+              <div className="toggle-button" aria-hidden="true" />
               <div className="moon-icon-wrapper">
                 <Moon className="moon-icon" />
               </div>

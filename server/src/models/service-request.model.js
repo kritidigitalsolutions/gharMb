@@ -103,13 +103,34 @@ const serviceRequestSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    packageSelected: {
+      type: String,
+      trim: true,
+    },
     scope: [
       {
         type: String,
         trim: true,
       },
     ],
+    // Relocation & Movers
     moveType: {
+      type: String,
+      trim: true,
+    },
+    moveFrom: {
+      type: String,
+      trim: true,
+    },
+    moveTo: {
+      type: String,
+      trim: true,
+    },
+    bhkType: {
+      type: String,
+      trim: true,
+    },
+    selectedMover: {
       type: String,
       trim: true,
     },
@@ -125,6 +146,11 @@ const serviceRequestSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    // Legal Services
+    legalServiceType: {
+      type: String,
+      trim: true,
+    },
     legalServiceScope: {
       type: String,
       trim: true,
@@ -132,6 +158,22 @@ const serviceRequestSchema = new mongoose.Schema(
     courtJurisdiction: {
       type: String,
       trim: true,
+    },
+    // Consultation & Schedule
+    consultationDate: {
+      type: String,
+      trim: true,
+    },
+    estimatedPrice: {
+      type: String,
+      trim: true,
+    },
+    // Submission Platform Source (App vs Web vs Admin)
+    source: {
+      type: String,
+      enum: ['app', 'web', 'admin', 'direct', 'other'],
+      default: 'app',
+      index: true,
     },
     assignedPartner: {
       type: String,

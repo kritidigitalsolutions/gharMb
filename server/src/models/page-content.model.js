@@ -13,8 +13,8 @@ const pageContentSchema = new mongoose.Schema(
       required: [true, 'Page content type is required.'],
       unique: true,
       enum: {
-        values: ['about-us', 'help-support'],
-        message: 'Page content type must be one of: about-us, help-support.'
+        values: ['about-us', 'help-support', 'contact-us'],
+        message: 'Page content type must be one of: about-us, help-support, contact-us.'
       },
       trim: true,
       lowercase: true
@@ -28,6 +28,10 @@ const pageContentSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Content is required.'],
       trim: true
+    },
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {}
     },
     lastUpdatedBy: {
       type: mongoose.Schema.Types.ObjectId,

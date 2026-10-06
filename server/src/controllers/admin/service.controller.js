@@ -169,13 +169,22 @@ exports.createService = async (req, res, next) => {
       preferredBank,
       budgetRange,
       designStyle,
+      packageSelected,
       scope,
       moveType,
+      moveFrom,
+      moveTo,
+      bhkType,
+      selectedMover,
       shiftingDate,
       packingQuality,
       insuranceRequired,
+      legalServiceType,
       legalServiceScope,
       courtJurisdiction,
+      consultationDate,
+      estimatedPrice,
+      source,
       assignedPartner,
       quotation,
       quotationSubtext,
@@ -221,11 +230,11 @@ exports.createService = async (req, res, next) => {
       clientName: clientName.trim(),
       clientPhone: clientPhone.trim(),
       clientEmail: clientEmail ? clientEmail.trim().toLowerCase() : '',
-      location: location?.trim() || 'India',
+      location: location?.trim() || (moveFrom && moveTo ? `${moveFrom} → ${moveTo}` : 'India'),
       property: propertyId && propertyId.match(/^[0-9a-fA-F]{24}$/) ? propertyId : undefined,
       propertyRef: propertyRef?.trim() || 'Direct Inquiry',
       propertyValue: propertyValue?.trim() || '',
-      propertySize: propertySize?.trim() || '',
+      propertySize: propertySize?.trim() || bhkType?.trim() || '',
       loanRequired: loanRequired?.trim() || '',
       employmentType: employmentType?.trim() || '',
       monthlyIncome: monthlyIncome?.trim() || '',
@@ -233,13 +242,22 @@ exports.createService = async (req, res, next) => {
       preferredBank: preferredBank?.trim() || '',
       budgetRange: budgetRange?.trim() || '',
       designStyle: designStyle?.trim() || '',
+      packageSelected: packageSelected?.trim() || '',
       scope: Array.isArray(scope) ? scope : [],
       moveType: moveType?.trim() || '',
+      moveFrom: moveFrom?.trim() || '',
+      moveTo: moveTo?.trim() || '',
+      bhkType: bhkType?.trim() || '',
+      selectedMover: selectedMover?.trim() || '',
       shiftingDate: shiftingDate?.trim() || '',
       packingQuality: packingQuality?.trim() || '',
       insuranceRequired: insuranceRequired?.trim() || '',
-      legalServiceScope: legalServiceScope?.trim() || '',
+      legalServiceType: legalServiceType?.trim() || '',
+      legalServiceScope: legalServiceScope?.trim() || legalServiceType?.trim() || '',
       courtJurisdiction: courtJurisdiction?.trim() || '',
+      consultationDate: consultationDate?.trim() || '',
+      estimatedPrice: estimatedPrice?.trim() || '',
+      source: source || 'admin',
       assignedPartner: assignedPartner?.trim() || '',
       quotation: quotation ? (quotation.startsWith('₹') ? quotation : `₹${quotation}`) : 'Under Review',
       quotationSubtext: quotationSubtext?.trim() || 'Initial Estimate',
@@ -310,6 +328,14 @@ exports.updateService = async (req, res, next) => {
       propertyValue,
       loanRequired,
       budgetRange,
+      designStyle,
+      packageSelected,
+      moveFrom,
+      moveTo,
+      bhkType,
+      selectedMover,
+      legalServiceType,
+      consultationDate,
       shiftingDate
     } = req.body;
 
@@ -328,6 +354,20 @@ exports.updateService = async (req, res, next) => {
     if (propertyValue !== undefined) service.propertyValue = propertyValue.trim();
     if (loanRequired !== undefined) service.loanRequired = loanRequired.trim();
     if (budgetRange !== undefined) service.budgetRange = budgetRange.trim();
+    if (designStyle !== undefined) service.designStyle = designStyle.trim();
+    if (packageSelected !== undefined) service.packageSelected = packageSelected.trim();
+    if (moveFrom !== undefined) service.moveFrom = moveFrom.trim();
+    if (moveTo !== undefined) service.moveTo = moveTo.trim();
+    if (bhkType !== undefined) {
+      service.bhkType = bhkType.trim();
+      service.propertySize = bhkType.trim();
+    }
+    if (selectedMover !== undefined) service.selectedMover = selectedMover.trim();
+    if (legalServiceType !== undefined) {
+      service.legalServiceType = legalServiceType.trim();
+      service.legalServiceScope = legalServiceType.trim();
+    }
+    if (consultationDate !== undefined) service.consultationDate = consultationDate.trim();
     if (shiftingDate !== undefined) service.shiftingDate = shiftingDate.trim();
 
     if (Array.isArray(timeline)) {

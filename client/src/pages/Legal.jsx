@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  Save, Bold, Italic, List, Link as LinkIcon, RotateCcw, AlertTriangle, Info,
-  CheckCircle2, Undo, Redo, Heading1, Heading2, ListOrdered, Plus, Trash2,
-  FileText, Globe, Eye, EyeOff, Sparkles, ExternalLink, RefreshCw, Loader2
+  Bold, Italic, List, Link as LinkIcon, AlertTriangle,
+  CheckCircle2, Undo, Redo, Heading2, Heading3, ListOrdered, Plus, Trash2,
+  FileText, Eye, Sparkles, RefreshCw, Loader2,
+  Columns2, Settings, Lock,
+  Quote, PenLine, Smartphone
 } from 'lucide-react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -23,7 +25,29 @@ const slugify = (text) => {
     .replace(/-+$/, '');
 };
 
-// Global in-memory cache for instant 0ms switching & initial render
+// Helper to convert rich HTML into clean formatted plain text for mobile apps (removes raw HTML tags)
+const htmlToCleanPlainText = (html) => {
+  if (!html) return '';
+  return html
+    .replace(/<h[1-2][^>]*>(.*?)<\/h[1-2]>/gi, '\n\n$1\n\n')
+    .replace(/<h[3-6][^>]*>(.*?)<\/h[3-6]>/gi, '\n\n$1\n')
+    .replace(/<li[^>]*>(.*?)<\/li>/gi, '• $1\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<br\s*[/]?>/gi, '\n')
+    .replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gi, '\n> $1\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\r\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+};
+
+// Global in-memory cache for instant switching
 let globalPoliciesCache = null;
 
 const LegalSettings = () => {
@@ -31,7 +55,11 @@ const LegalSettings = () => {
   const [activeSlug, setActiveSlug] = useState('terms');
   const [isCreatingNew, setIsCreatingNew] = useState(false);
 
-  // Form states for current editing policy
+  // View mode: 'split' (side-by-side) | 'editor' | 'preview'
+  const [viewMode, setViewMode] = useState('split');
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+
+  // Form state
   const [policyForm, setPolicyForm] = useState({
     _id: null,
     title: '',
@@ -55,18 +83,22 @@ const LegalSettings = () => {
   // Toast feedback
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const toastTimeoutRef = useRef(null);
+
+  // Custom link input modal
+  const [linkModal, setLinkModal] = useState({ open: false, value: '' });
+  const linkModalInputRef = useRef(null);
+
   const triggerToast = useCallback((message, type = 'success') => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     setToast({ show: true, message, type });
     toastTimeoutRef.current = setTimeout(() => {
       setToast({ show: false, message: '', type: 'success' });
-    }, 3500);
+    }, 3000);
   }, []);
 
-  // In-flight request controller
   const abortControllerRef = useRef(null);
 
-  // TipTap WYSIWYG Editor Instance
+  // TipTap Editor
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -74,12 +106,12 @@ const LegalSettings = () => {
       }),
       Underline,
       LinkExtension.configure({ openOnClick: false }),
-      Placeholder.configure({ placeholder: 'Start typing or paste your legal content here...' })
+      Placeholder.configure({ placeholder: 'Draft your terms, privacy policy, or legal guidelines here...' })
     ],
     content: '',
     editorProps: {
       attributes: {
-        class: 'w-full min-h-[450px] text-[15px] text-[var(--text-subtle)] leading-[1.8] bg-transparent border-0 focus:ring-0 outline-none custom-scrollbar prose max-w-none prose-h2:text-[24px] prose-h2:text-[#FF5A3C] prose-h2:mt-8 prose-h2:mb-4 prose-h3:text-[19px] prose-h3:mt-6 prose-p:mb-4 prose-ul:list-disc prose-ol:list-decimal prose-ul:pl-5 prose-ol:pl-5 prose-li:mb-1'
+        class: 'w-full min-h-full text-[13.5px] text-[var(--text-primary)] leading-[1.65] bg-transparent border-0 focus:ring-0 outline-none prose max-w-none'
       },
       handlePaste: (view, event) => {
         const text = event.clipboardData.getData('text/plain');
@@ -156,7 +188,7 @@ const LegalSettings = () => {
     }
   });
 
-  // Switch active policy and sync editor in 0ms
+  // Switch policy
   const selectPolicyBySlug = useCallback((slugToSelect, policyList = policies) => {
     const list = (policyList && policyList.length > 0) ? policyList : policies;
     if (!list || list.length === 0) return;
@@ -182,7 +214,7 @@ const LegalSettings = () => {
       setPolicyForm(newForm);
 
       const d = found.updatedAt ? new Date(found.updatedAt) : new Date();
-      setLastUpdated(d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }));
+      setLastUpdated(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
 
       if (editor && !editor.isDestroyed) {
         try {
@@ -196,7 +228,7 @@ const LegalSettings = () => {
     }
   }, [policies, editor]);
 
-  // Concurrent Stale-While-Revalidate Policy Fetcher
+  // Fetch policies
   const fetchPolicies = useCallback(async (targetSlug = null, silent = false) => {
     if (!silent && !globalPoliciesCache) {
       setLoading(true);
@@ -218,30 +250,17 @@ const LegalSettings = () => {
       });
       loadedPolicies = res.data?.data?.policies || [];
     } catch (err) {
-      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
-        return; // In-flight request was superseded
-      }
-      console.error('Fetch policies error:', err);
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
       if (err.message === 'Admin session expired' || err.response?.status === 401) {
         setLoading(false);
         setIsRevalidating(false);
         return;
       }
-      if (err.response?.status === 403) {
-        fetchError = 'You do not have permission to manage legal policies.';
-      } else if (err.response?.status >= 500) {
-        fetchError = 'Legal policy service is temporarily unavailable. Please try again.';
-      } else if (err.code === 'ERR_NETWORK' || (!err.response && !err.message?.includes('status'))) {
-        fetchError = 'Unable to connect to the server. Please check your network connection.';
-      } else {
-        fetchError = err.response?.data?.message || 'Unable to sync legal policies with server.';
-      }
+      fetchError = err.response?.data?.message || 'Unable to sync policies.';
     }
 
     if (fetchError) {
-      if (!globalPoliciesCache) {
-        setError(fetchError);
-      }
+      if (!globalPoliciesCache) setError(fetchError);
       setLoading(false);
       setIsRevalidating(false);
       return;
@@ -252,25 +271,23 @@ const LegalSettings = () => {
       globalPoliciesCache = loadedPolicies;
       setPolicies(loadedPolicies);
       selectPolicyBySlug(targetSlug || activeSlug || 'terms', loadedPolicies);
-    } else if (!globalPoliciesCache) {
-      setError('No legal policies found on server.');
     }
 
     setLoading(false);
     setIsRevalidating(false);
   }, [activeSlug, selectPolicyBySlug]);
 
-  // Initial concurrent mount fetch
   useEffect(() => {
-    fetchPolicies(activeSlug, Boolean(globalPoliciesCache));
+    const t = setTimeout(() => {
+      fetchPolicies(activeSlug, Boolean(globalPoliciesCache));
+    }, 0);
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      clearTimeout(t);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update TipTap editor when active policy changes or when editor is ready
   useEffect(() => {
     if (editor && !editor.isDestroyed && !loading && policyForm.content) {
       try {
@@ -281,55 +298,40 @@ const LegalSettings = () => {
         console.warn('Editor sync notice:', e);
       }
     }
-  }, [editor, activeSlug, isCreatingNew, loading]);
+  }, [editor, activeSlug, isCreatingNew, loading, policyForm.content]);
 
-  // Instant Add Policy
+  // Start new policy
   const handleStartAddNew = () => {
     setIsCreatingNew(true);
     setActiveSlug('new-policy');
-    const nextOrder = policies.length + 1;
     const newDraftForm = {
       _id: null,
-      title: '',
-      slug: '',
+      title: 'New Policy',
+      slug: 'new-policy',
       shortDescription: '',
-      status: 'published',
+      status: 'draft',
       platform: 'both',
       showInFooter: true,
-      displayOrder: nextOrder,
-      content: '<h2>1. Policy Overview</h2><p>Provide detailed terms and policy clauses here.</p>',
+      displayOrder: policies.length + 1,
+      content: '<h2>1. Introduction</h2><p>State policy terms and rules here.</p>',
       isSystem: false
     };
     setPolicyForm(newDraftForm);
-    setLastUpdated('Drafting new policy');
+    setLastUpdated('Draft');
+    setShowSettingsModal(true);
     if (editor && !editor.isDestroyed) {
-      try {
-        editor.commands.setContent(newDraftForm.content);
-        editor.commands.focus();
-      } catch (e) {
-        console.warn('Editor focus notice:', e);
-      }
+      editor.commands.setContent(newDraftForm.content);
+      editor.commands.focus();
     }
   };
 
-  const handleTitleChange = (e) => {
-    const newTitle = e.target.value;
-    setPolicyForm(prev => {
-      const updated = { ...prev, title: newTitle };
-      if (!prev.isSystem && (isCreatingNew || !prev.slug || prev.slug === slugify(prev.title))) {
-        updated.slug = slugify(newTitle);
-      }
-      return updated;
-    });
-  };
-
-  // Instant Optimistic Save & Publish
-  const handleSave = async (overrideStatus = null) => {
+  // Save / Publish
+  const handleSave = useCallback(async (overrideStatus = null) => {
     const currentStatus = overrideStatus || policyForm.status || 'published';
     const contentToSave = editor ? editor.getHTML() : policyForm.content;
 
     if (!policyForm.title.trim()) {
-      triggerToast('Policy title is required.', 'error');
+      triggerToast('Title is required.', 'error');
       return;
     }
 
@@ -343,11 +345,13 @@ const LegalSettings = () => {
       : (policyForm.slug.trim() ? slugify(policyForm.slug) : slugify(policyForm.title));
 
     if (!finalSlug) {
-      triggerToast('A valid URL slug is required.', 'error');
+      triggerToast('A valid slug is required.', 'error');
       return;
     }
 
-    // Keep snapshot for rollback if needed
+    // Auto-clean plain text for mobile app
+    const cleanPlainText = htmlToCleanPlainText(contentToSave);
+
     const previousPoliciesSnapshot = [...policies];
     const previousFormSnapshot = { ...policyForm };
 
@@ -356,6 +360,7 @@ const LegalSettings = () => {
       slug: finalSlug,
       shortDescription: policyForm.shortDescription.trim(),
       content: contentToSave,
+      plainText: cleanPlainText, // Dedicated field for mobile app
       status: currentStatus,
       platform: policyForm.platform || 'both',
       showInFooter: Boolean(policyForm.showInFooter),
@@ -364,33 +369,27 @@ const LegalSettings = () => {
       updatedAt: new Date().toISOString()
     };
 
-    // 1. INSTANT OPTIMISTIC UI UPDATE
     setIsSaving(true);
-    let optimisticPolicies = [];
+    const optimisticPolicies = isCreatingNew
+      ? [...policies, { ...payload, _id: 'temp_' + Date.now() }]
+      : policies.map(p => (p.slug === finalSlug || p.slug === activeSlug || p.type === activeSlug ? { ...p, ...payload } : p));
 
     if (isCreatingNew) {
-      const newOptimisticItem = { ...payload, _id: 'temp_' + Date.now() };
-      optimisticPolicies = [...policies, newOptimisticItem];
+      const newOptimisticItem = optimisticPolicies[optimisticPolicies.length - 1];
       setPolicies(optimisticPolicies);
       setIsCreatingNew(false);
       setActiveSlug(finalSlug);
       setPolicyForm(newOptimisticItem);
     } else {
-      optimisticPolicies = policies.map(p => {
-        if (p.slug === finalSlug || p.slug === activeSlug || p.type === activeSlug) {
-          return { ...p, ...payload };
-        }
-        return p;
-      });
       setPolicies(optimisticPolicies);
       setPolicyForm(prev => ({ ...prev, ...payload }));
     }
 
     globalPoliciesCache = optimisticPolicies;
     setLastUpdated('Just now');
-    triggerToast(`${payload.title} ${currentStatus === 'draft' ? 'saved as draft' : 'published'} successfully!`, 'success');
+    setShowSettingsModal(false);
+    triggerToast(`${payload.title} ${currentStatus === 'draft' ? 'saved as draft' : 'published live'}!`, 'success');
 
-    // 2. CONCURRENT BACKGROUND SYNC WITH MONGODB
     try {
       let res;
       if (previousFormSnapshot._id && !previousFormSnapshot._id.toString().startsWith('temp_')) {
@@ -403,486 +402,735 @@ const LegalSettings = () => {
       if (res.status === 200 || res.status === 201) {
         const savedDoc = res.data?.data?.policy || res.data?.data?.legalContent;
         if (savedDoc) {
-          // Reconcile server ID quietly
           setPolicies(prev => prev.map(p => (p.slug === finalSlug ? { ...p, ...savedDoc } : p)));
           setPolicyForm(prev => (prev.slug === finalSlug ? { ...prev, ...savedDoc } : prev));
           globalPoliciesCache = optimisticPolicies;
         }
-      } else {
-        throw new Error(res.data?.message || 'Failed to save policy.');
       }
     } catch (err) {
       console.error('Save policy error:', err);
-      // Rollback on failure
       setPolicies(previousPoliciesSnapshot);
       setPolicyForm(previousFormSnapshot);
       globalPoliciesCache = previousPoliciesSnapshot;
-      const errMsg = err.response?.data?.message || (err.code === 'ERR_NETWORK' ? 'Network error. Changes could not be saved to server.' : 'Failed to save policy to server.');
-      triggerToast(errMsg, 'error');
+      triggerToast('Failed to save to server.', 'error');
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [editor, policyForm, policies, isCreatingNew, activeSlug, triggerToast]);
 
-  // Instant Optimistic Delete
-  const handleDeletePolicy = async (customTarget = null) => {
-    const policyToDelete = customTarget || policyForm;
-    const isSystem = policyToDelete.isSystem || policyToDelete.type === 'terms' || policyToDelete.type === 'privacy-policy' || policyToDelete.slug === 'terms' || policyToDelete.slug === 'privacy-policy';
-
-    if (isSystem) {
-      triggerToast('System policies (Terms of Service / Privacy Policy) cannot be deleted.', 'error');
+  // Delete policy
+  const handleDeletePolicy = async () => {
+    if (policyForm.isSystem || policyForm.slug === 'terms' || policyForm.slug === 'privacy-policy') {
+      triggerToast('System policies cannot be deleted.', 'error');
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to delete "${policyToDelete.title || 'this policy'}"? This cannot be undone.`)) {
-      return;
-    }
+    if (!window.confirm(`Delete "${policyForm.title}"?`)) return;
 
-    const targetId = policyToDelete._id || policyToDelete.slug || policyToDelete.type || activeSlug;
-    const targetSlug = policyToDelete.slug || policyToDelete.type || activeSlug;
+    const targetId = policyForm._id || policyForm.slug || activeSlug;
+    const targetSlug = policyForm.slug || activeSlug;
+    const remaining = policies.filter(p => p.slug !== targetSlug && p._id !== targetId);
 
-    // Snapshot for rollback
-    const previousPoliciesSnapshot = [...policies];
-
-    // 1. INSTANT OPTIMISTIC REMOVAL (0ms UI Response)
-    const remainingPolicies = policies.filter(p => p.slug !== targetSlug && p.type !== targetSlug && p._id !== targetId && p._id !== policyToDelete._id);
-    setPolicies(remainingPolicies);
-    globalPoliciesCache = remainingPolicies;
-
-    const nextPolicy = remainingPolicies[0] || null;
-    if (nextPolicy) {
-      selectPolicyBySlug(nextPolicy.slug || nextPolicy.type, remainingPolicies);
+    setPolicies(remaining);
+    globalPoliciesCache = remaining;
+    if (remaining.length > 0) {
+      selectPolicyBySlug(remaining[0].slug, remaining);
     } else {
       handleStartAddNew();
     }
+    setShowSettingsModal(false);
+    triggerToast('Policy deleted.', 'success');
 
-    setIsDeleting(true);
-    triggerToast(`"${policyToDelete.title || 'Policy'}" deleted successfully.`, 'success');
-
-    // 2. CONCURRENT BACKGROUND REMOVAL ON SERVER
     try {
-      const res = await API.delete(`/admin/legal/policies/${targetId}`);
-      if (res.status !== 200) {
-        throw new Error(res.data?.message || 'Failed to delete policy from server.');
-      }
-    } catch (err) {
-      console.error('Delete policy error:', err);
-      // Rollback on failure
-      setPolicies(previousPoliciesSnapshot);
-      globalPoliciesCache = previousPoliciesSnapshot;
-      selectPolicyBySlug(targetSlug, previousPoliciesSnapshot);
-      const errMsg = err.response?.data?.message || 'Failed to delete policy on server. Changes reverted.';
-      triggerToast(errMsg, 'error');
+      setIsDeleting(true);
+      await API.delete(`/admin/legal/policies/${targetId}`);
+    } catch (e) {
+      console.error('Delete error:', e);
     } finally {
       setIsDeleting(false);
     }
   };
 
+  // Keyboard shortcut Ctrl+S
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleSave(e.shiftKey ? 'published' : 'draft');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleSave]);
+
   const addLink = () => {
-    const url = window.prompt('Enter link URL (e.g. https://... or /contact):');
-    if (url === null) return;
-    if (url === '') {
-      editor?.chain().focus().extendMarkRange('link').unsetLink().run();
-      return;
-    }
-    editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+    const existing = editor?.getAttributes('link').href || '';
+    setLinkModal({ open: true, value: existing });
+    setTimeout(() => linkModalInputRef.current?.focus(), 50);
   };
 
+  const confirmLink = () => {
+    const url = linkModal.value.trim();
+    if (url === '') {
+      editor?.chain().focus().extendMarkRange('link').unsetLink().run();
+    } else {
+      editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+    }
+    setLinkModal({ open: false, value: '' });
+  };
+
+  // Word count & read time
+  const stats = useMemo(() => {
+    if (!policyForm.content) return { words: 0, readTime: 1 };
+    const clean = policyForm.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const words = clean ? clean.split(/\s+/).length : 0;
+    return { words, readTime: Math.max(1, Math.ceil(words / 200)) };
+  }, [policyForm.content]);
+
   return (
-    <div className="space-y-6">
+    <div className="h-[calc(100vh-126px)] max-h-[calc(100vh-126px)] flex flex-col gap-2 w-full overflow-hidden">
       {/* Toast Notification */}
       {toast.show && (
-        <div className={`fixed bottom-6 right-6 z-50 py-3.5 px-6 rounded-2xl shadow-2xl flex items-center gap-3 animate-slide-up border ${
-          toast.type === 'success' ? 'bg-emerald-950 border-emerald-800 text-emerald-300' : 'bg-rose-950 border-rose-800 text-rose-300'
+        <div className={`fixed bottom-5 right-5 z-50 py-2.5 px-4 rounded-xl shadow-xl flex items-center gap-2.5 text-xs font-semibold border backdrop-blur-md ${
+          toast.type === 'success' ? 'bg-emerald-950/95 border-emerald-700/60 text-emerald-200' : 'bg-rose-950/95 border-rose-700/60 text-rose-200'
         }`}>
-          {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
-          <div className="text-xs">
-            <p className="font-extrabold text-white">{toast.type === 'success' ? 'Success' : 'Notice'}</p>
-            <p className="opacity-90">{toast.message}</p>
-          </div>
+          {toast.type === 'success' ? <CheckCircle2 size={15} className="text-emerald-400" /> : <AlertTriangle size={15} className="text-rose-400" />}
+          <span>{toast.message}</span>
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
+      {/* ── Custom Link URL Modal ── */}
+      {linkModal.open && (
+        <div
+          className="fixed inset-0 z-[999] flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setLinkModal({ open: false, value: '' })}
+        >
+          <div
+            className="w-[400px] max-w-[92vw] rounded-2xl border border-[var(--border)] overflow-hidden"
+            style={{
+              background: 'var(--bg-surface)',
+              boxShadow: '0 24px 60px rgba(0,0,0,0.35), 0 4px 16px rgba(0,0,0,0.2)',
+              animation: 'linkModalIn 0.2s cubic-bezier(.34,1.56,.64,1)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Top accent bar */}
+            <div style={{ height: 3, background: 'linear-gradient(90deg, #FF5A3C, #FF8C6B)' }} />
+
+            {/* Header */}
+            <div className="px-5 pt-4 pb-3 flex items-center gap-3">
+              <div
+                className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(255,90,60,0.12)', border: '1px solid rgba(255,90,60,0.25)' }}
+              >
+                <LinkIcon size={14} style={{ color: '#FF5A3C' }} />
+              </div>
+              <div>
+                <p className="text-[13.5px] font-bold text-[var(--text-primary)] leading-tight">Insert Link</p>
+                <p className="text-[11px] text-[var(--text-muted)] leading-tight mt-0.5">Enter a URL or relative path</p>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="mx-5 h-px bg-[var(--border)]" />
+
+            {/* Body */}
+            <div className="px-5 py-4 flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10.5px] font-semibold text-[var(--text-muted)] uppercase tracking-widest">URL</label>
+                <div className="relative">
+                  <input
+                    ref={linkModalInputRef}
+                    type="text"
+                    value={linkModal.value}
+                    onChange={e => setLinkModal(p => ({ ...p, value: e.target.value }))}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') confirmLink();
+                      if (e.key === 'Escape') setLinkModal({ open: false, value: '' });
+                    }}
+                    placeholder="https://example.com or /contact"
+                    className="w-full rounded-xl text-[13px] text-[var(--text-primary)] pl-3 pr-3 py-2.5 outline-none placeholder:text-[var(--text-muted)] transition-all"
+                    style={{
+                      background: 'var(--bg-muted)',
+                      border: '1.5px solid var(--border)',
+                    }}
+                    onFocus={e => { e.target.style.borderColor = '#FF5A3C'; e.target.style.boxShadow = '0 0 0 3px rgba(255,90,60,0.12)'; }}
+                    onBlur={e => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+                  />
+                </div>
+              </div>
+
+              {linkModal.value && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor?.chain().focus().extendMarkRange('link').unsetLink().run();
+                    setLinkModal({ open: false, value: '' });
+                  }}
+                  className="text-[11px] font-medium flex items-center gap-1.5 self-start transition-colors"
+                  style={{ color: '#FF5A3C' }}
+                  onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                >
+                  <span className="text-[10px]">✕</span> Remove existing link
+                </button>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 pb-4 pt-1 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setLinkModal({ open: false, value: '' })}
+                className="px-4 py-2 rounded-xl text-[12.5px] font-semibold border border-[var(--border)] text-[var(--text-muted)] transition-all"
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmLink}
+                className="px-4 py-2 rounded-xl text-[12.5px] font-bold text-white transition-all active:scale-95 flex items-center gap-1.5"
+                style={{ background: 'linear-gradient(135deg, #FF6B4A 0%, #FF5A3C 60%, #E84528 100%)', boxShadow: '0 2px 8px rgba(255,90,60,0.35)' }}
+                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(255,90,60,0.5)'}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = '0 2px 8px rgba(255,90,60,0.35)'}
+              >
+                <LinkIcon size={12} />
+                Apply Link
+              </button>
+            </div>
+          </div>
+          <style>{`@keyframes linkModalIn { from { opacity:0; transform:scale(0.9) translateY(10px); } to { opacity:1; transform:scale(1) translateY(0); } }`}</style>
+        </div>
+      )}
+
+      {/* ── 1. MINIMAL HEADER BAR ── */}
+      <div className="shrink-0 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 shadow-xs">
+        {/* Left: Title & Tabs */}
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">Legal Documents & Policies</h2>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/20">
-              {policies.length} {policies.length === 1 ? 'Policy' : 'Policies'}
-            </span>
-            {isRevalidating && (
-              <span className="text-[10px] text-[var(--text-muted)] flex items-center gap-1">
-                <Loader2 size={10} className="animate-spin text-brand" />
-                <span>Syncing live...</span>
+            <h1 className="text-base font-extrabold text-[var(--text-primary)] tracking-tight">Legal Policies</h1>
+            {isRevalidating && <Loader2 size={12} className="animate-spin text-brand" />}
+          </div>
+
+          <div className="h-4 w-px bg-[var(--border)] hidden sm:block"></div>
+
+          {/* Segmented Pills */}
+          <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar">
+            {policies.map(p => {
+              const isSelected = !isCreatingNew && (activeSlug === p.slug || activeSlug === p.type);
+              return (
+                <button
+                  key={p._id || p.slug || p.type}
+                  type="button"
+                  onClick={() => selectPolicyBySlug(p.slug || p.type)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-brand/10 text-brand font-bold border border-brand/20'
+                      : 'text-[var(--text-subtle)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] border border-transparent'
+                  }`}
+                >
+                  <FileText size={12} className={isSelected ? 'text-brand' : 'opacity-50'} />
+                  <span>{p.title}</span>
+                  {p.status === 'draft' && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Draft"></span>
+                  )}
+                </button>
+              );
+            })}
+
+            {isCreatingNew && (
+              <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-brand/15 text-brand border border-brand/30">
+                New Policy
               </span>
             )}
+
+            <button
+              type="button"
+              onClick={handleStartAddNew}
+              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-brand hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+              title="Add Policy"
+            >
+              <Plus size={14} />
+            </button>
           </div>
-          <p className="text-xs text-[var(--text-subtle)] mt-1">
-            Manage Terms of Service, Privacy Policy, and create dynamic legal policies that publish to Web, Mobile App, or Both.
-          </p>
         </div>
 
-        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="inline-flex items-center p-0.5 bg-[var(--bg-muted)] rounded-lg border border-[var(--border)] text-xs">
+            <button
+              type="button"
+              onClick={() => setViewMode('split')}
+              className={`p-1.5 rounded-md transition-all cursor-pointer ${viewMode === 'split' ? 'bg-[var(--bg-surface)] text-brand shadow-xs' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+              title="Split View (Side by Side)"
+            >
+              <Columns2 size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('editor')}
+              className={`p-1.5 rounded-md transition-all cursor-pointer ${viewMode === 'editor' ? 'bg-[var(--bg-surface)] text-brand shadow-xs' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+              title="Editor Only"
+            >
+              <PenLine size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('preview')}
+              className={`p-1.5 rounded-md transition-all cursor-pointer ${viewMode === 'preview' ? 'bg-[var(--bg-surface)] text-brand shadow-xs' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+              title="Preview Only"
+            >
+              <Eye size={13} />
+            </button>
+          </div>
+
+          {/* Settings / Edit Details */}
           <button
-            onClick={handleStartAddNew}
-            disabled={isSaving || loading}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] border border-[var(--border)] text-[var(--text-primary)] text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer hover:border-brand/40"
+            type="button"
+            onClick={() => setShowSettingsModal(true)}
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-brand hover:bg-[var(--bg-muted)] transition-colors cursor-pointer border border-[var(--border)]"
+            title="Policy Settings & Details"
           >
-            <Plus size={15} className="text-brand" />
-            <span>Add Policy</span>
+            <Settings size={14} />
           </button>
 
           <button
+            type="button"
             onClick={() => handleSave('draft')}
-            disabled={isSaving || loading}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+            disabled={isSaving}
+            className="px-3 py-1.5 bg-[var(--bg-muted)] hover:bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-subtle)] text-xs font-bold rounded-lg transition-colors cursor-pointer"
           >
-            <Save size={13} />
-            <span>Save Draft</span>
+            Save Draft
           </button>
 
           <button
+            type="button"
             onClick={() => handleSave('published')}
-            disabled={isSaving || loading}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-brand hover:bg-brand-dark text-white text-xs font-black rounded-xl shadow-lg transition-all disabled:opacity-70 cursor-pointer"
+            disabled={isSaving}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-brand hover:bg-brand-dark text-white text-xs font-black rounded-lg transition-all shadow-xs cursor-pointer"
           >
-            <Sparkles size={14} />
-            {isSaving ? 'Publishing...' : 'Publish Changes'}
+            <Sparkles size={12} />
+            <span>{isSaving ? 'Publishing...' : 'Publish'}</span>
           </button>
         </div>
       </div>
 
-      {/* Error Banner with Intelligent Retry */}
+      {/* Error Notice */}
       {error && (
-        <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-3">
-            <AlertTriangle size={18} className="shrink-0" />
-            <div>
-              <p className="font-extrabold">Service Connection Notice</p>
-              <p className="opacity-90 mt-0.5">{error}</p>
-            </div>
-          </div>
-          <button
-            onClick={() => fetchPolicies()}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold transition-colors cursor-pointer shrink-0 disabled:opacity-70"
-          >
-            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-            <span>{loading ? 'Connecting...' : 'Retry Connection'}</span>
+        <div className="shrink-0 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 rounded-xl flex items-center justify-between text-xs font-semibold">
+          <span>{error}</span>
+          <button onClick={() => fetchPolicies()} className="flex items-center gap-1 underline cursor-pointer">
+            <RefreshCw size={11} /> Retry
           </button>
         </div>
       )}
 
-      {/* Tabs Row */}
-      <div className="border-b border-[var(--border)] overflow-x-auto custom-scrollbar">
-        <div className="flex items-center gap-2 min-w-max pb-px">
-          {policies.map(p => {
-            const isSelected = !isCreatingNew && (activeSlug === p.slug || activeSlug === p.type);
-            const isDraft = p.status === 'draft';
-            const platform = p.platform || 'both';
-            const isSystem = p.isSystem || p.type === 'terms' || p.type === 'privacy-policy' || p.slug === 'terms' || p.slug === 'privacy-policy';
+      {/* ── 2. WORKSPACE: EDITOR + ONE CLEAN PREVIEW (Fits 100% on page) ── */}
+      <div className={`flex-1 min-h-0 grid gap-3 overflow-hidden ${
+        viewMode === 'split'
+          ? 'grid-cols-1 lg:grid-cols-2 grid-rows-1 items-stretch'
+          : 'grid-cols-1 grid-rows-1 w-full'
+      }`}>
+        {/* ─── LEFT: COMPACT EDITOR ─── */}
+        {(viewMode === 'split' || viewMode === 'editor') && (
+          <div className="h-full min-h-0 flex flex-col bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] shadow-xs overflow-hidden">
+            {/* Toolbar */}
+            <div className="shrink-0 px-3 py-1.5 border-b border-[var(--border)] bg-[var(--bg-muted)]/50 flex flex-wrap items-center justify-between gap-1 text-xs">
+              <div className="flex items-center gap-0.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => editor?.chain().focus().toggleBold().run()}
+                  className={`p-1.5 rounded transition-colors cursor-pointer ${editor?.isActive('bold') ? 'bg-brand/15 text-brand font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                  title="Bold"
+                >
+                  <Bold size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => editor?.chain().focus().toggleItalic().run()}
+                  className={`p-1.5 rounded transition-colors cursor-pointer ${editor?.isActive('italic') ? 'bg-brand/15 text-brand' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                  title="Italic"
+                >
+                  <Italic size={13} />
+                </button>
+                <div className="w-px h-3.5 bg-[var(--border)] mx-1"></div>
+                <button
+                  type="button"
+                  onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
+                  className={`p-1.5 rounded transition-colors cursor-pointer ${editor?.isActive('heading', { level: 2 }) ? 'bg-brand/15 text-brand font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                  title="Heading 2"
+                >
+                  <Heading2 size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
+                  className={`p-1.5 rounded transition-colors cursor-pointer ${editor?.isActive('heading', { level: 3 }) ? 'bg-brand/15 text-brand font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                  title="Heading 3"
+                >
+                  <Heading3 size={13} />
+                </button>
+                <div className="w-px h-3.5 bg-[var(--border)] mx-1"></div>
+                <button
+                  type="button"
+                  onClick={() => editor?.chain().focus().toggleBulletList().run()}
+                  className={`p-1.5 rounded transition-colors cursor-pointer ${editor?.isActive('bulletList') ? 'bg-brand/15 text-brand' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                  title="Bullet List"
+                >
+                  <List size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+                  className={`p-1.5 rounded transition-colors cursor-pointer ${editor?.isActive('orderedList') ? 'bg-brand/15 text-brand' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                  title="Numbered List"
+                >
+                  <ListOrdered size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+                  className={`p-1.5 rounded transition-colors cursor-pointer ${editor?.isActive('blockquote') ? 'bg-brand/15 text-brand' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                  title="Quote"
+                >
+                  <Quote size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={addLink}
+                  className={`p-1.5 rounded transition-colors cursor-pointer ${editor?.isActive('link') ? 'bg-brand/15 text-brand' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                  title="Insert Link"
+                >
+                  <LinkIcon size={13} />
+                </button>
+                <div className="w-px h-3.5 bg-[var(--border)] mx-1"></div>
+                <button
+                  type="button"
+                  onClick={() => editor?.chain().focus().undo().run()}
+                  disabled={!editor?.can().undo()}
+                  className="p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30 cursor-pointer"
+                  title="Undo"
+                >
+                  <Undo size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => editor?.chain().focus().redo().run()}
+                  disabled={!editor?.can().redo()}
+                  className="p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30 cursor-pointer"
+                  title="Redo"
+                >
+                  <Redo size={13} />
+                </button>
+              </div>
 
-            return (
-              <button
-                key={p._id || p.slug || p.type}
-                onClick={() => selectPolicyBySlug(p.slug || p.type)}
-                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all relative rounded-t-xl cursor-pointer ${
-                  isSelected
-                    ? 'bg-[var(--bg-surface)] text-brand border-t-2 border-t-brand border-x border-[var(--border)] font-black'
-                    : 'text-[var(--text-subtle)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)]/50'
-                }`}
-              >
-                <FileText size={13} className={isSelected ? 'text-brand' : 'opacity-60'} />
-                <span>{p.title}</span>
-                {isDraft && (
-                  <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                    Draft
-                  </span>
-                )}
-                {platform === 'web' && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-sky-500/10 text-sky-500 border border-sky-500/20">
-                    Web
-                  </span>
-                )}
-                {platform === 'app' && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
-                    App
-                  </span>
-                )}
-                {p.showInFooter && (
-                  <span title="Visible in website footer" className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                )}
-              </button>
-            );
-          })}
-
-          {isCreatingNew && (
-            <div className="flex items-center gap-2 px-4 py-2.5 text-xs font-black bg-[var(--bg-surface)] text-brand border-t-2 border-t-brand border-x border-[var(--border)] rounded-t-xl">
-              <Plus size={13} />
-              <span>New Policy (Drafting)</span>
+              <span className="text-[10px] text-[var(--text-muted)] font-mono">
+                {stats.words} words · ~{stats.readTime} min
+              </span>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Policy Configuration Card */}
-      <div className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden p-5 sm:p-6 space-y-5">
-        <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-brand/10 text-brand flex items-center justify-center font-black">
-              <FileText size={16} />
-            </div>
-            <div>
-              <h3 className="text-sm font-extrabold text-[var(--text-primary)]">
-                {isCreatingNew ? 'Create New Legal Policy' : `Editing: ${policyForm.title || 'Policy'}`}
-              </h3>
-              <p className="text-[11px] text-[var(--text-subtle)]">
-                Configure policy URL slug, target platform (Web/App/Both), footer placement, status, and contents.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {!isCreatingNew && !policyForm.isSystem && (
-              <button
-                onClick={handleDeletePolicy}
-                disabled={isDeleting || isSaving}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
-                title="Delete this custom policy"
-              >
-                <Trash2 size={13} />
-                <span>Delete Policy</span>
-              </button>
-            )}
-            {!isCreatingNew && (
-              <a
-                href={`/${policyForm.slug || activeSlug}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1 px-3 py-1.5 text-xs text-[var(--text-subtle)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] rounded-lg transition-colors"
-                title="Preview public page"
-              >
-                <span>View Live</span>
-                <ExternalLink size={12} />
-              </a>
-            )}
-          </div>
-        </div>
-
-        {/* Metadata Inputs Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {/* Policy Title */}
-          <div>
-            <label className="block text-[11px] font-bold text-[var(--text-subtle)] uppercase tracking-wider mb-1.5">
-              Policy Title <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={policyForm.title}
-              onChange={handleTitleChange}
-              placeholder="e.g. Refund Policy"
-              className="w-full px-3.5 py-2.5 bg-[var(--bg-muted)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-primary)] font-semibold focus:outline-none focus:border-brand transition-colors"
-            />
-          </div>
-
-          {/* URL Slug */}
-          <div>
-            <label className="block text-[11px] font-bold text-[var(--text-subtle)] uppercase tracking-wider mb-1.5">
-              URL Slug <span className="text-rose-500">*</span>
-            </label>
-            <div className="relative flex items-center">
-              <span className="absolute left-3 text-xs text-[var(--text-subtle)] font-mono">/</span>
+            {/* Document Title input */}
+            <div className="shrink-0 px-4 py-2 border-b border-[var(--border)] bg-[var(--bg-surface)]">
               <input
                 type="text"
-                value={policyForm.slug}
-                disabled={policyForm.isSystem}
-                onChange={(e) => setPolicyForm(prev => ({ ...prev, slug: slugify(e.target.value) }))}
-                placeholder="refund-policy"
-                className={`w-full pl-6 pr-3.5 py-2.5 bg-[var(--bg-muted)] border border-[var(--border)] rounded-xl text-xs font-mono font-semibold focus:outline-none focus:border-brand transition-colors ${
-                  policyForm.isSystem ? 'opacity-60 cursor-not-allowed bg-slate-100 dark:bg-slate-900 text-[var(--text-subtle)]' : 'text-[var(--text-primary)]'
-                }`}
+                value={policyForm.title}
+                onChange={(e) => setPolicyForm(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Policy Title..."
+                className="w-full text-base sm:text-lg font-extrabold text-[var(--text-primary)] bg-transparent border-0 outline-none p-0 focus:ring-0 placeholder-[var(--text-muted)]/50 tracking-tight"
               />
             </div>
-            {policyForm.isSystem && (
-              <span className="text-[10px] text-amber-500 mt-1 block">Fixed system slug</span>
-            )}
-          </div>
 
-          {/* Target Platform */}
-          <div>
-            <label className="block text-[11px] font-bold text-[var(--text-subtle)] uppercase tracking-wider mb-1.5">
-              Target Platform
-            </label>
-            <select
-              value={policyForm.platform || 'both'}
-              onChange={(e) => setPolicyForm(prev => ({ ...prev, platform: e.target.value }))}
-              className="w-full px-3.5 py-2.5 bg-[var(--bg-muted)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-primary)] font-semibold focus:outline-none focus:border-brand transition-colors cursor-pointer"
-            >
-              <option value="both">Both (Web & App)</option>
-              <option value="web">Web Only</option>
-              <option value="app">App / Mobile Only</option>
-            </select>
+            {/* Editor Canvas (Scrollable matching Preview) */}
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 sm:p-5 legal-editor-wrap">
+              {loading ? (
+                <div className="flex items-center justify-center h-48 text-xs text-[var(--text-muted)]">
+                  <Loader2 size={16} className="animate-spin text-brand mr-2" /> Loading document...
+                </div>
+              ) : (
+                <EditorContent editor={editor} />
+              )}
+            </div>
           </div>
+        )}
 
-          {/* Publication Status */}
-          <div>
-            <label className="block text-[11px] font-bold text-[var(--text-subtle)] uppercase tracking-wider mb-1.5">
-              Status
-            </label>
-            <select
-              value={policyForm.status}
-              onChange={(e) => setPolicyForm(prev => ({ ...prev, status: e.target.value }))}
-              className="w-full px-3.5 py-2.5 bg-[var(--bg-muted)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-primary)] font-semibold focus:outline-none focus:border-brand transition-colors cursor-pointer"
-            >
-              <option value="published">Published (Live)</option>
-              <option value="draft">Draft (Hidden)</option>
-            </select>
+        {/* ─── RIGHT: ONE SINGLE LIVE PREVIEW ─── */}
+        {(viewMode === 'split' || viewMode === 'preview') && (
+          <div className="h-full min-h-0 flex flex-col bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] shadow-xs overflow-hidden">
+            {/* Header */}
+            <div className="shrink-0 px-4 py-2 border-b border-[var(--border)] bg-[var(--bg-muted)]/50 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="font-bold text-[var(--text-primary)]">Live Document Preview</span>
+              </div>
+              <span className="text-[11px] text-[var(--text-muted)] font-medium">
+                Updated {lastUpdated}
+              </span>
+            </div>
+
+            {/* ONE Clean Document View (Scrollable matching Editor) */}
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 sm:p-5 space-y-3.5">
+              <div>
+                <span className="text-[10px] font-black uppercase text-brand tracking-wider">GHARMB OFFICIAL POLICY</span>
+                <h2 className="text-lg sm:text-xl font-black text-[var(--text-primary)] mt-0.5 tracking-tight">
+                  {policyForm.title || 'Legal Document'}
+                </h2>
+                {policyForm.shortDescription && (
+                  <p className="text-xs text-[var(--text-subtle)] mt-1 leading-relaxed">
+                    {policyForm.shortDescription}
+                  </p>
+                )}
+                <div className="w-full h-px bg-[var(--border)] mt-2.5"></div>
+              </div>
+
+              {/* Formatted body */}
+              <div
+                className="legal-preview-content text-[13.5px] leading-relaxed text-[var(--text-subtle)]"
+                dangerouslySetInnerHTML={{
+                  __html: policyForm.content || '<p class="text-slate-400 italic">No content drafted.</p>'
+                }}
+              />
+
+              {/* Minimal note box at bottom */}
+              <div className="mt-5 pt-3.5 border-t border-[var(--border)] flex items-center justify-between text-[11px] text-[var(--text-muted)]">
+                <span>Mira-Bhayandar, Maharashtra</span>
+                <span>legal@gharmb.in</span>
+              </div>
+            </div>
           </div>
+        )}
+      </div>
 
-          {/* Footer Visibility & Display Order */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-[11px] font-bold text-[var(--text-subtle)] uppercase tracking-wider mb-1.5">
-                Footer Link
-              </label>
-              <select
-                value={policyForm.showInFooter ? 'yes' : 'no'}
-                onChange={(e) => setPolicyForm(prev => ({ ...prev, showInFooter: e.target.value === 'yes' }))}
-                className="w-full px-3 py-2.5 bg-[var(--bg-muted)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-primary)] font-semibold focus:outline-none focus:border-brand transition-colors cursor-pointer"
+      {/* ── 4. CLEAN SETTINGS MODAL ── */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+              <h3 className="text-sm font-extrabold text-[var(--text-primary)]">Policy Configuration</h3>
+              <button
+                type="button"
+                onClick={() => setShowSettingsModal(false)}
+                className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
               >
-                <option value="yes">Show</option>
-                <option value="no">Hide</option>
-              </select>
+                ✕
+              </button>
             </div>
 
-            <div>
-              <label className="block text-[11px] font-bold text-[var(--text-subtle)] uppercase tracking-wider mb-1.5">
-                Order
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="99"
-                value={policyForm.displayOrder}
-                onChange={(e) => setPolicyForm(prev => ({ ...prev, displayOrder: parseInt(e.target.value, 10) || 1 }))}
-                className="w-full px-3 py-2.5 bg-[var(--bg-muted)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-primary)] font-semibold focus:outline-none focus:border-brand transition-colors"
-              />
+            <div className="space-y-3 text-xs">
+              {/* Title */}
+              <div>
+                <label className="block text-[11px] font-bold text-[var(--text-subtle)] mb-1">Policy Title</label>
+                <input
+                  type="text"
+                  value={policyForm.title}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setPolicyForm(prev => ({
+                      ...prev,
+                      title: val,
+                      slug: !prev.isSystem && (isCreatingNew || !prev.slug || prev.slug === slugify(prev.title)) ? slugify(val) : prev.slug
+                    }));
+                  }}
+                  className="w-full px-3 py-2 bg-[var(--bg-muted)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-primary)] font-medium focus:outline-none focus:border-brand"
+                />
+              </div>
+
+              {/* URL Slug */}
+              <div>
+                <label className="block text-[11px] font-bold text-[var(--text-subtle)] mb-1">URL Slug</label>
+                <div className="relative flex items-center">
+                  <span className="absolute left-2.5 text-xs text-[var(--text-muted)]">/</span>
+                  <input
+                    type="text"
+                    value={policyForm.slug}
+                    disabled={policyForm.isSystem}
+                    onChange={(e) => setPolicyForm(prev => ({ ...prev, slug: slugify(e.target.value) }))}
+                    className={`w-full pl-5 pr-3 py-2 bg-[var(--bg-muted)] border border-[var(--border)] rounded-lg text-xs font-mono font-medium focus:outline-none focus:border-brand ${
+                      policyForm.isSystem ? 'opacity-60 cursor-not-allowed text-[var(--text-muted)]' : 'text-[var(--text-primary)]'
+                    }`}
+                  />
+                  {policyForm.isSystem && <Lock size={12} className="absolute right-2.5 text-amber-500" />}
+                </div>
+              </div>
+
+              {/* Platform & Status */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-[var(--text-subtle)] mb-1">Target Platform</label>
+                  <select
+                    value={policyForm.platform || 'both'}
+                    onChange={(e) => setPolicyForm(prev => ({ ...prev, platform: e.target.value }))}
+                    className="w-full px-2.5 py-2 bg-[var(--bg-muted)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-primary)] font-medium focus:outline-none cursor-pointer"
+                  >
+                    <option value="both">Both (Web & App)</option>
+                    <option value="web">Web Only</option>
+                    <option value="app">App Only</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-[var(--text-subtle)] mb-1">Status</label>
+                  <select
+                    value={policyForm.status}
+                    onChange={(e) => setPolicyForm(prev => ({ ...prev, status: e.target.value }))}
+                    className="w-full px-2.5 py-2 bg-[var(--bg-muted)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-primary)] font-medium focus:outline-none cursor-pointer"
+                  >
+                    <option value="published">Published</option>
+                    <option value="draft">Draft</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Footer Visibility & Order */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-[var(--text-subtle)] mb-1">Footer Link</label>
+                  <select
+                    value={policyForm.showInFooter ? 'yes' : 'no'}
+                    onChange={(e) => setPolicyForm(prev => ({ ...prev, showInFooter: e.target.value === 'yes' }))}
+                    className="w-full px-2.5 py-2 bg-[var(--bg-muted)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-primary)] font-medium focus:outline-none cursor-pointer"
+                  >
+                    <option value="yes">Visible</option>
+                    <option value="no">Hidden</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-[var(--text-subtle)] mb-1">Display Order</label>
+                  <input
+                    type="number"
+                    value={policyForm.displayOrder}
+                    onChange={(e) => setPolicyForm(prev => ({ ...prev, displayOrder: parseInt(e.target.value, 10) || 1 }))}
+                    className="w-full px-2.5 py-2 bg-[var(--bg-muted)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-primary)] font-medium focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-[11px] font-bold text-[var(--text-subtle)] mb-1">Short Description (SEO)</label>
+                <input
+                  type="text"
+                  value={policyForm.shortDescription}
+                  onChange={(e) => setPolicyForm(prev => ({ ...prev, shortDescription: e.target.value }))}
+                  placeholder="Summary shown on search results & document header..."
+                  className="w-full px-3 py-2 bg-[var(--bg-muted)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-primary)] font-medium focus:outline-none"
+                />
+              </div>
+
+              {/* App Formatting Notice */}
+              <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[11px] text-emerald-700 dark:text-emerald-300">
+                <p className="font-bold flex items-center gap-1">
+                  <Smartphone size={12} /> Mobile App Optimization
+                </p>
+                <p className="text-[10px] opacity-90 mt-0.5">
+                  Content is automatically formatted into clean text without HTML tags for mobile app displays.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-[var(--border)] flex items-center justify-between">
+              {!isCreatingNew && !policyForm.isSystem ? (
+                <button
+                  type="button"
+                  onClick={handleDeletePolicy}
+                  disabled={isDeleting}
+                  className="text-xs text-rose-500 hover:text-rose-600 font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <Trash2 size={12} /> Delete Policy
+                </button>
+              ) : <div />}
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSettingsModal(false)}
+                  className="px-3 py-1.5 text-xs text-[var(--text-subtle)] hover:bg-[var(--bg-muted)] rounded-lg transition-colors cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </div>
         </div>
+      )}
 
-        {/* Short Description */}
-        <div>
-          <label className="block text-[11px] font-bold text-[var(--text-subtle)] uppercase tracking-wider mb-1.5">
-            Short Description (SEO & Page Subtitle)
-          </label>
-          <input
-            type="text"
-            value={policyForm.shortDescription}
-            onChange={(e) => setPolicyForm(prev => ({ ...prev, shortDescription: e.target.value }))}
-            placeholder="Brief summary shown at the top of the policy page and in SEO meta tags..."
-            className="w-full px-3.5 py-2.5 bg-[var(--bg-muted)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-primary)] font-medium focus:outline-none focus:border-brand transition-colors"
-          />
-        </div>
-      </div>
-
-      {/* Editor Container */}
-      <div className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border)] shadow-sm flex flex-col overflow-hidden">
-        {/* Editor Toolbar */}
-        <div className="flex flex-wrap items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-muted)] gap-2">
-          <div className="flex items-center gap-1 flex-wrap">
-            <button
-              onClick={() => editor?.chain().focus().toggleBold().run()}
-              className={`p-1.5 rounded transition-colors ${editor?.isActive('bold') ? 'bg-brand/10 text-brand font-bold' : 'text-[var(--text-subtle)] hover:bg-[var(--border)]'}`}
-              title="Bold"
-            >
-              <Bold size={15} />
-            </button>
-            <button
-              onClick={() => editor?.chain().focus().toggleItalic().run()}
-              className={`p-1.5 rounded transition-colors ${editor?.isActive('italic') ? 'bg-brand/10 text-brand' : 'text-[var(--text-subtle)] hover:bg-[var(--border)]'}`}
-              title="Italic"
-            >
-              <Italic size={15} />
-            </button>
-            <div className="w-px h-5 bg-slate-300 mx-1"></div>
-            <button
-              onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-              className={`p-1.5 rounded transition-colors ${editor?.isActive('heading', { level: 2 }) ? 'bg-brand/10 text-brand font-bold' : 'text-[var(--text-subtle)] hover:bg-[var(--border)]'}`}
-              title="Section Heading (H2 - Automatically adds to Table of Contents)"
-            >
-              <Heading2 size={15} />
-            </button>
-            <button
-              onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
-              className={`p-1.5 rounded transition-colors ${editor?.isActive('heading', { level: 3 }) ? 'bg-brand/10 text-brand font-bold' : 'text-[var(--text-subtle)] hover:bg-[var(--border)]'}`}
-              title="Sub-heading (H3)"
-            >
-              <Heading1 size={15} />
-            </button>
-            <div className="w-px h-5 bg-slate-300 mx-1"></div>
-            <button
-              onClick={() => editor?.chain().focus().toggleBulletList().run()}
-              className={`p-1.5 rounded transition-colors ${editor?.isActive('bulletList') ? 'bg-brand/10 text-brand' : 'text-[var(--text-subtle)] hover:bg-[var(--border)]'}`}
-              title="Bullet List"
-            >
-              <List size={15} />
-            </button>
-            <button
-              onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-              className={`p-1.5 rounded transition-colors ${editor?.isActive('orderedList') ? 'bg-brand/10 text-brand' : 'text-[var(--text-subtle)] hover:bg-[var(--border)]'}`}
-              title="Numbered List"
-            >
-              <ListOrdered size={15} />
-            </button>
-            <button
-              onClick={addLink}
-              className={`p-1.5 rounded transition-colors ${editor?.isActive('link') ? 'bg-brand/10 text-brand' : 'text-[var(--text-subtle)] hover:bg-[var(--border)]'}`}
-              title="Insert Link"
-            >
-              <LinkIcon size={15} />
-            </button>
-            <div className="w-px h-5 bg-slate-300 mx-1"></div>
-            <button
-              onClick={() => editor?.chain().focus().undo().run()}
-              disabled={!editor?.can().undo()}
-              className="p-1.5 text-[var(--text-subtle)] hover:bg-[var(--border)] disabled:opacity-30 rounded transition-colors"
-              title="Undo"
-            >
-              <Undo size={15} />
-            </button>
-            <button
-              onClick={() => editor?.chain().focus().redo().run()}
-              disabled={!editor?.can().redo()}
-              className="p-1.5 text-[var(--text-subtle)] hover:bg-[var(--border)] disabled:opacity-30 rounded transition-colors"
-              title="Redo"
-            >
-              <Redo size={15} />
-            </button>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] font-semibold text-[var(--text-muted)] flex items-center gap-1">
-              <RotateCcw size={10} /> Last updated: {lastUpdated}
-            </span>
-          </div>
-        </div>
-
-        {/* Text Area */}
-        <div className="p-6 md:p-10">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center p-20 gap-3">
-              <div className="w-8 h-8 rounded-full border-2 border-brand/20 border-t-brand animate-spin"></div>
-              <p className="text-xs text-[var(--text-subtle)]">Loading document...</p>
-            </div>
-          ) : (
-            <div className="editor-container">
-              <EditorContent editor={editor} />
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Scoped CSS for Clean Document Editor & Preview */}
+      <style>{`
+        .legal-editor-wrap .tiptap {
+          min-height: 100% !important;
+          font-size: 13.5px !important;
+          line-height: 1.65 !important;
+          color: var(--text-primary) !important;
+          outline: none !important;
+        }
+        .legal-editor-wrap .tiptap h1,
+        .legal-preview-content h1 {
+          font-size: 1.25rem !important;
+          font-weight: 800 !important;
+          color: var(--text-primary) !important;
+          margin-top: 1rem !important;
+          margin-bottom: 0.35rem !important;
+          line-height: 1.3 !important;
+        }
+        .legal-editor-wrap .tiptap h2,
+        .legal-preview-content h2 {
+          font-size: 1.05rem !important;
+          font-weight: 750 !important;
+          color: #FF5A3C !important;
+          margin-top: 0.95rem !important;
+          margin-bottom: 0.3rem !important;
+          border-bottom: 1px solid var(--border, #e2e8f0) !important;
+          padding-bottom: 0.2rem !important;
+          line-height: 1.35 !important;
+        }
+        .legal-editor-wrap .tiptap h3,
+        .legal-preview-content h3 {
+          font-size: 0.95rem !important;
+          font-weight: 700 !important;
+          color: var(--text-primary) !important;
+          margin-top: 0.8rem !important;
+          margin-bottom: 0.25rem !important;
+          line-height: 1.4 !important;
+        }
+        .legal-editor-wrap .tiptap p,
+        .legal-preview-content p {
+          margin-bottom: 0.55rem !important;
+          line-height: 1.65 !important;
+        }
+        .legal-editor-wrap .tiptap ul,
+        .legal-preview-content ul {
+          list-style-type: disc !important;
+          padding-left: 1.2rem !important;
+          margin-bottom: 0.55rem !important;
+        }
+        .legal-editor-wrap .tiptap ol,
+        .legal-preview-content ol {
+          list-style-type: decimal !important;
+          padding-left: 1.2rem !important;
+          margin-bottom: 0.55rem !important;
+        }
+        .legal-editor-wrap .tiptap li,
+        .legal-preview-content li {
+          margin-bottom: 0.15rem !important;
+          line-height: 1.6 !important;
+        }
+        .legal-editor-wrap .tiptap blockquote,
+        .legal-preview-content blockquote {
+          border-left: 3px solid #FF5A3C !important;
+          padding: 0.35rem 0.6rem !important;
+          margin: 0.55rem 0 !important;
+          background: rgba(255, 90, 60, 0.05) !important;
+          border-radius: 0 0.4rem 0.4rem 0 !important;
+          font-style: italic !important;
+        }
+        .legal-editor-wrap .tiptap a,
+        .legal-preview-content a {
+          color: #FF5A3C !important;
+          text-decoration: underline !important;
+        }
+      `}</style>
     </div>
   );
 };

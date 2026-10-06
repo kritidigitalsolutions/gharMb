@@ -429,129 +429,124 @@ const BuilderManagement = () => {
         </div>
       )}
 
-      {/* 4 Upper Overview Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 4 Overview Stats Cards (100% Real Data & Harmonized Sizing) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Card 1: Registered Builders */}
         <div
           onClick={() => {
             setActiveTab('builders');
             setStatusFilter('All');
           }}
-          className={`p-4 bg-[var(--bg-surface)] border rounded-2xl shadow-sm flex items-center gap-4 transition-all cursor-pointer hover:border-brand/40 ${
+          className={`p-3.5 bg-[var(--bg-surface)] border rounded-xl shadow-2xs flex items-center justify-between transition-all cursor-pointer hover:border-brand/40 ${
             activeTab === 'builders' && statusFilter === 'All' ? 'border-brand/40 ring-1 ring-brand/20' : 'border-[var(--border)]'
           }`}
         >
-          <div className="w-11 h-11 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center shrink-0 border border-orange-500/20">
-            <HardHat size={20} />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold text-[var(--text-muted)] block uppercase tracking-wider">
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
               Total Builders
             </span>
-            <h4 className="text-lg font-black text-[var(--text-primary)] mt-0.5">
-              {builders.length} <span className="text-xs font-medium text-[var(--text-muted)]">Registered</span>
-            </h4>
+            <div className="flex items-baseline gap-1.5">
+              <h4 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+                {builders.length}
+              </h4>
+              <span className="text-[10px] text-[var(--text-muted)] font-medium">entities</span>
+            </div>
+          </div>
+          <div className="w-8 h-8 rounded-lg bg-orange-500/10 text-brand flex items-center justify-center shrink-0 border border-orange-500/15">
+            <HardHat size={16} />
           </div>
         </div>
 
-        {/* Card 2: Pending Approval Requests (HIGHLIGHTED) */}
+        {/* Card 2: Pending Approval Requests */}
         <div
           onClick={() => {
             setActiveTab('builders');
             setStatusFilter('Pending');
           }}
-          className={`p-4 rounded-2xl shadow-sm flex items-center justify-between gap-3 transition-all cursor-pointer ${
-            pendingBuilders.length > 0
-              ? 'bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border-2 border-amber-500/40 shadow-amber-500/5'
-              : 'bg-[var(--bg-surface)] border border-[var(--border)] hover:border-amber-500/30'
+          className={`p-3.5 bg-[var(--bg-surface)] border rounded-xl shadow-2xs flex items-center justify-between transition-all cursor-pointer hover:border-amber-500/40 ${
+            activeTab === 'builders' && statusFilter === 'Pending' ? 'border-amber-500/40 ring-1 ring-amber-500/20' : 'border-[var(--border)]'
           }`}
         >
-          <div className="flex items-center gap-3.5">
-            <div
-              className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${
-                pendingBuilders.length > 0
-                  ? 'bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-500/25 animate-pulse'
-                  : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-              }`}
-            >
-              <ShieldAlert size={20} />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">
-                  Pending Approvals
-                </span>
-                {pendingBuilders.length > 0 && (
-                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-                )}
-              </div>
-              <h4 className="text-lg font-black text-[var(--text-primary)] mt-0.5">
-                {pendingBuilders.length}{' '}
-                <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
-                  {pendingBuilders.length === 1 ? 'Action Needed' : 'Applications'}
-                </span>
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider block flex items-center gap-1">
+              Pending Audit
+              {pendingBuilders.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />}
+            </span>
+            <div className="flex items-baseline gap-1.5">
+              <h4 className={`text-xl font-bold tracking-tight ${pendingBuilders.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-[var(--text-primary)]'}`}>
+                {pendingBuilders.length}
               </h4>
+              <span className="text-[10px] text-[var(--text-muted)] font-medium">awaiting</span>
             </div>
           </div>
-          {pendingBuilders.length > 0 && (
-            <span className="text-[10px] font-extrabold px-2 py-1 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
-              Review
-            </span>
-          )}
+          <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/15">
+            <ShieldAlert size={16} />
+          </div>
         </div>
 
-        {/* Card 3: Developer Projects */}
+        {/* Card 3: RERA Verified */}
+        <div
+          onClick={() => {
+            setActiveTab('builders');
+            setStatusFilter('Approved');
+          }}
+          className={`p-3.5 bg-[var(--bg-surface)] border rounded-xl shadow-2xs flex items-center justify-between transition-all cursor-pointer hover:border-emerald-500/40 ${
+            activeTab === 'builders' && statusFilter === 'Approved' ? 'border-emerald-500/40 ring-1 ring-emerald-500/20' : 'border-[var(--border)]'
+          }`}
+        >
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
+              RERA Verified
+            </span>
+            <div className="flex items-baseline gap-1.5">
+              <h4 className="text-xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+                {builders.filter(b => b.isReraVerified || b.status === 'Approved').length}
+              </h4>
+              <span className="text-[10px] text-[var(--text-muted)] font-medium">compliant</span>
+            </div>
+          </div>
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/15">
+            <Award size={16} />
+          </div>
+        </div>
+
+        {/* Card 4: Developer Projects */}
         <div
           onClick={() => {
             setActiveTab('projects');
             setStatusFilter('All');
           }}
-          className={`p-4 bg-[var(--bg-surface)] border rounded-2xl shadow-sm flex items-center gap-4 transition-all cursor-pointer hover:border-blue-500/30 ${
+          className={`p-3.5 bg-[var(--bg-surface)] border rounded-xl shadow-2xs flex items-center justify-between transition-all cursor-pointer hover:border-blue-500/40 ${
             activeTab === 'projects' ? 'border-blue-500/40 ring-1 ring-blue-500/20' : 'border-[var(--border)]'
           }`}
         >
-          <div className="w-11 h-11 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0 border border-blue-500/20">
-            <Layers size={20} />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold text-[var(--text-muted)] block uppercase tracking-wider">
-              Developer Projects
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
+              Active Projects
             </span>
-            <h4 className="text-lg font-black text-[var(--text-primary)] mt-0.5">
-              {projects.length} <span className="text-xs font-medium text-[var(--text-muted)]">Total</span>
-            </h4>
+            <div className="flex items-baseline gap-1.5">
+              <h4 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+                {projects.length}
+              </h4>
+              <span className="text-[10px] text-[var(--text-muted)] font-medium">developments</span>
+            </div>
           </div>
-        </div>
-
-        {/* Card 4: Avg Trust Score */}
-        <div className="p-4 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm flex items-center gap-4 transition-all">
-          <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 border border-emerald-500/20">
-            <Award size={20} />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold text-[var(--text-muted)] block uppercase tracking-wider">
-              Avg Trust Score
-            </span>
-            <h4 className="text-lg font-black text-[var(--text-primary)] mt-0.5">
-              {builders.length > 0
-                ? Math.round(builders.reduce((sum, b) => sum + b.trust, 0) / builders.length)
-                : 95}%{' '}
-              <span className="text-xs font-semibold text-emerald-500">Tier Rating</span>
-            </h4>
+          <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/15">
+            <Layers size={16} />
           </div>
         </div>
       </div>
 
-      {/* Prominent High-Visibility Pending Approvals Banner (when pending builders exist) */}
+      {/* High-Visibility Pending Approvals Banner */}
       {pendingBuilders.length > 0 && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/5 border border-amber-500/30 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/30">
-              <ShieldAlert size={20} />
+        <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
+              <ShieldAlert size={16} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h4 className="text-sm font-extrabold text-[var(--text-primary)]">
+                <h4 className="text-xs font-bold text-[var(--text-primary)]">
                   {pendingBuilders.length} Builder Authorization Request{pendingBuilders.length > 1 ? 's' : ''} Awaiting Review
                 </h4>
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300">

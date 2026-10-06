@@ -312,14 +312,17 @@ const RevenueDashboard = () => {
       }));
     }
 
-    return [
-      { date: 'May 26', value: 0 },
-      { date: 'Jun 26', value: 0 },
-      { date: 'Jul 26', value: 0 },
-      { date: 'Aug 26', value: 0 },
-      { date: 'Sep 26', value: 0 },
-      { date: 'Oct 26', value: isGross ? totalRevenue : (stats?.escrowCommission || 0) }
-    ];
+    const now = new Date();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const fallbackSeries = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      fallbackSeries.push({
+        date: `${months[d.getMonth()]} ${String(d.getFullYear()).slice(-2)}`,
+        value: i === 0 ? (isGross ? totalRevenue : (stats?.escrowCommission || 0)) : 0
+      });
+    }
+    return fallbackSeries;
   }, [activeChartMetric, selectedPeriod, trajectories, revenueTrend, totalRevenue, stats]);
 
   return (

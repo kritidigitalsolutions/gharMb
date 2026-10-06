@@ -299,95 +299,22 @@ const InsightsManagement = () => {
         </div>
       </div>
 
-      {/* Minimal Metric Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {/* Total Articles */}
-        <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] transition-all hover:border-slate-300 dark:hover:border-slate-700">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-[var(--text-muted)]">Total Articles</span>
-            <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
-              <FileText size={14} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
-              {Number(stats.total).toLocaleString()}
-            </span>
-            <span className="text-[11px] font-medium text-slate-500">In database</span>
-          </div>
-        </div>
-
-        {/* Published */}
-        <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] transition-all hover:border-slate-300 dark:hover:border-slate-700">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-[var(--text-muted)]">Published</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 size={14} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tracking-tight">
-              {Number(stats.published).toLocaleString()}
-            </span>
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              Live
-            </span>
-          </div>
-        </div>
-
-        {/* Drafts */}
-        <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] transition-all hover:border-slate-300 dark:hover:border-slate-700">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-[var(--text-muted)]">Drafts</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-600 dark:text-amber-400">
-              <Clock size={14} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-amber-600 dark:text-amber-400 tracking-tight">
-              {Number(stats.draft).toLocaleString()}
-            </span>
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              Work in progress
-            </span>
-          </div>
-        </div>
-
-        {/* Total Views */}
-        <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] transition-all hover:border-slate-300 dark:hover:border-slate-700">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-[var(--text-muted)]">Total Views</span>
-            <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
-              <Eye size={14} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
-              {Number(stats.views).toLocaleString()}
-            </span>
-            <span className="text-[11px] font-medium text-slate-500">All-time reads</span>
-          </div>
-        </div>
-      </div>
-
       {/* Minimal Filter & Search Toolbar */}
-      <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] flex flex-col md:flex-row gap-2.5 items-center justify-between">
+      <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xs flex flex-col md:flex-row gap-2.5 items-stretch md:items-center justify-between">
         {/* Search Input */}
-        <div className="relative w-full md:w-80">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <div className="relative flex-1 max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by title, excerpt, tag..."
-            className="w-full pl-9 pr-8 py-1.5 text-xs rounded-lg bg-[var(--bg-muted)] border border-transparent focus:border-[var(--border)] focus:bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-slate-400 transition-colors outline-none"
+            className="w-full pl-9 pr-8 h-8 text-xs rounded-lg bg-[var(--bg-muted)]/50 border border-[var(--border)] focus:bg-[var(--bg-surface)] focus:border-brand text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors outline-none"
           />
           {search && (
             <button
               onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
               title="Clear search"
             >
               <X size={13} />
@@ -396,7 +323,55 @@ const InsightsManagement = () => {
         </div>
 
         {/* Filter Controls */}
-        <div className="flex items-center gap-2 w-full md:w-auto flex-wrap justify-end">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Status filter pills */}
+          <div className="flex items-center p-0.5 bg-[var(--bg-muted)]/60 rounded-lg border border-[var(--border)] text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedStatus('all');
+                setCurrentPage(1);
+              }}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                selectedStatus === 'all'
+                  ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-2xs font-semibold'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              All ({stats.total})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedStatus('published');
+                setCurrentPage(1);
+              }}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1 ${
+                selectedStatus === 'published'
+                  ? 'bg-[var(--bg-surface)] text-emerald-600 dark:text-emerald-400 shadow-2xs font-semibold'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Published ({stats.published})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedStatus('draft');
+                setCurrentPage(1);
+              }}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1 ${
+                selectedStatus === 'draft'
+                  ? 'bg-[var(--bg-surface)] text-amber-600 dark:text-amber-400 shadow-2xs font-semibold'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              Drafts ({stats.draft})
+            </button>
+          </div>
+
           {/* Category Dropdown */}
           <select
             value={selectedCategory}
@@ -404,7 +379,7 @@ const InsightsManagement = () => {
               setSelectedCategory(e.target.value);
               setCurrentPage(1);
             }}
-            className="px-2.5 py-1.5 text-xs rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-[var(--text-primary)] outline-none cursor-pointer hover:bg-[var(--bg-surface)] transition-colors"
+            className="h-8 px-2.5 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)] outline-none cursor-pointer hover:bg-[var(--bg-muted)] transition-colors"
           >
             <option value="">All Categories ({categories.length})</option>
             {categories.map((cat) => (
@@ -412,20 +387,6 @@ const InsightsManagement = () => {
                 {cat.name} {cat.articleCount !== undefined ? `(${cat.articleCount})` : ''}
               </option>
             ))}
-          </select>
-
-          {/* Status Dropdown */}
-          <select
-            value={selectedStatus}
-            onChange={(e) => {
-              setSelectedStatus(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="px-2.5 py-1.5 text-xs rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-[var(--text-primary)] outline-none cursor-pointer hover:bg-[var(--bg-surface)] transition-colors"
-          >
-            <option value="">All Statuses</option>
-            <option value="published">Published</option>
-            <option value="draft">Drafts</option>
           </select>
 
           {/* Sort Direction Toggle */}

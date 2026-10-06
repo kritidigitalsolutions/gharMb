@@ -58,7 +58,8 @@ router.get('/', notificationController.getMyNotifications);
  */
 router.route('/:id/read')
   .patch(notificationController.markAsRead)
-  .put(notificationController.markAsRead);
+  .put(notificationController.markAsRead)
+  .post(notificationController.markAsRead);
 
 /**
  * @swagger
@@ -74,6 +75,21 @@ router.route('/:id/read')
  *       401:
  *         description: Unauthorized
  */
+router.route('/mark-all-read')
+  .post(notificationController.markAllAsRead)
+  .put(notificationController.markAllAsRead)
+  .patch(notificationController.markAllAsRead);
+
+router.route('/mark-all-as-read')
+  .post(notificationController.markAllAsRead)
+  .put(notificationController.markAllAsRead)
+  .patch(notificationController.markAllAsRead);
+
+router.route('/read-all')
+  .post(notificationController.markAllAsRead)
+  .put(notificationController.markAllAsRead)
+  .patch(notificationController.markAllAsRead);
+
 /**
  * @swagger
  * /api/notifications/clear-all:
@@ -88,7 +104,10 @@ router.route('/:id/read')
  *       401:
  *         description: Unauthorized
  */
-router.delete('/clear-all', notificationController.deleteAllNotifications);
+router.route('/clear-all')
+  .delete(notificationController.deleteAllNotifications)
+  .post(notificationController.deleteAllNotifications);
+
 router.delete('/', notificationController.deleteAllNotifications);
 
 /**

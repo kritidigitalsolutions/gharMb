@@ -30,3 +30,5 @@ Thumbs.db
 *.sln
 *.sw?
 server/src/firebase/serviceAccountKey.json
+server/serviceAccountKey.json
+serviceAccountKey.json

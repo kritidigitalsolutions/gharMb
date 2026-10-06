@@ -658,7 +658,7 @@ const InsightsEditor = () => {
   const isSaving = isSavingDraft || isPublishing;
 
   return (
-    <div className="min-h-screen bg-[#F6F8FA] pb-24 text-[#17212B] font-sans antialiased">
+    <div className="min-h-screen bg-[var(--bg-app)] pb-24 text-[var(--text-primary)] font-sans antialiased">
       {/* Toast Notification */}
       {toast.show && (
         <div
@@ -676,22 +676,22 @@ const InsightsEditor = () => {
       {/* ───────────────────────────────────────────────────────────── */}
       {/* STICKY PAGE HEADER & ACTIONS                                   */}
       {/* ───────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E5E9EF] -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 py-3.5 mb-6 transition-all shadow-[0_1px_3px_0_rgba(0,0,0,0.02)]">
+      <header className="sticky top-0 z-30 bg-[var(--bg-surface)]/95 backdrop-blur-md border-b border-[var(--border)] -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 py-3 mb-6 transition-all shadow-2xs">
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           {/* Left Title & Status Area */}
           <div className="flex items-center gap-3.5 flex-wrap">
             <button
               type="button"
               onClick={() => handleSafeNavigation('/admin/insights')}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#718096] hover:text-[#FF5A3C] transition-colors cursor-pointer py-1 px-2 rounded-lg hover:bg-[#F6F8FA]"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--text-muted)] hover:text-brand transition-colors cursor-pointer py-1 px-2 rounded-lg hover:bg-[var(--bg-muted)]"
             >
               <ArrowLeft size={15} /> Back to Articles
             </button>
 
-            <div className="h-4 w-[1px] bg-[#E5E9EF] hidden sm:block" />
+            <div className="h-4 w-[1px] bg-[var(--border)] hidden sm:block" />
 
             <div className="flex items-center gap-2.5">
-              <h1 className="text-base sm:text-lg font-extrabold text-[#17212B] tracking-tight">
+              <h1 className="text-base sm:text-lg font-extrabold text-[var(--text-primary)] tracking-tight">
                 {isEditMode ? 'Edit Insight Article' : 'Create Insight Article'}
               </h1>
 
@@ -699,11 +699,11 @@ const InsightsEditor = () => {
               <span
                 className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide ${
                   formData.status === 'published'
-                    ? 'bg-emerald-50 text-[#16A36A] border border-emerald-200'
-                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40'
+                    : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40'
                 }`}
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${formData.status === 'published' ? 'bg-[#16A36A]' : 'bg-amber-500'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full ${formData.status === 'published' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                 {formData.status === 'published' ? 'Published' : 'Draft'}
               </span>
 
@@ -713,7 +713,7 @@ const InsightsEditor = () => {
                   ● Unsaved changes
                 </span>
               ) : lastSavedTime ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-[#16A36A] text-[11px] font-semibold border border-emerald-200">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[11px] font-semibold border border-emerald-200">
                   <Check size={11} /> Saved just now
                 </span>
               ) : null}
@@ -728,10 +728,10 @@ const InsightsEditor = () => {
                 href={`${WEBPAGE_URL}/insights/${formData.slug || id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border border-[#E5E9EF] bg-white hover:bg-[#F6F8FA] text-[#17212B] transition-all shadow-sm cursor-pointer hover:border-slate-300"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] transition-all shadow-2xs cursor-pointer"
                 title="View live public article in new tab"
               >
-                <ExternalLink size={14} className="text-[#718096]" /> Preview
+                <ExternalLink size={14} className="text-[var(--text-muted)]" /> Preview
               </a>
             )}
 
@@ -740,18 +740,18 @@ const InsightsEditor = () => {
               type="button"
               disabled={isSaving}
               onClick={() => handleSave('draft')}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-[#E5E9EF] bg-white hover:bg-[#F6F8FA] text-[#17212B] transition-all shadow-sm cursor-pointer disabled:opacity-50 hover:border-slate-300"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] transition-all shadow-2xs cursor-pointer disabled:opacity-50"
             >
-              <Save size={14} className="text-[#718096]" />
+              <Save size={14} className="text-[var(--text-muted)]" />
               {isSavingDraft ? 'Saving...' : 'Save Draft'}
             </button>
 
-            {/* Update / Publish Button (Primary Orange) */}
+            {/* Update / Publish Button (Primary Brand) */}
             <button
               type="button"
               disabled={isSaving}
               onClick={() => handleSave('published')}
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold bg-[#FF5A3C] hover:bg-[#E04F34] text-white transition-all shadow-sm hover:shadow hover:scale-[1.01] active:scale-95 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold bg-brand hover:bg-brand-dark text-white transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer disabled:opacity-50"
             >
               <Sparkles size={14} />
               {isPublishing
@@ -774,7 +774,7 @@ const InsightsEditor = () => {
         {/* LEFT COLUMN: ONE SINGLE UNIFIED EDITORIAL CARD (70%)         */}
         {/* ============================================================ */}
         <div className="lg:col-span-8">
-          <div className="bg-white rounded-2xl border border-[#E5E9EF] shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] overflow-hidden">
+          <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] shadow-2xs overflow-hidden">
             {/* 1. ARTICLE TITLE & SLUG SECTION */}
             <div className="p-6 sm:p-7 space-y-4">
               <div>
@@ -1214,10 +1214,10 @@ const InsightsEditor = () => {
         {/* ============================================================ */}
         <div className="lg:col-span-4 space-y-6">
           {/* ARTICLE SETTINGS CARD */}
-          <section className="bg-white rounded-2xl border border-[#E5E9EF] p-6 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] space-y-4">
-            <div className="flex items-center justify-between border-b border-[#E5E9EF] pb-3">
-              <h3 className="text-xs font-black uppercase text-[#17212B] tracking-wider flex items-center gap-1.5">
-                <Folder size={14} className="text-[#FF5A3C]" /> ARTICLE SETTINGS
+          <section className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-6 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+              <h3 className="text-xs font-black uppercase text-[var(--text-primary)] tracking-wider flex items-center gap-1.5">
+                <Folder size={14} className="text-brand" /> ARTICLE SETTINGS
               </h3>
             </div>
 
@@ -1313,10 +1313,10 @@ const InsightsEditor = () => {
           </section>
 
           {/* FEATURED BANNER IMAGE CARD */}
-          <section className="bg-white rounded-2xl border border-[#E5E9EF] p-6 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] space-y-4">
-            <div className="flex items-center justify-between border-b border-[#E5E9EF] pb-3">
-              <h3 className="text-xs font-black uppercase text-[#17212B] tracking-wider flex items-center gap-1.5">
-                <ImageIcon size={14} className="text-[#FF5A3C]" /> FEATURED IMAGE
+          <section className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-6 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+              <h3 className="text-xs font-black uppercase text-[var(--text-primary)] tracking-wider flex items-center gap-1.5">
+                <ImageIcon size={14} className="text-brand" /> FEATURED IMAGE
               </h3>
             </div>
 
@@ -1413,14 +1413,14 @@ const InsightsEditor = () => {
           </section>
 
           {/* SEO & SOCIAL META (Collapsible) */}
-          <section className="bg-white rounded-2xl border border-[#E5E9EF] shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] overflow-hidden">
+          <section className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] shadow-2xs overflow-hidden">
             <button
               type="button"
               onClick={() => setIsSeoOpen(!isSeoOpen)}
-              className="w-full p-6 pb-4 flex items-center justify-between text-left cursor-pointer bg-white"
+              className="w-full p-6 pb-4 flex items-center justify-between text-left cursor-pointer bg-[var(--bg-surface)]"
             >
-              <h3 className="text-xs font-black uppercase text-[#17212B] tracking-wider flex items-center gap-1.5">
-                <Globe size={14} className="text-[#FF5A3C]" /> SEO & SOCIAL META
+              <h3 className="text-xs font-black uppercase text-[var(--text-primary)] tracking-wider flex items-center gap-1.5">
+                <Globe size={14} className="text-brand" /> SEO & SOCIAL META
               </h3>
               <span className="text-[#718096] p-1 rounded-lg hover:bg-[#F6F8FA]">
                 {isSeoOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -1659,10 +1659,10 @@ const InsightsEditor = () => {
       {/* ───────────────────────────────────────────────────────────── */}
       {showImageModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-[#E5E9EF] p-6 max-w-lg w-full shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-4 border-b border-[#E5E9EF] pb-3">
-              <h3 className="text-sm font-black text-[#17212B] flex items-center gap-2">
-                <ImageIcon size={16} className="text-[#FF5A3C]" /> Insert Image into Article
+          <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-6 max-w-lg w-full shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-4 border-b border-[var(--border)] pb-3">
+              <h3 className="text-sm font-black text-[var(--text-primary)] flex items-center gap-2">
+                <ImageIcon size={16} className="text-brand" /> Insert Image into Article
               </h3>
               <button
                 type="button"
