@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AdminLoader from '../components/common/AdminLoader';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Plus, Search, Edit, Trash2,
@@ -519,19 +520,15 @@ const FaqManagement = () => {
             </thead>
             <tbody className="divide-y divide-[var(--border)] text-xs">
               {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td className="py-4 px-4"><div className="w-4 h-4 bg-slate-200 dark:bg-slate-800 rounded" /></td>
-                    <td className="py-4 px-4 text-center"><div className="w-6 h-3 bg-slate-200 dark:bg-slate-800 rounded mx-auto" /></td>
-                    <td className="py-4 px-4 space-y-2">
-                      <div className="w-3/5 h-3.5 bg-slate-200 dark:bg-slate-800 rounded" />
-                      <div className="w-4/5 h-2.5 bg-slate-100 dark:bg-slate-800/60 rounded" />
-                    </td>
-                    <td className="py-4 px-4"><div className="w-20 h-5 bg-slate-200 dark:bg-slate-800 rounded-md" /></td>
-                    <td className="py-4 px-4 text-center"><div className="w-16 h-5 bg-slate-200 dark:bg-slate-800 rounded-full mx-auto" /></td>
-                    <td className="py-4 px-4 text-right"><div className="w-14 h-6 bg-slate-200 dark:bg-slate-800 rounded-lg ml-auto" /></td>
-                  </tr>
-                ))
+                <tr>
+                  <td colSpan={6} className="py-12 text-center">
+                    <AdminLoader
+                      text="Loading frequently asked questions..."
+                      subtext="Fetching categorized FAQ inventory"
+                      minHeight="min-h-[180px]"
+                    />
+                  </td>
+                </tr>
               ) : error ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-red-500">

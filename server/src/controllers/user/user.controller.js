@@ -47,11 +47,59 @@ exports.getMe = async (req, res, next) => {
     const targetUser = user || req.user;
     const verification = computeVerificationDetails(targetUser);
 
+    // Compute owner ratings across all their properties
+    let ownerRating = Number(targetUser.rating) || 0;
+    let ownerReviewCount = Number(targetUser.reviewCount) || 0;
+    let recentReviews = [];
+    const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+
+    try {
+      const PropertyReview = require('../../models/property-review.model');
+      const reviews = await PropertyReview.find({ owner: targetUser._id })
+        .populate('reviewer', 'name profilePicture phone role')
+        .populate('property', 'title propertyType city locality price photos submissionId')
+        .sort({ createdAt: -1 });
+
+      if (reviews.length > 0) {
+        ownerReviewCount = reviews.length;
+        let sumRating = 0;
+        reviews.forEach((r) => {
+          const star = Math.round(Number(r.rating) || 0);
+          if (breakdown[star] !== undefined) breakdown[star]++;
+          sumRating += Number(r.rating) || 0;
+        });
+        ownerRating = Math.round((sumRating / ownerReviewCount) * 10) / 10;
+        recentReviews = reviews.slice(0, 5);
+      }
+    } catch (rErr) {
+      console.error('Error fetching owner ratings in getMe:', rErr.message);
+    }
+
+    const userObj = targetUser.toObject ? targetUser.toObject({ virtuals: true }) : { ...targetUser };
+    userObj.rating = ownerRating;
+    userObj.reviewCount = ownerReviewCount;
+    userObj.reviewsCount = ownerReviewCount;
+    userObj.averageRating = ownerRating;
+    userObj.ratings = {
+      averageRating: ownerRating,
+      totalReviews: ownerReviewCount,
+      breakdown,
+      recentReviews,
+    };
+
     res.status(200).json({
       status: 'success',
       data: {
-        user: targetUser,
+        user: userObj,
         verification,
+        ratings: {
+          averageRating: ownerRating,
+          totalReviews: ownerReviewCount,
+          rating: ownerRating,
+          reviewsCount: ownerReviewCount,
+          breakdown,
+          recentReviews,
+        },
       },
     });
   } catch (error) {

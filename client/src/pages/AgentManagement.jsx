@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import AdminLoader from '../components/common/AdminLoader';
 import { useSearchParams } from 'react-router-dom';
 import {
   UserCheck,
@@ -378,20 +379,12 @@ const AgentManagement = () => {
 
       {/* CONTENT AREA: TABLE VIEW ONLY */}
       {isLoading ? (
-        <div className="space-y-2 py-4">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] animate-pulse flex items-start gap-3.5"
-            >
-              <div className="w-10 h-10 rounded-lg bg-[var(--bg-muted)] shrink-0" />
-              <div className="flex-1 space-y-2">
-                <div className="h-3.5 bg-[var(--bg-muted)] rounded w-1/4" />
-                <div className="h-3 bg-[var(--bg-muted)] rounded w-1/2" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <AdminLoader
+          card
+          text="Loading agent directory..."
+          subtext="Fetching registered real estate agents and RERA licenses"
+          minHeight="min-h-[260px]"
+        />
       ) : filteredAgents.length === 0 ? (
         <div className="py-16 text-center border border-[var(--border)] rounded-xl bg-[var(--bg-surface)] px-4">
           <div className="w-10 h-10 rounded-full bg-[var(--bg-muted)] text-[var(--text-muted)] flex items-center justify-center mx-auto mb-2.5">

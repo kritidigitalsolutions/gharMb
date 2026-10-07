@@ -16,6 +16,7 @@ import {
   Info,
   Bell,
   Briefcase,
+  PackageCheck,
   FileCheck,
   Gift,
   Sparkles,
@@ -44,28 +45,62 @@ const Sidebar = ({
   };
 
   const [pendingAgentsCount, setPendingAgentsCount] = useState(0);
+  const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
+  const [pendingEnquiriesCount, setPendingEnquiriesCount] = useState(0);
 
   useEffect(() => {
     const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
     const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
     const API_URL = `${API_BASE}/api`;
 
-    const fetchPendingCount = async () => {
+    const fetchBadgeCounts = async () => {
       try {
         const token = localStorage.getItem('adminToken');
         if (!token) return;
-        const res = await fetch(`${API_URL}/admin/users/pending-agents`, {
+
+        // 1. Pending agents
+        fetch(`${API_URL}/admin/users/pending-agents`, {
           headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (res.ok && data.status === 'success') {
-          setPendingAgentsCount(data.results || data.data?.agents?.length || 0);
-        }
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status === 'success') {
+              setPendingAgentsCount(data.results || data.data?.agents?.length || 0);
+            }
+          })
+          .catch(() => {});
+
+        // 2. Unread notifications
+        fetch(`${API_URL}/admin/notifications`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status === 'success') {
+              setUnreadNotifsCount(data.counts?.unread || 0);
+            }
+          })
+          .catch(() => {});
+
+        // 3. Pending enquiries count
+        fetch(`${API_URL}/admin/dashboard/enquiries`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status === 'success' && data.data) {
+              const pCount = (data.data.propertyEnquiries || []).filter(e => ['pending', 'new', 'open'].includes((e.status || '').toLowerCase())).length;
+              const dCount = (data.data.developerEnquiries || []).filter(e => ['pending', 'new', 'open'].includes((e.status || '').toLowerCase())).length;
+              const vCount = (data.data.visitRequests || []).filter(e => ['pending', 'new', 'open'].includes((e.status || '').toLowerCase())).length;
+              setPendingEnquiriesCount(pCount + dCount + vCount);
+            }
+          })
+          .catch(() => {});
       } catch (_) {}
     };
 
-    fetchPendingCount();
-    const timer = setInterval(fetchPendingCount, 25000);
+    fetchBadgeCounts();
+    const timer = setInterval(fetchBadgeCounts, 25000);
     return () => clearInterval(timer);
   }, []);
 
@@ -89,8 +124,15 @@ const Sidebar = ({
           badge: pendingAgentsCount > 0 ? String(pendingAgentsCount) : null
         },
         { name: 'Builders & RERA', path: '/admin/builders', icon: Building2 },
-        { name: 'Leads & Enquiries', path: '/admin/leads', icon: Inbox },
+        {
+          name: 'Enquiries',
+          path: '/admin/enquiries',
+          icon: Inbox,
+          badge: pendingEnquiriesCount > 0 ? String(pendingEnquiriesCount) : null
+        },
+        { name: 'Leads CRM', path: '/admin/leads', icon: Users },
         { name: 'Services Hub', path: '/admin/services', icon: Briefcase },
+        { name: 'Service Catalog', path: '/admin/services-catalog', icon: PackageCheck },
         { name: 'Token Bookings', path: '/admin/tokens', icon: FileCheck },
         { name: 'Referral Network', path: '/admin/references', icon: Gift },
       ]
@@ -103,14 +145,19 @@ const Sidebar = ({
       ]
     },
     {
-      group: 'Content & Inquiries',
+      group: 'Content & Alerts',
       items: [
         { name: 'App Banners', path: '/admin/banners', icon: Layers },
         { name: 'Insights & Blogs', path: '/admin/insights', icon: Sparkles },
         { name: 'FAQ Management', path: '/admin/faq', icon: Info },
         { name: 'Testimonials', path: '/admin/testimonials', icon: MessageSquareQuote },
         { name: 'Web Inquiries', path: '/admin/web-inquiries', icon: MailCheck },
-        { name: 'Notifications', path: '/admin/notifications', icon: Bell },
+        {
+          name: 'Notifications',
+          path: '/admin/notifications',
+          icon: Bell,
+          badge: unreadNotifsCount > 0 ? String(unreadNotifsCount) : null
+        },
         { name: 'Broadcast Messages', path: '/admin/broadcasts', icon: Radio },
       ]
     },
@@ -158,8 +205,8 @@ const Sidebar = ({
           className="flex items-center gap-2.5 overflow-hidden cursor-pointer group/brand"
         >
           {/* Logo container */}
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--bg-surface)] to-[var(--bg-muted)] border border-[var(--border)] p-1.5 shrink-0 shadow-sm shadow-brand/10 group-hover/brand:border-brand/40 group-hover/brand:shadow-brand/25 group-hover/brand:scale-105 transition-all duration-300 overflow-hidden">
-            <img src="/favicon.png" alt="GHARMB Logo" className="w-full h-full object-contain transition-transform duration-300 group-hover/brand:scale-110" />
+          <div className="flex items-center justify-center w-8 h-8 shrink-0 transition-transform duration-300 group-hover/brand:scale-105">
+            <img src="/favicon.png" alt="GHARMB Logo" className="w-full h-full object-contain" />
           </div>
 
           {/* Brand Name & Tag */}
@@ -168,11 +215,8 @@ const Sidebar = ({
               collapsedState ? 'opacity-100 max-w-[130px] md:opacity-0 md:max-w-0 md:hidden' : 'opacity-100 max-w-[130px]'
             }`}
           >
-            <span className="font-extrabold text-sm text-[var(--text-primary)] tracking-tight flex items-center gap-1.5">
+            <span className="font-extrabold text-sm text-[var(--text-primary)] tracking-tight">
               GHARMB
-              <span className="text-[9px] bg-brand/10 text-brand border border-brand/20 px-1.5 py-0.2 rounded-full font-bold">
-                SaaS
-              </span>
             </span>
             <span className="text-[9px] text-[var(--text-muted)] font-medium tracking-tight">Admin Console</span>
           </div>

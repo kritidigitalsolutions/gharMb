@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import AdminLoader from '../components/common/AdminLoader';
 import { useNavigate } from 'react-router-dom';
 import {
   Users,
@@ -151,7 +152,7 @@ const StatsWidgetCard = ({
         }
       }}
       className={`relative flex flex-col justify-between p-3 sm:p-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] transition-all duration-150 min-h-[82px] sm:min-h-[86px] overflow-hidden group select-none shadow-2xs ${
-        onClick ? 'cursor-pointer hover:border-[var(--text-muted)]/40 hover:-translate-y-0.5 active:scale-[0.99]' : ''
+        onClick ? 'cursor-pointer hover:border-slate-300 dark:hover:border-slate-700 hover:-translate-y-0.5 active:scale-[0.99]' : ''
       }`}
     >
       {/* Top Row: Title + Clean Trend Badge */}
@@ -573,6 +574,19 @@ const DashboardHome = () => {
     }
   ];
 
+
+  if (isLoading && !stats) {
+    return (
+      <div className="flex flex-col gap-4 sm:gap-5 pb-8">
+        <AdminLoader
+          card
+          text="Initializing admin dashboard..."
+          subtext="Synchronizing live platform analytics, inventory metrics, and verification queue"
+          minHeight="min-h-[440px]"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4 sm:gap-5 pb-8">

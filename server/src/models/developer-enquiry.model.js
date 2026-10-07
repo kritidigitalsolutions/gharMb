@@ -36,7 +36,7 @@ const developerEnquirySchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'contacted', 'resolved', 'cancelled'],
+      enum: ['pending', 'contacted', 'resolved', 'cancelled', 'in_progress', 'accepted', 'completed', 'rejected', 'confirmed'],
       default: 'pending',
       index: true,
     },

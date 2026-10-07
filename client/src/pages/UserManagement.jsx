@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import AdminLoader from '../components/common/AdminLoader';
 import {
   Users,
   UserCheck,
@@ -37,7 +38,8 @@ import {
   UserMinus,
   Sparkles,
   Home,
-  CheckCheck
+  CheckCheck,
+  Star
 } from 'lucide-react';
 
 const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
@@ -58,6 +60,12 @@ const UserManagement = () => {
   const [realEnquiries, setRealEnquiries] = useState({
     sent: { property: [], developer: [] },
     received: { property: [], developer: [] }
+  });
+  const [realRatings, setRealRatings] = useState({
+    averageRating: 0,
+    totalReviews: 0,
+    breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+    reviews: []
   });
   const [isDrawerLoading, setIsDrawerLoading] = useState(false);
 
@@ -173,6 +181,8 @@ const UserManagement = () => {
           id: u._id,
           role: mapApiToUiRole(u.role),
           status: u.status || 'Active',
+          rating: Number(u.rating) || 0,
+          reviewsCount: Number(u.reviewsCount || u.reviewCount) || 0,
           date: u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'
         }));
         setUsers(mappedUsers);
@@ -214,6 +224,16 @@ const UserManagement = () => {
             setRealProperties(data.data.properties || []);
           } else {
             setRealProperties([]);
+          }
+        } else if (userDrawerTab === 'Ratings') {
+          const response = await fetch(`${API_URL}/admin/users/${selectedUser.id}/ratings`, {
+            headers: getAuthHeaders()
+          });
+          const data = await response.json();
+          if (response.ok && data.status === 'success') {
+            setRealRatings(data.data || { averageRating: 0, totalReviews: 0, breakdown: {}, reviews: [] });
+          } else {
+            setRealRatings({ averageRating: 0, totalReviews: 0, breakdown: {}, reviews: [] });
           }
         } else if (userDrawerTab === 'Enquiries') {
           const response = await fetch(`${API_URL}/admin/users/${selectedUser.id}/enquiries`, {
@@ -701,87 +721,86 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {/* ─── 02. CLEAN, ALIGNED 4-METRIC ROW ─── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        
-        {/* Metric 1: Total Users */}
-        <div className="p-3.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-2xs flex items-center justify-between hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
-              Total Users
-            </span>
-            <div className="flex items-baseline gap-1.5">
-              <h4 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
-                {users.length}
-              </h4>
-              <span className="text-[10px] text-[var(--text-muted)] font-medium">accounts</span>
-            </div>
-          </div>
-          <div className="w-9 h-9 rounded-xl bg-orange-500/10 text-brand flex items-center justify-center shrink-0 border border-orange-500/15">
-            <Users size={17} />
-          </div>
-        </div>
+      {/* ─── 02. STANDARDIZED TOP-ACCENT KPI CARDS ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          {
+            key: 'total',
+            title: 'Total Users',
+            value: users.length,
+            subtitle: 'Platform accounts',
+            tag: 'Accounts',
+            tagClass: 'text-brand bg-brand/10',
+            icon: Users,
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10'
+          },
+          {
+            key: 'active',
+            title: 'Active Accounts',
+            value: activeCount,
+            subtitle: 'Live user activity',
+            tag: `${users.length > 0 ? Math.round((activeCount / users.length) * 100) : 0}% Active`,
+            tagClass: 'text-brand bg-brand/10',
+            icon: UserCheck,
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10'
+          },
+          {
+            key: 'verified',
+            title: 'Verified Profiles',
+            value: verifiedCount,
+            subtitle: 'KYC passed profiles',
+            tag: 'KYC Passed',
+            tagClass: 'text-brand bg-brand/10',
+            icon: ShieldCheck,
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10'
+          },
+          {
+            key: 'suspended',
+            title: 'Suspended',
+            value: suspendedCount,
+            subtitle: 'Restricted access',
+            tag: suspendedCount > 0 ? `${suspendedCount} Blocked` : 'Zero Flags',
+            tagClass: 'text-brand bg-brand/10',
+            icon: UserX,
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10'
+          }
+        ].map((card) => {
+          const Icon = card.icon;
+          return (
+            <div
+              key={card.key}
+              className={`group bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl p-3.5 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden flex flex-col justify-between border-t-2 ${card.accent}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block">
+                    {card.title}
+                  </span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+                      {card.value}
+                    </span>
+                  </div>
+                </div>
 
-        {/* Metric 2: Active Accounts */}
-        <div className="p-3.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-2xs flex items-center justify-between hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
-              Active Accounts
-            </span>
-            <div className="flex items-baseline gap-1.5">
-              <h4 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
-                {activeCount}
-              </h4>
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                {users.length > 0 ? `${Math.round((activeCount / users.length) * 100)}%` : '0%'}
-              </span>
-            </div>
-          </div>
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/15">
-            <UserCheck size={17} />
-          </div>
-        </div>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110 ${card.iconColor}`}>
+                  <Icon size={16} strokeWidth={2} />
+                </div>
+              </div>
 
-        {/* Metric 3: Verified Profiles */}
-        <div className="p-3.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-2xs flex items-center justify-between hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
-              Verified Profiles
-            </span>
-            <div className="flex items-baseline gap-1.5">
-              <h4 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
-                {verifiedCount}
-              </h4>
-              <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
-                KYC passed
-              </span>
+              <div className="mt-2.5 pt-2 border-t border-[var(--border)] flex items-center justify-between text-[11px]">
+                <span className="text-[var(--text-muted)] truncate">{card.subtitle}</span>
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${card.tagClass}`}>
+                  {card.tag}
+                </span>
+              </div>
             </div>
-          </div>
-          <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/15">
-            <ShieldCheck size={17} />
-          </div>
-        </div>
-
-        {/* Metric 4: Suspended Accounts */}
-        <div className="p-3.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-2xs flex items-center justify-between hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
-              Suspended
-            </span>
-            <div className="flex items-baseline gap-1.5">
-              <h4 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
-                {suspendedCount}
-              </h4>
-              <span className="text-[10px] text-rose-600 dark:text-rose-400 font-medium">
-                restricted
-              </span>
-            </div>
-          </div>
-          <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 border border-rose-500/15">
-            <UserX size={17} />
-          </div>
-        </div>
-
+          );
+        })}
       </div>
 
       {/* ─── 03. MAIN DIRECTORY WORKBENCH CONTAINER ─── */}
@@ -846,10 +865,11 @@ const UserManagement = () => {
 
         {/* Directory Content Area */}
         {isLoading ? (
-          <div className="py-24 text-center text-xs text-[var(--text-muted)] flex flex-col items-center justify-center gap-2.5">
-            <RefreshCw size={20} className="animate-spin text-brand" />
-            <span className="font-semibold">Loading user directory...</span>
-          </div>
+          <AdminLoader
+            text="Loading user directory..."
+            subtext="Syncing user profiles, accounts, and verification statuses"
+            minHeight="min-h-[260px]"
+          />
         ) : filteredUsers.length === 0 ? (
           <div className="py-20 text-center space-y-3 px-4">
             <div className="w-10 h-10 rounded-full bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)] mx-auto">
@@ -895,6 +915,9 @@ const UserManagement = () => {
                     </th>
                     <th className="py-2 px-3.5 text-center cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => handleSort('listings')}>
                       Listings
+                    </th>
+                    <th className="py-2 px-3.5 text-center cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => handleSort('rating')}>
+                      Rating
                     </th>
                     <th className="py-2 px-3.5">
                       Status
@@ -1020,6 +1043,19 @@ const UserManagement = () => {
                           {u.listings ? (
                             <span className="px-1.5 py-0.5 bg-[var(--bg-muted)] rounded text-[10.5px]">
                               {u.listings}
+                            </span>
+                          ) : (
+                            <span className="text-[var(--text-muted)] text-[11px]">—</span>
+                          )}
+                        </td>
+
+                        {/* Owner / User Rating */}
+                        <td className="py-1.5 px-3.5 text-center">
+                          {u.rating > 0 ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded whitespace-nowrap">
+                              <Star size={10} className="fill-amber-400 text-amber-400" />
+                              <span>{Number(u.rating).toFixed(1)}</span>
+                              <span className="text-[9px] font-normal text-[var(--text-muted)]">({u.reviewsCount || u.reviewCount || 0})</span>
                             </span>
                           ) : (
                             <span className="text-[var(--text-muted)] text-[11px]">—</span>
@@ -1209,8 +1245,8 @@ const UserManagement = () => {
         const vState = getVerificationState(selectedUser);
         const isAgentOrBuilder = selectedUser.role === 'Agent' || selectedUser.role === 'Builder';
         const drawerTabs = isAgentOrBuilder 
-          ? ['Overview', 'Documents', 'Listings', 'Enquiries']
-          : ['Overview', 'Listings', 'Enquiries'];
+          ? ['Overview', 'Ratings', 'Listings', 'Documents', 'Enquiries']
+          : ['Overview', 'Ratings', 'Listings', 'Enquiries'];
 
         return (
           <div 
@@ -1242,11 +1278,23 @@ const UserManagement = () => {
                     </span>
                   </div>
                   <p className="text-xs text-[var(--text-muted)] truncate">{selectedUser.email}</p>
-                  <div className="flex items-center gap-1.5 mt-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                     <span className="text-[10px] font-mono text-[var(--text-secondary)] bg-[var(--bg-muted)] border border-[var(--border)] px-2 py-0.5 rounded inline-flex items-center gap-1">
                       <span className="text-[var(--text-muted)]">User ID:</span>
                       <span className="font-semibold text-brand">#{selectedUser.id}</span>
                     </span>
+                    {selectedUser.rating > 0 ? (
+                      <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded inline-flex items-center gap-1">
+                        <Star size={10} className="fill-amber-400 text-amber-400" />
+                        <span>{Number(selectedUser.rating).toFixed(1)}</span>
+                        <span className="text-[9px] font-normal text-[var(--text-muted)]">({selectedUser.reviewsCount || selectedUser.reviewCount || 0} reviews)</span>
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-medium text-[var(--text-muted)] bg-[var(--bg-muted)] border border-[var(--border)] px-2 py-0.5 rounded inline-flex items-center gap-1">
+                        <Star size={10} className="text-gray-400" />
+                        <span>No ratings yet</span>
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={() => copyToClipboard(selectedUser.id, 'User ID')}
@@ -1332,10 +1380,11 @@ const UserManagement = () => {
 
               {/* Tab Contents */}
               {isDrawerLoading ? (
-                <div className="py-8 text-center text-xs text-[var(--text-muted)] flex flex-col items-center justify-center gap-2">
-                  <RefreshCw size={15} className="animate-spin text-brand" />
-                  <span>Loading data...</span>
-                </div>
+                <AdminLoader
+                  size="sm"
+                  text="Loading user details..."
+                  minHeight="min-h-[160px]"
+                />
               ) : (
                 <div className="space-y-3">
                   {userDrawerTab === 'Overview' && (
@@ -1367,6 +1416,117 @@ const UserManagement = () => {
                       <div className="flex justify-between py-1">
                         <span className="text-[var(--text-muted)]">Listings Count</span>
                         <span className="font-bold text-[var(--text-primary)]">{selectedUser.listings || 0} listings</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {userDrawerTab === 'Ratings' && (
+                    <div className="space-y-3">
+                      {/* Overall Ratings Card */}
+                      <div className="p-3 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 rounded-xl">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400 block">
+                              Owner Rating Overview
+                            </span>
+                            <div className="flex items-baseline gap-2 mt-0.5">
+                              <span className="text-2xl font-black text-[var(--text-primary)]">
+                                {realRatings.averageRating ? Number(realRatings.averageRating).toFixed(1) : (selectedUser.rating ? Number(selectedUser.rating).toFixed(1) : '0.0')}
+                              </span>
+                              <span className="text-xs text-[var(--text-muted)]">/ 5.0</span>
+                            </div>
+                            <div className="flex items-center gap-1 mt-1">
+                              {[1, 2, 3, 4, 5].map((star) => {
+                                const currentRating = realRatings.averageRating || selectedUser.rating || 0;
+                                return (
+                                  <Star
+                                    key={star}
+                                    size={13}
+                                    className={
+                                      star <= Math.round(currentRating)
+                                        ? 'fill-amber-400 text-amber-400'
+                                        : 'text-gray-300 dark:text-gray-600'
+                                    }
+                                  />
+                                );
+                              })}
+                              <span className="text-[11px] font-medium text-[var(--text-secondary)] ml-1.5">
+                                ({realRatings.totalReviews || selectedUser.reviewsCount || selectedUser.reviewCount || 0} reviews)
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Mini Breakdown Bars */}
+                          <div className="w-36 space-y-1 text-[9.5px]">
+                            {[5, 4, 3, 2, 1].map((star) => {
+                              const count = realRatings.breakdown?.[star] || 0;
+                              const total = realRatings.totalReviews || 1;
+                              const pct = Math.round((count / total) * 100);
+                              return (
+                                <div key={star} className="flex items-center gap-1.5">
+                                  <span className="w-3 text-right text-[var(--text-muted)]">{star}★</span>
+                                  <div className="flex-1 h-1.5 bg-[var(--border)] rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-amber-400 rounded-full"
+                                      style={{ width: `${pct}%` }}
+                                    />
+                                  </div>
+                                  <span className="w-5 text-right font-mono text-[var(--text-muted)]">{count}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Property Reviews List */}
+                      <div className="space-y-2 max-h-56 overflow-y-auto pr-0.5">
+                        <p className="text-[10px] text-[var(--text-muted)] font-semibold uppercase">
+                          Reviews on Properties ({realRatings.reviews?.length || 0})
+                        </p>
+                        {(!realRatings.reviews || realRatings.reviews.length === 0) ? (
+                          <div className="text-center py-6 bg-[var(--bg-muted)]/30 border border-[var(--border)]/60 rounded-xl text-xs text-[var(--text-muted)] space-y-1">
+                            <Star size={20} className="mx-auto text-amber-400/50" />
+                            <p className="font-semibold text-[var(--text-secondary)]">No reviews received yet</p>
+                            <p className="text-[10.5px]">When buyers or tenants review listings posted by this owner, feedback will appear here.</p>
+                          </div>
+                        ) : (
+                          realRatings.reviews.map((rev) => (
+                            <div key={rev._id} className="p-2.5 bg-[var(--bg-muted)]/40 border border-[var(--border)] rounded-xl space-y-1.5 text-xs">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <Home size={11} className="text-brand shrink-0" />
+                                    <span className="font-bold text-[var(--text-primary)] truncate">
+                                      {rev.property?.title || 'Property Listing'}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-[10px] text-[var(--text-muted)] mt-0.5">
+                                    <span>By <strong className="text-[var(--text-secondary)]">{rev.reviewer?.name || rev.reviewerName || 'Verified User'}</strong></span>
+                                    <span>•</span>
+                                    <span>{new Date(rev.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-500/20 shrink-0">
+                                  <Star size={10} className="fill-amber-400 text-amber-400" />
+                                  <span className="font-bold text-[10.5px]">{rev.rating}</span>
+                                </div>
+                              </div>
+                              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed italic">
+                                "{rev.comment}"
+                              </p>
+                              {(rev.tag || (rev.tags && rev.tags.length > 0)) && (
+                                <div className="flex flex-wrap gap-1 pt-0.5">
+                                  {(rev.tags && rev.tags.length > 0 ? rev.tags : [rev.tag]).filter(Boolean).map((t, idx) => (
+                                    <span key={idx} className="text-[9px] px-1.5 py-0.2 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] font-medium">
+                                      {t}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
                   )}
@@ -1429,7 +1589,15 @@ const UserManagement = () => {
                           <div key={p._id} className="p-2 bg-[var(--bg-muted)]/40 border border-[var(--border)] rounded-lg flex items-center justify-between text-xs">
                             <div className="min-w-0 pr-2">
                               <p className="font-bold text-[var(--text-primary)] truncate">{p.title}</p>
-                              <p className="text-[10px] text-[var(--text-muted)]">{p.city} • ₹{p.price}</p>
+                              <div className="flex items-center gap-2 text-[10px] text-[var(--text-muted)] mt-0.5">
+                                <span>{p.city} • ₹{p.price}</span>
+                                {p.rating > 0 && (
+                                  <span className="inline-flex items-center gap-0.5 font-bold text-amber-600 bg-amber-500/10 px-1 py-0.2 rounded border border-amber-500/20 text-[9px]">
+                                    <Star size={8} className="fill-amber-400 text-amber-400" />
+                                    <span>{Number(p.rating).toFixed(1)}</span>
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 shrink-0">
                               {p.approvalStatus || 'approved'}

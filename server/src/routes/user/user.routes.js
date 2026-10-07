@@ -13,11 +13,16 @@ const upload = require('../../middlewares/upload.middleware');
 
 const router = express.Router();
 
+const propertyReviewController = require('../../controllers/user/property-review.controller');
+
 router.get('/developers', userController.getVerifiedDevelopers);
 
 router.get('/developers/:id', userController.getDeveloperProfile);
 
 router.get('/developers/:id/reviews', developerReviewController.getDeveloperReviews);
+
+// Public owner rating summary & property reviews
+router.get('/:id/ratings', propertyReviewController.getOwnerReviewsById);
 
 // All routes require login
 router.use(userAuth);
@@ -26,6 +31,7 @@ router.post('/developers/:id/reviews', developerReviewController.createDeveloper
 router.post('/developers/:id/review', developerReviewController.createDeveloperReview);
 
 router.get('/me', userController.getMe);
+router.get('/me/ratings', propertyReviewController.getMyOwnerReviews);
 router.get('/verification-status', userController.getVerificationStatus);
 router.get('/status', userController.getVerificationStatus);
 router.get('/dashboard', propertyController.getMyDashboard);

@@ -9,6 +9,7 @@ import AgentManagement from '../pages/AgentManagement';
 import LeadsDashboard from '../pages/LeadsDashboard';
 import RevenueDashboard from '../pages/RevenueDashboard';
 import ServicesManagement from '../pages/ServicesManagement';
+import ServiceCatalogManagement from '../pages/ServiceCatalogManagement';
 import TokenBooking from '../pages/TokenBooking';
 import ReferenceWorkflow from '../pages/ReferenceWorkflow';
 import ReportsScreen from '../pages/ReportsScreen';
@@ -26,6 +27,7 @@ import FaqCategories from '../pages/FaqCategories';
 import TestimonialManagement from '../pages/TestimonialManagement';
 import WebInquiries from '../pages/WebInquiries';
 import BannerManagement from '../pages/BannerManagement';
+import EnquiriesManagement from '../pages/EnquiriesManagement';
 
 const AdminRoutes = () => {
     return (
@@ -42,7 +44,12 @@ const AdminRoutes = () => {
                 <Route path="agent-verification" element={<Navigate to="/admin/agents" replace />} />
                 <Route path="builders" element={<BuilderManagement />} />
                 <Route path="leads" element={<LeadsDashboard />} />
+                <Route path="enquiries" element={<EnquiriesManagement />} />
+                <Route path="enquiry" element={<Navigate to="/admin/enquiries" replace />} />
+                <Route path="inquiries" element={<Navigate to="/admin/enquiries" replace />} />
                 <Route path="services" element={<ServicesManagement />} />
+                <Route path="services-catalog" element={<ServiceCatalogManagement />} />
+                <Route path="services/catalog" element={<Navigate to="/admin/services-catalog" replace />} />
                 <Route path="tokens" element={<TokenBooking />} />
                 <Route path="references" element={<ReferenceWorkflow />} />
                 <Route path="revenue" element={<RevenueDashboard />} />

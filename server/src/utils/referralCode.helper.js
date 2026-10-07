@@ -6,7 +6,6 @@
 
 const User = require('../models/user.model');
 const Referral = require('../models/referral.model');
-const CoinTransaction = require('../models/coin-transaction.model');
 const Notification = require('../models/notification.model');
 
 /**
@@ -62,56 +61,172 @@ async function generateUniqueReferralCode(name, UserModel = User) {
 }
 
 /**
+ * Intelligently resolve a referrer user by any valid identifier:
+ * 1. Exact referralCode match (e.g., 'GHARMB-RAHULS40', 'GHARMB-3307')
+ * 2. Case-insensitive referralCode match (e.g., 'gharmb-rahuls40')
+ * 3. Stripped or added 'GHARMB-' prefix (e.g., 'RAHULS40' -> 'GHARMB-RAHULS40')
+ * 4. Phone suffix match (e.g., 'GHARMB-3307' or '3307' -> matches user whose phone ends with 3307)
+ * 5. Full phone number (e.g., '9284253307' or '+919284253307')
+ * 6. Referral document referralCode / referralId match
+ *
+ * @param {string} candidateCode - Referral code or identifier
+ * @param {string|ObjectId} [currentUserId] - Optional user ID to prevent self-referral
+ * @returns {Promise<{ referrer: object|null, matchedCode: string|null, reason: string|null }>}
+ */
+async function findReferrerByCode(candidateCode, currentUserId = null) {
+  if (!candidateCode || typeof candidateCode !== 'string') {
+    return { referrer: null, matchedCode: null, reason: 'Empty code' };
+  }
+
+  const raw = candidateCode.trim();
+  if (!raw) return { referrer: null, matchedCode: null, reason: 'Empty code' };
+
+  const clean = raw.toUpperCase();
+  const currentIdStr = currentUserId ? currentUserId.toString() : null;
+
+  const isValidReferrer = (u) => {
+    if (!u || u.status === 'Blocked') return false;
+    if (currentIdStr && u._id.toString() === currentIdStr) return false;
+    return true;
+  };
+
+  // 1. Exact referralCode match
+  let user = await User.findOne({ referralCode: clean, status: { $ne: 'Blocked' } });
+  if (isValidReferrer(user)) {
+    return { referrer: user, matchedCode: user.referralCode || clean, reason: 'exact_match' };
+  }
+
+  // 2. Case-insensitive exact regex match
+  const escaped = clean.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+  user = await User.findOne({
+    referralCode: { $regex: new RegExp(`^${escaped}$`, 'i') },
+    status: { $ne: 'Blocked' },
+  });
+  if (isValidReferrer(user)) {
+    return { referrer: user, matchedCode: user.referralCode || clean, reason: 'case_insensitive' };
+  }
+
+  // 3. Prefix variations: add or remove GHARMB-
+  const withoutPrefix = clean.replace(/^GHARMB-?/i, '');
+  const withPrefix = clean.startsWith('GHARMB-') ? clean : `GHARMB-${clean}`;
+
+  user = await User.findOne({
+    $or: [{ referralCode: withPrefix }, { referralCode: withoutPrefix }],
+    status: { $ne: 'Blocked' },
+  });
+  if (isValidReferrer(user)) {
+    return { referrer: user, matchedCode: user.referralCode || withPrefix, reason: 'prefix_variation' };
+  }
+
+  // 4. Phone Suffix matching (e.g. 'GHARMB-3307' or '3307' -> ends with 3307)
+  const digitsMatch = clean.match(/^(?:GHARMB-)?(\d{4,10})$/);
+  if (digitsMatch) {
+    const digits = digitsMatch[1];
+    if (digits.length >= 4 && digits.length <= 9) {
+      user = await User.findOne({
+        phone: { $regex: new RegExp(`${digits}$`) },
+        status: { $ne: 'Blocked' },
+      });
+      if (isValidReferrer(user)) {
+        return { referrer: user, matchedCode: user.referralCode || clean, reason: 'phone_suffix_match' };
+      }
+    } else if (digits.length >= 10) {
+      const last10 = digits.slice(-10);
+      user = await User.findOne({
+        phone: { $regex: new RegExp(`${last10}$`) },
+        status: { $ne: 'Blocked' },
+      });
+      if (isValidReferrer(user)) {
+        return { referrer: user, matchedCode: user.referralCode || clean, reason: 'phone_match' };
+      }
+    }
+  }
+
+  // 5. Match against Referral collection (deal tracking / ambassador codes)
+  const refDoc = await Referral.findOne({
+    $or: [
+      { referralCode: clean },
+      { referralCode: withPrefix },
+      { referralId: clean },
+      { referralId: `#${clean.replace(/^#/, '')}` },
+    ],
+  }).populate('referrerUser');
+
+  if (refDoc) {
+    if (refDoc.referrerUser && isValidReferrer(refDoc.referrerUser)) {
+      return { referrer: refDoc.referrerUser, matchedCode: refDoc.referralCode || clean, reason: 'referral_model_match' };
+    }
+    if (refDoc.referrerPhone) {
+      user = await User.findOne({ phone: refDoc.referrerPhone, status: { $ne: 'Blocked' } });
+      if (isValidReferrer(user)) {
+        return { referrer: user, matchedCode: refDoc.referralCode || clean, reason: 'referral_doc_phone_match' };
+      }
+    }
+  }
+
+  return { referrer: null, matchedCode: null, reason: 'not_found' };
+}
+
+/**
  * Validates a referral code.
  *
  * @param {string} code - The referral code to validate
  * @param {string} [currentUserId] - Optional ID of current user (to prevent self-referral)
- * @returns {Promise<{ isValid: boolean, referrer: object|null, message: string }>}
+ * @returns {Promise<{ isValid: boolean, referrer: object|null, referralCode: string|null, message: string }>}
  */
 async function validateReferralCode(code, currentUserId = null) {
-  if (!code || typeof code !== 'string') {
+  if (!code || typeof code !== 'string' || !code.trim()) {
     return {
       isValid: false,
       referrer: null,
+      referralCode: null,
       message: 'Please provide a valid referral code.',
     };
   }
 
   const cleanCode = code.trim().toUpperCase();
+  const currentIdStr = currentUserId ? currentUserId.toString() : null;
 
-  const referrer = await User.findOne({
-    referralCode: cleanCode,
-    status: { $ne: 'Blocked' },
-  }).select('_id name phone email referralCode role');
+  // Check self-referral first if user has their own code
+  if (currentIdStr) {
+    const selfUser = await User.findById(currentIdStr).select('referralCode phone');
+    if (
+      selfUser &&
+      (selfUser.referralCode === cleanCode ||
+        cleanCode.endsWith(selfUser.phone?.slice(-4) || 'XXXX'))
+    ) {
+      return {
+        isValid: false,
+        referrer: null,
+        referralCode: null,
+        message: 'You cannot use your own referral code.',
+      };
+    }
+  }
 
-  if (!referrer) {
+  const resolution = await findReferrerByCode(cleanCode, currentUserId);
+
+  if (!resolution.referrer) {
     return {
       isValid: false,
       referrer: null,
-      message: 'Invalid referral code. Please check the code and try again.',
+      referralCode: null,
+      message: 'Invalid referral code. Please check your code or leave blank to continue.',
     };
   }
 
-  if (currentUserId && referrer._id.toString() === currentUserId.toString()) {
-    return {
-      isValid: false,
-      referrer: null,
-      message: 'You cannot use your own referral code.',
-    };
-  }
+  const referrer = resolution.referrer;
 
   return {
     isValid: true,
     referrer,
-    message: `Referral code applied! You will both receive ₹250 GharMB coins once you post your first property listing.`,
+    referralCode: resolution.matchedCode || referrer.referralCode || cleanCode,
+    message: `Referral code applied! You will both receive ₹250 reward. GharMB Admin will contact both users directly.`,
   };
 }
 
 /**
- * Process referral reward when a user posts their first property listing.
- * As per GharMB Refer & Earn rules:
- * - When referee posts their first listing, BOTH referrer and referee receive ₹250 in GharMB coins.
- * - Coins expire after 6 months (180 days).
+ * Process referral property linkage when a user posts a property listing.
  *
  * @param {string|ObjectId} refereeUserId - User ID of the listing author
  * @param {string|ObjectId} propertyId - ID of the created/verified property
@@ -122,129 +237,24 @@ async function processFirstListingReferralReward(refereeUserId, propertyId, prop
   try {
     if (!refereeUserId) return { success: false, rewarded: false, message: 'Missing referee user ID' };
 
-    // Find pending refer_and_earn record for this referee
     const referral = await Referral.findOne({
       refereeUser: refereeUserId,
-      referralStatus: 'pending_listing',
+      $or: [{ linkedProperty: null }, { linkedProperty: { $exists: false } }],
     });
 
-    if (!referral) {
-      // No active pending referral for this user
-      return { success: true, rewarded: false, message: 'No pending referral found for this user.' };
+    if (referral) {
+      referral.propertyListed = true;
+      referral.linkedProperty = propertyId;
+      referral.propertyTitle = propertyTitle;
+      await referral.save();
     }
-
-    const [referrer, referee] = await Promise.all([
-      User.findById(referral.referrerUser),
-      User.findById(refereeUserId),
-    ]);
-
-    if (!referee) {
-      return { success: false, rewarded: false, message: 'Referee account not found.' };
-    }
-
-    const REWARD_COINS = referral.coinsRewarded || 250;
-    const expiryDate = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000); // 6 Months
-
-    // 1. Credit Referrer (if referrer account is active)
-    if (referrer && referrer.status !== 'Blocked') {
-      const newReferrerBalance = (referrer.walletCoins || 0) + REWARD_COINS;
-      const newReferrerLifetime = (referrer.referralCoinsEarned || 0) + REWARD_COINS;
-
-      await User.findByIdAndUpdate(referrer._id, {
-        $set: {
-          walletCoins: newReferrerBalance,
-          referralCoinsEarned: newReferrerLifetime,
-        },
-      });
-
-      // Record transaction
-      await CoinTransaction.create({
-        user: referrer._id,
-        amount: REWARD_COINS,
-        type: 'credit',
-        source: 'friend_listing_bonus',
-        title: 'Referral Reward Earned',
-        description: `Earned ₹${REWARD_COINS} GharMB coins for inviting ${referee.name}, who posted their first property listing.`,
-        balanceAfter: newReferrerBalance,
-        referral: referral._id,
-        property: propertyId,
-        expiresAt: expiryDate,
-        status: 'completed',
-      });
-
-      // In-app & FCM notification
-      await Notification.create({
-        recipient: referrer._id,
-        title: '💰 ₹250 GharMB Coins Credited!',
-        message: `Awesome! Your friend ${referee.name} just posted their first property listing "${propertyTitle}". ₹${REWARD_COINS} GharMB coins have been added to your wallet!`,
-        type: 'system',
-        metadata: {
-          propertyId,
-        },
-      });
-    }
-
-    // 2. Credit Referee (New User welcome bonus for posting first listing)
-    const newRefereeBalance = (referee.walletCoins || 0) + REWARD_COINS;
-    const newRefereeLifetime = (referee.referralCoinsEarned || 0) + REWARD_COINS;
-
-    await User.findByIdAndUpdate(referee._id, {
-      $set: {
-        walletCoins: newRefereeBalance,
-        referralCoinsEarned: newRefereeLifetime,
-      },
-    });
-
-    await CoinTransaction.create({
-      user: referee._id,
-      amount: REWARD_COINS,
-      type: 'credit',
-      source: 'signup_bonus',
-      title: 'Welcome Referral Bonus',
-      description: `Earned ₹${REWARD_COINS} GharMB coins for posting your first property listing using referral code ${referral.referralCode}.`,
-      balanceAfter: newRefereeBalance,
-      referral: referral._id,
-      property: propertyId,
-      expiresAt: expiryDate,
-      status: 'completed',
-    });
-
-    await Notification.create({
-      recipient: referee._id,
-      title: '🎉 ₹250 GharMB Coins Credited!',
-      message: `Welcome bonus unlocked! You earned ₹${REWARD_COINS} GharMB coins for posting your first property listing. Use your coins for premium listings and featured badges.`,
-      type: 'system',
-      metadata: {
-        propertyId,
-      },
-    });
-
-    // 3. Mark Referral as rewarded
-    referral.referralStatus = 'rewarded';
-    referral.propertyListed = true;
-    referral.linkedProperty = propertyId;
-    referral.propertyTitle = propertyTitle;
-    referral.payoutStatus = 'Paid';
-    referral.rewardCreditedAt = new Date();
-    referral.payoutDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    referral.coinsExpiryDate = expiryDate;
-    referral.notes = `Referral bonus fulfilled. Both referrer (${referrer?.name || 'Referrer'}) and referee (${referee.name}) credited with ₹${REWARD_COINS} coins.`;
-    await referral.save();
-
-    console.log(`\n==================================================`);
-    console.log(`🎁 [REFERRAL REWARD FULFILLED]`);
-    console.log(`   Referrer : ${referrer?.name || 'N/A'} (+₹${REWARD_COINS} coins)`);
-    console.log(`   Referee  : ${referee.name} (+₹${REWARD_COINS} coins)`);
-    console.log(`   Property : ${propertyTitle}`);
-    console.log(`==================================================\n`);
 
     return {
       success: true,
       rewarded: true,
-      message: `Referral reward of ₹${REWARD_COINS} coins credited to both referrer and referee.`,
+      message: `Property linked to referral.`,
     };
   } catch (error) {
-    console.error('❌ [REFERRAL REWARD ERROR]:', error.message);
     return {
       success: false,
       rewarded: false,
@@ -255,6 +265,7 @@ async function processFirstListingReferralReward(refereeUserId, propertyId, prop
 
 module.exports = {
   generateUniqueReferralCode,
+  findReferrerByCode,
   validateReferralCode,
   processFirstListingReferralReward,
 };

@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BadgeCheck, BedDouble, Maximize2, MapPin, ArrowRight, Zap } from 'lucide-react';
+import { BadgeCheck, BedDouble, Maximize2, MapPin, ArrowRight, Zap, Star } from 'lucide-react';
 import TokenRequestModal from './TokenRequestModal';
 
 export default function PropertyCard({ property }) {
   const { title, location, type, bedrooms, area, priceLabel, status, image, badge, listingType } = property;
   const [showTokenModal, setShowTokenModal] = useState(false);
   const isRental = listingType === 'rent' || badge?.toLowerCase().includes('rent');
+  const ratingValue = Number(property.rating || property.averageRating || 0);
+  const reviewsCountValue = Number(property.reviewsCount || property.totalRatings || 0);
 
   return (
     <>
@@ -31,6 +33,17 @@ export default function PropertyCard({ property }) {
               }`}>
                 <BadgeCheck size={13} />
                 {badge}
+              </span>
+            )}
+
+            {/* Rating Badge */}
+            {ratingValue > 0 && (
+              <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold bg-white/95 backdrop-blur-xs text-amber-600 shadow-xs border border-amber-200/60">
+                <Star size={11} className="fill-amber-400 text-amber-400" />
+                <span>{ratingValue.toFixed(1)}</span>
+                {reviewsCountValue > 0 && (
+                  <span className="text-[10px] text-gray-500 font-normal">({reviewsCountValue})</span>
+                )}
               </span>
             )}
           </div>

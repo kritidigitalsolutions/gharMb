@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import AdminLoader from '../components/common/AdminLoader';
 import {
   Users, Gift, Award, CheckCircle2, XCircle, Clock,
   Search, Filter, Plus, ArrowRight, IndianRupee,
@@ -431,8 +432,8 @@ const ReferenceWorkflow = () => {
         </div>
       </div>
 
-      {/* ─── 4 POLISHED KPI CARDS WITH HARMONIOUS PROPORTIONS (100% REAL DATA) ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+      {/* ─── 4 POLISHED KPI CARDS (STANDARDIZED TOP-ACCENT KPI STYLE) ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           {
             key: 'paid',
@@ -442,8 +443,9 @@ const ReferenceWorkflow = () => {
             count: `₹${totalRewardsPaid >= 100000 ? (totalRewardsPaid / 100000).toFixed(2) : totalRewardsPaid.toLocaleString()}`,
             unit: totalRewardsPaid >= 100000 ? 'Lakhs' : 'Total',
             tag: 'Settled',
-            tagClass: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-            iconBg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+            tagClass: 'text-brand bg-brand/10 border border-brand/20',
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10',
           },
           {
             key: 'eligible',
@@ -453,8 +455,9 @@ const ReferenceWorkflow = () => {
             count: `₹${totalEligible >= 100000 ? (totalEligible / 100000).toFixed(2) : totalEligible.toLocaleString()}`,
             unit: totalEligible >= 100000 ? 'Lakhs' : 'Total',
             tag: 'Actionable',
-            tagClass: 'text-brand bg-brand/10 border-brand/20',
-            iconBg: 'bg-brand/10 text-brand',
+            tagClass: 'text-brand bg-brand/10 border border-brand/20',
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10',
           },
           {
             key: 'funnel',
@@ -464,8 +467,9 @@ const ReferenceWorkflow = () => {
             count: references.filter(r => r.payoutStatus === 'Deal In Progress').length,
             unit: 'Deals',
             tag: `${references.filter(r => r.payoutStatus === 'Deal In Progress').length} Active`,
-            tagClass: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20',
-            iconBg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+            tagClass: 'text-brand bg-brand/10 border border-brand/20',
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10',
           },
           {
             key: 'registered',
@@ -475,43 +479,42 @@ const ReferenceWorkflow = () => {
             count: references.length,
             unit: 'Referrals',
             tag: 'Live DB',
-            tagClass: 'text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20',
-            iconBg: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
+            tagClass: 'text-brand bg-brand/10 border border-brand/20',
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10',
           },
         ].map((card) => {
           const Icon = card.icon;
           return (
             <div
               key={card.key}
-              className="group relative p-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] transition-all duration-200 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md hover:-translate-y-0.5 select-none flex flex-col justify-between overflow-hidden min-h-[104px]"
+              className={`group bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl p-3.5 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden flex flex-col justify-between border-t-2 ${card.accent}`}
             >
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-brand to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block transition-colors group-hover:text-[var(--text-primary)]">
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block">
                     {card.title}
                   </span>
-                  <div className="flex items-baseline gap-1.5 mt-0.5">
-                    <span className="text-2xl font-bold tracking-tight text-[var(--text-primary)] transition-transform duration-200 group-hover:scale-102 inline-block">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
                       {card.count}
                     </span>
-                    <span className="text-xs font-semibold text-[var(--text-muted)]">
+                    <span className="text-[10px] text-[var(--text-muted)] font-medium">
                       {card.unit}
                     </span>
                   </div>
                 </div>
 
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${card.iconBg} transition-all duration-300 group-hover:scale-105`}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110 ${card.iconColor}`}>
                   <Icon size={16} strokeWidth={2} />
                 </div>
               </div>
 
-              <div className="mt-2 pt-1.5 border-t border-[var(--border)]/70 flex items-center justify-between text-[11px]">
+              <div className="mt-2.5 pt-2 border-t border-[var(--border)] flex items-center justify-between text-[11px]">
                 <span className="text-[var(--text-muted)] truncate max-w-[150px]">
                   {card.subtitle}
                 </span>
-                <span className={`text-[10px] font-semibold px-1.5 py-0.2 rounded border ${card.tagClass}`}>
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${card.tagClass}`}>
                   {card.tag}
                 </span>
               </div>
@@ -600,11 +603,12 @@ const ReferenceWorkflow = () => {
             <tbody className="divide-y divide-[var(--border)] text-xs">
               {isLoading ? (
                 <tr>
-                  <td colSpan="8" className="py-14 text-center text-[var(--text-muted)]">
-                    <div className="flex flex-col items-center justify-center space-y-2.5">
-                      <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin"></div>
-                      <p className="text-xs font-medium">Fetching real referrals from MongoDB...</p>
-                    </div>
+                  <td colSpan="8" className="py-12 text-center">
+                    <AdminLoader
+                      text="Fetching real referral records..."
+                      subtext="Loading ambassador rewards and linked transactions"
+                      minHeight="min-h-[180px]"
+                    />
                   </td>
                 </tr>
               ) : filteredRefs.length === 0 ? (

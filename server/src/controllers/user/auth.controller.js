@@ -169,6 +169,7 @@ const buildUserResponse = (user) => {
     builderDocs: user.builderDocs || {},
     verification: verification || {},
     referralCode: user.referralCode || null,
+    referralRewardEarned: user.referralRewardEarned || 0,
     walletCoins: user.walletCoins || 0,
     referralCoinsEarned: user.referralCoinsEarned || 0,
     referralCount: user.referralCount || 0,
@@ -277,12 +278,12 @@ exports.registerUser = async (req, res, next) => {
     let sanitizedReferralCode = null;
     const candidateCode = referralCode || refCode || req.body.referredByCode;
     if (candidateCode && String(candidateCode).trim()) {
-      sanitizedReferralCode = String(candidateCode).trim().toUpperCase();
-      referrerUser = await User.findOne({
-        referralCode: sanitizedReferralCode,
-        status: { $ne: 'Blocked' },
-      });
-      if (!referrerUser) {
+      const { findReferrerByCode } = require('../../utils/referralCode.helper');
+      const resolution = await findReferrerByCode(String(candidateCode).trim());
+      if (resolution.referrer) {
+        referrerUser = resolution.referrer;
+        sanitizedReferralCode = resolution.matchedCode || referrerUser.referralCode || String(candidateCode).trim().toUpperCase();
+      } else {
         return res.status(400).json({
           status: 'fail',
           message: 'Invalid referral code. Please check your code or leave blank to continue.',
@@ -335,11 +336,11 @@ exports.registerUser = async (req, res, next) => {
     otpStore.delete(normalizedPhone);
     googleOtpStore.delete(normalizedPhone);
 
-    // ── Record Refer & Earn Linkage ─────────────────────────────────────────
+    // ── Record Refer & Earn Linkage (Both Win ₹250 — Admin Notified to Pay Out of App) ─
     if (referrerUser) {
       try {
         const Referral = require('../../models/referral.model');
-        await Referral.create({
+        const newReferral = await Referral.create({
           programType: 'refer_and_earn',
           referrerUser: referrerUser._id,
           referrerName: referrerUser.name,
@@ -350,30 +351,85 @@ exports.registerUser = async (req, res, next) => {
           refereeName: newUser.name,
           refereePhone: newUser.phone,
           refereeEmail: newUser.email,
-          coinsRewarded: 250,
-          refereeCoinsRewarded: 250,
-          referralStatus: 'pending_listing',
-          payoutStatus: 'Deal In Progress',
-          notes: `User signed up using referral code ${sanitizedReferralCode}. ₹250 coins will unlock upon first property listing.`,
+          rewardAmount: 250,
+          claimedAmount: 250,
+          referralStatus: 'rewarded',
+          claimStatus: 'pending_admin_payout',
+          payoutStatus: 'Pending Admin Contact',
+          notes: `New user ${newUser.name} registered using referral code ${sanitizedReferralCode}. Both users won ₹250 reward. Admin notified to contact users to deliver reward out of app.`,
         });
 
-        await User.findByIdAndUpdate(referrerUser._id, { $inc: { referralCount: 1 } });
+        await Promise.all([
+          User.findByIdAndUpdate(referrerUser._id, {
+            $inc: { referralCount: 1, referralRewardEarned: 250 },
+          }),
+          User.findByIdAndUpdate(newUser._id, {
+            $inc: { referralRewardEarned: 250 },
+          }),
+        ]);
 
-        // Notify Referrer
+        // 1. Notify Referrer (Existing User)
         await Notification.create({
           recipient: referrerUser._id,
-          title: '🎉 New Friend Joined via Referral!',
-          message: `Your friend ${newUser.name} registered using your referral code ${sanitizedReferralCode}. You will both receive ₹250 GharMB coins once they list their first property!`,
-          type: 'system',
+          title: '🎉 You Won ₹250 Referral Reward!',
+          message: `Your friend ${newUser.name} just registered on GharMB using your referral code (${sanitizedReferralCode})! Both of you have won ₹250 reward. GharMB Admin will contact you on ${referrerUser.phone} to deliver your payment out of the app.`,
+          type: 'payment',
+          metadata: {
+            referralId: newReferral._id,
+            friendName: newUser.name,
+            rewardAmount: 250,
+          },
         });
 
-        // Notify Referee
+        // 2. Notify Referee (New User)
         await Notification.create({
           recipient: newUser._id,
-          title: '🎁 Referral Bonus Activated!',
-          message: `You signed up with ${referrerUser.name}'s referral code. Post your first property listing to unlock ₹250 GharMB coins!`,
-          type: 'system',
+          title: '🎉 Welcome! You Won ₹250 Referral Reward!',
+          message: `Welcome to GharMB! You signed up with ${referrerUser.name}'s referral code and won ₹250 reward. GharMB Admin will contact you on ${newUser.phone} to deliver your payment out of the app.`,
+          type: 'payment',
+          metadata: {
+            referralId: newReferral._id,
+            referrerName: referrerUser.name,
+            rewardAmount: 250,
+          },
         });
+
+        // 3. Notify Admin immediately so Admin can contact users directly
+        try {
+          const Admin = require('../../models/admin.model');
+          const admins = await Admin.find({ isActive: true }).select('_id');
+          if (admins.length > 0) {
+            await Notification.insertMany(
+              admins.map((admin) => ({
+                recipient: admin._id,
+                title: '📞 Referral Reward Won! Contact Users to Pay',
+                message: `New user ${newUser.name} (📞 ${newUser.phone}) joined using ${referrerUser.name}'s (📞 ${referrerUser.phone}) referral code. Both users won ₹250 reward! Please contact both users directly to deliver payment out of the app.`,
+                type: 'payment',
+                forAdmin: true,
+                metadata: {
+                  referralId: newReferral._id,
+                  referrerId: referrerUser._id,
+                  referrerName: referrerUser.name,
+                  referrerPhone: referrerUser.phone,
+                  refereeId: newUser._id,
+                  refereeName: newUser.name,
+                  refereePhone: newUser.phone,
+                  rewardAmount: 250,
+                },
+              }))
+            );
+          }
+        } catch (adminErr) {
+          console.warn('⚠️ [Admin Referral Notification Error]:', adminErr.message);
+        }
+
+        console.log(`\n==================================================`);
+        console.log(`🎁 [REFERRAL REWARD WON — BOTH USERS REWARDED ₹250]`);
+        console.log(`   Referrer : ${referrerUser.name} (📞 ${referrerUser.phone})`);
+        console.log(`   Referee  : ${newUser.name} (📞 ${newUser.phone})`);
+        console.log(`   Reward   : ₹250 each`);
+        console.log(`   Action   : Admin notified to contact users & pay out of app`);
+        console.log(`==================================================\n`);
       } catch (refErr) {
         console.warn('⚠️ [Auth Referral Link Error]:', refErr.message);
       }
@@ -1368,12 +1424,12 @@ exports.googleRegister = async (req, res, next) => {
     let sanitizedReferralCode = null;
     const candidateCode = referralCode || refCode || req.body.referredByCode;
     if (candidateCode && String(candidateCode).trim()) {
-      sanitizedReferralCode = String(candidateCode).trim().toUpperCase();
-      referrerUser = await User.findOne({
-        referralCode: sanitizedReferralCode,
-        status: { $ne: 'Blocked' },
-      });
-      if (!referrerUser) {
+      const { findReferrerByCode } = require('../../utils/referralCode.helper');
+      const resolution = await findReferrerByCode(String(candidateCode).trim());
+      if (resolution.referrer) {
+        referrerUser = resolution.referrer;
+        sanitizedReferralCode = resolution.matchedCode || referrerUser.referralCode || String(candidateCode).trim().toUpperCase();
+      } else {
         return res.status(400).json({
           status: 'fail',
           message: 'Invalid referral code. Please check your code or leave blank to continue.',
@@ -1426,11 +1482,11 @@ exports.googleRegister = async (req, res, next) => {
     otpStore.delete(normalizedPhone);
     googleOtpStore.delete(normalizedPhone);
 
-    // ── Record Refer & Earn Linkage ─────────────────────────────────────────
+    // ── Record Refer & Earn Linkage (Both Win ₹250 — Admin Notified to Pay Out of App) ─
     if (referrerUser) {
       try {
         const Referral = require('../../models/referral.model');
-        await Referral.create({
+        const newReferral = await Referral.create({
           programType: 'refer_and_earn',
           referrerUser: referrerUser._id,
           referrerName: referrerUser.name,
@@ -1441,30 +1497,85 @@ exports.googleRegister = async (req, res, next) => {
           refereeName: newUser.name,
           refereePhone: newUser.phone,
           refereeEmail: newUser.email,
-          coinsRewarded: 250,
-          refereeCoinsRewarded: 250,
-          referralStatus: 'pending_listing',
-          payoutStatus: 'Deal In Progress',
-          notes: `Google user registered using referral code ${sanitizedReferralCode}. Post first property listing to unlock ₹250 coins.`,
+          rewardAmount: 250,
+          claimedAmount: 250,
+          referralStatus: 'rewarded',
+          claimStatus: 'pending_admin_payout',
+          payoutStatus: 'Pending Admin Contact',
+          notes: `New user ${newUser.name} registered via Google using referral code ${sanitizedReferralCode}. Both users won ₹250 reward. Admin notified to contact users to deliver reward out of app.`,
         });
 
-        await User.findByIdAndUpdate(referrerUser._id, { $inc: { referralCount: 1 } });
+        await Promise.all([
+          User.findByIdAndUpdate(referrerUser._id, {
+            $inc: { referralCount: 1, referralRewardEarned: 250 },
+          }),
+          User.findByIdAndUpdate(newUser._id, {
+            $inc: { referralRewardEarned: 250 },
+          }),
+        ]);
 
-        // Notify Referrer
+        // 1. Notify Referrer (Existing User)
         await Notification.create({
           recipient: referrerUser._id,
-          title: '🎉 New Friend Joined via Referral!',
-          message: `Your friend ${newUser.name} registered using your referral code ${sanitizedReferralCode}. You will both receive ₹250 GharMB coins once they list their first property!`,
-          type: 'system',
+          title: '🎉 You Won ₹250 Referral Reward!',
+          message: `Your friend ${newUser.name} just registered on GharMB using your referral code (${sanitizedReferralCode})! Both of you have won ₹250 reward. GharMB Admin will contact you on ${referrerUser.phone} to deliver your payment out of the app.`,
+          type: 'payment',
+          metadata: {
+            referralId: newReferral._id,
+            friendName: newUser.name,
+            rewardAmount: 250,
+          },
         });
 
-        // Notify Referee
+        // 2. Notify Referee (New User)
         await Notification.create({
           recipient: newUser._id,
-          title: '🎁 Referral Bonus Activated!',
-          message: `You registered with ${referrerUser.name}'s referral code. Post your first property listing to unlock ₹250 GharMB coins!`,
-          type: 'system',
+          title: '🎉 Welcome! You Won ₹250 Referral Reward!',
+          message: `Welcome to GharMB! You registered with ${referrerUser.name}'s referral code and won ₹250 reward. GharMB Admin will contact you on ${newUser.phone} to deliver your payment out of the app.`,
+          type: 'payment',
+          metadata: {
+            referralId: newReferral._id,
+            referrerName: referrerUser.name,
+            rewardAmount: 250,
+          },
         });
+
+        // 3. Notify Admin immediately so Admin can contact users directly
+        try {
+          const Admin = require('../../models/admin.model');
+          const admins = await Admin.find({ isActive: true }).select('_id');
+          if (admins.length > 0) {
+            await Notification.insertMany(
+              admins.map((admin) => ({
+                recipient: admin._id,
+                title: '📞 Referral Reward Won! Contact Users to Pay',
+                message: `New user ${newUser.name} (📞 ${newUser.phone}) joined using ${referrerUser.name}'s (📞 ${referrerUser.phone}) referral code. Both users won ₹250 reward! Please contact both users directly to deliver payment out of the app.`,
+                type: 'payment',
+                forAdmin: true,
+                metadata: {
+                  referralId: newReferral._id,
+                  referrerId: referrerUser._id,
+                  referrerName: referrerUser.name,
+                  referrerPhone: referrerUser.phone,
+                  refereeId: newUser._id,
+                  refereeName: newUser.name,
+                  refereePhone: newUser.phone,
+                  rewardAmount: 250,
+                },
+              }))
+            );
+          }
+        } catch (adminErr) {
+          console.warn('⚠️ [Admin Referral Notification Error]:', adminErr.message);
+        }
+
+        console.log(`\n==================================================`);
+        console.log(`🎁 [REFERRAL REWARD WON (GOOGLE) — BOTH USERS REWARDED ₹250]`);
+        console.log(`   Referrer : ${referrerUser.name} (📞 ${referrerUser.phone})`);
+        console.log(`   Referee  : ${newUser.name} (📞 ${newUser.phone})`);
+        console.log(`   Reward   : ₹250 each`);
+        console.log(`   Action   : Admin notified to contact users & pay out of app`);
+        console.log(`==================================================\n`);
       } catch (refErr) {
         console.warn('⚠️ [Google Auth Referral Link Error]:', refErr.message);
       }

@@ -101,6 +101,7 @@ router.route('/:id')
  *         description: Property not found
  */
 router.patch('/:id/status', propertyController.updatePropertyStatus);
+router.patch('/:id/commission-discount', propertyController.updateCommissionDiscount);
 
 /**
  * @swagger

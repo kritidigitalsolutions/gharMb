@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import AdminLoader from '../components/common/AdminLoader';
 import {
   Bold, Italic, List, Link as LinkIcon, AlertTriangle,
   CheckCircle2, Undo, Redo, Heading2, Heading3, ListOrdered, Plus, Trash2,
@@ -111,7 +112,7 @@ const LegalSettings = () => {
     content: '',
     editorProps: {
       attributes: {
-        class: 'w-full min-h-full text-[13.5px] text-[var(--text-primary)] leading-[1.65] bg-transparent border-0 focus:ring-0 outline-none prose max-w-none'
+        class: 'w-full min-h-full text-xs text-[var(--text-primary)] leading-[1.55] bg-transparent border-0 focus:ring-0 outline-none max-w-none'
       },
       handlePaste: (view, event) => {
         const text = event.clipboardData.getData('text/plain');
@@ -607,15 +608,15 @@ const LegalSettings = () => {
       )}
 
       {/* ── 1. MINIMAL HEADER BAR ── */}
-      <div className="shrink-0 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 shadow-xs">
+      <div className="shrink-0 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 shadow-2xs">
         {/* Left: Title & Tabs */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <h1 className="text-base font-extrabold text-[var(--text-primary)] tracking-tight">Legal Policies</h1>
-            {isRevalidating && <Loader2 size={12} className="animate-spin text-brand" />}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-sm font-bold text-[var(--text-primary)] tracking-tight">Legal Policies</h1>
+            {isRevalidating && <Loader2 size={11} className="animate-spin text-brand" />}
           </div>
 
-          <div className="h-4 w-px bg-[var(--border)] hidden sm:block"></div>
+          <div className="h-3.5 w-px bg-[var(--border)] hidden sm:block"></div>
 
           {/* Segmented Pills */}
           <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar">
@@ -626,13 +627,13 @@ const LegalSettings = () => {
                   key={p._id || p.slug || p.type}
                   type="button"
                   onClick={() => selectPolicyBySlug(p.slug || p.type)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  className={`h-7 px-2.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                     isSelected
                       ? 'bg-brand/10 text-brand font-bold border border-brand/20'
                       : 'text-[var(--text-subtle)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] border border-transparent'
                   }`}
                 >
-                  <FileText size={12} className={isSelected ? 'text-brand' : 'opacity-50'} />
+                  <FileText size={11} className={isSelected ? 'text-brand' : 'opacity-50'} />
                   <span>{p.title}</span>
                   {p.status === 'draft' && (
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Draft"></span>
@@ -642,7 +643,7 @@ const LegalSettings = () => {
             })}
 
             {isCreatingNew && (
-              <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-brand/15 text-brand border border-brand/30">
+              <span className="h-7 px-2.5 rounded-lg text-[11px] font-bold bg-brand/15 text-brand border border-brand/30 flex items-center">
                 New Policy
               </span>
             )}
@@ -650,41 +651,41 @@ const LegalSettings = () => {
             <button
               type="button"
               onClick={handleStartAddNew}
-              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-brand hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-brand hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
               title="Add Policy"
             >
-              <Plus size={14} />
+              <Plus size={13} />
             </button>
           </div>
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {/* View toggle */}
           <div className="inline-flex items-center p-0.5 bg-[var(--bg-muted)] rounded-lg border border-[var(--border)] text-xs">
             <button
               type="button"
               onClick={() => setViewMode('split')}
-              className={`p-1.5 rounded-md transition-all cursor-pointer ${viewMode === 'split' ? 'bg-[var(--bg-surface)] text-brand shadow-xs' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+              className={`w-6 h-6 flex items-center justify-center rounded-md transition-all cursor-pointer ${viewMode === 'split' ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
               title="Split View (Side by Side)"
             >
-              <Columns2 size={13} />
+              <Columns2 size={12} />
             </button>
             <button
               type="button"
               onClick={() => setViewMode('editor')}
-              className={`p-1.5 rounded-md transition-all cursor-pointer ${viewMode === 'editor' ? 'bg-[var(--bg-surface)] text-brand shadow-xs' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+              className={`w-6 h-6 flex items-center justify-center rounded-md transition-all cursor-pointer ${viewMode === 'editor' ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
               title="Editor Only"
             >
-              <PenLine size={13} />
+              <PenLine size={12} />
             </button>
             <button
               type="button"
               onClick={() => setViewMode('preview')}
-              className={`p-1.5 rounded-md transition-all cursor-pointer ${viewMode === 'preview' ? 'bg-[var(--bg-surface)] text-brand shadow-xs' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+              className={`w-6 h-6 flex items-center justify-center rounded-md transition-all cursor-pointer ${viewMode === 'preview' ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
               title="Preview Only"
             >
-              <Eye size={13} />
+              <Eye size={12} />
             </button>
           </div>
 
@@ -692,17 +693,17 @@ const LegalSettings = () => {
           <button
             type="button"
             onClick={() => setShowSettingsModal(true)}
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-brand hover:bg-[var(--bg-muted)] transition-colors cursor-pointer border border-[var(--border)]"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-brand hover:bg-[var(--bg-muted)] transition-colors cursor-pointer border border-[var(--border)]"
             title="Policy Settings & Details"
           >
-            <Settings size={14} />
+            <Settings size={12} />
           </button>
 
           <button
             type="button"
             onClick={() => handleSave('draft')}
             disabled={isSaving}
-            className="px-3 py-1.5 bg-[var(--bg-muted)] hover:bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-subtle)] text-xs font-bold rounded-lg transition-colors cursor-pointer"
+            className="h-7 px-2.5 bg-[var(--bg-muted)] hover:bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-subtle)] text-[11px] font-semibold rounded-lg transition-colors cursor-pointer"
           >
             Save Draft
           </button>
@@ -711,9 +712,9 @@ const LegalSettings = () => {
             type="button"
             onClick={() => handleSave('published')}
             disabled={isSaving}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-brand hover:bg-brand-dark text-white text-xs font-black rounded-lg transition-all shadow-xs cursor-pointer"
+            className="h-7 flex items-center gap-1.5 px-3 bg-brand hover:bg-brand-dark text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs cursor-pointer"
           >
-            <Sparkles size={12} />
+            <Sparkles size={11} />
             <span>{isSaving ? 'Publishing...' : 'Publish'}</span>
           </button>
         </div>
@@ -721,7 +722,7 @@ const LegalSettings = () => {
 
       {/* Error Notice */}
       {error && (
-        <div className="shrink-0 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 rounded-xl flex items-center justify-between text-xs font-semibold">
+        <div className="shrink-0 p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-600 rounded-xl flex items-center justify-between text-xs font-semibold">
           <span>{error}</span>
           <button onClick={() => fetchPolicies()} className="flex items-center gap-1 underline cursor-pointer">
             <RefreshCw size={11} /> Retry
@@ -729,127 +730,129 @@ const LegalSettings = () => {
         </div>
       )}
 
-      {/* ── 2. WORKSPACE: EDITOR + ONE CLEAN PREVIEW (Fits 100% on page) ── */}
-      <div className={`flex-1 min-h-0 grid gap-3 overflow-hidden ${
+      {/* ── 2. WORKSPACE: COMPACT EDITOR + ONE CLEAN PREVIEW ── */}
+      <div className={`flex-1 min-h-0 grid gap-2.5 overflow-hidden ${
         viewMode === 'split'
           ? 'grid-cols-1 lg:grid-cols-2 grid-rows-1 items-stretch'
           : 'grid-cols-1 grid-rows-1 w-full'
       }`}>
         {/* ─── LEFT: COMPACT EDITOR ─── */}
         {(viewMode === 'split' || viewMode === 'editor') && (
-          <div className="h-full min-h-0 flex flex-col bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] shadow-xs overflow-hidden">
-            {/* Toolbar */}
-            <div className="shrink-0 px-3 py-1.5 border-b border-[var(--border)] bg-[var(--bg-muted)]/50 flex flex-wrap items-center justify-between gap-1 text-xs">
+          <div className="h-full min-h-0 flex flex-col bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] shadow-2xs overflow-hidden">
+            {/* Toolbar - Compact & Neat */}
+            <div className="shrink-0 px-2.5 py-1 border-b border-[var(--border)] bg-[var(--bg-muted)]/50 flex flex-wrap items-center justify-between gap-1 text-xs">
               <div className="flex items-center gap-0.5 flex-wrap">
                 <button
                   type="button"
                   onClick={() => editor?.chain().focus().toggleBold().run()}
-                  className={`p-1.5 rounded transition-colors cursor-pointer ${editor?.isActive('bold') ? 'bg-brand/15 text-brand font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                  className={`w-6 h-6 flex items-center justify-center rounded transition-colors cursor-pointer ${editor?.isActive('bold') ? 'bg-brand/15 text-brand font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
                   title="Bold"
                 >
-                  <Bold size={13} />
+                  <Bold size={12} />
                 </button>
                 <button
                   type="button"
                   onClick={() => editor?.chain().focus().toggleItalic().run()}
-                  className={`p-1.5 rounded transition-colors cursor-pointer ${editor?.isActive('italic') ? 'bg-brand/15 text-brand' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                  className={`w-6 h-6 flex items-center justify-center rounded transition-colors cursor-pointer ${editor?.isActive('italic') ? 'bg-brand/15 text-brand' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
                   title="Italic"
                 >
-                  <Italic size={13} />
+                  <Italic size={12} />
                 </button>
-                <div className="w-px h-3.5 bg-[var(--border)] mx-1"></div>
+                <div className="w-px h-3 bg-[var(--border)] mx-0.5"></div>
                 <button
                   type="button"
                   onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-                  className={`p-1.5 rounded transition-colors cursor-pointer ${editor?.isActive('heading', { level: 2 }) ? 'bg-brand/15 text-brand font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                  className={`w-6 h-6 flex items-center justify-center rounded transition-colors cursor-pointer ${editor?.isActive('heading', { level: 2 }) ? 'bg-brand/15 text-brand font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
                   title="Heading 2"
                 >
-                  <Heading2 size={13} />
+                  <Heading2 size={12} />
                 </button>
                 <button
                   type="button"
                   onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
-                  className={`p-1.5 rounded transition-colors cursor-pointer ${editor?.isActive('heading', { level: 3 }) ? 'bg-brand/15 text-brand font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                  className={`w-6 h-6 flex items-center justify-center rounded transition-colors cursor-pointer ${editor?.isActive('heading', { level: 3 }) ? 'bg-brand/15 text-brand font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
                   title="Heading 3"
                 >
-                  <Heading3 size={13} />
+                  <Heading3 size={12} />
                 </button>
-                <div className="w-px h-3.5 bg-[var(--border)] mx-1"></div>
+                <div className="w-px h-3 bg-[var(--border)] mx-0.5"></div>
                 <button
                   type="button"
                   onClick={() => editor?.chain().focus().toggleBulletList().run()}
-                  className={`p-1.5 rounded transition-colors cursor-pointer ${editor?.isActive('bulletList') ? 'bg-brand/15 text-brand' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                  className={`w-6 h-6 flex items-center justify-center rounded transition-colors cursor-pointer ${editor?.isActive('bulletList') ? 'bg-brand/15 text-brand' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
                   title="Bullet List"
                 >
-                  <List size={13} />
+                  <List size={12} />
                 </button>
                 <button
                   type="button"
                   onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-                  className={`p-1.5 rounded transition-colors cursor-pointer ${editor?.isActive('orderedList') ? 'bg-brand/15 text-brand' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                  className={`w-6 h-6 flex items-center justify-center rounded transition-colors cursor-pointer ${editor?.isActive('orderedList') ? 'bg-brand/15 text-brand' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
                   title="Numbered List"
                 >
-                  <ListOrdered size={13} />
+                  <ListOrdered size={12} />
                 </button>
                 <button
                   type="button"
                   onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-                  className={`p-1.5 rounded transition-colors cursor-pointer ${editor?.isActive('blockquote') ? 'bg-brand/15 text-brand' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                  className={`w-6 h-6 flex items-center justify-center rounded transition-colors cursor-pointer ${editor?.isActive('blockquote') ? 'bg-brand/15 text-brand' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
                   title="Quote"
                 >
-                  <Quote size={13} />
+                  <Quote size={12} />
                 </button>
                 <button
                   type="button"
                   onClick={addLink}
-                  className={`p-1.5 rounded transition-colors cursor-pointer ${editor?.isActive('link') ? 'bg-brand/15 text-brand' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                  className={`w-6 h-6 flex items-center justify-center rounded transition-colors cursor-pointer ${editor?.isActive('link') ? 'bg-brand/15 text-brand' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
                   title="Insert Link"
                 >
-                  <LinkIcon size={13} />
+                  <LinkIcon size={12} />
                 </button>
-                <div className="w-px h-3.5 bg-[var(--border)] mx-1"></div>
+                <div className="w-px h-3 bg-[var(--border)] mx-0.5"></div>
                 <button
                   type="button"
                   onClick={() => editor?.chain().focus().undo().run()}
                   disabled={!editor?.can().undo()}
-                  className="p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30 cursor-pointer"
+                  className="w-6 h-6 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30 cursor-pointer"
                   title="Undo"
                 >
-                  <Undo size={13} />
+                  <Undo size={12} />
                 </button>
                 <button
                   type="button"
                   onClick={() => editor?.chain().focus().redo().run()}
                   disabled={!editor?.can().redo()}
-                  className="p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30 cursor-pointer"
+                  className="w-6 h-6 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30 cursor-pointer"
                   title="Redo"
                 >
-                  <Redo size={13} />
+                  <Redo size={12} />
                 </button>
               </div>
 
-              <span className="text-[10px] text-[var(--text-muted)] font-mono">
+              <span className="text-[9.5px] text-[var(--text-muted)] font-mono">
                 {stats.words} words · ~{stats.readTime} min
               </span>
             </div>
 
-            {/* Document Title input */}
-            <div className="shrink-0 px-4 py-2 border-b border-[var(--border)] bg-[var(--bg-surface)]">
+            {/* Document Title input - Compact */}
+            <div className="shrink-0 px-3.5 py-1.5 border-b border-[var(--border)] bg-[var(--bg-surface)]">
               <input
                 type="text"
                 value={policyForm.title}
                 onChange={(e) => setPolicyForm(prev => ({ ...prev, title: e.target.value }))}
                 placeholder="Policy Title..."
-                className="w-full text-base sm:text-lg font-extrabold text-[var(--text-primary)] bg-transparent border-0 outline-none p-0 focus:ring-0 placeholder-[var(--text-muted)]/50 tracking-tight"
+                className="w-full text-sm sm:text-base font-bold text-[var(--text-primary)] bg-transparent border-0 outline-none p-0 focus:ring-0 placeholder-[var(--text-muted)]/50 tracking-tight"
               />
             </div>
 
             {/* Editor Canvas (Scrollable matching Preview) */}
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 sm:p-5 legal-editor-wrap">
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3.5 sm:p-4 legal-editor-wrap">
               {loading ? (
-                <div className="flex items-center justify-center h-48 text-xs text-[var(--text-muted)]">
-                  <Loader2 size={16} className="animate-spin text-brand mr-2" /> Loading document...
-                </div>
+                <AdminLoader
+                  size="sm"
+                  text="Loading document..."
+                  minHeight="min-h-[160px]"
+                />
               ) : (
                 <EditorContent editor={editor} />
               )}
@@ -857,45 +860,45 @@ const LegalSettings = () => {
           </div>
         )}
 
-        {/* ─── RIGHT: ONE SINGLE LIVE PREVIEW ─── */}
+        {/* ─── RIGHT: ONE SINGLE LIVE PREVIEW - Compact Typography ─── */}
         {(viewMode === 'split' || viewMode === 'preview') && (
-          <div className="h-full min-h-0 flex flex-col bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] shadow-xs overflow-hidden">
+          <div className="h-full min-h-0 flex flex-col bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] shadow-2xs overflow-hidden">
             {/* Header */}
-            <div className="shrink-0 px-4 py-2 border-b border-[var(--border)] bg-[var(--bg-muted)]/50 flex items-center justify-between text-xs">
+            <div className="shrink-0 px-3.5 py-1.5 border-b border-[var(--border)] bg-[var(--bg-muted)]/50 flex items-center justify-between text-xs">
               <div className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="font-bold text-[var(--text-primary)]">Live Document Preview</span>
+                <span className="font-bold text-xs text-[var(--text-primary)]">Live Document Preview</span>
               </div>
-              <span className="text-[11px] text-[var(--text-muted)] font-medium">
+              <span className="text-[10.5px] text-[var(--text-muted)] font-medium">
                 Updated {lastUpdated}
               </span>
             </div>
 
-            {/* ONE Clean Document View (Scrollable matching Editor) */}
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 sm:p-5 space-y-3.5">
+            {/* Clean Document View */}
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3.5 sm:p-4 space-y-2.5">
               <div>
-                <span className="text-[10px] font-black uppercase text-brand tracking-wider">GHARMB OFFICIAL POLICY</span>
-                <h2 className="text-lg sm:text-xl font-black text-[var(--text-primary)] mt-0.5 tracking-tight">
+                <span className="text-[9px] font-bold uppercase text-brand tracking-wider">GHARMB OFFICIAL POLICY</span>
+                <h2 className="text-sm sm:text-base font-bold text-[var(--text-primary)] mt-0.5 tracking-tight">
                   {policyForm.title || 'Legal Document'}
                 </h2>
                 {policyForm.shortDescription && (
-                  <p className="text-xs text-[var(--text-subtle)] mt-1 leading-relaxed">
+                  <p className="text-[11px] text-[var(--text-subtle)] mt-0.5 leading-relaxed">
                     {policyForm.shortDescription}
                   </p>
                 )}
-                <div className="w-full h-px bg-[var(--border)] mt-2.5"></div>
+                <div className="w-full h-px bg-[var(--border)] mt-2"></div>
               </div>
 
               {/* Formatted body */}
               <div
-                className="legal-preview-content text-[13.5px] leading-relaxed text-[var(--text-subtle)]"
+                className="legal-preview-content text-xs leading-relaxed text-[var(--text-subtle)]"
                 dangerouslySetInnerHTML={{
                   __html: policyForm.content || '<p class="text-slate-400 italic">No content drafted.</p>'
                 }}
               />
 
               {/* Minimal note box at bottom */}
-              <div className="mt-5 pt-3.5 border-t border-[var(--border)] flex items-center justify-between text-[11px] text-[var(--text-muted)]">
+              <div className="mt-4 pt-2.5 border-t border-[var(--border)] flex items-center justify-between text-[10.5px] text-[var(--text-muted)]">
                 <span>Mira-Bhayandar, Maharashtra</span>
                 <span>legal@gharmb.in</span>
               </div>
@@ -1060,75 +1063,79 @@ const LegalSettings = () => {
       <style>{`
         .legal-editor-wrap .tiptap {
           min-height: 100% !important;
-          font-size: 13.5px !important;
-          line-height: 1.65 !important;
+          font-size: 12px !important;
+          line-height: 1.55 !important;
           color: var(--text-primary) !important;
           outline: none !important;
         }
         .legal-editor-wrap .tiptap h1,
         .legal-preview-content h1 {
-          font-size: 1.25rem !important;
-          font-weight: 800 !important;
+          font-size: 1.05rem !important;
+          font-weight: 750 !important;
           color: var(--text-primary) !important;
-          margin-top: 1rem !important;
-          margin-bottom: 0.35rem !important;
+          margin-top: 0.75rem !important;
+          margin-bottom: 0.25rem !important;
           line-height: 1.3 !important;
         }
         .legal-editor-wrap .tiptap h2,
         .legal-preview-content h2 {
-          font-size: 1.05rem !important;
-          font-weight: 750 !important;
+          font-size: 0.92rem !important;
+          font-weight: 700 !important;
           color: #FF5A3C !important;
-          margin-top: 0.95rem !important;
-          margin-bottom: 0.3rem !important;
+          margin-top: 0.7rem !important;
+          margin-bottom: 0.2rem !important;
           border-bottom: 1px solid var(--border, #e2e8f0) !important;
-          padding-bottom: 0.2rem !important;
+          padding-bottom: 0.15rem !important;
           line-height: 1.35 !important;
         }
         .legal-editor-wrap .tiptap h3,
         .legal-preview-content h3 {
-          font-size: 0.95rem !important;
-          font-weight: 700 !important;
+          font-size: 0.84rem !important;
+          font-weight: 650 !important;
           color: var(--text-primary) !important;
-          margin-top: 0.8rem !important;
-          margin-bottom: 0.25rem !important;
-          line-height: 1.4 !important;
+          margin-top: 0.6rem !important;
+          margin-bottom: 0.2rem !important;
+          line-height: 1.35 !important;
         }
         .legal-editor-wrap .tiptap p,
         .legal-preview-content p {
-          margin-bottom: 0.55rem !important;
-          line-height: 1.65 !important;
+          margin-bottom: 0.4rem !important;
+          line-height: 1.55 !important;
+          font-size: 12px !important;
         }
         .legal-editor-wrap .tiptap ul,
         .legal-preview-content ul {
           list-style-type: disc !important;
-          padding-left: 1.2rem !important;
-          margin-bottom: 0.55rem !important;
+          padding-left: 1rem !important;
+          margin-bottom: 0.4rem !important;
         }
         .legal-editor-wrap .tiptap ol,
         .legal-preview-content ol {
           list-style-type: decimal !important;
-          padding-left: 1.2rem !important;
-          margin-bottom: 0.55rem !important;
+          padding-left: 1rem !important;
+          margin-bottom: 0.4rem !important;
         }
         .legal-editor-wrap .tiptap li,
         .legal-preview-content li {
-          margin-bottom: 0.15rem !important;
-          line-height: 1.6 !important;
+          margin-bottom: 0.1rem !important;
+          line-height: 1.5 !important;
+          font-size: 12px !important;
         }
         .legal-editor-wrap .tiptap blockquote,
         .legal-preview-content blockquote {
-          border-left: 3px solid #FF5A3C !important;
-          padding: 0.35rem 0.6rem !important;
-          margin: 0.55rem 0 !important;
+          border-left: 2.5px solid #FF5A3C !important;
+          padding: 0.25rem 0.5rem !important;
+          margin: 0.4rem 0 !important;
           background: rgba(255, 90, 60, 0.05) !important;
-          border-radius: 0 0.4rem 0.4rem 0 !important;
+          border-radius: 0 0.3rem 0.3rem 0 !important;
           font-style: italic !important;
+          font-size: 12px !important;
         }
         .legal-editor-wrap .tiptap a,
         .legal-preview-content a {
           color: #FF5A3C !important;
           text-decoration: underline !important;
+          font-size: 12px !important;
         }
       `}</style>
     </div>

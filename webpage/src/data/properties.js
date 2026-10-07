@@ -14,6 +14,8 @@ export const properties = [
     badge: "Verified",
     furnishing: "Semi-furnished",
     listingType: "buy",
+    rating: 4.8,
+    reviewsCount: 16,
   },
   {
     id: 2,
@@ -30,6 +32,8 @@ export const properties = [
     badge: "Verified",
     furnishing: "Unfurnished",
     listingType: "buy",
+    rating: 4.6,
+    reviewsCount: 9,
   },
   {
     id: 3,

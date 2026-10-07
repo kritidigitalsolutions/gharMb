@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import AdminLoader from '../components/common/AdminLoader';
 import { useSearchParams } from 'react-router-dom';
 import {
   Radio,
@@ -482,55 +483,53 @@ export default function BroadcastManagement() {
   };
 
   return (
-    <div className="min-h-full pb-16 space-y-6">
+    <div className="w-full space-y-3 pb-12 select-none animate-fadeIn">
       {/* Toast Feedback */}
       {toast.show && (
         <div
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl border text-sm font-medium transition-all duration-300 animate-slide-down ${
+          className={`fixed bottom-5 right-5 z-50 flex items-center gap-2.5 px-3.5 py-2 rounded-lg shadow-md border text-xs font-medium backdrop-blur-md transition-all duration-300 animate-slide-down ${
             toast.type === 'error'
-              ? 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/90 dark:text-rose-200 dark:border-rose-900/50'
-              : 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/90 dark:text-emerald-200 dark:border-emerald-900/50'
+              ? 'bg-rose-950/90 text-rose-200 border-rose-800'
+              : 'bg-zinc-900/90 dark:bg-zinc-100/90 text-white dark:text-zinc-900 border-zinc-800'
           }`}
         >
           {toast.type === 'error' ? (
-            <AlertCircle size={18} className="text-rose-600 dark:text-rose-400 shrink-0" />
+            <AlertCircle size={14} className="text-rose-400 shrink-0" />
           ) : (
-            <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
           )}
           <span>{toast.message}</span>
         </div>
       )}
 
-      {/* TOP HEADER SECTION */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--color-brand)]/10 text-[var(--color-brand)] flex items-center justify-center border border-[var(--color-brand)]/20 shadow-sm">
-              <Radio size={20} className="animate-pulse" />
-            </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-                Broadcast Messages
-              </h1>
-              <p className="text-xs md:text-sm text-[var(--text-muted)] mt-0.5">
-                Dispatch platform announcements, urgent alerts, and targeted push notifications
-              </p>
-            </div>
+      {/* TOP HEADER SECTION - Compact & Sleek */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-0.5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-[var(--color-brand)]/10 text-[var(--color-brand)] flex items-center justify-center border border-[var(--color-brand)]/20 shadow-2xs shrink-0">
+            <Radio size={16} className="animate-pulse" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold tracking-tight text-[var(--text-primary)] leading-tight">
+              Broadcast Messages
+            </h1>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">
+              Dispatch platform announcements, urgent alerts, and targeted notifications
+            </p>
           </div>
         </div>
 
-        {/* Tab & Action Controls */}
-        <div className="flex items-center gap-2.5 self-start md:self-auto flex-wrap">
+        {/* Action Controls */}
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
           {activeTab === 'history' ? (
             <>
               <button
                 type="button"
                 onClick={() => fetchBroadcasts(true)}
                 disabled={refreshing}
-                className="h-10 px-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-subtle)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-all flex items-center gap-2 text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
+                className="h-8 px-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-subtle)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-all flex items-center gap-1.5 text-xs font-semibold shadow-2xs cursor-pointer disabled:opacity-50"
                 title="Refresh logs"
               >
-                <RotateCw size={14} className={refreshing ? 'animate-spin' : ''} />
+                <RotateCw size={12} className={refreshing ? 'animate-spin' : ''} />
                 <span className="hidden sm:inline">Refresh</span>
               </button>
 
@@ -540,11 +539,11 @@ export default function BroadcastManagement() {
                   resetComposer();
                   handleTabChange('compose');
                 }}
-                className="h-10 px-4 rounded-xl bg-[var(--color-brand)] hover:bg-[var(--color-brand-dark)] text-white text-xs font-semibold shadow-sm hover:shadow-md hover:shadow-[var(--color-brand)]/20 transition-all flex items-center gap-2 cursor-pointer group"
+                className="h-8 px-3 rounded-lg bg-[var(--color-brand)] hover:bg-[var(--color-brand-dark)] text-white text-xs font-semibold shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer group"
               >
-                <Plus size={16} className="group-hover:rotate-90 transition-transform duration-200" />
+                <Plus size={14} className="group-hover:rotate-90 transition-transform duration-200" />
                 <span>New Broadcast</span>
-                <span className="hidden lg:inline text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-mono">
+                <span className="hidden lg:inline text-[9px] bg-white/20 px-1 py-0.2 rounded font-mono">
                   Alt+N
                 </span>
               </button>
@@ -554,19 +553,19 @@ export default function BroadcastManagement() {
               <button
                 type="button"
                 onClick={resetComposer}
-                className="h-10 px-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-subtle)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-all flex items-center gap-2 text-xs font-semibold shadow-xs cursor-pointer"
+                className="h-8 px-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-subtle)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-all flex items-center gap-1.5 text-xs font-semibold shadow-2xs cursor-pointer"
                 title="Reset Form"
               >
-                <RotateCw size={14} />
+                <RotateCw size={12} />
                 <span>Reset Form</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleTabChange('history')}
-                className="h-10 px-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-all flex items-center gap-2 text-xs font-semibold shadow-xs cursor-pointer"
+                className="h-8 px-3 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-all flex items-center gap-1.5 text-xs font-semibold shadow-2xs cursor-pointer"
               >
-                <Layers size={15} />
+                <Layers size={13} />
                 <span>View All Broadcasts</span>
               </button>
             </>
@@ -574,24 +573,24 @@ export default function BroadcastManagement() {
         </div>
       </div>
 
-      {/* TOP TABS NAVIGATION */}
-      <div className="flex items-center gap-2 border-b border-[var(--border)] pb-2">
+      {/* TOP TABS NAVIGATION - Slim & Clean */}
+      <div className="flex items-center gap-1.5 border-b border-[var(--border)] pb-2">
         <button
           type="button"
           onClick={() => handleTabChange('history')}
-          className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer relative ${
+          className={`h-8 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 ${
             activeTab === 'history'
-              ? 'bg-[var(--color-brand)] text-white shadow-sm'
+              ? 'bg-[var(--color-brand)] text-white shadow-2xs'
               : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
           }`}
         >
-          <Layers size={15} />
+          <Layers size={13} />
           <span>Broadcast History</span>
           <span
-            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+            className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
               activeTab === 'history'
                 ? 'bg-white/20 text-white'
-                : 'bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-subtle)]'
+                : 'bg-[var(--bg-muted)] border border-[var(--border)] text-[var(--text-subtle)]'
             }`}
           >
             {stats.totalBroadcasts || broadcasts.length}
@@ -601,18 +600,18 @@ export default function BroadcastManagement() {
         <button
           type="button"
           onClick={() => handleTabChange('compose')}
-          className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer relative ${
+          className={`h-8 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 ${
             activeTab === 'compose'
-              ? 'bg-[var(--color-brand)] text-white shadow-sm'
+              ? 'bg-[var(--color-brand)] text-white shadow-2xs'
               : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
           }`}
         >
-          <Megaphone size={15} />
+          <Megaphone size={13} />
           <span>Compose Announcement</span>
           {activeTab !== 'compose' && (
-            <span className="flex h-2 w-2 relative ml-0.5">
+            <span className="flex h-1.5 w-1.5 relative ml-0.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
             </span>
           )}
         </button>
@@ -620,336 +619,321 @@ export default function BroadcastManagement() {
 
       {/* TAB 1: BROADCAST HISTORY */}
       {activeTab === 'history' && (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-2.5 animate-fadeIn">
+          {/* FILTER & SEARCH BAR - Slim & Compact */}
+          <div className="p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xs space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              {/* Search Input */}
+              <div className="relative flex-1">
+                <Search
+                  size={13}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+                />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search broadcasts by title, message body, or link..."
+                  className="w-full h-7.5 pl-8 pr-7 rounded-lg border border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-primary)] text-[11px] placeholder:text-[var(--text-muted)] focus:outline-hidden focus:border-[var(--color-brand)] focus:ring-1 focus:ring-[var(--color-brand)] transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
 
-      {/* FILTER & SEARCH BAR */}
-      <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xs space-y-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          {/* Search Input */}
-          <div className="relative flex-1">
-            <Search
-              size={15}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
-            />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search broadcasts by title, message body, or link..."
-              className="w-full h-10 pl-10 pr-9 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-primary)] text-xs placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--color-brand)] focus:ring-1 focus:ring-[var(--color-brand)] transition-all"
-            />
-            {searchQuery && (
+              {/* Quick Filter Selectors */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {/* Audience Filter */}
+                <select
+                  value={audienceFilter}
+                  onChange={(e) => setAudienceFilter(e.target.value)}
+                  className="h-7.5 px-2 rounded-lg border border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-subtle)] text-[11px] font-medium focus:outline-hidden focus:border-[var(--color-brand)] cursor-pointer"
+                >
+                  <option value="all">All Audiences</option>
+                  <option value="all">🌐 Everyone (All)</option>
+                  <option value="role">🛡️ Role Targeted</option>
+                  <option value="specific">👤 Direct User</option>
+                </select>
+
+                {/* Priority Filter */}
+                <select
+                  value={priorityFilter}
+                  onChange={(e) => setPriorityFilter(e.target.value)}
+                  className="h-7.5 px-2 rounded-lg border border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-subtle)] text-[11px] font-medium focus:outline-hidden focus:border-[var(--color-brand)] cursor-pointer"
+                >
+                  <option value="all">All Priorities</option>
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Type Category Pills */}
+            <div className="flex flex-wrap items-center gap-1 pt-0.5 text-xs">
+              <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mr-1 hidden sm:inline">
+                Category:
+              </span>
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-
-          {/* Quick Filter Selectors */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
-            {/* Audience Filter */}
-            <select
-              value={audienceFilter}
-              onChange={(e) => setAudienceFilter(e.target.value)}
-              className="h-10 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-subtle)] text-xs font-medium focus:outline-none focus:border-[var(--color-brand)] cursor-pointer shrink-0"
-            >
-              <option value="all">All Audiences</option>
-              <option value="all">🌐 Everyone (All Users)</option>
-              <option value="role">🛡️ Role Targeted</option>
-              <option value="specific">👤 Specific User</option>
-            </select>
-
-            {/* Priority Filter */}
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-              className="h-10 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-subtle)] text-xs font-medium focus:outline-none focus:border-[var(--color-brand)] cursor-pointer shrink-0"
-            >
-              <option value="all">All Priorities</option>
-              <option value="normal">Normal</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Type Category Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
-          <span className="text-[11px] font-medium text-[var(--text-muted)] mr-1 hidden sm:inline">
-            Category:
-          </span>
-          <button
-            type="button"
-            onClick={() => setTypeFilter('all')}
-            className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-all shrink-0 cursor-pointer ${
-              typeFilter === 'all'
-                ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)] shadow-xs'
-                : 'border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            All Categories ({stats.totalBroadcasts || broadcasts.length})
-          </button>
-
-          {Object.entries(TYPE_CONFIG).map(([key, config]) => {
-            const Icon = config.icon;
-            const count = stats.typeBreakdown?.[key] || 0;
-            const isActive = typeFilter === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setTypeFilter(key)}
-                className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
-                  isActive
-                    ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)] shadow-xs'
+                onClick={() => setTypeFilter('all')}
+                className={`h-6.5 px-2.5 rounded-lg border text-[11px] font-medium transition-all shrink-0 cursor-pointer ${
+                  typeFilter === 'all'
+                    ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)] shadow-2xs font-semibold'
                     : 'border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                 }`}
               >
-                <Icon size={12} />
-                <span>{config.label}</span>
-                {count > 0 && (
-                  <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                      isActive ? 'bg-white/25 text-white' : 'bg-[var(--border)] text-[var(--text-subtle)]'
+                All Categories ({stats.totalBroadcasts || broadcasts.length})
+              </button>
+
+              {Object.entries(TYPE_CONFIG).map(([key, config]) => {
+                const Icon = config.icon;
+                const count = stats.typeBreakdown?.[key] || 0;
+                const isActive = typeFilter === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setTypeFilter(key)}
+                    className={`h-6.5 px-2.5 rounded-lg border text-[11px] font-medium transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                      isActive
+                        ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)] shadow-2xs font-semibold'
+                        : 'border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                     }`}
                   >
-                    {count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+                    <Icon size={11} />
+                    <span>{config.label}</span>
+                    {count > 0 && (
+                      <span
+                        className={`text-[9.5px] px-1 py-0.2 rounded-full font-bold ${
+                          isActive ? 'bg-white/25 text-white' : 'bg-[var(--border)] text-[var(--text-subtle)]'
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-      {/* BROADCASTS LISTING SECTION */}
-      {loading ? (
-        // Loading Skeletons
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div
-              key={i}
-              className="p-5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3 animate-pulse"
-            >
-              <div className="flex items-center justify-between">
-                <div className="h-5 w-24 bg-[var(--border)] rounded-full" />
-                <div className="h-4 w-16 bg-[var(--border)] rounded-md" />
+          {/* BROADCASTS LISTING SECTION - Compact Height matching Notification page */}
+          {loading ? (
+            <AdminLoader
+              card
+              text="Loading broadcast history..."
+              subtext="Fetching platform announcements and delivery statuses"
+              minHeight="min-h-[200px]"
+            />
+          ) : broadcasts.length === 0 ? (
+            // Clean Minimal Empty State
+            <div className="p-8 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-center space-y-3">
+              <div className="w-12 h-12 mx-auto rounded-xl bg-[var(--color-brand)]/10 text-[var(--color-brand)] flex items-center justify-center border border-[var(--color-brand)]/20 shadow-2xs">
+                <Radio size={22} />
               </div>
-              <div className="h-5 w-3/4 bg-[var(--border)] rounded-md" />
-              <div className="h-12 w-full bg-[var(--border)] rounded-md" />
-              <div className="pt-3 border-t border-[var(--border)] flex justify-between">
-                <div className="h-4 w-20 bg-[var(--border)] rounded-md" />
-                <div className="h-4 w-16 bg-[var(--border)] rounded-md" />
+              <div className="max-w-md mx-auto space-y-0.5">
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                  {searchQuery || typeFilter !== 'all' || audienceFilter !== 'all'
+                    ? 'No matching broadcast messages found'
+                    : 'No broadcasts dispatched yet'}
+                </h3>
+                <p className="text-[11px] text-[var(--text-muted)]">
+                  {searchQuery || typeFilter !== 'all' || audienceFilter !== 'all'
+                    ? 'Try tweaking your filters or search keywords to locate previous broadcasts.'
+                    : 'Compose and dispatch your first platform-wide notification or targeted audience message.'}
+                </p>
+              </div>
+
+              <div className="pt-1">
+                {searchQuery || typeFilter !== 'all' || audienceFilter !== 'all' ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setTypeFilter('all');
+                      setAudienceFilter('all');
+                      setPriorityFilter('all');
+                    }}
+                    className="px-3.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-primary)] text-xs font-semibold hover:bg-[var(--bg-muted)] transition-all cursor-pointer"
+                  >
+                    Reset Filters
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetComposer();
+                      handleTabChange('compose');
+                    }}
+                    className="px-4 py-2 rounded-lg bg-[var(--color-brand)] hover:bg-[var(--color-brand-dark)] text-white text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    <Plus size={14} />
+                    <span>Create Your First Broadcast</span>
+                  </button>
+                )}
               </div>
             </div>
-          ))}
-        </div>
-      ) : broadcasts.length === 0 ? (
-        // Clean Minimal Empty State
-        <div className="p-12 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] text-center space-y-4">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-[var(--color-brand)]/10 text-[var(--color-brand)] flex items-center justify-center border border-[var(--color-brand)]/20 shadow-xs">
-            <Radio size={28} />
-          </div>
-          <div className="max-w-md mx-auto space-y-1">
-            <h3 className="text-base font-semibold text-[var(--text-primary)]">
-              {searchQuery || typeFilter !== 'all' || audienceFilter !== 'all'
-                ? 'No matching broadcast messages found'
-                : 'No broadcasts dispatched yet'}
-            </h3>
-            <p className="text-xs text-[var(--text-muted)]">
-              {searchQuery || typeFilter !== 'all' || audienceFilter !== 'all'
-                ? 'Try tweaking your filters or search keywords to locate previous broadcasts.'
-                : 'Compose and dispatch your first platform-wide notification or targeted audience message.'}
-            </p>
-          </div>
-
-          <div className="pt-2">
-            {searchQuery || typeFilter !== 'all' || audienceFilter !== 'all' ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery('');
-                  setTypeFilter('all');
-                  setAudienceFilter('all');
-                  setPriorityFilter('all');
-                }}
-                className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-primary)] text-xs font-semibold hover:bg-[var(--bg-muted)] transition-all cursor-pointer"
-              >
-                Reset Filters
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  resetComposer();
-                  handleTabChange('compose');
-                }}
-                className="px-5 py-2.5 rounded-xl bg-[var(--color-brand)] hover:bg-[var(--color-brand-dark)] text-white text-xs font-semibold transition-all inline-flex items-center gap-2 cursor-pointer shadow-sm"
-              >
-                <Plus size={16} />
-                <span>Create Your First Broadcast</span>
-              </button>
-            )}
-          </div>
-        </div>
-      ) : (
-        /* DENSE TABLE / LIST VIEW (Only List View) */
-        <div className="rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[var(--bg-main)] text-[var(--text-muted)] uppercase text-[10px] tracking-wider border-b border-[var(--border)]">
-                <tr>
-                  <th className="py-3 px-4 font-semibold">Type</th>
-                  <th className="py-3 px-4 font-semibold">Subject & Message</th>
-                  <th className="py-3 px-4 font-semibold">Target Audience</th>
-                  <th className="py-3 px-4 font-semibold text-center">Recipients</th>
-                  <th className="py-3 px-4 font-semibold">Dispatched</th>
-                  <th className="py-3 px-4 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border)] text-[var(--text-primary)]">
-                {broadcasts.map((b) => {
-                  const typeConf = TYPE_CONFIG[b.type] || TYPE_CONFIG.system;
-                  const TypeIcon = typeConf.icon;
-
-                  return (
-                    <tr
-                      key={b._id}
-                      className="hover:bg-[var(--bg-muted)]/50 transition-colors group"
-                    >
-                      {/* Type Badge */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${typeConf.badgeBg}`}
-                        >
-                          <TypeIcon size={12} />
-                          <span>{typeConf.label}</span>
-                        </span>
-                      </td>
-
-                      {/* Title & Preview with Priority */}
-                      <td className="py-3.5 px-4 max-w-sm">
-                        <div className="flex items-center gap-2">
-                          <span
-                            onClick={() => setSelectedBroadcast(b)}
-                            className="font-bold text-[var(--text-primary)] hover:text-[var(--color-brand)] cursor-pointer truncate"
-                          >
-                            {b.title}
-                          </span>
-                          {b.priority === 'urgent' && (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shrink-0">
-                              Urgent
-                            </span>
-                          )}
-                          {b.priority === 'high' && (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0">
-                              High
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[11px] text-[var(--text-muted)] truncate mt-0.5">
-                          {b.message}
-                        </div>
-                        {b.actionUrl && (
-                          <div className="text-[10px] text-[var(--color-brand)] flex items-center gap-1 mt-1 font-mono">
-                            <ExternalLink size={10} />
-                            <span>{b.actionUrl}</span>
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Audience */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        {b.targetAudience === 'all' && (
-                          <span className="inline-flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
-                            <Users size={13} />
-                            <span>Everyone</span>
-                          </span>
-                        )}
-                        {b.targetAudience === 'role' && (
-                          <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium capitalize">
-                            <Shield size={13} />
-                            <span>All {b.targetRole}s</span>
-                          </span>
-                        )}
-                        {b.targetAudience === 'specific' && (
-                          <span className="inline-flex items-center gap-1.5 text-purple-600 dark:text-purple-400 font-medium">
-                            <User size={13} />
-                            <span>{b.targetUser?.name || 'Direct User'}</span>
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Recipients count */}
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-subtle)]">
-                          {(b.recipientCount || 0).toLocaleString()}
-                        </span>
-                      </td>
-
-                      {/* Time */}
-                      <td className="py-3.5 px-4 whitespace-nowrap text-[11px] text-[var(--text-muted)]">
-                        <div title={formatFullDate(b.createdAt)}>
-                          {formatRelativeTime(b.createdAt)}
-                        </div>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedBroadcast(b)}
-                            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-all cursor-pointer"
-                            title="Inspect Details"
-                          >
-                            <Eye size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDuplicateToComposer(b)}
-                            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-all cursor-pointer"
-                            title="Duplicate to Composer"
-                          >
-                            <RotateCw size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyContent(b)}
-                            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-all cursor-pointer"
-                            title="Copy Message Text"
-                          >
-                            <Copy size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setDeleteConfirm({
-                                isOpen: true,
-                                id: b._id,
-                                title: b.title,
-                                loading: false,
-                              })
-                            }
-                            className="p-1.5 rounded-lg text-rose-500/70 hover:text-rose-600 hover:bg-rose-500/10 transition-all cursor-pointer"
-                            title="Delete & Retract"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
+          ) : (
+            /* COMPACT DENSE TABLE / LIST VIEW (~42-45px row height like Notifications) */
+            <div className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[var(--bg-main)]/60 text-[var(--text-muted)] uppercase text-[9.5px] font-bold tracking-wider border-b border-[var(--border)]">
+                    <tr>
+                      <th className="py-2 px-3 font-semibold w-36">Type</th>
+                      <th className="py-2 px-3 font-semibold">Subject & Message</th>
+                      <th className="py-2 px-3 font-semibold w-40">Target Audience</th>
+                      <th className="py-2 px-3 font-semibold text-center w-24">Recipients</th>
+                      <th className="py-2 px-3 font-semibold w-28">Dispatched</th>
+                      <th className="py-2 px-3 font-semibold text-right w-28">Actions</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border)] text-[var(--text-primary)]">
+                    {broadcasts.map((b) => {
+                      const typeConf = TYPE_CONFIG[b.type] || TYPE_CONFIG.system;
+                      const TypeIcon = typeConf.icon;
+
+                      return (
+                        <tr
+                          key={b._id}
+                          className="hover:bg-[var(--bg-muted)]/50 transition-colors group"
+                        >
+                          {/* Type Badge - Compact */}
+                          <td className="py-2 px-3 whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border ${typeConf.badgeBg}`}
+                            >
+                              <TypeIcon size={11} />
+                              <span>{typeConf.label}</span>
+                            </span>
+                          </td>
+
+                          {/* Title & Preview with Priority - Clean Single/Double line with tight leading */}
+                          <td className="py-2 px-3 max-w-sm sm:max-w-md">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span
+                                onClick={() => setSelectedBroadcast(b)}
+                                className="font-bold text-xs text-[var(--text-primary)] hover:text-[var(--color-brand)] cursor-pointer truncate leading-tight"
+                              >
+                                {b.title}
+                              </span>
+                              {b.priority === 'urgent' && (
+                                <span className="px-1.5 py-0.2 rounded text-[8.5px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shrink-0 uppercase">
+                                  Urgent
+                                </span>
+                              )}
+                              {b.priority === 'high' && (
+                                <span className="px-1.5 py-0.2 rounded text-[8.5px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0 uppercase">
+                                  High
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-[var(--text-muted)] truncate mt-0.5 leading-tight">
+                              {b.message}
+                            </div>
+                            {b.actionUrl && (
+                              <div className="text-[10px] text-[var(--color-brand)] flex items-center gap-1 mt-0.5 font-mono truncate max-w-xs">
+                                <ExternalLink size={9} />
+                                <span>{b.actionUrl}</span>
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Audience - Compact */}
+                          <td className="py-2 px-3 whitespace-nowrap text-[11px]">
+                            {b.targetAudience === 'all' && (
+                              <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium">
+                                <Users size={12} />
+                                <span>Everyone</span>
+                              </span>
+                            )}
+                            {b.targetAudience === 'role' && (
+                              <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium capitalize">
+                                <Shield size={12} />
+                                <span>All {b.targetRole}s</span>
+                              </span>
+                            )}
+                            {b.targetAudience === 'specific' && (
+                              <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400 font-medium">
+                                <User size={12} />
+                                <span>{b.targetUser?.name || 'Direct User'}</span>
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Recipients count - Compact */}
+                          <td className="py-2 px-3 text-center whitespace-nowrap">
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-subtle)]">
+                              {(b.recipientCount || 0).toLocaleString()}
+                            </span>
+                          </td>
+
+                          {/* Time - Compact */}
+                          <td className="py-2 px-3 whitespace-nowrap text-[11px] text-[var(--text-muted)]">
+                            <div title={formatFullDate(b.createdAt)}>
+                              {formatRelativeTime(b.createdAt)}
+                            </div>
+                          </td>
+
+                          {/* Actions - Slim icon buttons */}
+                          <td className="py-2 px-3 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedBroadcast(b)}
+                                className="w-6 h-6 rounded flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+                                title="Inspect Details"
+                              >
+                                <Eye size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDuplicateToComposer(b)}
+                                className="w-6 h-6 rounded flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+                                title="Duplicate to Composer"
+                              >
+                                <RotateCw size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleCopyContent(b)}
+                                className="w-6 h-6 rounded flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+                                title="Copy Message Text"
+                              >
+                                <Copy size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDeleteConfirm({
+                                    isOpen: true,
+                                    id: b._id,
+                                    title: b.title,
+                                    loading: false,
+                                  })
+                                }
+                                className="w-6 h-6 rounded flex items-center justify-center text-rose-500/70 hover:text-rose-600 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                                title="Delete & Retract"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AdminLoader from '../components/common/AdminLoader';
 import {
   Plus, Search, Edit, Trash2, CheckCircle2, AlertCircle, RefreshCw,
   Link as LinkIcon, X, Grid, List, UploadCloud, Check, Eye, MousePointerClick
@@ -378,10 +379,12 @@ const BannerManagement = () => {
 
       {/* Content Area */}
       {isLoading ? (
-        <div className="p-12 text-center text-xs text-[var(--text-muted)] bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] flex flex-col items-center justify-center gap-2">
-          <RefreshCw size={20} className="animate-spin text-brand" />
-          <span>Loading banners...</span>
-        </div>
+        <AdminLoader
+          card
+          text="Loading banners..."
+          subtext="Fetching live promotional creatives & campaigns"
+          minHeight="min-h-[220px]"
+        />
       ) : error ? (
         <div className="p-8 text-center text-xs text-rose-600 bg-rose-50/50 rounded-xl border border-rose-200">
           <p className="font-semibold mb-2">{error}</p>

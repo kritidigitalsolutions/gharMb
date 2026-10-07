@@ -92,6 +92,34 @@ This documentation provides an exhaustive, role-based technical blueprint of all
 | `GET` | `/api/properties/near-me` | Performs geospatial GPS search based on radius | "Properties Near You" mobile location map | **Query Params:** `lat`, `lng`, `radius` (e.g. 50), `radiusUnit` (km/miles) | Properties sorted by geographical distance |
 | `GET` | `/api/properties/:id` | Returns complete details, amenities, floor plans, and seller info | Property Detail Screen (PDP) | **Path Param:** `:id` (MongoDB ObjectID) | Full property object with owner contact, images, specifications, location |
 
+#### 💡 Property Pricing & Discount Model (For App Frontend Developers)
+> **Crucial Business Policy**: Any discount displayed on a property is funded **exclusively from GharMB Admin Commission**. The seller's asking price is 100% safeguarded.
+
+On all property endpoints (`/api/properties`, `/api/properties/:id`, `/api/properties/latest`, etc.), property objects include the following ready-to-use pricing fields:
+- `price` *(Number)*: Original property listed price (e.g. `5000000`).
+- `formattedPrice` *(String)*: Formatted Indian currency (e.g. `"₹50.00 Lac"`).
+- `hasDiscount` *(Boolean)*: `true` if an active discount is configured, else `false`.
+- `discountAmount` *(Number)*: Amount discounted (e.g. `50000`).
+- `formattedDiscount` *(String)*: Formatted discount string (e.g. `"₹50,000"`).
+- `discountedPrice` *(Number)*: Effective price for the buyer (`price - discountAmount`, e.g. `4950000`).
+- `formattedDiscountedPrice` *(String)*: Formatted discounted price (e.g. `"₹49.50 Lac"`).
+- `discountPercentage` *(Number)*: Effective discount % on total property price (e.g. `1.0%`).
+- `discountLabel` *(String)*: `"₹50,000 GharMB Discount"`.
+- `discountNote` *(String)*: `"Discount is offered exclusively from GharMB Admin Commission. Property seller receives 100% of the listed price."`.
+- `pricingSummary` *(Object)*:
+  ```json
+  {
+    "originalPrice": 5000000,
+    "discountAmount": 50000,
+    "effectivePrice": 4950000,
+    "grossAdminCommission": 100000,
+    "netAdminCommission": 50000,
+    "sellerPayoutAmount": 5000000,
+    "discountBorneBy": "Admin Commission",
+    "discountOnCommissionOnly": true
+  }
+  ```
+
 ### Owner & Agent Listing Management (Requires Login)
 | Method | Endpoint | What it Does | For What (Use Case & Role) | From What (Required Inputs) | What it Returns |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -101,6 +129,25 @@ This documentation provides an exhaustive, role-based technical blueprint of all
 | `PUT` | `/api/properties/:id` | Updates an existing property listing | Owner updating price, photos, or description | **Header:** `Bearer <userToken>`<br>**Path:** `:id`<br>**Body:** Updated fields | Updated property object |
 | `PATCH` | `/api/properties/:id/key-handover` | Sets or toggles immediate key handover availability | Owner indicating property is ready for immediate physical possession | **Header:** `Bearer <userToken>`<br>**Body:** `{ "keyHandover": true, "possessionDate": "Immediate" }` | Updated property status |
 | `DELETE` | `/api/properties/:id` | Deletes an owned property listing | Owner removing their listing from platform | **Header:** `Bearer <userToken>`<br>**Path:** `:id` | `{ status: "success", message: "Property deleted" }` |
+
+### ⭐ Property Ratings, Reviews & Owner Profile Ratings
+| Method | Endpoint | What it Does | For What (Use Case & Role) | From What (Required Inputs) | What it Returns |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/api/properties/:id/reviews` | Returns all ratings, star breakdown, and review comments for a property | Property Detail Screen (PDP) Reviews tab | **Path:** `:id`<br>**Query (Optional):** `page=1`, `limit=20` | `{ averageRating: 4.8, totalReviews: 12, breakdown: { "5": 8, "4": 3, ... }, reviews: [...] }` |
+| `GET` | `/api/properties/:id/my-review` | Returns current user's submitted review for this property | Check if user already rated this property | **Header:** `Bearer <userToken>`<br>**Path:** `:id` | `{ hasReviewed: true/false, review: { rating, comment, tags } }` |
+| `POST` | `/api/properties/:id/reviews` | Submits or updates a 1-5 star rating and comment for a property | Verified buyers/tenants rating a property listing (Owner self-rating blocked) | **Header:** `Bearer <userToken>`<br>**Path:** `:id`<br>**Body:** `{ "rating": 5, "comment": "...", "tags": ["Accurate Photos", "Great Location"] }` | Updated review, property `rating` & `reviewsCount`, and owner average rating |
+| `POST` | `/api/properties/:id/rate` | Alias endpoint to rate a property | 1-Click star rating from app or mobile cards | **Header:** `Bearer <userToken>`<br>**Body:** `{ "rating": 5, "comment": "..." }` | Saved review & updated metrics |
+| `DELETE` | `/api/properties/:id/reviews/:reviewId` | Deletes a property review | Review author or Admin removing a review | **Header:** `Bearer <userToken>`<br>**Path:** `:id`, `:reviewId` | `{ status: "success", message: "Property review removed successfully." }` |
+| `GET` | `/api/users/me/ratings` | Returns all ratings received across all properties owned by current user | **Property Owner Profile Screen** to view their reputation & reviews | **Header:** `Bearer <userToken>` | `{ averageRating: 4.8, totalReviews: 24, breakdown: { "5": 18, ... }, reviews: [...] }` |
+| `GET` | `/api/users/:id/ratings` | Returns overall rating & reviews received by a property owner / seller | Public or Admin viewing owner's rating breakdown | **Path:** `:id` (Owner User ID) | Full owner rating breakdown and reviews |
+| `GET` | `/api/admin/users/:id/ratings` | Administrator inspects ratings & reviews received on an owner's properties | Admin User Inspector drawer "Ratings" tab | **Header:** `Bearer <adminToken>`<br>**Path:** `:id` | Aggregate metrics and full reviews list |
+
+> **Property Owner Profile Integration**:
+> On `/api/users/me` and `/api/properties/my-dashboard`, the property owner's profile payload includes:
+> - `profile.rating` *(Number)*: Overall weighted average rating across all their properties (e.g. `4.8`).
+> - `profile.reviewsCount` *(Number)*: Total count of reviews received across all their properties.
+> - `profile.ratings` *(Object)*: Full ratings breakdown `{ averageRating, totalReviews, breakdown: { "5": ..., "4": ... }, recentReviews: [...] }`.
+> - Each property inside `myProperties.live`, `myProperties.pending`, etc. includes its own `rating` and `reviewsCount`.
 
 ---
 
@@ -241,7 +288,8 @@ This documentation provides an exhaustive, role-based technical blueprint of all
 | Method | Endpoint | What it Does | For What (Use Case & Role) | From What (Required Inputs) | What it Returns |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/api/admin/properties` | Lists all platform properties with admin filters | Property Moderation Table | **Header:** `Bearer <adminToken>`<br>**Query:** `status=all \| pending \| approved`, `page`, `limit` | Paginated properties with seller details |
-| `PATCH` | `/api/admin/properties/:id/status` | Approves or rejects a property listing | Admin reviewing and publishing listings | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "status": "approved" \| "rejected", "moderationNotes": "..." }` | Listing goes live on platform |
+| `PATCH` | `/api/admin/properties/:id/status` | Approves or rejects a property listing (supports optional commission & discount payload at verification) | Admin reviewing and publishing listings | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "approvalStatus": "approved", "adminCommission": { "type": "percentage", "rate": 2 }, "commissionDiscount": { "enabled": true, "discountType": "percentage", "discountValue": 25 } }` | Listing goes live with commission & discount |
+| `PATCH` | `/api/admin/properties/:id/commission-discount` | Configures / edits Admin Commission and Buyer Discount on commission anytime | Admin configuring or editing discount later | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "adminCommission": { "type": "percentage" \| "fixed", "rate": 2 }, "commissionDiscount": { "enabled": true, "discountType": "percentage" \| "fixed", "discountValue": 25, "notes": "Diwali Offer" } }` | Updated commission, discount, and buyer pricing |
 | `PATCH` | `/api/admin/properties/:id/featured` | Marks property as "Featured" on homepage | Admin highlighting premium listings | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "isFeatured": true }` | Featured status updated |
 | `DELETE` | `/api/admin/properties/:id` | Permanently deletes a property listing | Removing spam or violating listings | **Header:** `Bearer <adminToken>`<br>**Path:** `:id` | Deleted confirmation |
 | `GET` | `/api/admin/users` | Lists all registered buyers, sellers, agents, developers | User Management CRM | **Header:** `Bearer <adminToken>`<br>**Query:** `role`, `status`, `search` | User list with verification flags |
@@ -291,15 +339,19 @@ This documentation provides an exhaustive, role-based technical blueprint of all
 
 ---
 
-## 16. Refer & Earn Program and GharMB Coins Wallet APIs
+## 16. Refer & Earn Program (Zero Coin System — Direct Admin Contact & Out-of-App Payment)
 
-The Refer & Earn system allows users to invite friends and earn **₹250 in GharMB Coins** once their referred friend signs up and posts their first verified property listing. Each user receives a **lifetime unique referral code** (e.g. `GHARMB-RAHUL42`).
+The Refer & Earn system has **NO coin system**. When a new user signs up using an existing user's referral code (e.g. `GHARMB-3307`), **both users immediately win a ₹250 cash reward**. 
+
+**Users do NOT need to contact Admin.** Instead, **Admin gets automatically notified with both users' phone numbers** and contacts them directly to deliver the reward payment outside of the app.
+
+---
 
 ### 📱 How It Works (The 4-Step Lifecycle)
-1. **Share your code:** Send unique referral code to friends via WhatsApp, SMS, Email, or Social Channels.
-2. **Friend signs up:** Friend downloads GharMB and inputs referral code on the registration or details add page.
-3. **They list a property:** Once your friend posts their first verified property listing, the milestone unlocks.
-4. **You both get ₹250:** ₹250 GharMB Coins are automatically credited to both Referrer and Referee wallets (valid for 6 months).
+1. **Share your code:** Existing user shares their unique lifetime referral code (e.g., `GHARMB-3307`) via WhatsApp, SMS, or any channel.
+2. **Friend signs up:** New user inputs the referral code during registration on the detail add page.
+3. **Both users win ₹250:** Both Referrer and Referee are instantly awarded ₹250 cash reward in their referral balance.
+4. **Admin contacts users directly:** GharMB Admin receives an instant notification with both users' names & phone numbers. Admin calls both users and delivers their reward payment completely outside the app (UPI, Cash, Bank Transfer).
 
 ---
 
@@ -307,39 +359,30 @@ The Refer & Earn system allows users to invite friends and earn **₹250 in Ghar
 
 | Method | Endpoint | What it Does | For What (Use Case & Role) | From What (Required Inputs) | What it Returns |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/api/user/referrals/validate-code`<br>*(alias `/api/referrals/validate-code`)* | Validates a referral code in real-time | Public check on login detail add page / signup before user registers | **Body:** `{ "referralCode": "GHARMB-RAHUL42" }` | `{ isValid: true, referrerName: "Rahul S...", rewardAmount: 250, rewardCoinBonus: "250 GharMB Coins" }` |
-| `GET` | `/api/user/referrals/validate/:code` | Validates a referral code via URL parameter | Real-time inline field check during registration | **Path:** `:code` | Validation status and referrer display name |
-| `GET` | `/api/user/referrals/dashboard`<br>*(alias `/api/user/referrals/my-code`)* | Fetches the full Refer & Earn screen details | Rendering the "Invite Friends & Earn ₹250" screen (matching mobile UI) | **Header:** `Bearer <userToken>` | User's lifetime code (`GHARMB-RAHUL42`), stats (`friendsInvited`, `coinsEarned`, `rewardPerReferral`), deep links, share templates (WhatsApp, SMS, Email), 4-step "How It Works" guide, and Terms & Conditions |
-| `GET` | `/api/user/referrals/history`<br>*(alias `/api/user/referrals/my-friends`)* | Returns paginated list of all invited friends | Friends Referral History tab | **Header:** `Bearer <userToken>`<br>**Query:** `page=1, limit=20, status=pending_listing \| rewarded` | Array of invited friends, masked phone, join date, listing status, coins rewarded |
-| `POST` | `/api/user/referrals/apply-code` | Applies a referral code post-signup | For users who registered without a code and want to link one before listing their first property | **Header:** `Bearer <userToken>`<br>**Body:** `{ "referralCode": "GHARMB-RAHUL42" }` | Success message, linked referrer details, and reward activation |
-| `POST` | `/api/user/referrals/:id/claim`<br>*(alias `/api/user/referrals/claim`)* | Submits 1-tap claim for referral reward | User claiming reward. **ZERO bank details needed** — sends user contact to admin to call & settle out of app | **Header:** `Bearer <userToken>`<br>**Body (All Optional):** `{ "notes": "Please call after 4 PM", "alternatePhone": "9876543210" }` | Claim submitted confirmation; notifies Referrer, Referee & Admin with user's phone to call |
-| `GET` | `/api/user/referrals/claims`<br>*(alias `/api/user/referrals/my-claims`)* | Lists all submitted claims and their out-of-app payment status | Viewing pending/settled reward claims and admin contact status | **Header:** `Bearer <userToken>` | Claims array with `claimStatus`, `payoutStatus`, `contactPhone`, `payoutDate`, and notes |
-| `PATCH` | `/api/admin/referrals/:id/settle-payout`<br>*(alias `.../payout`)* | Records out-of-app funding/payment settlement | Admin contacts user, transfers funds out of app, and marks record settled | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "payoutRefId": "UTR12345678", "payoutMethod": "Direct Contact / UPI / Cash", "amountPaid": 250, "adminSettlementNotes": "Spoke to user and settled out of the app" }` | Payout marked `Paid`; notifies both Referrer and Referee |
-| `PATCH` | `/api/admin/referrals/:id/reject-claim` | Rejects an invalid referral claim | Admin reviewing claim and providing reason | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "rejectionReason": "Property listing did not meet policy" }` | Claim marked `Rejected` and user notified |
-| `GET` | `/api/user/wallet/coins`<br>*(alias `/api/user/referrals/wallet`)* | Fetches GharMB coin wallet balance & transactions | User Wallet screen showing spendable coins & history | **Header:** `Bearer <userToken>`<br>**Query:** `page=1, limit=20` | Current balance, lifetime earned, expiring soon (in 30 days) coins, redeemable perks, and paginated transaction ledger |
+| `POST` | `/api/user/referrals/validate-code`<br>*(alias `/api/referrals/validate-code`)* | Validates a referral code in real-time | Public check on login detail add page / signup before user registers | **Body:** `{ "referralCode": "GHARMB-3307" }` | `{ isValid: true, referrerName: "Kartik", rewardAmount: 250, currency: "₹", rewardDescription: "₹250 cash reward won upon signup. GharMB Admin will contact both users directly..." }` |
+| `GET` | `/api/user/referrals/validate/:code` | Validates a referral code via URL parameter | Real-time inline field check during registration | **Path:** `:code` | Validation status, referrer details, and reward info |
+| `GET` | `/api/user/referrals/dashboard`<br>*(alias `/api/user/referrals/my-code`)* | Fetches the full Refer & Earn screen details | Rendering the "Invite & Earn ₹250" screen (matching mobile UI) | **Header:** `Bearer <userToken>` | User's lifetime code, stats (`friendsInvited`, `totalRewardEarned`, `rewardPerReferral: 250`), share templates, 4-step guide, and recent invited friends with status `"Admin Will Contact Soon"` |
+| `GET` | `/api/user/referrals/history`<br>*(alias `/api/user/referrals/my-friends`)* | Returns paginated list of all invited friends | Friends Referral History tab | **Header:** `Bearer <userToken>`<br>**Query:** `page=1, limit=20` | Array of invited friends, masked phone, join date, status (`Admin Will Contact Soon` or `Reward Delivered`), reward amount (₹250) |
+| `POST` | `/api/user/referrals/apply-code` | Applies a referral code post-signup | For users who registered without a code and want to link one | **Header:** `Bearer <userToken>`<br>**Body:** `{ "referralCode": "GHARMB-3307" }` | Success confirmation; instantly awards ₹250 to both users and alerts Admin to call them |
+| `POST` | `/api/user/referrals/:id/claim`<br>*(alias `/api/user/referrals/claim`)* | Checks reward status | Confirms reward status. Users do not need to contact admin; confirms Admin will contact directly | **Header:** `Bearer <userToken>` | Confirmation that ₹250 reward is active and Admin is contacting the user directly |
+| `GET` | `/api/user/referrals/claims`<br>*(alias `/api/user/referrals/my-claims`)* | Lists all referral rewards and their out-of-app payment status | Viewing pending/settled reward status | **Header:** `Bearer <userToken>` | Referral rewards array with `payoutStatus`, `claimedAmount: 250`, and Admin notes |
+| `PATCH` | `/api/admin/referrals/:id/settle-payout`<br>*(alias `.../payout`)* | Records out-of-app funding/payment settlement | Admin contacts users, delivers payment out of app, and marks record settled | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "payoutRefId": "UTR12345678", "payoutMethod": "UPI / Cash", "amountPaid": 250, "adminSettlementNotes": "Called users and settled ₹250 reward via UPI" }` | Payout marked `Paid`; notifies both Referrer and Referee |
+| `GET` | `/api/user/referrals/wallet`<br>*(alias `/api/user/wallet/coins`)* | Fetches cash reward overview | Rewards balance & history overview | **Header:** `Bearer <userToken>` | `totalRewardEarned`, `currency: "₹"`, `payoutProcess: "Admin contacts both users directly to deliver cash/UPI reward out of the app"`, and rewards list |
 
 ---
 
-### 📞 100% Out-of-App Payment & Admin Contact Flow (No Bank Details Needed)
-There is **ZERO bank account / UPI data collection** from the user. Everything is handled out of the app via direct Admin contact:
-1. **User Taps Claim (1-Click):** User simply taps "Claim Reward" (`POST /api/user/referrals/:id/claim`). No bank details or payment gateway required.
-2. **Dual User Notifications:**
-   - **Referrer User:** Receives notification: *"Your claim has been received! Admin will contact you directly on your registered phone number to process your reward."*
-   - **Referee User (Friend):** Receives notification: *"[Referrer Name] has claimed the referral reward for your connection. Admin will contact them to complete the process out of the app."*
-3. **Admin Call Alert:** All active Admins receive a high-priority notification with the user's name, registered phone number, and friend's info: *"Referral Claim: Call [Name] at [Phone] for out-of-app settlement."*
-4. **Admin Contacts User:** Admin calls the user, discusses the deal/payout, and transfers or settles the payment completely outside the platform.
-5. **Admin Marks Record Settled:** Admin opens Admin Panel and records settlement (`PATCH /api/admin/referrals/:id/settle-payout`).
-6. **Dual Settlement Notifications:**
-   - **Referrer User:** Receives notification: *"Admin has settled your referral payment out of the app."*
-   - **Referee User:** Receives notification: *"Referral deal reward has been completed and settled."*
-
----
-
-### 🎁 Coin Reward Milestone Trigger
-When any user creates their first property listing via `POST /api/user/properties` (or upon admin property approval via `PATCH /api/admin/properties/:id/status`), the system automatically checks if the user has an active referral link:
-- **Referrer:** Automatically credited **+250 GharMB Coins** (`friend_listing_bonus`), notification sent.
-- **Referee:** Automatically credited **+250 GharMB Coins** (`signup_bonus`), notification sent.
-- **Referral record:** Status updated to `rewarded`, expiry set to 6 months from credit date.
+### 📞 100% Out-of-App Payment & Admin-Initiated Contact Flow
+There is **ZERO bank account / payment gateway requirement inside the app**.
+1. **Instant Reward on Signup:** When a new user registers using an existing user's referral code, both users are immediately credited ₹250 reward in the system.
+2. **Automated Admin Alert:** The system instantly notifies all active Admins with both users' details:
+   - **Referrer:** Name and registered phone number.
+   - **Referee:** Name and registered phone number.
+   - **Message:** *"📞 Referral Reward Won! Contact [Referee] (📞 Phone) and [Referrer] (📞 Phone) to deliver ₹250 payment out of the app."*
+3. **Users Notified:**
+   - **Referrer:** *"🎉 You Won ₹250 Referral Reward! Your friend [Name] just registered. GharMB Admin will contact you on [Phone] to deliver your payment out of the app."*
+   - **Referee:** *"🎉 Welcome! You Won ₹250 Referral Reward! GharMB Admin will contact you on [Phone] to deliver your payment out of the app."*
+4. **Admin Contacts Users:** GharMB Admin calls both users directly and settles the ₹250 reward outside the app (via UPI, Cash, or Direct Transfer). Users never need to initiate contact.
+5. **Admin Marks Record Settled:** Admin opens Admin Panel and records settlement (`PATCH /api/admin/referrals/:id/settle-payout`). Both users receive a notification confirming payment delivery.
 
 ---
 

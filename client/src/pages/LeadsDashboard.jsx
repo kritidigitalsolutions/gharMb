@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import AdminLoader from '../components/common/AdminLoader';
 import {
   PhoneCall, MessageSquare, FileSpreadsheet, CalendarDays,
   ArrowRight, TrendingUp, Percent, MapPin, ExternalLink,
@@ -689,50 +690,90 @@ const LeadsDashboard = () => {
         </div>
       )}
       
-      {/* ─── 4 POLISHED KPI CARDS WITH HOVER LIFT & GLOW ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+      {/* ─── 4 POLISHED KPI CARDS (STANDARDIZED TOP-ACCENT KPI STYLE) ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { key: 'total', title: 'Total Inquiries', subtitle: 'Live customer leads', icon: TrendingUp, count: leads.length, unit: 'Real Leads' },
-          { key: 'site_visits', title: 'Site Visits Booked', subtitle: 'Scheduled buyer tours', icon: CalendarDays, count: leads.filter(l => l.type?.toLowerCase().includes('visit')).length, unit: 'Walkthroughs' },
-          { key: 'in_progress', title: 'Pending Follow-up', subtitle: 'Actionable response queue', icon: Clock, count: leads.filter(l => l.status?.toLowerCase() === 'pending').length, unit: 'Pending' },
-          { key: 'resolved', title: 'Resolved Deals', subtitle: 'Closed tours & agreements', icon: CheckCircle2, count: leads.filter(l => l.status?.toLowerCase() === 'resolved' || l.status?.toLowerCase() === 'accepted').length, unit: 'Resolved' }
+          {
+            key: 'total',
+            title: 'Total Inquiries',
+            subtitle: 'Live customer leads',
+            icon: TrendingUp,
+            count: leads.length,
+            unit: 'Leads',
+            tag: 'Live DB',
+            tagClass: 'text-brand bg-brand/10',
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10'
+          },
+          {
+            key: 'site_visits',
+            title: 'Site Visits Booked',
+            subtitle: 'Scheduled buyer tours',
+            icon: CalendarDays,
+            count: leads.filter(l => l.type?.toLowerCase().includes('visit')).length,
+            unit: 'Tours',
+            tag: `${leads.filter(l => l.type?.toLowerCase().includes('visit')).length} Booked`,
+            tagClass: 'text-brand bg-brand/10',
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10'
+          },
+          {
+            key: 'in_progress',
+            title: 'Pending Follow-up',
+            subtitle: 'Actionable queue',
+            icon: Clock,
+            count: leads.filter(l => l.status?.toLowerCase() === 'pending').length,
+            unit: 'Queue',
+            tag: leads.filter(l => l.status?.toLowerCase() === 'pending').length > 0 ? 'Action Needed' : 'All Clear',
+            tagClass: 'text-brand bg-brand/10',
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10'
+          },
+          {
+            key: 'resolved',
+            title: 'Resolved Deals',
+            subtitle: 'Closed tours & agreements',
+            icon: CheckCircle2,
+            count: leads.filter(l => l.status?.toLowerCase() === 'resolved' || l.status?.toLowerCase() === 'accepted').length,
+            unit: 'Deals',
+            tag: 'Closed',
+            tagClass: 'text-brand bg-brand/10',
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10'
+          }
         ].map((card) => {
           const Icon = card.icon;
           return (
             <div
               key={card.key}
-              className="group relative p-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] transition-all duration-200 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md hover:-translate-y-1 select-none flex flex-col justify-between overflow-hidden"
+              className={`group bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl p-3.5 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden flex flex-col justify-between border-t-2 ${card.accent}`}
             >
-              {/* Top Accent Gradient Glow Line */}
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-brand to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block transition-colors group-hover:text-[var(--text-primary)]">
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block">
                     {card.title}
                   </span>
-                  <div className="flex items-baseline gap-1.5 mt-0.5">
-                    <span className="text-2xl font-bold tracking-tight text-[var(--text-primary)] transition-transform duration-200 group-hover:scale-105 inline-block">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
                       {card.count}
                     </span>
-                    <span className="text-xs font-semibold text-[var(--text-muted)]">
+                    <span className="text-[10px] text-[var(--text-muted)] font-medium">
                       {card.unit}
                     </span>
                   </div>
                 </div>
 
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-[var(--bg-muted)] text-[var(--text-muted)] group-hover:scale-110 group-hover:text-brand group-hover:bg-brand/10 transition-all duration-300">
-                  <Icon size={16} strokeWidth={1.8} />
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110 ${card.iconColor}`}>
+                  <Icon size={16} strokeWidth={2} />
                 </div>
               </div>
 
-              <div className="mt-2 pt-1.5 border-t border-[var(--border)]/70 flex items-center justify-between text-[11px]">
-                <span className="text-[var(--text-muted)] truncate transition-colors group-hover:text-[var(--text-primary)]">
+              <div className="mt-2.5 pt-2 border-t border-[var(--border)] flex items-center justify-between text-[11px]">
+                <span className="text-[var(--text-muted)] truncate max-w-[150px]">
                   {card.subtitle}
                 </span>
-                <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Live DB
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${card.tagClass}`}>
+                  {card.tag}
                 </span>
               </div>
             </div>
@@ -885,11 +926,12 @@ const LeadsDashboard = () => {
               <tbody className="divide-y divide-[var(--border)] text-xs">
                 {isLoading ? (
                   <tr>
-                    <td colSpan="8" className="py-12 text-center text-[var(--text-muted)]">
-                      <div className="flex flex-col items-center justify-center space-y-2">
-                        <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin"></div>
-                        <p className="text-xs font-medium">Fetching real leads from database...</p>
-                      </div>
+                    <td colSpan="8" className="py-12 text-center">
+                      <AdminLoader
+                        text="Fetching real leads from database..."
+                        subtext="Loading verified customer inquiries and visits"
+                        minHeight="min-h-[180px]"
+                      />
                     </td>
                   </tr>
                 ) : filteredLeads.length === 0 ? (
@@ -1091,7 +1133,13 @@ const LeadsDashboard = () => {
         ) : (
           /* ─── TAB 2: BUYER NEEDS & MATCHES (REAL REQUIREMENTS CARDS) ─── */
           <div className="p-4">
-            {leads.length === 0 ? (
+            {isLoading ? (
+              <AdminLoader
+                text="Loading buyer requirements..."
+                subtext="Matching consultation requests and buyer criteria"
+                minHeight="min-h-[220px]"
+              />
+            ) : leads.length === 0 ? (
               <div className="py-12 text-center text-[var(--text-muted)]">
                 <p className="font-semibold text-xs text-[var(--text-primary)]">No buyer requirements recorded</p>
                 <p className="text-[11px] text-[var(--text-muted)] mt-1">

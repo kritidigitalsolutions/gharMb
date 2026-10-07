@@ -191,8 +191,21 @@ const serviceRequestSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ['In Progress', 'Quotation Sent', 'Confirmed', 'Completed', 'Cancelled'],
-        message: 'Status must be In Progress, Quotation Sent, Confirmed, Completed, or Cancelled.',
+        values: [
+          'In Progress',
+          'Quotation Sent',
+          'Confirmed',
+          'Completed',
+          'Cancelled',
+          'in_progress',
+          'pending',
+          'contacted',
+          'resolved',
+          'rejected',
+          'scheduled',
+          'accepted'
+        ],
+        message: 'Status must be a valid platform status.',
       },
       default: 'In Progress',
       index: true,

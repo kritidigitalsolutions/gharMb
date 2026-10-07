@@ -144,6 +144,7 @@ router.route('/:id')
   .delete(userController.deactivateUser);
 
 router.get('/:id/enquiries', userController.getUserEnquiries);
+router.get('/:id/ratings', userController.getUserRatings);
 
 /**
  * @swagger

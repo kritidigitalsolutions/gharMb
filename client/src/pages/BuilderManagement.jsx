@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import AdminLoader from '../components/common/AdminLoader';
 import {
   HardHat,
   Award,
@@ -429,112 +430,109 @@ const BuilderManagement = () => {
         </div>
       )}
 
-      {/* 4 Overview Stats Cards (100% Real Data & Harmonized Sizing) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Card 1: Registered Builders */}
-        <div
-          onClick={() => {
-            setActiveTab('builders');
-            setStatusFilter('All');
-          }}
-          className={`p-3.5 bg-[var(--bg-surface)] border rounded-xl shadow-2xs flex items-center justify-between transition-all cursor-pointer hover:border-brand/40 ${
-            activeTab === 'builders' && statusFilter === 'All' ? 'border-brand/40 ring-1 ring-brand/20' : 'border-[var(--border)]'
-          }`}
-        >
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
-              Total Builders
-            </span>
-            <div className="flex items-baseline gap-1.5">
-              <h4 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
-                {builders.length}
-              </h4>
-              <span className="text-[10px] text-[var(--text-muted)] font-medium">entities</span>
-            </div>
-          </div>
-          <div className="w-8 h-8 rounded-lg bg-orange-500/10 text-brand flex items-center justify-center shrink-0 border border-orange-500/15">
-            <HardHat size={16} />
-          </div>
-        </div>
+      {/* 4 Overview Stats Cards (Standardized Top-Accent KPI Cards) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          {
+            key: 'builders_all',
+            title: 'Total Builders',
+            value: builders.length,
+            subtitle: 'Registered developers',
+            tag: 'Entities',
+            icon: HardHat,
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10',
+            isActive: activeTab === 'builders' && statusFilter === 'All',
+            activeAccent: 'border-brand ring-2 ring-brand/20 shadow-xs border-t-2 border-t-brand',
+            onClick: () => {
+              setActiveTab('builders');
+              setStatusFilter('All');
+            }
+          },
+          {
+            key: 'builders_pending',
+            title: 'Pending Audit',
+            value: pendingBuilders.length,
+            subtitle: 'Awaiting verification',
+            tag: pendingBuilders.length > 0 ? `${pendingBuilders.length} Awaiting` : 'All Clear',
+            icon: ShieldAlert,
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10',
+            pulse: pendingBuilders.length > 0,
+            isActive: activeTab === 'builders' && statusFilter === 'Pending',
+            activeAccent: 'border-brand ring-2 ring-brand/20 shadow-xs border-t-2 border-t-brand',
+            onClick: () => {
+              setActiveTab('builders');
+              setStatusFilter('Pending');
+            }
+          },
+          {
+            key: 'builders_approved',
+            title: 'RERA Verified',
+            value: builders.filter(b => b.isReraVerified || b.status === 'Approved').length,
+            subtitle: 'Statutory compliance',
+            tag: 'Compliant',
+            icon: Award,
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10',
+            isActive: activeTab === 'builders' && statusFilter === 'Approved',
+            activeAccent: 'border-brand ring-2 ring-brand/20 shadow-xs border-t-2 border-t-brand',
+            onClick: () => {
+              setActiveTab('builders');
+              setStatusFilter('Approved');
+            }
+          },
+          {
+            key: 'projects_all',
+            title: 'Active Projects',
+            value: projects.length,
+            subtitle: 'Builder developments',
+            tag: 'Developments',
+            icon: Layers,
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10',
+            isActive: activeTab === 'projects',
+            activeAccent: 'border-brand ring-2 ring-brand/20 shadow-xs border-t-2 border-t-brand',
+            onClick: () => {
+              setActiveTab('projects');
+              setStatusFilter('All');
+            }
+          }
+        ].map((card) => {
+          const Icon = card.icon;
+          return (
+            <div
+              key={card.key}
+              onClick={card.onClick}
+              className="group bg-[var(--bg-surface)] rounded-xl p-3.5 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden flex flex-col justify-between border border-[var(--border)] border-t-2 border-t-brand/40 hover:border-t-brand text-left cursor-pointer"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block flex items-center gap-1.5">
+                    {card.title}
+                    {card.pulse && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />}
+                  </span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+                      {card.value}
+                    </span>
+                  </div>
+                </div>
 
-        {/* Card 2: Pending Approval Requests */}
-        <div
-          onClick={() => {
-            setActiveTab('builders');
-            setStatusFilter('Pending');
-          }}
-          className={`p-3.5 bg-[var(--bg-surface)] border rounded-xl shadow-2xs flex items-center justify-between transition-all cursor-pointer hover:border-amber-500/40 ${
-            activeTab === 'builders' && statusFilter === 'Pending' ? 'border-amber-500/40 ring-1 ring-amber-500/20' : 'border-[var(--border)]'
-          }`}
-        >
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider block flex items-center gap-1">
-              Pending Audit
-              {pendingBuilders.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />}
-            </span>
-            <div className="flex items-baseline gap-1.5">
-              <h4 className={`text-xl font-bold tracking-tight ${pendingBuilders.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-[var(--text-primary)]'}`}>
-                {pendingBuilders.length}
-              </h4>
-              <span className="text-[10px] text-[var(--text-muted)] font-medium">awaiting</span>
-            </div>
-          </div>
-          <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/15">
-            <ShieldAlert size={16} />
-          </div>
-        </div>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110 text-brand bg-brand/10">
+                  <Icon size={16} strokeWidth={2} />
+                </div>
+              </div>
 
-        {/* Card 3: RERA Verified */}
-        <div
-          onClick={() => {
-            setActiveTab('builders');
-            setStatusFilter('Approved');
-          }}
-          className={`p-3.5 bg-[var(--bg-surface)] border rounded-xl shadow-2xs flex items-center justify-between transition-all cursor-pointer hover:border-emerald-500/40 ${
-            activeTab === 'builders' && statusFilter === 'Approved' ? 'border-emerald-500/40 ring-1 ring-emerald-500/20' : 'border-[var(--border)]'
-          }`}
-        >
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
-              RERA Verified
-            </span>
-            <div className="flex items-baseline gap-1.5">
-              <h4 className="text-xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
-                {builders.filter(b => b.isReraVerified || b.status === 'Approved').length}
-              </h4>
-              <span className="text-[10px] text-[var(--text-muted)] font-medium">compliant</span>
+              <div className="mt-2.5 pt-2 border-t border-[var(--border)] flex items-center justify-between text-[11px]">
+                <span className="text-[var(--text-muted)] truncate">{card.subtitle}</span>
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded text-[var(--text-muted)]">
+                  {card.tag}
+                </span>
+              </div>
             </div>
-          </div>
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/15">
-            <Award size={16} />
-          </div>
-        </div>
-
-        {/* Card 4: Developer Projects */}
-        <div
-          onClick={() => {
-            setActiveTab('projects');
-            setStatusFilter('All');
-          }}
-          className={`p-3.5 bg-[var(--bg-surface)] border rounded-xl shadow-2xs flex items-center justify-between transition-all cursor-pointer hover:border-blue-500/40 ${
-            activeTab === 'projects' ? 'border-blue-500/40 ring-1 ring-blue-500/20' : 'border-[var(--border)]'
-          }`}
-        >
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
-              Active Projects
-            </span>
-            <div className="flex items-baseline gap-1.5">
-              <h4 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
-                {projects.length}
-              </h4>
-              <span className="text-[10px] text-[var(--text-muted)] font-medium">developments</span>
-            </div>
-          </div>
-          <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/15">
-            <Layers size={16} />
-          </div>
-        </div>
+          );
+        })}
       </div>
 
       {/* High-Visibility Pending Approvals Banner */}
@@ -760,19 +758,15 @@ const BuilderManagement = () => {
               </thead>
               <tbody className="divide-y divide-[var(--border-muted)] text-xs">
                 {isLoadingBuilders ? (
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      <td className="py-4 px-5"><div className="h-4 bg-[var(--bg-muted)] rounded w-32"></div></td>
-                      <td className="py-4 px-5"><div className="h-4 bg-[var(--bg-muted)] rounded w-24"></div></td>
-                      <td className="py-4 px-5"><div className="h-4 bg-[var(--bg-muted)] rounded w-20"></div></td>
-                      <td className="py-4 px-5"><div className="h-4 bg-[var(--bg-muted)] rounded w-14"></div></td>
-                      <td className="py-4 px-5"><div className="h-4 bg-[var(--bg-muted)] rounded w-10 mx-auto"></div></td>
-                      <td className="py-4 px-5"><div className="h-4 bg-[var(--bg-muted)] rounded w-12 mx-auto"></div></td>
-                      <td className="py-4 px-5"><div className="h-4 bg-[var(--bg-muted)] rounded w-28"></div></td>
-                      <td className="py-4 px-5"><div className="h-4 bg-[var(--bg-muted)] rounded w-20"></div></td>
-                      <td className="py-4 px-5"><div className="h-4 bg-[var(--bg-muted)] rounded w-24 ml-auto"></div></td>
-                    </tr>
-                  ))
+                  <tr>
+                    <td colSpan="9" className="py-14 text-center">
+                      <AdminLoader
+                        text="Loading builder profiles..."
+                        subtext="Fetching registered developers and RERA certifications"
+                        minHeight="min-h-[180px]"
+                      />
+                    </td>
+                  </tr>
                 ) : filteredBuilders.length === 0 ? (
                   <tr>
                     <td colSpan="9" className="py-16 text-center">
@@ -1045,17 +1039,15 @@ const BuilderManagement = () => {
               </thead>
               <tbody className="divide-y divide-[var(--border-muted)] text-xs">
                 {isLoadingProjects ? (
-                  Array.from({ length: 3 }).map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      <td className="py-4 px-6"><div className="h-3 bg-[var(--bg-muted)] rounded w-24"></div></td>
-                      <td className="py-4 px-6"><div className="h-3 bg-[var(--bg-muted)] rounded w-20"></div></td>
-                      <td className="py-4 px-6"><div className="h-3 bg-[var(--bg-muted)] rounded w-24"></div></td>
-                      <td className="py-4 px-6"><div className="h-3 bg-[var(--bg-muted)] rounded w-12"></div></td>
-                      <td className="py-4 px-6"><div className="h-3 bg-[var(--bg-muted)] rounded w-16"></div></td>
-                      <td className="py-4 px-6"><div className="h-3 bg-[var(--bg-muted)] rounded w-16"></div></td>
-                      <td className="py-4 px-6"><div className="h-3 bg-[var(--bg-muted)] rounded w-12 ml-auto"></div></td>
-                    </tr>
-                  ))
+                  <tr>
+                    <td colSpan="7" className="py-14 text-center">
+                      <AdminLoader
+                        text="Loading developer projects..."
+                        subtext="Fetching project inventories, units, and construction stages"
+                        minHeight="min-h-[180px]"
+                      />
+                    </td>
+                  </tr>
                 ) : filteredProjects.length === 0 ? (
                   <tr>
                     <td colSpan="7" className="py-12 text-center text-[var(--text-muted)] font-semibold">

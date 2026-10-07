@@ -14,23 +14,21 @@ import {
   ExternalLink,
   Settings,
   LogOut,
-  Crown,
-  UserCircle2,
   Building2,
   Scan,
   ScanLine,
-  ChevronDown,
   X,
   ArrowRight,
   Sparkles,
-  Users
+  Users,
+  Inbox
 } from 'lucide-react';
 import { logOutOfFirebase } from '../../config/firebase';
 
 // ── Helper: read admin user from localStorage ──────────────────────────────
 const getAdminUser = () => {
   const raw = localStorage.getItem('adminUser') || localStorage.getItem('admin');
-  let user = { name: 'Admin', role: 'Admin', avatar: null };
+  let user = { name: 'Admin', role: 'Admin', avatar: null, email: 'admin@gharmb.com' };
   if (raw && raw !== 'undefined' && raw !== 'null') {
     try {
       const parsed = JSON.parse(raw);
@@ -39,6 +37,7 @@ const getAdminUser = () => {
           name: parsed.name || (parsed.email ? parsed.email.split('@')[0] : 'Admin'),
           role: parsed.role || 'Admin',
           avatar: parsed.avatar || parsed.photoUrl || parsed.profilePicture || null,
+          email: parsed.email || 'admin@gharmb.com',
         };
       }
     } catch (_) {}
@@ -60,8 +59,10 @@ const ROUTE_PAGE_NAMES = {
   '/admin/verification': 'Property Verification',
   '/admin/users': 'User Management',
   '/admin/builders': 'Builders & RERA',
-  '/admin/leads': 'Leads & Enquiries',
+  '/admin/enquiries': 'Enquiries Management',
+  '/admin/leads': 'Leads CRM',
   '/admin/services': 'Services Hub',
+  '/admin/services-catalog': 'Service Catalog',
   '/admin/tokens': 'Token Bookings',
   '/admin/references': 'Referral Network',
   '/admin/revenue': 'Revenue & Analytics',
@@ -73,7 +74,8 @@ const ROUTE_PAGE_NAMES = {
   '/admin/faq/categories': 'FAQ Categories',
   '/admin/testimonials': 'Testimonials',
   '/admin/web-inquiries': 'Web Inquiries',
-  '/admin/notifications': 'Notifications',
+  '/admin/notifications': 'Notifications & Alerts',
+  '/admin/broadcasts': 'Broadcast Messages',
   '/admin/settings': 'Settings',
   '/admin/legal': 'Legal Policies',
   '/admin/about': 'About Platform',
@@ -99,7 +101,6 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
   const pageTitle = getPageTitle();
   const { theme, toggleTheme } = useTheme();
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showQuickActions, setShowQuickActions] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -107,7 +108,6 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
   const [showSearchResults, setShowSearchResults] = useState(false);
 
   const profileRef = useRef(null);
-  const quickActionsRef = useRef(null);
   const searchContainerRef = useRef(null);
   const searchInputRef = useRef(null);
 
@@ -117,12 +117,14 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
 
   // Quick navigation modules for search command palette
   const searchModules = [
+    { title: 'Enquiries Management', category: 'CRM', path: '/admin/enquiries', icon: <Inbox size={14} /> },
     { title: 'Property Verification', category: 'Compliance', path: '/admin/verification', icon: <Zap size={14} /> },
     { title: 'User Management', category: 'Administration', path: '/admin/users', icon: <Users size={14} /> },
     { title: 'Builders & RERA', category: 'Real Estate', path: '/admin/builders', icon: <Building2 size={14} /> },
     { title: 'Token Booking Requests', category: 'Bookings', path: '/admin/tokens', icon: <ShieldCheck size={14} /> },
     { title: 'Services Hub (Loans & Interiors)', category: 'Services', path: '/admin/services', icon: <Plus size={14} /> },
-    { title: 'Leads & Enquiries', category: 'CRM', path: '/admin/leads', icon: <CheckSquare size={14} /> },
+    { title: 'Leads Pipeline CRM', category: 'CRM', path: '/admin/leads', icon: <CheckSquare size={14} /> },
+    { title: 'Notifications & Alerts', category: 'System', path: '/admin/notifications', icon: <Bell size={14} /> },
     { title: 'Revenue & Financials', category: 'Analytics', path: '/admin/revenue', icon: <Zap size={14} /> },
     { title: 'Reports & Export', category: 'Analytics', path: '/admin/reports', icon: <ExternalLink size={14} /> },
     { title: 'Market Insights & Articles', category: 'Content', path: '/admin/insights', icon: <Sparkles size={14} /> },
@@ -136,47 +138,11 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
         m.category.toLowerCase().includes(searchQuery.toLowerCase())
       );
 
-  const quickActionsList = [
-    {
-      title: 'Verify Properties',
-      subtitle: 'Review & approve pending listings',
-      path: '/admin/verification',
-      icon: <Zap size={14} />
-    },
-    {
-      title: 'Services Hub',
-      subtitle: 'Manage Home Loans & Interiors',
-      path: '/admin/services',
-      icon: <Plus size={14} />
-    },
-    {
-      title: 'Token Booking Requests',
-      subtitle: 'Review buyer reservation requests',
-      path: '/admin/tokens',
-      icon: <ShieldCheck size={14} />
-    },
-    {
-      title: 'Builders & RERA Registry',
-      subtitle: 'Audit licenses and projects',
-      path: '/admin/builders',
-      icon: <Building2 size={14} />
-    },
-    {
-      title: 'Referral Rewards',
-      subtitle: 'Process partner commissions',
-      path: '/admin/references',
-      icon: <ExternalLink size={14} />
-    },
-  ];
-
   // Close dropdowns on outside click & handle Cmd+K / Ctrl+K keyboard shortcut
   useEffect(() => {
     const handleOutside = (e) => {
       if (profileRef.current && !profileRef.current.contains(e.target)) {
         setShowProfileMenu(false);
-      }
-      if (quickActionsRef.current && !quickActionsRef.current.contains(e.target)) {
-        setShowQuickActions(false);
       }
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
         setShowSearchResults(false);
@@ -190,7 +156,6 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
         setShowSearchResults(true);
       } else if (e.key === 'Escape') {
         setShowSearchResults(false);
-        setShowQuickActions(false);
         searchInputRef.current?.blur();
       }
     };
@@ -348,11 +313,6 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
     navigate('/login');
   };
 
-  const handleSettings = () => {
-    setShowProfileMenu(false);
-    navigate('/admin/settings');
-  };
-
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-6 bg-[var(--bg-surface)]/90 backdrop-blur-md border-b border-[var(--border)] shrink-0">
       <div className="flex items-center gap-2 md:gap-3 min-w-0">
@@ -377,73 +337,6 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
 
       {/* Action triggers */}
       <div className="flex items-center gap-2 md:gap-3 shrink-0">
-        
-        {/* ── Quick Actions Menu ── */}
-        <div className="relative" ref={quickActionsRef}>
-          <button
-            type="button"
-            onClick={() => {
-              setShowQuickActions(prev => !prev);
-              setShowNotifications(false);
-              setShowProfileMenu(false);
-              setShowSearchResults(false);
-            }}
-            className={`group flex items-center gap-1.5 h-9 px-3.5 bg-brand hover:bg-[#DD543C] text-white rounded-xl text-xs font-semibold shadow-xs hover:shadow-sm transition-all duration-150 active:scale-[0.97] cursor-pointer shrink-0 border border-brand hover:border-[#DD543C] ${
-              showQuickActions ? 'bg-[#DD543C] ring-2 ring-brand/20' : ''
-            }`}
-            title="Quick Actions"
-          >
-            <Plus size={13} strokeWidth={2.2} className="transition-transform duration-200 group-hover:rotate-90 shrink-0" />
-            <span className="hidden sm:inline tracking-tight">Quick Actions</span>
-            <ChevronDown 
-              size={12} 
-              className={`text-white/80 group-hover:text-white transition-transform duration-200 shrink-0 ${showQuickActions ? 'rotate-180' : ''}`} 
-            />
-          </button>
-
-          {showQuickActions && (
-            <div className="absolute right-0 sm:left-0 sm:right-auto mt-2 w-64 sm:w-72 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xl z-40 overflow-hidden animate-slide-down origin-top-left">
-              {/* Header */}
-              <div className="px-3.5 py-2.5 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-muted)]/40">
-                <div className="flex items-center gap-1.5">
-                  <Sparkles size={13} className="text-brand" />
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-muted)]">Quick Actions</span>
-                </div>
-                <span className="text-[9px] font-bold text-brand bg-brand/10 border border-brand/20 px-1.5 py-0.5 rounded-md">Shortcuts</span>
-              </div>
-
-              {/* Actions List */}
-              <div className="p-1.5 space-y-1">
-                {quickActionsList.map((action, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      navigate(action.path);
-                      setShowQuickActions(false);
-                    }}
-                    className="w-full text-left p-2 hover:bg-[var(--bg-muted)] rounded-xl transition-all duration-150 flex items-center justify-between group/item cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center shrink-0 group-hover/item:bg-brand group-hover/item:text-white transition-colors duration-200 shadow-2xs">
-                        {action.icon}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-[var(--text-primary)] truncate group-hover/item:text-brand transition-colors">
-                          {action.title}
-                        </div>
-                        <div className="text-[10px] text-[var(--text-muted)] truncate">
-                          {action.subtitle}
-                        </div>
-                      </div>
-                    </div>
-                    <ArrowRight size={13} className="text-[var(--text-muted)] opacity-0 group-hover/item:opacity-100 group-hover/item:translate-x-0.5 transition-all shrink-0 ml-1.5" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* ── Search Bar with Live Command Center ── */}
         <div className="relative hidden md:block" ref={searchContainerRef}>
@@ -532,7 +425,6 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
             type="button"
             onClick={() => {
               setShowNotifications(!showNotifications);
-              setShowQuickActions(false);
               setShowProfileMenu(false);
             }}
             className="group relative w-8 h-8 flex items-center justify-center text-[var(--text-muted)] rounded-xl hover:bg-[var(--bg-muted)] hover:text-[var(--text-subtle)] transition-all duration-200 active:scale-90 cursor-pointer"
@@ -660,59 +552,94 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
             onClick={() => {
               setShowProfileMenu(!showProfileMenu);
               setShowNotifications(false);
-              setShowQuickActions(false);
             }}
-            className="w-8 h-8 flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] transition-colors duration-150 cursor-pointer"
+            className={`relative flex items-center justify-center w-8 h-8 rounded-xl transition-all duration-200 cursor-pointer select-none ring-2 ${
+              showProfileMenu
+                ? 'ring-brand shadow-sm scale-95'
+                : 'ring-transparent hover:ring-[var(--border)] active:scale-95'
+            }`}
             title="Account menu"
           >
-            <UserCircle2 size={22} strokeWidth={1.5} />
+            {adminUser.avatar ? (
+              <img
+                src={adminUser.avatar}
+                alt={adminUser.name}
+                className="w-full h-full rounded-xl object-cover"
+              />
+            ) : (
+              <div className="w-full h-full rounded-xl bg-gradient-to-tr from-brand to-[#DD543C] text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                {getInitials(adminUser.name)}
+              </div>
+            )}
+            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[var(--bg-surface)]" />
           </button>
 
           {/* Dropdown panel — CSS transition for smooth slide */}
           <div
-            className={`absolute right-0 mt-2 w-52 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl z-50 overflow-hidden origin-top-right transition-all duration-300 ease-out ${
+            className={`absolute right-0 mt-2 w-64 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xl shadow-black/10 dark:shadow-black/40 z-50 overflow-hidden origin-top-right transition-all duration-200 ease-out ${
               showProfileMenu
                 ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
                 : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
             }`}
           >
-            {/* User info header */}
-            <div className="px-4 pt-3.5 pb-3 bg-[var(--bg-muted)] border-b border-[var(--border)]">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-brand/10 flex items-center justify-center text-brand shrink-0">
-                  {isAdmin ? <Crown size={15} /> : <ShieldCheck size={15} />}
+            {/* User Profile Header */}
+            <div className="p-3.5 bg-[var(--bg-muted)]/50 border-b border-[var(--border)]">
+              <div className="flex items-center gap-3">
+                <div className="relative shrink-0">
+                  {adminUser.avatar ? (
+                    <img
+                      src={adminUser.avatar}
+                      alt={adminUser.name}
+                      className="w-10 h-10 rounded-xl object-cover ring-1 ring-[var(--border)] shadow-xs"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand to-[#DD543C] text-white flex items-center justify-center font-extrabold text-sm shadow-xs tracking-tight">
+                      {getInitials(adminUser.name)}
+                    </div>
+                  )}
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[var(--bg-surface)]" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-extrabold text-[var(--text-primary)] truncate leading-tight">{adminUser.name}</p>
-                  <span className="inline-flex items-center text-[8px] font-extrabold text-brand bg-brand/10 px-1.5 py-0.5 rounded-md mt-0.5">
-                    {adminUser.role || 'SaaS Admin'}
-                  </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-bold text-[var(--text-primary)] truncate leading-tight">
+                      {adminUser.name}
+                    </p>
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                      Active
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[var(--text-muted)] truncate mt-0.5">
+                    {adminUser.email || 'admin@gharmb.com'}
+                  </p>
                 </div>
+              </div>
+
+              {/* Status info strip */}
+              <div className="mt-2.5 pt-2 border-t border-[var(--border)]/60 flex items-center justify-between text-[10px]">
+                <span className="text-[var(--text-muted)] font-medium">Role</span>
+                <span className="font-semibold text-[var(--text-subtle)] bg-[var(--bg-surface)] px-2 py-0.5 rounded-md border border-[var(--border)]">
+                  {adminUser.role === 'Admin' || !adminUser.role ? 'Super Admin' : adminUser.role}
+                </span>
               </div>
             </div>
 
-            {/* Menu items */}
-            <div className="py-1.5">
-              <button
-                type="button"
-                id="profile-menu-settings"
-                onClick={handleSettings}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-[var(--text-subtle)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer group/item"
-              >
-                <Settings size={14} className="text-[var(--text-muted)] group-hover/item:text-brand transition-all duration-200 group-hover/item:rotate-45" />
-                Settings
-              </button>
-
-              <div className="mx-3 border-t border-[var(--border)] my-1" />
-
+            {/* Logout Action */}
+            <div className="p-1.5">
               <button
                 type="button"
                 id="profile-menu-logout"
                 onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-[var(--text-subtle)] hover:bg-[#DD543C]/10 hover:text-[#DD543C] transition-all duration-150 cursor-pointer group/item"
+                className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all duration-150 cursor-pointer group/logout"
               >
-                <LogOut size={14} className="text-[var(--text-muted)] group-hover/item:text-[#DD543C] transition-all duration-150 group-hover/item:translate-x-0.5" />
-                Logout
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-rose-500/10 group-hover/logout:bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center transition-colors">
+                    <LogOut size={13} strokeWidth={2.2} />
+                  </div>
+                  <span>Log Out</span>
+                </div>
+                <span className="text-[10px] text-[var(--text-muted)] group-hover/logout:text-rose-500/80 font-normal">
+                  End session
+                </span>
               </button>
             </div>
           </div>

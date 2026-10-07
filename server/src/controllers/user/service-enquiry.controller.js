@@ -10,6 +10,7 @@
  */
 
 const ServiceRequest = require('../../models/service-request.model');
+const ServiceOffering = require('../../models/service-offering.model');
 const User = require('../../models/user.model');
 const { notifyAdmin } = require('../../utils/adminNotification.helper');
 
@@ -266,12 +267,63 @@ const resolveSource = (req) => {
 exports.getServiceCatalogs = async (req, res, next) => {
   try {
     const { category } = req.query;
-    if (category && SERVICE_CATALOGS[category.toLowerCase()]) {
+
+    // Fetch dynamic active offerings from MongoDB
+    const dynamicOfferings = await ServiceOffering.find({ isActive: true }).sort({ order: 1, createdAt: -1 });
+
+    // Build dynamic catalog merged with default schema
+    const liveCatalogs = JSON.parse(JSON.stringify(SERVICE_CATALOGS));
+
+    if (dynamicOfferings.length > 0) {
+      // 1. Legal
+      const legalItems = dynamicOfferings.filter(o => o.category === 'Legal');
+      if (legalItems.length > 0) {
+        liveCatalogs.legal.legalServices = legalItems.map(item => ({
+          id: item._id,
+          title: item.title,
+          subtitle: item.subtitle,
+          price: item.price,
+          priceDisplay: item.priceDisplay,
+          badge: item.badge,
+          features: item.features,
+          partners: item.partners
+        }));
+      }
+
+      // 2. Movers
+      const moverItems = dynamicOfferings.filter(o => o.category === 'Movers');
+      if (moverItems.length > 0) {
+        liveCatalogs.movers.verifiedMovers = moverItems.map(item => ({
+          id: item._id,
+          name: item.title,
+          rating: item.meta?.rating || 4.8,
+          completedMoves: item.meta?.completedMoves || '500+ moves',
+          coverage: item.meta?.coverage || item.subtitle || 'Delhi NCR & Metros',
+          baseEstimate: item.price,
+          priceDisplay: item.priceDisplay,
+          features: item.features
+        }));
+      }
+
+      // 3. Interior
+      const interiorItems = dynamicOfferings.filter(o => o.category === 'Interior');
+      if (interiorItems.length > 0) {
+        liveCatalogs.interior.packages = interiorItems.map(item => ({
+          id: item._id,
+          name: item.title,
+          price: item.priceDisplay,
+          description: item.subtitle || item.description,
+          features: item.features
+        }));
+      }
+    }
+
+    if (category && liveCatalogs[category.toLowerCase()]) {
       return res.status(200).json({
         status: 'success',
         data: {
           category: category.toLowerCase(),
-          catalog: SERVICE_CATALOGS[category.toLowerCase()],
+          catalog: liveCatalogs[category.toLowerCase()],
         },
       });
     }
@@ -279,7 +331,7 @@ exports.getServiceCatalogs = async (req, res, next) => {
     res.status(200).json({
       status: 'success',
       data: {
-        catalogs: SERVICE_CATALOGS,
+        catalogs: liveCatalogs,
       },
     });
   } catch (error) {
