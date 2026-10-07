@@ -254,7 +254,88 @@ const enrichPropertyWithSellerRole = (propertyDoc, fallbackOwner = null) => {
     };
   }
 
+  // Preserve and normalize rating fields
+  obj.rating = Number(obj.rating) || 0;
+  obj.reviewsCount = Number(obj.reviewsCount) || 0;
+  obj.averageRating = Number(obj.rating) || 0;
+  obj.totalRatings = Number(obj.reviewsCount) || 0;
+
+  // Enrich with Admin Commission & Commission-Absorbed Discount fields for Mobile App / Frontend
+  const pricingMeta = getDiscountAndPricingMetadata(obj);
+  Object.assign(obj, pricingMeta);
+
   return obj;
+};
+
+// Helper to compute discount on admin commission and effective pricing breakdown
+const getDiscountAndPricingMetadata = (obj = {}) => {
+  const price = Number(obj.price) || 0;
+  const adminComm = obj.adminCommission || {};
+  const commDisc = obj.commissionDiscount || {};
+
+  const commType = adminComm.type === 'fixed' ? 'fixed' : 'percentage';
+  const commRate = commType === 'percentage' ? (Number(adminComm.rate) >= 0 ? Number(adminComm.rate) : 2) : 0;
+  const grossCommission = commType === 'percentage'
+    ? Math.round((price * commRate) / 100)
+    : Math.round(Number(adminComm.amount || 0));
+
+  const hasDiscount = Boolean(commDisc.enabled && (commDisc.discountAmount > 0 || commDisc.discountValue > 0));
+  const discType = commDisc.discountType === 'fixed' ? 'fixed' : 'percentage';
+  const discVal = Number(commDisc.discountValue) || 0;
+
+  let discAmount = 0;
+  if (hasDiscount) {
+    if (commDisc.discountAmount > 0) {
+      discAmount = Number(commDisc.discountAmount);
+    } else if (discType === 'percentage') {
+      discAmount = Math.round((grossCommission * Math.min(100, Math.max(0, discVal))) / 100);
+    } else {
+      discAmount = Math.round(Math.min(grossCommission, Math.max(0, discVal)));
+    }
+  }
+
+  const netCommission = Math.max(0, grossCommission - discAmount);
+  const discountedPrice = Math.max(0, price - discAmount);
+  const discountPctOnPrice = price > 0 ? Number(((discAmount / price) * 100).toFixed(2)) : 0;
+  const discountPctOnComm = grossCommission > 0 ? Number(((discAmount / grossCommission) * 100).toFixed(1)) : 0;
+
+  return {
+    hasDiscount,
+    discountAmount: discAmount,
+    formattedDiscount: discAmount > 0 ? `₹${discAmount.toLocaleString('en-IN')}` : null,
+    discountedPrice: discountedPrice,
+    formattedDiscountedPrice: formatIndianPrice(discountedPrice, obj.listingFor),
+    discountPercentage: discountPctOnPrice,
+    discountPercentageOnCommission: discountPctOnComm,
+    discountLabel: discAmount > 0 ? `₹${discAmount.toLocaleString('en-IN')} GharMB Discount` : null,
+    discountNote: 'Discount is offered exclusively from GharMB Admin Commission. Property seller receives 100% of the listed price.',
+    discountOnCommissionOnly: true,
+    effectiveBuyerPrice: discountedPrice,
+    pricingSummary: {
+      originalPrice: price,
+      discountAmount: discAmount,
+      effectivePrice: discountedPrice,
+      grossAdminCommission: grossCommission,
+      netAdminCommission: netCommission,
+      sellerPayoutAmount: price,
+      discountBorneBy: 'Admin Commission',
+      discountOnCommissionOnly: true,
+    },
+    adminCommission: {
+      type: commType,
+      rate: commRate,
+      amount: grossCommission,
+    },
+    commissionDiscount: {
+      enabled: hasDiscount,
+      discountType: discType,
+      discountValue: discVal,
+      discountAmount: discAmount,
+      netCommission: netCommission,
+      discountOnCommissionOnly: true,
+      notes: commDisc.notes || '',
+    },
+  };
 };
 
 // Unified helper to format property cards for dashboard tabs and list responses
@@ -341,6 +422,10 @@ const formatPropertyCard = (p, fallbackUser = null) => {
     shortlistedCount: obj.shortlistedCount || 0,
     inquiriesCount: obj.inquiriesCount || 0,
     tokensCount: obj.tokensCount || 0,
+    rating: Number(obj.rating) || 0,
+    reviewsCount: Number(obj.reviewsCount) || 0,
+    averageRating: Number(obj.rating) || 0,
+    totalRatings: Number(obj.reviewsCount) || 0,
     createdAt: obj.createdAt,
 
     // Seller Role metadata on the card (Builder, Agent, Owner)
@@ -356,6 +441,9 @@ const formatPropertyCard = (p, fallbackUser = null) => {
     reraNumber: ownerObj.reraNumber || '',
     postedBy,
     owner: postedBy,
+
+    // Commission-Absorbed Discount and Effective Buyer Pricing
+    ...getDiscountAndPricingMetadata(obj),
   };
 };
 
@@ -505,11 +593,57 @@ exports.getPropertyDetails = async (req, res, next) => {
 
     const enrichedProperty = enrichPropertyWithSellerRole(property);
 
+    // Fetch rating breakdown and recent reviews for this property
+    let recentReviews = [];
+    let breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    try {
+      const PropertyReview = require('../../models/property-review.model');
+      const [revs, breakdownAgg] = await Promise.all([
+        PropertyReview.find({ property: property._id })
+          .populate('reviewer', 'name profilePicture phone role')
+          .sort({ createdAt: -1 })
+          .limit(10),
+        PropertyReview.aggregate([
+          { $match: { property: property._id } },
+          {
+            $group: {
+              _id: '$rating',
+              count: { $sum: 1 },
+            },
+          },
+        ]),
+      ]);
+      recentReviews = revs;
+      breakdownAgg.forEach((item) => {
+        const star = Math.round(item._id);
+        if (breakdown[star] !== undefined) breakdown[star] = item.count;
+      });
+    } catch (revErr) {
+      console.error('Error fetching property reviews in getPropertyDetails:', revErr.message);
+    }
+
+    enrichedProperty.rating = Number(property.rating) || 0;
+    enrichedProperty.reviewsCount = Number(property.reviewsCount) || 0;
+    enrichedProperty.averageRating = Number(property.rating) || 0;
+    enrichedProperty.totalRatings = Number(property.reviewsCount) || 0;
+    enrichedProperty.ratings = {
+      averageRating: Number(property.rating) || 0,
+      totalReviews: Number(property.reviewsCount) || 0,
+      breakdown,
+      recentReviews,
+    };
+
     res.status(200).json({
       status: 'success',
       data: {
         property: enrichedProperty,
         isOwner,
+        ratings: {
+          averageRating: Number(property.rating) || 0,
+          totalReviews: Number(property.reviewsCount) || 0,
+          breakdown,
+          recentReviews,
+        },
       },
     });
   } catch (error) {
@@ -766,6 +900,33 @@ exports.getMyDashboard = async (req, res, next) => {
     const paginatedProperties = currentList.slice(skip, skip + limitNum);
     const totalPages = Math.ceil(currentList.length / limitNum) || 1;
 
+    // Aggregate property ratings for the owner across their properties
+    let ownerReviews = [];
+    let avgOwnerRating = Number(user.rating) || 0;
+    let totalOwnerReviews = Number(user.reviewCount) || 0;
+    const starCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+
+    try {
+      const PropertyReview = require('../../models/property-review.model');
+      ownerReviews = await PropertyReview.find({ owner: ownerId })
+        .populate('reviewer', 'name profilePicture phone role')
+        .populate('property', 'title propertyType city locality price photos submissionId')
+        .sort({ createdAt: -1 });
+
+      totalOwnerReviews = ownerReviews.length;
+      if (totalOwnerReviews > 0) {
+        let sumRating = 0;
+        ownerReviews.forEach((r) => {
+          const star = Math.round(Number(r.rating) || 0);
+          if (starCounts[star] !== undefined) starCounts[star]++;
+          sumRating += Number(r.rating) || 0;
+        });
+        avgOwnerRating = Math.round((sumRating / totalOwnerReviews) * 10) / 10;
+      }
+    } catch (rErr) {
+      console.error('Error fetching owner property reviews in getMyDashboard:', rErr.message);
+    }
+
     res.status(200).json({
       status: 'success',
       data: {
@@ -791,6 +952,25 @@ exports.getMyDashboard = async (req, res, next) => {
           profilePicture: user.profilePicture || 'default-avatar.png',
           companyName: user.companyName || '',
           reraNumber: user.reraNumber || '',
+          rating: avgOwnerRating,
+          averageRating: avgOwnerRating,
+          reviewsCount: totalOwnerReviews,
+          totalReviews: totalOwnerReviews,
+          ratings: {
+            averageRating: avgOwnerRating,
+            totalReviews: totalOwnerReviews,
+            breakdown: starCounts,
+            recentReviews: ownerReviews.slice(0, 5),
+          },
+        },
+        ratings: {
+          averageRating: avgOwnerRating,
+          totalReviews: totalOwnerReviews,
+          rating: avgOwnerRating,
+          reviewsCount: totalOwnerReviews,
+          breakdown: starCounts,
+          recentReviews: ownerReviews.slice(0, 10),
+          allReviews: ownerReviews,
         },
         counters: {
           totalListings,

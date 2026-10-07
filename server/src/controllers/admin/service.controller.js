@@ -54,7 +54,9 @@ const getDefaultMilestones = (serviceType) => {
 exports.getAllServices = async (req, res, next) => {
   try {
     const { serviceType, status, search } = req.query;
-    const filter = {};
+    const filter = {
+      serviceType: { $ne: 'Loan' }
+    };
 
     if (serviceType && serviceType !== 'ALL') {
       filter.serviceType = serviceType;
@@ -79,13 +81,12 @@ exports.getAllServices = async (req, res, next) => {
       ];
     }
 
-    const [services, totalCount, loanCount, interiorCount, moversCount, legalCount] = await Promise.all([
+    const [services, totalCount, interiorCount, moversCount, legalCount] = await Promise.all([
       ServiceRequest.find(filter)
         .populate('property', 'title price locality city carpetArea')
         .populate('client', 'name email phone')
         .sort({ createdAt: -1 }),
-      ServiceRequest.countDocuments(),
-      ServiceRequest.countDocuments({ serviceType: 'Loan' }),
+      ServiceRequest.countDocuments({ serviceType: { $ne: 'Loan' } }),
       ServiceRequest.countDocuments({ serviceType: 'Interior' }),
       ServiceRequest.countDocuments({ serviceType: 'Movers' }),
       ServiceRequest.countDocuments({ serviceType: 'Legal' })
@@ -96,7 +97,6 @@ exports.getAllServices = async (req, res, next) => {
       results: services.length,
       counts: {
         total: totalCount,
-        loan: loanCount,
         interior: interiorCount,
         movers: moversCount,
         legal: legalCount
@@ -339,7 +339,22 @@ exports.updateService = async (req, res, next) => {
       shiftingDate
     } = req.body;
 
-    if (status) service.status = status;
+    if (status) {
+      const s = String(status).trim().toLowerCase().replace(/[\s_-]+/g, '');
+      if (['inprogress', 'contacted', 'active', 'open', 'assigned', 'pending'].includes(s)) {
+        service.status = 'In Progress';
+      } else if (['quotationsent', 'quote', 'quoted'].includes(s)) {
+        service.status = 'Quotation Sent';
+      } else if (['confirmed', 'accepted', 'scheduled', 'booked'].includes(s)) {
+        service.status = 'Confirmed';
+      } else if (['completed', 'resolved', 'closed', 'done'].includes(s)) {
+        service.status = 'Completed';
+      } else if (['cancelled', 'rejected', 'spam'].includes(s)) {
+        service.status = 'Cancelled';
+      } else {
+        service.status = status;
+      }
+    }
     if (assignedPartner !== undefined) service.assignedPartner = assignedPartner;
     if (quotation !== undefined) {
       service.quotation = quotation ? (quotation.startsWith('₹') ? quotation : `₹${quotation}`) : service.quotation;

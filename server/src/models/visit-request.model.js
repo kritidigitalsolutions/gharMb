@@ -44,8 +44,19 @@ const visitRequestSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ['pending', 'accepted', 'rejected', 'cancelled'],
-        message: 'Status must be pending, accepted, rejected, or cancelled.',
+        values: [
+          'pending',
+          'accepted',
+          'rejected',
+          'cancelled',
+          'contacted',
+          'in_progress',
+          'scheduled',
+          'confirmed',
+          'resolved',
+          'completed'
+        ],
+        message: 'Status must be a valid platform status.',
       },
       default: 'pending',
       index: true,

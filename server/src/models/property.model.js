@@ -221,6 +221,58 @@ const propertySchema = new mongoose.Schema(
       default: 0,
     },
 
+    // Step 4: Admin Commission & Commission Discount (Discount strictly on Admin Commission, never on property price)
+    adminCommission: {
+      type: {
+        type: String,
+        enum: ['percentage', 'fixed'],
+        default: 'percentage',
+      },
+      rate: {
+        type: Number,
+        default: 2, // 2% platform commission default
+      },
+      amount: {
+        type: Number,
+        default: 0,
+      },
+    },
+    commissionDiscount: {
+      enabled: {
+        type: Boolean,
+        default: false,
+      },
+      discountType: {
+        type: String,
+        enum: ['percentage', 'fixed'],
+        default: 'percentage',
+      },
+      discountValue: {
+        type: Number,
+        default: 0,
+      },
+      discountAmount: {
+        type: Number,
+        default: 0,
+      },
+      netCommission: {
+        type: Number,
+        default: 0,
+      },
+      discountOnCommissionOnly: {
+        type: Boolean,
+        default: true,
+      },
+      appliedAt: {
+        type: Date,
+      },
+      notes: {
+        type: String,
+        default: '',
+        trim: true,
+      },
+    },
+
     // Step 4: Token Booking Configuration (Set by Admin or Owner)
     allowTokenBooking: {
       type: Boolean,
@@ -391,6 +443,19 @@ const propertySchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    // Rating & Reviews Summary
+    rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    reviewsCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   {
     timestamps: true,
@@ -422,6 +487,52 @@ propertySchema.pre('save', function () {
     this.listingAs = 'Owner';
     this.userRole = 'owner';
     this.postedByRole = 'Owner';
+  }
+
+  // Calculate & normalize Admin Commission and Commission Discount
+  const propPrice = Number(this.price) || 0;
+  if (!this.adminCommission) {
+    this.adminCommission = { type: 'percentage', rate: 2, amount: Math.round((propPrice * 2) / 100) };
+  } else {
+    const cType = this.adminCommission.type === 'fixed' ? 'fixed' : 'percentage';
+    const cRate = cType === 'percentage' ? (Number(this.adminCommission.rate) >= 0 ? Number(this.adminCommission.rate) : 2) : 0;
+    const cAmount = cType === 'percentage' ? Math.round((propPrice * cRate) / 100) : Math.round(Number(this.adminCommission.amount || 0));
+    this.adminCommission.type = cType;
+    this.adminCommission.rate = cRate;
+    this.adminCommission.amount = cAmount;
+  }
+
+  const grossCommission = Number(this.adminCommission.amount) || 0;
+  if (!this.commissionDiscount) {
+    this.commissionDiscount = {
+      enabled: false,
+      discountType: 'percentage',
+      discountValue: 0,
+      discountAmount: 0,
+      netCommission: grossCommission,
+      discountOnCommissionOnly: true,
+      notes: '',
+    };
+  } else {
+    const isEnabled = Boolean(this.commissionDiscount.enabled);
+    const dType = this.commissionDiscount.discountType === 'fixed' ? 'fixed' : 'percentage';
+    const dVal = Number(this.commissionDiscount.discountValue) || 0;
+    let dAmount = 0;
+
+    if (isEnabled && dVal > 0) {
+      if (dType === 'percentage') {
+        dAmount = Math.round((grossCommission * Math.min(100, Math.max(0, dVal))) / 100);
+      } else {
+        dAmount = Math.round(Math.min(grossCommission, Math.max(0, dVal)));
+      }
+    }
+
+    this.commissionDiscount.enabled = isEnabled;
+    this.commissionDiscount.discountType = dType;
+    this.commissionDiscount.discountValue = dVal;
+    this.commissionDiscount.discountAmount = dAmount;
+    this.commissionDiscount.netCommission = Math.max(0, grossCommission - dAmount);
+    this.commissionDiscount.discountOnCommissionOnly = true;
   }
 });
 
@@ -456,6 +567,26 @@ propertySchema.virtual('listedBy').get(function () {
 
 propertySchema.virtual('sellerRole').get(function () {
   return this.listedBy;
+});
+
+// Virtuals for commission-absorbed discount pricing
+propertySchema.virtual('effectiveBuyerPrice').get(function () {
+  const p = Number(this.price) || 0;
+  const d = (this.commissionDiscount?.enabled) ? Number(this.commissionDiscount?.discountAmount || 0) : 0;
+  return Math.max(0, p - d);
+});
+
+propertySchema.virtual('hasDiscount').get(function () {
+  return Boolean(this.commissionDiscount?.enabled && this.commissionDiscount?.discountAmount > 0);
+});
+
+// Virtuals for Ratings & Reviews
+propertySchema.virtual('averageRating').get(function () {
+  return Number(this.rating) || 0;
+});
+
+propertySchema.virtual('totalRatings').get(function () {
+  return Number(this.reviewsCount) || 0;
 });
 
 // Indexes for fast searching & filtering

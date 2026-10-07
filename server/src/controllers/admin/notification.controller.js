@@ -108,6 +108,13 @@ exports.getNotificationLogs = async (req, res, next) => {
       delete filter.$or;
     }
 
+    // Exclude broadcast messages from administrative notification logs
+    filter['metadata.broadcastId'] = { $exists: false };
+    filter['broadcastId'] = { $exists: false };
+    if (!filter.type) {
+      filter.type = { $ne: 'broadcast' };
+    }
+
     const query = Notification.find(filter)
       .sort({ createdAt: -1 })
       .populate('recipient', 'name email phone role avatar')
@@ -139,8 +146,15 @@ exports.getNotificationLogs = async (req, res, next) => {
 
     const notifications = await query;
 
-    // Concurrently aggregate counts for top KPI cards and tab badges
-    const baseCountFilter = { $or: recipientOrClause };
+    // Concurrently aggregate counts for top KPI cards and tab badges (excluding broadcasts)
+    const baseCountFilter = {
+      $and: [
+        { $or: recipientOrClause },
+        { 'metadata.broadcastId': { $exists: false } },
+        { 'broadcastId': { $exists: false } },
+        { type: { $ne: 'broadcast' } },
+      ]
+    };
     const [
       totalCount,
       unreadCount,

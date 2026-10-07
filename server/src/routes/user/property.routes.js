@@ -13,6 +13,8 @@ const router = express.Router();
 const tokenRequestController = require('../../controllers/user/token-request.controller');
 const visitRequestController = require('../../controllers/user/visit-request.controller');
 
+const propertyReviewController = require('../../controllers/user/property-review.controller');
+
 const optionalAuth = userAuth.optionalUserAuth || userAuth;
 
 router.get('/', optionalAuth, propertyController.getAllProperties);
@@ -27,8 +29,20 @@ router.get('/my-dashboard', userAuth, propertyController.getMyDashboard);
 
 router.get('/my-properties', userAuth, propertyController.getMyProperties);
 
+router.get('/my-ratings', userAuth, propertyReviewController.getMyOwnerReviews);
+router.get('/owner-ratings', userAuth, propertyReviewController.getMyOwnerReviews);
+
 router.get('/token-requests', userAuth, tokenRequestController.getReceivedTokenRequests);
 router.get('/visit-requests', userAuth, visitRequestController.getReceivedVisitRequests);
+
+// Property ratings and reviews
+router.get('/:id/reviews', optionalAuth, propertyReviewController.getPropertyReviews);
+router.get('/:id/ratings', optionalAuth, propertyReviewController.getPropertyReviews);
+router.get('/:id/my-review', userAuth, propertyReviewController.getMyPropertyReview);
+router.post('/:id/reviews', userAuth, propertyReviewController.createPropertyReview);
+router.post('/:id/rate', userAuth, propertyReviewController.createPropertyReview);
+router.delete('/:id/reviews/:reviewId', userAuth, propertyReviewController.deletePropertyReview);
+router.delete('/reviews/:reviewId', userAuth, propertyReviewController.deletePropertyReview);
 
 router.get('/:id', optionalAuth, propertyController.getPropertyDetails);
 

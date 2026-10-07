@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import AdminLoader from '../components/common/AdminLoader';
 import {
   FileText,
   Calendar,
@@ -189,28 +190,40 @@ const ReportsScreen = () => {
       label: 'Properties',
       icon: Building2,
       count: liveStats?.totalProperties ?? (reportType === 'properties' ? rawRecords.length : 0),
-      sublabel: `${liveStats?.liveProperties ?? 0} Live`
+      sublabel: 'Catalog Listings',
+      badge: `${liveStats?.liveProperties ?? 0} Live`,
+      accent: 'border-brand/40 hover:border-brand',
+      iconColor: 'text-brand bg-brand/10'
     },
     {
       id: 'users',
       label: 'Users & Builders',
       icon: Users,
       count: liveStats?.totalUsers ?? (reportType === 'users' ? rawRecords.length : 0),
-      sublabel: `${liveStats?.totalBuilders ?? 0} Builders`
+      sublabel: 'Platform Accounts',
+      badge: `${liveStats?.totalBuilders ?? 0} Builders`,
+      accent: 'border-brand/40 hover:border-brand',
+      iconColor: 'text-brand bg-brand/10'
     },
     {
       id: 'revenue',
       label: 'Revenue Ledger',
       icon: Wallet,
       count: `₹${(liveStats?.revenueGenerated || 0).toLocaleString('en-IN')}`,
-      sublabel: 'Settled'
+      sublabel: 'Token & Billings',
+      badge: 'Settled',
+      accent: 'border-brand/40 hover:border-brand',
+      iconColor: 'text-brand bg-brand/10'
     },
     {
       id: 'leads',
       label: 'Leads & Enquiries',
       icon: MessageSquare,
       count: liveStats?.totalEnquiries ?? (reportType === 'leads' ? rawRecords.length : 0),
-      sublabel: `${liveStats?.siteVisits ?? 0} Visits`
+      sublabel: 'Direct Inquiries',
+      badge: `${liveStats?.siteVisits ?? 0} Visits`,
+      accent: 'border-brand/40 hover:border-brand',
+      iconColor: 'text-brand bg-brand/10'
     }
   ];
 
@@ -638,8 +651,8 @@ const ReportsScreen = () => {
         </button>
       </div>
 
-      {/* ─── 2. SLEEK SEGMENTED CATEGORY TABS ─── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+      {/* ─── 2. STANDARDIZED TOP-ACCENT KPI CATEGORY CARDS ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {categories.map((cat) => {
           const Icon = cat.icon;
           const isActive = reportType === cat.id;
@@ -652,41 +665,36 @@ const ReportsScreen = () => {
                 setReportType(cat.id);
                 setSearchQuery('');
               }}
-              className={`p-3 rounded-xl border text-left transition-all duration-150 cursor-pointer flex items-center justify-between gap-3 group relative overflow-hidden ${
-                isActive
-                  ? 'bg-[var(--bg-surface)] border-brand ring-1 ring-brand/40 shadow-xs'
-                  : 'bg-[var(--bg-surface)] border-[var(--border)] hover:border-slate-300 dark:hover:border-slate-700 hover:bg-[var(--bg-muted)]/30'
-              }`}
+              className="group bg-[var(--bg-surface)] rounded-xl p-3.5 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden flex flex-col justify-between border border-[var(--border)] border-t-2 border-t-brand/40 hover:border-t-brand text-left cursor-pointer"
             >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                    isActive
-                      ? 'bg-brand/10 text-brand'
-                      : 'bg-[var(--bg-muted)] text-[var(--text-muted)] group-hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  <Icon size={16} />
-                </div>
-                <div className="truncate">
-                  <p
-                    className={`text-xs font-bold truncate ${
-                      isActive ? 'text-brand' : 'text-[var(--text-primary)]'
-                    }`}
-                  >
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block">
                     {cat.label}
-                  </p>
-                  <p className="text-[11px] text-[var(--text-muted)] font-medium">
-                    {cat.count} {cat.sublabel ? `• ${cat.sublabel}` : ''}
-                  </p>
+                  </span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+                      {cat.count}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110 text-brand bg-brand/10">
+                  <Icon size={16} strokeWidth={2} />
                 </div>
               </div>
 
-              {isActive && (
-                <div className="w-5 h-5 rounded-full bg-brand/10 text-brand flex items-center justify-center shrink-0">
-                  <Check size={12} strokeWidth={2.5} />
-                </div>
-              )}
+              <div className="mt-2.5 pt-2 border-t border-[var(--border)] flex items-center justify-between text-[11px]">
+                <span className="text-[var(--text-muted)] truncate">{cat.sublabel}</span>
+                <span className={`text-[10px] font-semibold flex items-center gap-1 ${
+                  isActive
+                    ? 'text-brand font-bold'
+                    : 'text-[var(--text-muted)]'
+                }`}>
+                  {isActive && <Check size={10} strokeWidth={2.5} />}
+                  {cat.badge}
+                </span>
+              </div>
             </button>
           );
         })}
@@ -867,16 +875,15 @@ const ReportsScreen = () => {
             </thead>
             <tbody className="divide-y divide-[var(--border)] text-xs">
               {isLoadingData ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td className="py-3 px-3.5"><div className="h-3.5 bg-[var(--bg-muted)] rounded w-28" /></td>
-                    <td className="py-3 px-3.5"><div className="h-3.5 bg-[var(--bg-muted)] rounded w-20" /></td>
-                    <td className="py-3 px-3.5"><div className="h-3.5 bg-[var(--bg-muted)] rounded w-20" /></td>
-                    <td className="py-3 px-3.5"><div className="h-3.5 bg-[var(--bg-muted)] rounded w-16" /></td>
-                    <td className="py-3 px-3.5"><div className="h-3.5 bg-[var(--bg-muted)] rounded w-14 mx-auto" /></td>
-                    <td className="py-3 px-3.5"><div className="h-3.5 bg-[var(--bg-muted)] rounded w-16 ml-auto" /></td>
-                  </tr>
-                ))
+                <tr>
+                  <td colSpan={6} className="py-12 text-center">
+                    <AdminLoader
+                      text={`Loading ${reportType} reports...`}
+                      subtext="Generating export dataset and metrics"
+                      minHeight="min-h-[160px]"
+                    />
+                  </td>
+                </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-8 text-center text-xs text-[var(--text-muted)]">

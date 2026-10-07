@@ -148,6 +148,49 @@ exports.getAllProperties = async (req, res, next) => {
   }
 };
 
+// Helper to calculate and normalize Admin Commission & Commission-Absorbed Discount
+const calculateCommissionAndDiscount = (price, rawCommission, rawDiscount) => {
+  const propPrice = Number(price) || 0;
+
+  // Commission calculation
+  const cType = rawCommission?.type === 'fixed' ? 'fixed' : 'percentage';
+  const cRate = cType === 'percentage' ? (Number(rawCommission?.rate) >= 0 ? Number(rawCommission.rate) : 2) : 0;
+  const cAmount = cType === 'percentage' ? Math.round((propPrice * cRate) / 100) : Math.round(Number(rawCommission?.amount || 0));
+
+  const adminCommission = {
+    type: cType,
+    rate: cRate,
+    amount: cAmount,
+  };
+
+  // Discount calculation (strictly deducted from Admin Commission, seller payout is never reduced)
+  const isEnabled = Boolean(rawDiscount?.enabled);
+  const dType = rawDiscount?.discountType === 'fixed' ? 'fixed' : 'percentage';
+  const dVal = Number(rawDiscount?.discountValue) || 0;
+  let dAmount = 0;
+
+  if (isEnabled && dVal > 0) {
+    if (dType === 'percentage') {
+      dAmount = Math.round((cAmount * Math.min(100, Math.max(0, dVal))) / 100);
+    } else {
+      dAmount = Math.round(Math.min(cAmount, Math.max(0, dVal)));
+    }
+  }
+
+  const commissionDiscount = {
+    enabled: isEnabled,
+    discountType: dType,
+    discountValue: dVal,
+    discountAmount: dAmount,
+    netCommission: Math.max(0, cAmount - dAmount),
+    discountOnCommissionOnly: true,
+    appliedAt: isEnabled ? new Date() : undefined,
+    notes: (rawDiscount?.notes || '').trim(),
+  };
+
+  return { adminCommission, commissionDiscount };
+};
+
 // @desc    Review and update property approval status (approve / reject)
 // @route   PATCH /api/admin/properties/:id/status
 // @access  Private (Admin only)
@@ -163,6 +206,14 @@ exports.updatePropertyStatus = async (req, res, next) => {
       });
     }
 
+    const existingProp = await Property.findById(req.params.id);
+    if (!existingProp) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'No property found with that ID.',
+      });
+    }
+
     const updateData = {
       approvalStatus: rawStatus,
       isLive: rawStatus === 'approved',
@@ -172,6 +223,17 @@ exports.updatePropertyStatus = async (req, res, next) => {
       updateData.rejectionReason = rejectionReason;
     } else if (rawStatus === 'approved') {
       updateData.rejectionReason = undefined;
+
+      // Handle Admin Commission & Commission-Absorbed Discount configured at verification
+      if (req.body.adminCommission !== undefined || req.body.commissionDiscount !== undefined) {
+        const { adminCommission, commissionDiscount } = calculateCommissionAndDiscount(
+          existingProp.price,
+          req.body.adminCommission || existingProp.adminCommission,
+          req.body.commissionDiscount || existingProp.commissionDiscount
+        );
+        updateData.adminCommission = adminCommission;
+        updateData.commissionDiscount = commissionDiscount;
+      }
     }
 
     const property = await Property.findByIdAndUpdate(req.params.id, updateData, {
@@ -372,6 +434,17 @@ exports.updateProperty = async (req, res, next) => {
       }
     }
 
+    // Handle Admin Commission and Commission Discount updates
+    if (updateFields.adminCommission !== undefined || updateFields.commissionDiscount !== undefined) {
+      const { adminCommission, commissionDiscount } = calculateCommissionAndDiscount(
+        updateFields.price || property.price,
+        updateFields.adminCommission || property.adminCommission,
+        updateFields.commissionDiscount || property.commissionDiscount
+      );
+      updateFields.adminCommission = adminCommission;
+      updateFields.commissionDiscount = commissionDiscount;
+    }
+
     const updatedProperty = await Property.findByIdAndUpdate(req.params.id, updateFields, {
       new: true,
       runValidators: true,
@@ -382,6 +455,50 @@ exports.updateProperty = async (req, res, next) => {
       message: 'Property listing updated successfully.',
       data: {
         property: updatedProperty,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update Admin Commission & Commission-Absorbed Discount anytime (Admin can edit later)
+// @route   PATCH /api/admin/properties/:id/commission-discount
+// @access  Private (Admin only)
+exports.updateCommissionDiscount = async (req, res, next) => {
+  try {
+    const property = await Property.findById(req.params.id).populate('owner', 'name email phone role isVerified');
+    if (!property) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'No property found with that ID.',
+      });
+    }
+
+    const { adminCommission, commissionDiscount } = calculateCommissionAndDiscount(
+      property.price,
+      req.body.adminCommission || property.adminCommission,
+      req.body.commissionDiscount !== undefined ? req.body.commissionDiscount : req.body
+    );
+
+    property.adminCommission = adminCommission;
+    property.commissionDiscount = commissionDiscount;
+    await property.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Property commission and discount settings updated successfully.',
+      data: {
+        property,
+        pricingSummary: {
+          originalPrice: property.price,
+          discountAmount: commissionDiscount.discountAmount,
+          effectivePrice: Math.max(0, property.price - commissionDiscount.discountAmount),
+          grossCommission: adminCommission.amount,
+          netCommission: commissionDiscount.netCommission,
+          sellerPayout: property.price,
+          discountOnCommissionOnly: true,
+        },
       },
     });
   } catch (error) {

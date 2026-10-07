@@ -39,6 +39,7 @@ const adminBannerRoutes = require('./src/routes/admin/banner.routes');
 const adminTokenRoutes = require('./src/routes/admin/token.routes');
 const adminVisitRequestRoutes = require('./src/routes/admin/visit-request.routes');
 const adminServiceRoutes = require('./src/routes/admin/service.routes');
+const adminServiceCatalogRoutes = require('./src/routes/admin/service-catalog.routes');
 const adminReferralRoutes = require('./src/routes/admin/referral.routes');
 
 const appAuthRoutes = require('./src/routes/user/auth.routes');
@@ -291,6 +292,7 @@ app.use('/api/admin/banners', adminBannerRoutes);
 app.use('/api/admin/tokens', adminTokenRoutes);
 app.use('/api/admin/visit-requests', adminVisitRequestRoutes);
 app.use('/api/admin/services', adminServiceRoutes);
+app.use('/api/admin/service-catalog', adminServiceCatalogRoutes);
 app.use('/api/admin/referrals', adminReferralRoutes);
 app.use('/api/admin/upload', appUploadRoutes);
 

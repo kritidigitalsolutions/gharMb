@@ -262,6 +262,11 @@ const userSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    referralRewardEarned: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     referralCoinsEarned: {
       type: Number,
       default: 0,

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import AdminLoader from '../components/common/AdminLoader';
 import {
-  CreditCard, Home, Truck, Scale, Search, Plus,
+  Home, Truck, Scale, Search, Plus,
   MapPin, UserCheck, X, Eye, Layers, Check, Edit2,
   Phone, Mail, ArrowUpRight, Sparkles, Clock, CheckCircle2,
   Trash2, RefreshCw, MessageCircle, AlertTriangle, Send,
-  Smartphone, Globe
+  Smartphone, Globe, ArrowUpDown, ChevronLeft, ChevronRight, ArrowRight
 } from 'lucide-react';
 
 const ServicesManagement = () => {
@@ -16,6 +17,12 @@ const ServicesManagement = () => {
   const [activeService, setActiveService] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Sorting and Pagination State
+  const [sortField, setSortField] = useState('date');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Modals & Drawers
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
@@ -35,13 +42,12 @@ const ServicesManagement = () => {
     clientName: '',
     clientPhone: '',
     clientEmail: '',
-    serviceType: 'Loan',
+    serviceType: 'Interior',
     serviceName: '',
     location: '',
     propertyId: '',
     propertyRef: '',
     propertyValue: '',
-    loanRequired: '',
     budgetRange: '',
     shiftingDate: '',
     assignedPartner: '',
@@ -55,7 +61,6 @@ const ServicesManagement = () => {
   const [availableProperties, setAvailableProperties] = useState([]);
   const [counts, setCounts] = useState({
     total: 0,
-    loan: 0,
     interior: 0,
     movers: 0,
     legal: 0
@@ -73,12 +78,27 @@ const ServicesManagement = () => {
     return localStorage.getItem('adminToken') || localStorage.getItem('token') || '';
   };
 
-  const partnersCatalog = {
-    Loan: ['HDFC Home Loans', 'State Bank of India (SBI)', 'ICICI Bank Home Finance', 'Axis Bank Loan Desk', 'Bajaj Housing Finance'],
-    Interior: ['Studio Luxe Interiors', 'Livspace Certified Partner', 'HomeLane Studio', 'Urban Woodcrafts Delhi/NCR', 'DecorSpace Mumbai'],
-    Movers: ['Agarwal Premium Shifting', 'Gati Relocations', 'Porter Enterprise', 'SafeX Packers & Movers', 'UrbanMove Intercity'],
-    Legal: ['Adv. M.K. Shinde', 'LawDesk Property Advisors', 'LexJuris Legal Associates', 'Chambers of R.N. Joshi']
-  };
+  const [catalogOfferings, setCatalogOfferings] = useState([]);
+
+  // Dynamically compute partners from active service catalog
+  const partnersCatalog = useMemo(() => {
+    const base = {
+      Interior: ['Studio Luxe Interiors', 'Livspace Certified Partner', 'HomeLane Studio', 'Urban Woodcrafts Delhi/NCR', 'DecorSpace Mumbai'],
+      Movers: ['SafeMove Packers', 'Agarwal Premium Shifting', 'Gati Relocations', 'Porter Enterprise', 'SafeX Packers & Movers'],
+      Legal: ['Adv. M.K. Shinde', 'LawDesk Property Advisors', 'LexJuris Legal Associates', 'Chambers of R.N. Joshi']
+    };
+    catalogOfferings.forEach(item => {
+      if (item.category && Array.isArray(item.partners)) {
+        item.partners.forEach(p => {
+          const cat = item.category;
+          if (base[cat] && !base[cat].includes(p)) {
+            base[cat].push(p);
+          }
+        });
+      }
+    });
+    return base;
+  }, [catalogOfferings]);
 
   // Fetch real service inquiries from MongoDB
   const fetchServices = async (silent = false) => {
@@ -108,11 +128,6 @@ const ServicesManagement = () => {
           location: item.location || 'India',
           propertyRef: item.propertyRef || (item.property?.title ? item.property.title : 'Direct Inquiry'),
           propertyValue: item.propertyValue || (item.property?.price ? `₹${Number(item.property.price).toLocaleString('en-IN')}` : ''),
-          loanRequired: item.loanRequired || '',
-          employmentType: item.employmentType || '',
-          monthlyIncome: item.monthlyIncome || '',
-          cibilScore: item.cibilScore || '',
-          preferredBank: item.preferredBank || '',
           budgetRange: item.budgetRange || '',
           designStyle: item.designStyle || '',
           scope: item.scope || [],
@@ -178,9 +193,26 @@ const ServicesManagement = () => {
     }
   };
 
+  // Fetch live offerings from service catalog for auto-populating
+  const fetchCatalogOfferings = async () => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE}/api/admin/service-catalog`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        setCatalogOfferings(data.data?.offerings || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch catalog offerings:', err);
+    }
+  };
+
   useEffect(() => {
     fetchServices();
     fetchAvailableProperties();
+    fetchCatalogOfferings();
   }, []);
 
   // Update Status in MongoDB
@@ -474,7 +506,6 @@ const ServicesManagement = () => {
           location: created.location,
           propertyRef: created.propertyRef,
           propertyValue: created.propertyValue,
-          loanRequired: created.loanRequired,
           budgetRange: created.budgetRange,
           shiftingDate: created.shiftingDate,
           assignedPartner: created.assignedPartner,
@@ -493,13 +524,12 @@ const ServicesManagement = () => {
           clientName: '',
           clientPhone: '',
           clientEmail: '',
-          serviceType: 'Loan',
+          serviceType: 'Interior',
           serviceName: '',
           location: '',
           propertyId: '',
           propertyRef: '',
           propertyValue: '',
-          loanRequired: '',
           budgetRange: '',
           shiftingDate: '',
           assignedPartner: '',
@@ -518,58 +548,92 @@ const ServicesManagement = () => {
     }
   };
 
-  // Filter inquiries based on service vertical, status, and search query
-  const filteredEnquiries = useMemo(() => {
-    return enquiries.filter(item => {
+  // Sorting Handler
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+  };
+
+  // Filter and sort inquiries based on service vertical, status, search query, and sort field
+  const sortedAndFilteredEnquiries = useMemo(() => {
+    const list = enquiries.filter(item => {
       const matchesService = activeService === 'ALL' || item.serviceType === activeService;
       const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase().trim();
+      if (!q) return matchesService && matchesStatus;
+
       const matchesSearch = 
-        item.clientName.toLowerCase().includes(q) ||
-        item.id.toLowerCase().includes(q) ||
-        item.location.toLowerCase().includes(q) ||
-        item.serviceName.toLowerCase().includes(q) ||
+        (item.clientName && item.clientName.toLowerCase().includes(q)) ||
+        (item.id && item.id.toLowerCase().includes(q)) ||
+        (item.location && item.location.toLowerCase().includes(q)) ||
+        (item.serviceName && item.serviceName.toLowerCase().includes(q)) ||
+        (item.clientPhone && item.clientPhone.toLowerCase().includes(q)) ||
         (item.assignedPartner && item.assignedPartner.toLowerCase().includes(q));
       return matchesService && matchesStatus && matchesSearch;
     });
-  }, [enquiries, activeService, statusFilter, searchQuery]);
+
+    if (!sortField) return list;
+
+    return [...list].sort((a, b) => {
+      let valA = a[sortField];
+      let valB = b[sortField];
+
+      if (sortField === 'quotation') {
+        const numA = parseFloat(String(valA || '').replace(/[^0-9.]/g, '')) || 0;
+        const numB = parseFloat(String(valB || '').replace(/[^0-9.]/g, '')) || 0;
+        return sortDirection === 'asc' ? numA - numB : numB - numA;
+      }
+
+      valA = String(valA || '').toLowerCase();
+      valB = String(valB || '').toLowerCase();
+      if (sortDirection === 'asc') {
+        return valA.localeCompare(valB);
+      }
+      return valB.localeCompare(valA);
+    });
+  }, [enquiries, activeService, statusFilter, searchQuery, sortField, sortDirection]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(sortedAndFilteredEnquiries.length / itemsPerPage) || 1;
+  const paginatedEnquiries = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return sortedAndFilteredEnquiries.slice(start, start + itemsPerPage);
+  }, [sortedAndFilteredEnquiries, currentPage, itemsPerPage]);
 
   const getServiceConfig = (type) => {
     switch (type) {
-      case 'Loan':
-        return {
-          label: 'Home Loans',
-          icon: CreditCard,
-          pillColor: 'bg-blue-50/80 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 border-blue-200/60 dark:border-blue-900/50',
-          hoverBorder: 'group-hover:border-blue-300 dark:group-hover:border-blue-800'
-        };
       case 'Interior':
         return {
           label: 'Home Interior',
           icon: Home,
-          pillColor: 'bg-purple-50/80 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400 border-purple-200/60 dark:border-purple-900/50',
-          hoverBorder: 'group-hover:border-purple-300 dark:group-hover:border-purple-800'
+          pillColor: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+          hoverBorder: 'group-hover:border-purple-400'
         };
       case 'Movers':
         return {
           label: 'Packers & Movers',
           icon: Truck,
-          pillColor: 'bg-amber-50/80 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border-amber-200/60 dark:border-amber-900/50',
-          hoverBorder: 'group-hover:border-amber-300 dark:group-hover:border-amber-800'
+          pillColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+          hoverBorder: 'group-hover:border-amber-400'
         };
       case 'Legal':
         return {
           label: 'Legal Services',
           icon: Scale,
-          pillColor: 'bg-emerald-50/80 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-900/50',
-          hoverBorder: 'group-hover:border-emerald-300 dark:group-hover:border-emerald-800'
+          pillColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+          hoverBorder: 'group-hover:border-emerald-400'
         };
       default:
         return {
           label: 'General',
           icon: Layers,
-          pillColor: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200',
-          hoverBorder: 'group-hover:border-slate-300'
+          pillColor: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
+          hoverBorder: 'group-hover:border-slate-400'
         };
     }
   };
@@ -579,30 +643,65 @@ const ServicesManagement = () => {
       case 'Confirmed':
       case 'Completed':
         return {
-          pill: 'bg-emerald-50/90 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/40',
+          pill: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
           dot: 'bg-emerald-500'
         };
       case 'Quotation Sent':
         return {
-          pill: 'bg-purple-50/90 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400 border-purple-200 dark:border-purple-800/40',
+          pill: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20',
           dot: 'bg-purple-500'
         };
       case 'In Progress':
         return {
-          pill: 'bg-sky-50/90 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400 border-sky-200 dark:border-sky-800/40',
+          pill: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20',
           dot: 'bg-sky-500'
         };
       case 'Cancelled':
         return {
-          pill: 'bg-rose-50/90 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-800/40',
+          pill: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20',
           dot: 'bg-rose-500'
         };
       default:
         return {
-          pill: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+          pill: 'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20',
           dot: 'bg-slate-400'
         };
     }
+  };
+
+  const getDisplayServiceName = (item) => {
+    if (!item) return { title: 'Service', categoryLabel: '' };
+    const raw = item.serviceName || '';
+    // Strip redundant service prefixes if present (e.g., "Legal - ", "Interior Design - ")
+    const cleanTitle = raw.replace(/^(Legal|Interior(\s+Design)?|Packers\s*&\s*Movers)\s*[-:–—]\s*/i, '').trim();
+
+    const categoryLabel = 
+      item.serviceType === 'Interior' ? 'Home Interior' :
+      item.serviceType === 'Movers' ? 'Packers & Movers' :
+      item.serviceType === 'Legal' ? 'Legal & Title' : 'General Service';
+
+    return {
+      title: cleanTitle || raw || 'Service Request',
+      categoryLabel
+    };
+  };
+
+  const renderSortHeader = (label, field, align = 'left') => {
+    const isSorted = sortField === field;
+    return (
+      <th
+        className={`py-2.5 px-3.5 align-middle text-${align} whitespace-nowrap cursor-pointer select-none group/th hover:text-[var(--text-primary)] transition-colors`}
+        onClick={() => handleSort(field)}
+      >
+        <div className={`inline-flex items-center gap-1.5 ${align === 'center' ? 'justify-center' : align === 'right' ? 'justify-end' : ''}`}>
+          <span>{label}</span>
+          <ArrowUpDown
+            size={11}
+            className={`transition-colors ${isSorted ? 'text-brand' : 'text-slate-400/50 opacity-0 group-hover/th:opacity-100'}`}
+          />
+        </div>
+      </th>
+    );
   };
 
   return (
@@ -620,69 +719,89 @@ const ServicesManagement = () => {
         </div>
       )}
       
-      {/* ─── 4 POLISHED KPI CARDS WITH HOVER LIFT & GLOW ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+      {/* ─── 3 POLISHED KPI CARDS (TOP-ACCENT MINIMAL STYLE) ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-3">
         {[
-          { key: 'Loan', title: 'Loan Services', subtitle: 'Home Loans & LAP Desk', icon: CreditCard, count: enquiries.filter(e => e.serviceType === 'Loan').length, unit: 'Inquiries', accent: 'from-blue-500 to-indigo-500' },
-          { key: 'Interior', title: 'Home Interior', subtitle: 'Design & Modular Fitouts', icon: Home, count: enquiries.filter(e => e.serviceType === 'Interior').length, unit: 'Projects', accent: 'from-purple-500 to-pink-500' },
-          { key: 'Movers', title: 'Packers & Movers', subtitle: 'Local & Intercity Relocation', icon: Truck, count: enquiries.filter(e => e.serviceType === 'Movers').length, unit: 'Moves', accent: 'from-amber-500 to-orange-500' },
-          { key: 'Legal', title: 'Legal Services', subtitle: 'Title Search & Registry', icon: Scale, count: enquiries.filter(e => e.serviceType === 'Legal').length, unit: 'Cases', accent: 'from-emerald-500 to-teal-500' }
+          {
+            key: 'Interior',
+            title: 'Home Interior',
+            subtitle: 'Design & Modular Fitouts',
+            icon: Home,
+            count: enquiries.filter(e => e.serviceType === 'Interior').length,
+            unit: 'Projects',
+            accent: 'border-t-brand/40 hover:border-t-brand',
+            iconColor: 'text-brand bg-brand/10'
+          },
+          {
+            key: 'Movers',
+            title: 'Packers & Movers',
+            subtitle: 'Local & Relocation',
+            icon: Truck,
+            count: enquiries.filter(e => e.serviceType === 'Movers').length,
+            unit: 'Moves',
+            accent: 'border-t-brand/40 hover:border-t-brand',
+            iconColor: 'text-brand bg-brand/10'
+          },
+          {
+            key: 'Legal',
+            title: 'Legal Services',
+            subtitle: 'Title Search & Registry',
+            icon: Scale,
+            count: enquiries.filter(e => e.serviceType === 'Legal').length,
+            unit: 'Cases',
+            accent: 'border-t-brand/40 hover:border-t-brand',
+            iconColor: 'text-brand bg-brand/10'
+          }
         ].map((card) => {
           const Icon = card.icon;
           const isSelected = activeService === card.key;
           return (
             <div
               key={card.key}
-              onClick={() => setActiveService(isSelected ? 'ALL' : card.key)}
+              onClick={() => {
+                setActiveService(isSelected ? 'ALL' : card.key);
+                setCurrentPage(1);
+              }}
               role="button"
               tabIndex={0}
-              className={`group relative p-3.5 rounded-xl border bg-[var(--bg-surface)] transition-all duration-200 cursor-pointer select-none flex flex-col justify-between overflow-hidden ${
-                isSelected
-                  ? 'border-brand ring-2 ring-brand/20 shadow-sm -translate-y-0.5'
-                  : 'border-[var(--border)] hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md hover:-translate-y-1'
+              className={`group bg-[var(--bg-surface)] rounded-xl p-3.5 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden flex flex-col justify-between border border-[var(--border)] border-t-2 text-left cursor-pointer ${
+                isSelected 
+                  ? 'border-brand border-t-brand ring-1 ring-brand/30 bg-brand/[0.02]' 
+                  : `${card.accent}`
               }`}
             >
-              {/* Subtle Top Gradient Glow Accent */}
-              <div className={`absolute top-0 left-0 right-0 h-0.5 transition-opacity duration-300 ${
-                isSelected ? 'bg-brand opacity-100' : 'bg-gradient-to-r from-transparent via-brand to-transparent opacity-0 group-hover:opacity-100'
-              }`} />
-
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block transition-colors group-hover:text-[var(--text-primary)]">
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block">
                     {card.title}
                   </span>
-                  <div className="flex items-baseline gap-1.5 mt-0.5">
-                    <span className="text-2xl font-bold tracking-tight text-[var(--text-primary)] transition-transform duration-200 group-hover:scale-105 inline-block">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
                       {card.count}
                     </span>
-                    <span className="text-xs font-semibold text-[var(--text-muted)]">
+                    <span className="text-[11px] text-[var(--text-muted)] font-medium">
                       {card.unit}
                     </span>
                   </div>
                 </div>
 
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300 ${
-                  isSelected
-                    ? 'bg-brand/10 text-brand scale-105'
-                    : 'bg-[var(--bg-muted)] text-[var(--text-muted)] group-hover:scale-110 group-hover:text-brand group-hover:bg-brand/10'
-                }`}>
-                  <Icon size={16} strokeWidth={1.8} />
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110 text-brand bg-brand/10">
+                  <Icon size={16} strokeWidth={2} />
                 </div>
               </div>
 
-              <div className="mt-2 pt-1.5 border-t border-[var(--border)]/70 flex items-center justify-between text-[11px]">
-                <span className="text-[var(--text-muted)] truncate transition-colors group-hover:text-[var(--text-primary)]">
+              <div className="mt-2.5 pt-2 border-t border-[var(--border)] flex items-center justify-between text-[11px]">
+                <span className="text-[var(--text-muted)] truncate max-w-[150px]">
                   {card.subtitle}
                 </span>
                 {isSelected ? (
-                  <span className="text-brand font-bold text-[10px] shrink-0 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse"></span>
-                    <span>Filtered</span>
+                  <span className="text-[10px] font-bold text-brand bg-brand/10 px-1.5 py-0.5 rounded flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
+                    Filtered
                   </span>
                 ) : (
-                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
-                    Live DB
+                  <span className="text-[10px] font-medium text-[var(--text-muted)] group-hover:text-brand transition-colors">
+                    Click to filter
                   </span>
                 )}
               </div>
@@ -698,10 +817,9 @@ const ServicesManagement = () => {
         <div className="p-3 border-b border-[var(--border)] flex flex-wrap items-center justify-between gap-2.5 bg-[var(--bg-surface)]">
           
           {/* Segmented Category Filter Tabs */}
-          <div className="flex flex-wrap items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1 bg-[var(--bg-muted)]/60 p-1 rounded-xl border border-[var(--border)]">
             {[
               { id: 'ALL', label: 'All Services', count: enquiries.length },
-              { id: 'Loan', label: 'Loans', count: enquiries.filter(e => e.serviceType === 'Loan').length },
               { id: 'Interior', label: 'Interior', count: enquiries.filter(e => e.serviceType === 'Interior').length },
               { id: 'Movers', label: 'Movers', count: enquiries.filter(e => e.serviceType === 'Movers').length },
               { id: 'Legal', label: 'Legal', count: enquiries.filter(e => e.serviceType === 'Legal').length }
@@ -711,16 +829,19 @@ const ServicesManagement = () => {
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setActiveService(tab.id)}
-                  className={`h-8 px-2.5 rounded-lg text-xs font-medium transition-all duration-150 flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                  onClick={() => {
+                    setActiveService(tab.id);
+                    setCurrentPage(1);
+                  }}
+                  className={`h-7 px-2.5 rounded-lg text-xs font-medium transition-all duration-150 flex items-center gap-1.5 cursor-pointer active:scale-95 ${
                     active
-                      ? 'bg-brand text-white font-semibold shadow-xs shadow-brand/25 scale-[1.02]'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)]'
+                      ? 'bg-brand text-white font-semibold shadow-xs'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
                   }`}
                 >
                   <span>{tab.label}</span>
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold transition-colors ${
-                    active ? 'bg-white/25 text-white' : 'bg-[var(--bg-muted)] text-[var(--text-muted)]'
+                    active ? 'bg-white/20 text-white' : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]'
                   }`}>
                     {tab.count}
                   </span>
@@ -733,20 +854,26 @@ const ServicesManagement = () => {
           <div className="flex flex-wrap items-center gap-2">
             
             {/* Search Input */}
-            <div className="relative w-40 sm:w-48">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={13} />
+            <div className="relative w-44 sm:w-56">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" size={13} />
               <input
                 type="text"
-                placeholder="Search client, partner..."
+                placeholder="Search client, ID, partner..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-8 pl-8 pr-6 bg-[var(--bg-muted)] text-xs text-[var(--text-primary)] rounded-lg border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15 focus:bg-[var(--bg-surface)] placeholder:text-[var(--text-muted)] transition-all duration-200"
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full h-8 pl-8 pr-7 bg-[var(--bg-muted)] text-xs text-[var(--text-primary)] rounded-lg border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 focus:bg-[var(--bg-surface)] placeholder:text-[var(--text-muted)] transition-all duration-150"
               />
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 hover:scale-110 transition-all cursor-pointer"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setCurrentPage(1);
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] p-0.5 transition-colors cursor-pointer"
                 >
                   <X size={12} />
                 </button>
@@ -756,8 +883,11 @@ const ServicesManagement = () => {
             {/* Status Dropdown */}
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-8 px-2.5 bg-[var(--bg-muted)] text-xs font-medium text-[var(--text-primary)] rounded-lg border border-[var(--border)] hover:border-slate-300 dark:hover:border-slate-700 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15 cursor-pointer shrink-0 transition-all duration-200"
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-8 px-2.5 bg-[var(--bg-muted)] text-xs font-medium text-[var(--text-primary)] rounded-lg border border-[var(--border)] hover:border-slate-300 dark:hover:border-slate-700 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 cursor-pointer shrink-0 transition-all duration-150"
             >
               <option value="All">All Statuses</option>
               <option value="In Progress">In Progress</option>
@@ -782,7 +912,7 @@ const ServicesManagement = () => {
             <button
               type="button"
               onClick={() => setIsAddModalOpen(true)}
-              className="h-8 px-2.5 rounded-lg text-xs font-semibold bg-brand text-white hover:bg-brand-dark transition-all duration-150 flex items-center gap-1 shrink-0 cursor-pointer shadow-xs hover:shadow-sm hover:shadow-brand/25 active:scale-95"
+              className="h-8 px-3 rounded-lg text-xs font-semibold bg-brand text-white hover:bg-brand-dark transition-all duration-150 flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs hover:shadow-brand/20 active:scale-95"
             >
               <Plus size={14} />
               <span className="hidden sm:inline">New Request</span>
@@ -795,38 +925,45 @@ const ServicesManagement = () => {
         <div className="w-full overflow-x-auto">
           <table className="w-full text-left border-collapse table-auto">
             <thead>
-              <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-wider bg-[var(--bg-muted)]/50">
-                <th className="py-2.5 px-3 align-middle whitespace-nowrap">ID</th>
-                <th className="py-2.5 px-3 align-middle">Service</th>
-                <th className="py-2.5 px-3 align-middle">Client</th>
-                <th className="py-2.5 px-3 align-middle">Location</th>
-                <th className="py-2.5 px-3 align-middle">Partner</th>
-                <th className="py-2.5 px-3 align-middle">Quotation</th>
-                <th className="py-2.5 px-3 align-middle text-center whitespace-nowrap">Status</th>
-                <th className="py-2.5 px-3 align-middle text-right whitespace-nowrap">Actions</th>
+              <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-[11px] font-semibold uppercase tracking-wider bg-[var(--bg-muted)]/50">
+                {renderSortHeader('Service Request', 'serviceName')}
+                {renderSortHeader('Client & Route', 'clientName')}
+                {renderSortHeader('Assigned Partner', 'assignedPartner')}
+                {renderSortHeader('Quotation', 'quotation')}
+                <th 
+                  className="py-2.5 px-3.5 align-middle text-center whitespace-nowrap cursor-pointer select-none group/th hover:text-[var(--text-primary)] transition-colors"
+                  onClick={() => handleSort('status')}
+                >
+                  <div className="inline-flex items-center justify-center gap-1.5">
+                    <span>Status</span>
+                    <ArrowUpDown size={11} className={`transition-colors ${sortField === 'status' ? 'text-brand' : 'text-slate-400/50 opacity-0 group-hover/th:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="py-2.5 px-3.5 align-middle text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-[var(--border)] text-xs">
               {isLoading ? (
                 <tr>
-                  <td colSpan="8" className="py-12 text-center text-[var(--text-muted)]">
-                    <div className="flex flex-col items-center justify-center space-y-2">
-                      <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin"></div>
-                      <p className="text-xs font-medium">Loading real service requests from database...</p>
-                    </div>
+                  <td colSpan="6" className="py-12 text-center">
+                    <AdminLoader
+                      text="Loading service requests..."
+                      subtext="Fetching customer service requirements from database"
+                      minHeight="min-h-[180px]"
+                    />
                   </td>
                 </tr>
-              ) : filteredEnquiries.length === 0 ? (
+              ) : paginatedEnquiries.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="py-10 text-center text-[var(--text-muted)]">
+                  <td colSpan="6" className="py-12 text-center text-[var(--text-muted)]">
                     <div className="flex flex-col items-center justify-center space-y-1.5 animate-in fade-in duration-200">
-                      <div className="w-8 h-8 rounded-full bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)]">
-                        <Search size={15} />
+                      <div className="w-9 h-9 rounded-full bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)]">
+                        <Search size={16} />
                       </div>
                       <p className="font-semibold text-xs text-[var(--text-primary)]">No matching service inquiries</p>
-                      <p className="text-[11px] text-[var(--text-muted)]">
-                        Try adjusting your search criteria or resetting filters.
+                      <p className="text-[11px] text-[var(--text-muted)] max-w-xs mx-auto">
+                        Try adjusting your search criteria or resetting active filters.
                       </p>
                       {(searchQuery || statusFilter !== 'All' || activeService !== 'ALL') && (
                         <button
@@ -835,6 +972,7 @@ const ServicesManagement = () => {
                             setSearchQuery('');
                             setStatusFilter('All');
                             setActiveService('ALL');
+                            setCurrentPage(1);
                           }}
                           className="mt-1 text-xs font-semibold text-brand hover:underline cursor-pointer"
                         >
@@ -845,154 +983,161 @@ const ServicesManagement = () => {
                   </td>
                 </tr>
               ) : (
-                filteredEnquiries.map((item) => {
-                  const cfg = getServiceConfig(item.serviceType);
-                  const Icon = cfg.icon;
+                paginatedEnquiries.map((item) => {
                   const statusCfg = getStatusBadge(item.status);
+                  const displayService = getDisplayServiceName(item);
+                  const isMove = item.location && (item.location.includes('->') || item.location.includes('→'));
 
                   return (
                     <tr
                       key={item._id}
                       onClick={() => setSelectedEnquiry(item)}
-                      className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors duration-150 cursor-pointer"
+                      className="group hover:bg-[var(--bg-muted)]/40 transition-colors duration-150 cursor-pointer"
                     >
-                      {/* 1. ID */}
-                      <td className="py-2.5 px-3 align-middle whitespace-nowrap">
-                        <span className="font-mono text-[11px] font-semibold text-[var(--text-primary)] group-hover:text-brand transition-colors duration-150">
-                          {item.id}
-                        </span>
-                      </td>
-
-                      {/* 2. Service Category & Name */}
-                      <td className="py-2.5 px-3 align-middle">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border ${cfg.pillColor} group-hover:scale-105 transition-transform duration-200`}>
-                            <Icon size={11} />
+                      {/* 1. Service Request (ID Pill + Title + Category) */}
+                      <td className="py-3 px-3.5 align-middle">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-mono text-[10px] font-semibold text-brand bg-brand/10 px-1.5 py-0.2 rounded border border-brand/20 select-all">
+                              {item.id}
+                            </span>
+                            <span className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate max-w-[220px]" title={item.serviceName}>
+                              {displayService.title}
+                            </span>
                           </div>
-                          <span className="font-medium text-[var(--text-primary)] group-hover:text-brand transition-colors duration-150" title={item.serviceName}>
-                            {item.serviceName}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* 3. Client Name & Phone */}
-                      <td className="py-2.5 px-3 align-middle whitespace-nowrap">
-                        <div className="leading-tight">
-                          <p className="font-semibold text-[var(--text-primary)] group-hover:text-[var(--text-primary)] transition-colors">
-                            {item.clientName}
-                          </p>
-                          <p className="text-[11px] text-[var(--text-muted)] font-mono mt-0.5">
-                            {item.clientPhone}
+                          <p className="text-[10px] text-[var(--text-muted)] font-medium mt-0.5">
+                            {displayService.categoryLabel}
                           </p>
                         </div>
                       </td>
 
-                      {/* 4. Target Location */}
-                      <td className="py-2.5 px-3 align-middle">
-                        <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
-                          <MapPin size={11} className="shrink-0 text-slate-400 group-hover:text-brand transition-colors duration-200" />
-                          <span className="truncate max-w-[140px]" title={item.location}>
-                            {item.location}
-                          </span>
+                      {/* 2. Client Details & Route */}
+                      <td className="py-3 px-3.5 align-middle">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate max-w-[150px] capitalize">
+                              {item.clientName}
+                            </span>
+                            {item.clientPhone && item.clientPhone !== 'N/A' && (
+                              <div className="inline-flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                <a
+                                  href={`tel:${item.clientPhone}`}
+                                  title={`Call ${item.clientName}`}
+                                  className="w-4 h-4 rounded text-[var(--text-muted)] hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center justify-center transition-colors cursor-pointer"
+                                >
+                                  <Phone size={10} />
+                                </a>
+                                <a
+                                  href={`https://wa.me/${item.clientPhone.replace(/[^0-9]/g, '')}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  title="Chat on WhatsApp"
+                                  className="w-4 h-4 rounded text-[var(--text-muted)] hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center justify-center transition-colors cursor-pointer"
+                                >
+                                  <MessageCircle size={10} />
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                          {/* Route / Location line */}
+                          {isMove ? (
+                            <div className="flex items-center gap-1 text-[11px] text-[var(--text-muted)] mt-0.5" title={item.location}>
+                              <span className="truncate max-w-[75px]">{item.location.split(/->|→/)[0]?.trim()}</span>
+                              <ArrowRight size={10} className="text-brand shrink-0" />
+                              <span className="truncate max-w-[75px]">{item.location.split(/->|→/)[1]?.trim() || ''}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 text-[11px] text-[var(--text-muted)] mt-0.5">
+                              <MapPin size={10} className="shrink-0 text-slate-400" />
+                              <span className="truncate max-w-[150px]">{item.location || 'India'}</span>
+                            </div>
+                          )}
                         </div>
                       </td>
 
-                      {/* 5. Assigned Partner */}
-                      <td className="py-2.5 px-3 align-middle whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPartnerAssignModal(item);
-                            setSelectedPartner(item.assignedPartner || partnersCatalog[item.serviceType][0]);
-                          }}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium text-[var(--text-primary)] bg-[var(--bg-muted)] hover:bg-brand/10 hover:border-brand/30 hover:text-brand border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-95"
-                          title="Click to assign or change partner"
-                        >
-                          <UserCheck size={11} className="text-brand shrink-0" />
-                          <span>{item.assignedPartner || 'Assign'}</span>
-                        </button>
+                      {/* 3. Assigned Partner */}
+                      <td className="py-3 px-3.5 align-middle whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        {item.assignedPartner ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPartnerAssignModal(item);
+                              setSelectedPartner(item.assignedPartner || (partnersCatalog[item.serviceType] && partnersCatalog[item.serviceType][0]));
+                              setNewQuotationAmount(item.quotation || '');
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium text-[var(--text-primary)] bg-[var(--bg-muted)] hover:bg-[var(--bg-surface)] hover:border-brand/40 hover:text-brand border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-95 max-w-[140px]"
+                            title="Click to change partner"
+                          >
+                            <UserCheck size={11} className="text-brand shrink-0" />
+                            <span className="truncate">{item.assignedPartner}</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPartnerAssignModal(item);
+                              setSelectedPartner((partnersCatalog[item.serviceType] && partnersCatalog[item.serviceType][0]) || '');
+                              setNewQuotationAmount(item.quotation || '');
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium text-[var(--text-muted)] hover:text-brand hover:border-brand/40 hover:bg-brand/5 border border-dashed border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-95"
+                            title="Click to assign partner"
+                          >
+                            <Plus size={11} className="text-brand shrink-0" />
+                            <span>Assign</span>
+                          </button>
+                        )}
                       </td>
 
-                      {/* 6. Quotation / Value */}
-                      <td className="py-2.5 px-3 align-middle whitespace-nowrap">
+                      {/* 4. Quotation / Value */}
+                      <td className="py-3 px-3.5 align-middle whitespace-nowrap">
                         <div className="leading-tight">
-                          <p className="font-semibold text-[var(--text-primary)]">
+                          <p className={`font-semibold text-xs ${item.quotation && !item.quotation.toLowerCase().includes('under review') ? 'text-[var(--text-primary)] font-mono' : 'text-[var(--text-muted)] italic font-normal'}`}>
                             {item.quotation || 'Under Review'}
                           </p>
                           {item.quotationSubtext && (
-                            <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                            <p className="text-[10px] text-[var(--text-muted)] mt-0.5 truncate max-w-[130px]" title={item.quotationSubtext}>
                               {item.quotationSubtext}
                             </p>
                           )}
                         </div>
                       </td>
 
-                      {/* 7. Status with Pulsing Live Dot */}
-                      <td className="py-2.5 px-3 align-middle text-center whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border shadow-2xs ${statusCfg.pill} transition-all duration-200`}>
-                          <span className="relative flex h-1.5 w-1.5 shrink-0">
-                            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${statusCfg.dot}`}></span>
-                            <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${statusCfg.dot}`}></span>
-                          </span>
+                      {/* 5. Status */}
+                      <td className="py-3 px-3.5 align-middle text-center whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border shadow-2xs ${statusCfg.pill} transition-all duration-200`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`}></span>
                           <span>{item.status}</span>
                         </span>
                       </td>
 
-                      {/* 8. Actions: Call, WhatsApp, View, Edit, Delete */}
-                      <td className="py-2.5 px-3 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <div className="inline-flex items-center gap-1">
-                          {/* Call Button */}
-                          {item.clientPhone && item.clientPhone !== 'N/A' && (
-                            <a
-                              href={`tel:${item.clientPhone}`}
-                              title={`Call ${item.clientName}`}
-                              className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90 shadow-2xs"
-                            >
-                              <Phone size={12} />
-                            </a>
-                          )}
-
-                          {/* WhatsApp Button */}
-                          {item.clientPhone && item.clientPhone !== 'N/A' && (
-                            <a
-                              href={`https://wa.me/${item.clientPhone.replace(/[^0-9]/g, '')}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              title="Chat on WhatsApp"
-                              className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90 shadow-2xs"
-                            >
-                              <MessageCircle size={12} />
-                            </a>
-                          )}
-
-                          {/* Details Eye Icon Button */}
+                      {/* 6. Actions: View, Edit, Delete */}
+                      <td className="py-3 px-3.5 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="inline-flex items-center gap-1 justify-end">
                           <button
                             type="button"
                             onClick={() => setSelectedEnquiry(item)}
                             title="View Details"
-                            className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-brand hover:border-brand/40 hover:bg-brand/10 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90 shadow-2xs"
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-brand hover:bg-brand/10 transition-colors cursor-pointer active:scale-90"
                           >
                             <Eye size={13} />
                           </button>
 
-                          {/* Edit Icon Button */}
                           <button
                             type="button"
                             onClick={() => setEditingEnquiry({ ...item })}
                             title="Edit Inquiry"
-                            className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-brand hover:border-brand/40 hover:bg-brand/10 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90 shadow-2xs"
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-brand hover:bg-brand/10 transition-colors cursor-pointer active:scale-90"
                           >
                             <Edit2 size={13} />
                           </button>
 
-                          {/* Delete Button */}
                           <button
                             type="button"
                             onClick={() => setDeleteConfirmItem(item)}
                             title="Delete Inquiry"
-                            className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90 shadow-2xs"
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer active:scale-90"
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={13} />
                           </button>
                         </div>
                       </td>
@@ -1004,13 +1149,64 @@ const ServicesManagement = () => {
           </table>
         </div>
 
-        {/* Clean Footer Bar */}
-        <div className="p-2 px-3.5 border-t border-[var(--border)] flex items-center justify-between text-[11px] text-[var(--text-muted)] bg-[var(--bg-surface)]">
-          <span>Showing <strong className="text-[var(--text-primary)] font-semibold">{filteredEnquiries.length}</strong> of {enquiries.length} live inquiries</span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Real-time connected to Database</span>
-          </span>
+        {/* Clean Footer Bar with Pagination */}
+        <div className="p-2.5 px-3.5 border-t border-[var(--border)] flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-[var(--text-muted)] bg-[var(--bg-surface)]">
+          <div className="flex items-center gap-3">
+            <span>
+              Showing <strong className="text-[var(--text-primary)] font-semibold">{sortedAndFilteredEnquiries.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</strong>
+              {' '}-{' '}
+              <strong className="text-[var(--text-primary)] font-semibold">{Math.min(currentPage * itemsPerPage, sortedAndFilteredEnquiries.length)}</strong> of <strong className="text-[var(--text-primary)] font-semibold">{sortedAndFilteredEnquiries.length}</strong> inquiries
+            </span>
+            <span className="hidden sm:inline text-[var(--border)]">|</span>
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px]">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Live Database Connected</span>
+            </span>
+          </div>
+
+          {/* Pagination controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="h-7 px-2 rounded-md border border-[var(--border)] text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer flex items-center gap-1"
+              >
+                <ChevronLeft size={13} />
+                <span>Prev</span>
+              </button>
+
+              {Array.from({ length: totalPages }).map((_, i) => {
+                const pageNum = i + 1;
+                const isActive = currentPage === pageNum;
+                return (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-7 h-7 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
+                      isActive
+                        ? 'bg-brand text-white shadow-2xs'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] border border-transparent'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="h-7 px-2 rounded-md border border-[var(--border)] text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer flex items-center gap-1"
+              >
+                <span>Next</span>
+                <ChevronRight size={13} />
+              </button>
+            </div>
+          )}
         </div>
 
       </div>
@@ -1169,137 +1365,165 @@ const ServicesManagement = () => {
         </div>
       )}
 
-      {/* ─── MODAL: NEW REAL SERVICE REQUEST ─── */}
+      {/* ─── MODAL: NEW SERVICE REQUEST (CLEAN, SIMPLE & CATALOG LINKED) ─── */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-xs flex items-center justify-center p-4 transition-all duration-200">
-          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-xl max-w-lg w-full shadow-2xl border border-[var(--border)] p-5 space-y-4 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b border-[var(--border)] pb-2.5">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 transition-all duration-200">
+          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-2xl max-w-md w-full shadow-2xl border border-[var(--border)] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="p-4 px-5 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-muted)]/30">
               <div>
-                <h3 className="text-sm font-bold text-[var(--text-primary)]">New Service Request</h3>
-                <p className="text-[11px] text-[var(--text-muted)]">Record a customer inquiry across any service line directly into MongoDB</p>
+                <h3 className="text-sm font-bold text-[var(--text-primary)] tracking-tight">Record Service Request</h3>
+                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">Create a customer inquiry across Interior, Movers, or Legal</p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
-                className="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
               >
                 <X size={15} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateRequest} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleCreateRequest} className="p-5 space-y-4 max-h-[82vh] overflow-y-auto">
+              
+              {/* 1. Category Selection: 3 Instant Tap Cards */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
+                  Service Vertical *
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'Interior', label: 'Interior', desc: 'Decor & Fitouts', icon: Home },
+                    { id: 'Movers', label: 'Movers', desc: 'Relocation', icon: Truck },
+                    { id: 'Legal', label: 'Legal', desc: 'Deeds & Title', icon: Scale }
+                  ].map((cat) => {
+                    const Icon = cat.icon;
+                    const isSelected = newRequest.serviceType === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => {
+                          setNewRequest(prev => ({
+                            ...prev,
+                            serviceType: cat.id,
+                            serviceName: '',
+                            assignedPartner: (partnersCatalog[cat.id] && partnersCatalog[cat.id][0]) || ''
+                          }));
+                        }}
+                        className={`p-2.5 rounded-xl border text-left transition-all duration-150 cursor-pointer flex flex-col justify-between ${
+                          isSelected
+                            ? 'border-brand bg-brand/10 text-brand ring-1 ring-brand/40 shadow-xs'
+                            : 'border-[var(--border)] bg-[var(--bg-muted)]/40 text-[var(--text-secondary)] hover:border-slate-300 dark:hover:border-slate-700 hover:bg-[var(--bg-muted)]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <Icon size={16} className={isSelected ? 'text-brand' : 'text-[var(--text-muted)]'} />
+                          {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-brand"></span>}
+                        </div>
+                        <div className="mt-2">
+                          <span className="text-xs font-bold leading-none block">{cat.label}</span>
+                          <span className="text-[10px] text-[var(--text-muted)] block mt-0.5">{cat.desc}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 2. Select Catalog Offering / Package (Auto-populates price & partner) */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-[var(--text-primary)] flex items-center justify-between">
+                  <span>Package / Offering</span>
+                  <span className="text-[10px] text-[var(--text-muted)] font-normal">Select from catalog or type custom</span>
+                </label>
+                <div className="space-y-1.5">
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const selectedId = e.target.value;
+                      if (!selectedId) return;
+                      const found = catalogOfferings.find(o => o._id === selectedId);
+                      if (found) {
+                        setNewRequest(prev => ({
+                          ...prev,
+                          serviceName: found.title,
+                          quotation: found.priceDisplay || (found.price ? `₹${Number(found.price).toLocaleString('en-IN')}` : 'Under Review'),
+                          assignedPartner: (found.partners && found.partners[0]) || prev.assignedPartner
+                        }));
+                      }
+                    }}
+                    className="w-full h-8.5 px-2 bg-[var(--bg-muted)] text-xs font-medium text-[var(--text-primary)] rounded-lg border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 cursor-pointer transition-all"
+                  >
+                    <option value="">-- Choose from Catalog (Auto-fill) --</option>
+                    {catalogOfferings
+                      .filter(o => o.category === newRequest.serviceType)
+                      .map(o => (
+                        <option key={o._id} value={o._id}>
+                          {o.title} ({o.priceDisplay || 'Quote'})
+                        </option>
+                      ))}
+                  </select>
+
+                  <input
+                    type="text"
+                    required
+                    placeholder="Or enter custom service title..."
+                    value={newRequest.serviceName}
+                    onChange={(e) => setNewRequest({ ...newRequest, serviceName: e.target.value })}
+                    className="w-full h-8.5 px-3 bg-[var(--bg-muted)] text-xs text-[var(--text-primary)] rounded-lg border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all placeholder:text-[var(--text-muted)]"
+                  />
+                </div>
+              </div>
+
+              {/* 3. Client Name & Phone */}
+              <div className="grid grid-cols-2 gap-2.5">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-[var(--text-muted)]">Client Name *</label>
+                  <label className="text-[11px] font-semibold text-[var(--text-primary)]">Client Name *</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Vikram Singhania"
                     value={newRequest.clientName}
                     onChange={(e) => setNewRequest({ ...newRequest, clientName: e.target.value })}
-                    className="w-full h-8 px-2.5 bg-[var(--bg-muted)] text-xs text-[var(--text-primary)] rounded-md border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all"
+                    className="w-full h-8.5 px-3 bg-[var(--bg-muted)] text-xs text-[var(--text-primary)] rounded-lg border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-[var(--text-muted)]">Contact Phone *</label>
+                  <label className="text-[11px] font-semibold text-[var(--text-primary)]">Contact Phone *</label>
                   <input
                     type="text"
                     required
                     placeholder="+91 98..."
                     value={newRequest.clientPhone}
                     onChange={(e) => setNewRequest({ ...newRequest, clientPhone: e.target.value })}
-                    className="w-full h-8 px-2.5 bg-[var(--bg-muted)] text-xs text-[var(--text-primary)] rounded-md border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all"
+                    className="w-full h-8.5 px-3 bg-[var(--bg-muted)] text-xs text-[var(--text-primary)] rounded-lg border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all font-mono"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-[var(--text-muted)]">Client Email (Optional)</label>
-                  <input
-                    type="email"
-                    placeholder="client@example.com"
-                    value={newRequest.clientEmail}
-                    onChange={(e) => setNewRequest({ ...newRequest, clientEmail: e.target.value })}
-                    className="w-full h-8 px-2.5 bg-[var(--bg-muted)] text-xs text-[var(--text-primary)] rounded-md border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-[var(--text-muted)]">Service Category *</label>
-                  <select
-                    value={newRequest.serviceType}
-                    onChange={(e) => setNewRequest({ ...newRequest, serviceType: e.target.value })}
-                    className="w-full h-8 px-2 bg-[var(--bg-muted)] text-xs font-medium text-[var(--text-primary)] rounded-md border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 cursor-pointer transition-all"
-                  >
-                    <option value="Loan">Home Loan</option>
-                    <option value="Interior">Home Interior</option>
-                    <option value="Movers">Packers & Movers</option>
-                    <option value="Legal">Legal & Title Search</option>
-                  </select>
-                </div>
+              {/* 4. Location / Route */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-[var(--text-muted)]">Location / Route</label>
+                <input
+                  type="text"
+                  placeholder={newRequest.serviceType === 'Movers' ? 'e.g. Sector 62, Noida → Indirapuram' : 'e.g. Sector 43, Noida'}
+                  value={newRequest.location}
+                  onChange={(e) => setNewRequest({ ...newRequest, location: e.target.value })}
+                  className="w-full h-8.5 px-3 bg-[var(--bg-muted)] text-xs text-[var(--text-primary)] rounded-lg border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all placeholder:text-[var(--text-muted)]"
+                />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* 5. Partner & Quotation in clean card */}
+              <div className="grid grid-cols-2 gap-2.5 p-3 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)]">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-[var(--text-muted)]">Link Existing Property (Optional)</label>
-                  <select
-                    value={newRequest.propertyId}
-                    onChange={(e) => {
-                      setNewRequest({ ...newRequest, propertyId: e.target.value });
-                      const found = availableProperties.find(p => p._id === e.target.value);
-                      if (found) {
-                        setNewRequest(prev => ({
-                          ...prev,
-                          propertyId: e.target.value,
-                          propertyRef: found.title,
-                          location: [found.locality, found.city].filter(Boolean).join(', '),
-                          propertyValue: found.price ? `₹${Number(found.price).toLocaleString('en-IN')}` : ''
-                        }));
-                      }
-                    }}
-                    className="w-full h-8 px-2 bg-[var(--bg-muted)] text-xs font-medium text-[var(--text-primary)] rounded-md border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 cursor-pointer transition-all"
-                  >
-                    <option value="">-- Direct Inquiry / No Linked Property --</option>
-                    {availableProperties.map(p => (
-                      <option key={p._id} value={p._id}>
-                        {p.title} ({p.city})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-[var(--text-muted)]">Location / Route</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Sector 43, Noida"
-                    value={newRequest.location}
-                    onChange={(e) => setNewRequest({ ...newRequest, location: e.target.value })}
-                    className="w-full h-8 px-2.5 bg-[var(--bg-muted)] text-xs text-[var(--text-primary)] rounded-md border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-[var(--text-muted)]">Quotation Amount (₹)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 15,00,000"
-                    value={newRequest.quotation}
-                    onChange={(e) => setNewRequest({ ...newRequest, quotation: e.target.value })}
-                    className="w-full h-8 px-2.5 bg-[var(--bg-muted)] text-xs text-[var(--text-primary)] rounded-md border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-[var(--text-muted)]">Initial Partner</label>
+                  <label className="text-[11px] font-medium text-[var(--text-muted)]">Assign Partner</label>
                   <select
                     value={newRequest.assignedPartner}
                     onChange={(e) => setNewRequest({ ...newRequest, assignedPartner: e.target.value })}
-                    className="w-full h-8 px-2 bg-[var(--bg-muted)] text-xs font-medium text-[var(--text-primary)] rounded-md border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 cursor-pointer transition-all"
+                    className="w-full h-8 px-2 bg-[var(--bg-surface)] text-xs font-medium text-[var(--text-primary)] rounded-lg border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 cursor-pointer transition-all"
                   >
                     <option value="">-- Select Partner --</option>
                     {(partnersCatalog[newRequest.serviceType] || []).map((p, i) => (
@@ -1307,31 +1531,44 @@ const ServicesManagement = () => {
                     ))}
                   </select>
                 </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-[var(--text-muted)]">Quotation Value</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. ₹8,500 est."
+                    value={newRequest.quotation}
+                    onChange={(e) => setNewRequest({ ...newRequest, quotation: e.target.value })}
+                    className="w-full h-8 px-2.5 bg-[var(--bg-surface)] text-xs font-medium text-[var(--text-primary)] rounded-lg border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all"
+                  />
+                </div>
               </div>
 
+              {/* 6. Admin Notes (Optional) */}
               <div className="space-y-1">
-                <label className="text-[11px] font-medium text-[var(--text-muted)]">Admin Notes</label>
+                <label className="text-[11px] font-medium text-[var(--text-muted)]">Notes / Instructions (Optional)</label>
                 <textarea
                   rows={2}
-                  placeholder="Additional client requirements or instructions..."
+                  placeholder="Special instructions or customer preferences..."
                   value={newRequest.notes}
                   onChange={(e) => setNewRequest({ ...newRequest, notes: e.target.value })}
-                  className="w-full px-2.5 py-1.5 bg-[var(--bg-muted)] text-xs text-[var(--text-primary)] rounded-md border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 resize-none transition-all"
+                  className="w-full px-3 py-1.5 bg-[var(--bg-muted)] text-xs text-[var(--text-primary)] rounded-lg border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 resize-none transition-all placeholder:text-[var(--text-muted)]"
                 />
               </div>
 
+              {/* Actions */}
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border)]">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-3 py-1.5 rounded-md text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingNew}
-                  className="px-3.5 py-1.5 bg-brand hover:bg-brand-dark text-white rounded-md text-xs font-semibold transition-all duration-150 cursor-pointer shadow-xs hover:shadow-brand/20 active:scale-95 disabled:opacity-60 flex items-center gap-1.5"
+                  className="px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer shadow-xs hover:shadow-brand/20 active:scale-95 disabled:opacity-60 flex items-center gap-1.5"
                 >
                   {isSubmittingNew ? (
                     <>
@@ -1343,6 +1580,7 @@ const ServicesManagement = () => {
                   )}
                 </button>
               </div>
+
             </form>
           </div>
         </div>
@@ -1599,12 +1837,6 @@ const ServicesManagement = () => {
                     <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
                       <span className="text-[var(--text-muted)]">Property</span>
                       <span className="font-medium text-[var(--text-primary)]">{selectedEnquiry.propertyRef}</span>
-                    </div>
-                  )}
-                  {selectedEnquiry.loanRequired && (
-                    <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
-                      <span className="text-[var(--text-muted)]">Loan Required</span>
-                      <span className="font-semibold text-emerald-600">{selectedEnquiry.loanRequired}</span>
                     </div>
                   )}
                   {selectedEnquiry.budgetRange && (

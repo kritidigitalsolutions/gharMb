@@ -72,13 +72,35 @@ exports.getAllUsers = async (req, res, next) => {
 
     const users = await User.find(filter).sort({ createdAt: -1 });
 
-    // Fetch dynamic listings counts for each user
+    // Fetch dynamic listings counts and property owner ratings for each user
     const Property = require('../../models/property.model');
+    const PropertyReview = require('../../models/property-review.model');
     const usersWithListings = await Promise.all(
       users.map(async (u) => {
-        const count = await Property.countDocuments({ owner: u._id });
+        const [count, reviewStats] = await Promise.all([
+          Property.countDocuments({ owner: u._id }),
+          PropertyReview.aggregate([
+            { $match: { owner: u._id } },
+            {
+              $group: {
+                _id: '$owner',
+                avgRating: { $avg: '$rating' },
+                totalReviews: { $sum: 1 },
+              },
+            },
+          ]),
+        ]);
         const userObj = u.toObject();
         userObj.listings = count;
+        if (reviewStats.length > 0) {
+          userObj.rating = Math.round(reviewStats[0].avgRating * 10) / 10;
+          userObj.reviewsCount = reviewStats[0].totalReviews;
+          userObj.averageRating = userObj.rating;
+        } else {
+          userObj.rating = u.rating || 0;
+          userObj.reviewsCount = u.reviewCount || 0;
+          userObj.averageRating = u.rating || 0;
+        }
         return userObj;
       })
     );
@@ -754,3 +776,42 @@ exports.getUserEnquiries = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Get user's received property ratings & reviews
+// @route   GET /api/admin/users/:id/ratings
+// @access  Private (Admin only)
+exports.getUserRatings = async (req, res, next) => {
+  try {
+    const PropertyReview = require('../../models/property-review.model');
+    const reviews = await PropertyReview.find({ owner: req.params.id })
+      .populate('reviewer', 'name profilePicture phone role')
+      .populate('property', 'title propertyType city locality price photos submissionId')
+      .sort({ createdAt: -1 });
+
+    const totalReviews = reviews.length;
+    let sumRating = 0;
+    const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    reviews.forEach((r) => {
+      const star = Math.round(Number(r.rating) || 0);
+      if (breakdown[star] !== undefined) breakdown[star]++;
+      sumRating += Number(r.rating) || 0;
+    });
+
+    const averageRating = totalReviews > 0 ? Math.round((sumRating / totalReviews) * 10) / 10 : 0;
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        averageRating,
+        totalReviews,
+        rating: averageRating,
+        reviewsCount: totalReviews,
+        breakdown,
+        reviews,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

@@ -96,8 +96,8 @@ const referralSchema = new mongoose.Schema(
     },
     referralStatus: {
       type: String,
-      enum: ['pending_listing', 'listing_posted', 'rewarded', 'expired', 'cancelled'],
-      default: 'pending_listing',
+      enum: ['rewarded', 'pending_listing', 'listing_posted', 'expired', 'cancelled'],
+      default: 'rewarded',
       index: true,
     },
     propertyListed: {
@@ -144,7 +144,7 @@ const referralSchema = new mongoose.Schema(
     claimStatus: {
       type: String,
       enum: ['unclaimed', 'claim_submitted', 'pending_admin_payout', 'paid', 'rejected'],
-      default: 'unclaimed',
+      default: 'pending_admin_payout',
       index: true,
     },
     claimedAt: {
@@ -164,6 +164,7 @@ const referralSchema = new mongoose.Schema(
     payoutStatus: {
       type: String,
       enum: [
+        'Pending Admin Contact',
         'Eligible for Payout',
         'Claim Submitted',
         'Pending Admin Payout',
@@ -173,7 +174,7 @@ const referralSchema = new mongoose.Schema(
         'Cancelled',
         'Rejected',
       ],
-      default: 'Deal In Progress',
+      default: 'Pending Admin Contact',
       index: true,
     },
     payoutDate: {

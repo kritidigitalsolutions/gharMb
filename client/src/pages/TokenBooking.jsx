@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AdminLoader from '../components/common/AdminLoader';
 import {
   IndianRupee, ShieldCheck, Lock, RotateCcw, CheckCircle2,
   XCircle, Clock, Search, Filter, AlertCircle, Download,
@@ -568,8 +569,8 @@ const TokenBooking = () => {
         </div>
       </div>
 
-      {/* ─── 4 MINIMAL CLEAN STAT CARDS ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+      {/* ─── 4 POLISHED KPI CARDS (STANDARDIZED TOP-ACCENT KPI STYLE) ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           {
             key: 'total',
@@ -578,8 +579,9 @@ const TokenBooking = () => {
             icon: Layers,
             count: tokens.length,
             tag: 'All Time',
-            tagClass: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20',
-            iconBg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+            tagClass: 'text-brand bg-brand/10',
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10'
           },
           {
             key: 'pending',
@@ -588,10 +590,9 @@ const TokenBooking = () => {
             icon: Clock,
             count: pendingCount,
             tag: pendingCount > 0 ? 'Needs Attention' : 'All Clear',
-            tagClass: pendingCount > 0
-              ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20'
-              : 'text-slate-600 dark:text-slate-400 bg-slate-500/10 border-slate-500/20',
-            iconBg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+            tagClass: 'text-brand bg-brand/10',
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10'
           },
           {
             key: 'contacted',
@@ -600,8 +601,9 @@ const TokenBooking = () => {
             icon: PhoneCall,
             count: contactedCount,
             tag: 'In Touch',
-            tagClass: 'text-sky-600 dark:text-sky-400 bg-sky-500/10 border-sky-500/20',
-            iconBg: 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
+            tagClass: 'text-brand bg-brand/10',
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10'
           },
           {
             key: 'accepted',
@@ -610,37 +612,40 @@ const TokenBooking = () => {
             icon: CheckCircle2,
             count: acceptedCount,
             tag: 'Completed',
-            tagClass: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-            iconBg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+            tagClass: 'text-brand bg-brand/10',
+            accent: 'border-brand/40 hover:border-brand',
+            iconColor: 'text-brand bg-brand/10'
           }
         ].map((card) => {
           const Icon = card.icon;
           return (
             <div
               key={card.key}
-              className="p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] transition-all duration-200 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-sm flex flex-col justify-between"
+              className={`group bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl p-3.5 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden flex flex-col justify-between border-t-2 ${card.accent}`}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-[var(--text-muted)]">
-                  {card.title}
-                </span>
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${card.iconBg}`}>
-                  <Icon size={16} strokeWidth={2.2} />
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block">
+                    {card.title}
+                  </span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+                      {card.count}
+                    </span>
+                  </div>
+                </div>
+
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110 ${card.iconColor}`}>
+                  <Icon size={16} strokeWidth={2} />
                 </div>
               </div>
 
-              <div className="mt-3 flex items-baseline justify-between gap-2">
-                <span className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-                  {card.count}
-                </span>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${card.tagClass}`}>
+              <div className="mt-2.5 pt-2 border-t border-[var(--border)] flex items-center justify-between text-[11px]">
+                <span className="text-[var(--text-muted)] truncate">{card.subtitle}</span>
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${card.tagClass}`}>
                   {card.tag}
                 </span>
               </div>
-
-              <p className="text-[11px] text-[var(--text-muted)] mt-1.5 truncate">
-                {card.subtitle}
-              </p>
             </div>
           );
         })}
@@ -725,11 +730,12 @@ const TokenBooking = () => {
             <tbody className="divide-y divide-[var(--border)] text-xs">
               {isLoading ? (
                 <tr>
-                  <td colSpan="7" className="py-16 text-center text-[var(--text-muted)]">
-                    <div className="flex flex-col items-center justify-center space-y-2.5">
-                      <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin"></div>
-                      <p className="text-xs font-medium">Fetching real token reservations from MongoDB...</p>
-                    </div>
+                  <td colSpan="7" className="py-12 text-center">
+                    <AdminLoader
+                      text="Fetching token bookings..."
+                      subtext="Loading reservations and customer details"
+                      minHeight="min-h-[180px]"
+                    />
                   </td>
                 </tr>
               ) : filteredTokens.length === 0 ? (

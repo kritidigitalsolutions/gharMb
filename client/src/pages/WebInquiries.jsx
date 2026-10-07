@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import AdminLoader from '../components/common/AdminLoader';
 import {
   Inbox,
   Search,
@@ -580,10 +581,11 @@ export default function WebInquiries() {
       <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-xs">
         
         {isLoading ? (
-          <div className="p-16 text-center space-y-3">
-            <div className="w-7 h-7 border-2 border-brand/20 border-t-brand rounded-full animate-spin mx-auto" />
-            <p className="text-xs text-[var(--text-muted)]">Loading inquiries...</p>
-          </div>
+          <AdminLoader
+            text="Loading inquiries..."
+            subtext="Fetching customer messages and web inquiries"
+            minHeight="min-h-[240px]"
+          />
         ) : error ? (
           <div className="p-10 text-center space-y-3">
             <AlertCircle size={28} className="text-rose-500 mx-auto" />

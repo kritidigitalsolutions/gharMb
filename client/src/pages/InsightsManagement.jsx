@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AdminLoader from '../components/common/AdminLoader';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Plus, Search, Edit, Trash2, Eye,
@@ -477,23 +478,11 @@ const InsightsManagement = () => {
       {/* Main Table */}
       <div className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-xs overflow-hidden">
         {isLoading ? (
-          <div className="p-6 space-y-3">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="flex items-center gap-4 py-2 animate-pulse">
-                <div className="w-4 h-4 bg-slate-200 dark:bg-slate-800 rounded" />
-                <div className="w-6 h-4 bg-slate-200 dark:bg-slate-800 rounded" />
-                <div className="w-10 h-10 bg-slate-200 dark:bg-slate-800 rounded-lg shrink-0" />
-                <div className="flex-1 space-y-1.5">
-                  <div className="w-2/5 h-3.5 bg-slate-200 dark:bg-slate-800 rounded" />
-                  <div className="w-1/4 h-2.5 bg-slate-100 dark:bg-slate-800/60 rounded" />
-                </div>
-                <div className="w-24 h-5 bg-slate-200 dark:bg-slate-800 rounded-md" />
-                <div className="w-20 h-4 bg-slate-200 dark:bg-slate-800 rounded" />
-                <div className="w-16 h-5 bg-slate-200 dark:bg-slate-800 rounded-full" />
-                <div className="w-12 h-4 bg-slate-200 dark:bg-slate-800 rounded" />
-              </div>
-            ))}
-          </div>
+          <AdminLoader
+            text="Loading insights articles..."
+            subtext="Fetching articles, categories, and reader metrics"
+            minHeight="min-h-[260px]"
+          />
         ) : error ? (
           <div className="py-16 text-center px-4">
             <AlertCircle size={28} className="mx-auto text-red-500 mb-2" />

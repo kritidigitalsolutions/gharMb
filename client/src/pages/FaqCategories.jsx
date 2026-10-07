@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AdminLoader from '../components/common/AdminLoader';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft, Plus, Edit, Trash2, CheckCircle2,
@@ -463,10 +464,11 @@ const FaqCategories = () => {
       {/* Categories Table Card */}
       <div className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-xs overflow-hidden">
         {isLoading ? (
-          <div className="py-20 flex flex-col items-center justify-center text-[var(--text-muted)]">
-            <RefreshCw size={24} className="animate-spin text-brand mb-2.5" />
-            <p className="text-xs font-medium">Loading categories...</p>
-          </div>
+          <AdminLoader
+            text="Loading FAQ categories..."
+            subtext="Fetching taxonomy and article counts"
+            minHeight="min-h-[220px]"
+          />
         ) : error ? (
           <div className="py-16 text-center">
             <p className="text-xs text-red-600 font-semibold mb-2">{error}</p>

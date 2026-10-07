@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useTheme } from '../../contexts/ThemeContexts';
 import { Outlet } from 'react-router-dom';
+import { PageLoader } from '../common/AdminLoader';
 import Sidebar from './Sidebar';
 import Topbar from './Header';
 
@@ -83,7 +84,9 @@ const AdminLayout = () => {
         
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6 custom-scrollbar scroll-smooth">
           <div className="max-w-[1600px] mx-auto animate-in fade-in zoom-in-95 duration-500">
-            <Outlet />
+            <Suspense fallback={<PageLoader text="Loading admin section..." />}>
+              <Outlet />
+            </Suspense>
           </div>
         </div>
       </main>

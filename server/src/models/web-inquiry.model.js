@@ -67,7 +67,7 @@ const webInquirySchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['new', 'in_progress', 'contacted', 'resolved', 'rejected'],
+      enum: ['new', 'in_progress', 'contacted', 'resolved', 'rejected', 'pending', 'cancelled', 'completed', 'confirmed'],
       default: 'new',
       index: true,
     },

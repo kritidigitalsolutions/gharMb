@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import AdminLoader from '../components/common/AdminLoader';
 import {
   TrendingUp,
   ShieldCheck,
@@ -248,8 +249,8 @@ const RevenueDashboard = () => {
         : 'Listing tiers & agency desks',
       tag: 'Recurring Tiers',
       icon: Sparkles,
-      accent: 'border-purple-500/40 hover:border-purple-500',
-      iconColor: 'text-purple-600 bg-purple-500/10'
+      accent: 'border-brand/40 hover:border-brand',
+      iconColor: 'text-brand bg-brand/10'
     },
     {
       title: 'Listing Boosts & Addons',
@@ -261,8 +262,8 @@ const RevenueDashboard = () => {
         : 'Search boosts & urgent tags',
       tag: 'Instant Addons',
       icon: Zap,
-      accent: 'border-amber-500/40 hover:border-amber-500',
-      iconColor: 'text-amber-600 bg-amber-500/10'
+      accent: 'border-brand/40 hover:border-brand',
+      iconColor: 'text-brand bg-brand/10'
     },
     {
       title: 'Escrow Token Collections',
@@ -274,8 +275,8 @@ const RevenueDashboard = () => {
         : 'Verified booking advances held',
       tag: 'Escrow Custody',
       icon: ShieldCheck,
-      accent: 'border-blue-500/40 hover:border-blue-500',
-      iconColor: 'text-blue-600 bg-blue-500/10'
+      accent: 'border-brand/40 hover:border-brand',
+      iconColor: 'text-brand bg-brand/10'
     }
   ];
 
@@ -552,18 +553,15 @@ const RevenueDashboard = () => {
             </thead>
             <tbody className="divide-y divide-[var(--border)] text-xs">
               {isLoading ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td className="py-3 px-3"><div className="h-4 bg-[var(--bg-muted)] rounded w-16" /></td>
-                    <td className="py-3 px-3"><div className="h-4 bg-[var(--bg-muted)] rounded w-24" /></td>
-                    <td className="py-3 px-3"><div className="h-4 bg-[var(--bg-muted)] rounded w-28" /></td>
-                    <td className="py-3 px-3"><div className="h-4 bg-[var(--bg-muted)] rounded w-36" /></td>
-                    <td className="py-3 px-3"><div className="h-4 bg-[var(--bg-muted)] rounded w-16 mx-auto" /></td>
-                    <td className="py-3 px-3"><div className="h-4 bg-[var(--bg-muted)] rounded w-20" /></td>
-                    <td className="py-3 px-3"><div className="h-4 bg-[var(--bg-muted)] rounded w-16 mx-auto" /></td>
-                    <td className="py-3 px-3"><div className="h-6 bg-[var(--bg-muted)] rounded w-14 ml-auto" /></td>
-                  </tr>
-                ))
+                <tr>
+                  <td colSpan="8" className="py-12 text-center">
+                    <AdminLoader
+                      text="Loading escrow transactions..."
+                      subtext="Reconciling payment gateways, tokens, and ledger entries"
+                      minHeight="min-h-[160px]"
+                    />
+                  </td>
+                </tr>
               ) : filteredTokens.length === 0 ? (
                 <tr>
                   <td colSpan="8" className="py-12 text-center">
