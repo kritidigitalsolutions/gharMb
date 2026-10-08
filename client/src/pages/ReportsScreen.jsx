@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
+import API from '../api/api';
 import {
   FileText,
   Calendar,
@@ -40,9 +41,6 @@ const ReportsScreen = () => {
   const [rawRecords, setRawRecords] = useState([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [isRefreshingStats, setIsRefreshingStats] = useState(false);
-
-  const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-  const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
 
   const capitalize = (str) => {
     if (!str) return '—';
@@ -91,16 +89,9 @@ const ReportsScreen = () => {
   const fetchStats = useCallback(async () => {
     setIsRefreshingStats(true);
     try {
-      const token = localStorage.getItem('adminToken');
-      if (!token) {
-        setIsRefreshingStats(false);
-        return;
-      }
-      const res = await fetch(`${API_BASE}/api/admin/dashboard/stats`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
+      const res = await API.get('/admin/dashboard/stats');
+      const data = res.data;
+      if (data && data.status === 'success') {
         setLiveStats(data.data.stats);
       }
     } catch (err) {
@@ -108,32 +99,27 @@ const ReportsScreen = () => {
     } finally {
       setIsRefreshingStats(false);
     }
-  }, [API_BASE]);
+  }, []);
 
   const fetchCategoryData = useCallback(async (type) => {
     setIsLoadingData(true);
-    const token = localStorage.getItem('adminToken');
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
     try {
       if (type === 'properties') {
-        const res = await fetch(`${API_BASE}/api/admin/properties?limit=5000`, { headers });
-        const json = await res.json();
-        const items = json?.data?.properties || [];
+        const res = await API.get('/admin/properties', { params: { limit: 1000 } });
+        const items = res.data?.data?.properties || [];
         setRawRecords(items);
       } else if (type === 'users') {
-        const res = await fetch(`${API_BASE}/api/admin/users?limit=5000`, { headers });
-        const json = await res.json();
-        const items = json?.data?.users || [];
+        const res = await API.get('/admin/users', { params: { limit: 1000 } });
+        const items = res.data?.data?.users || [];
         setRawRecords(items);
       } else if (type === 'revenue') {
-        const res = await fetch(`${API_BASE}/api/admin/dashboard/revenue`, { headers });
-        const json = await res.json();
-        const items = json?.data?.tokenTransactions || [];
+        const res = await API.get('/admin/dashboard/revenue');
+        const items = res.data?.data?.tokenTransactions || [];
         setRawRecords(items);
       } else {
-        const res = await fetch(`${API_BASE}/api/admin/dashboard/enquiries`, { headers });
-        const json = await res.json();
+        const res = await API.get('/admin/dashboard/enquiries');
+        const json = res.data;
         const propEnq = (json?.data?.propertyEnquiries || []).map((e) => ({
           ...e,
           inquiryType: 'Property Inquiry',
@@ -170,7 +156,7 @@ const ReportsScreen = () => {
     } finally {
       setIsLoadingData(false);
     }
-  }, [API_BASE]);
+  }, []);
 
   useEffect(() => {
     fetchStats();

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import API from '../api/api';
 import {
   Bell,
   Search,
@@ -25,6 +26,7 @@ import {
 
 const AdminNotifications = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // Navigation / Filter States
   const [activeTab, setActiveTab] = useState('all');
@@ -61,16 +63,13 @@ const AdminNotifications = () => {
     note: '',
   });
 
-  const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-  const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
-
   // Toast feedback
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   const triggerToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
     setTimeout(() => {
-      setToast({ show: false, message: '', type: 'success' });
+      setToast({ show: false, message, type: 'success' });
     }, 3000);
   };
 
@@ -114,18 +113,9 @@ const AdminNotifications = () => {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('adminToken');
-      if (!token) {
-        setNotifications([]);
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch(`${API_BASE}/api/admin/notifications`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
+      const response = await API.get('/admin/notifications');
+      const data = response.data;
+      if (data?.status === 'success') {
         const notifList = data.data.notifications || [];
         setNotifications(notifList);
         if (data.counts) {
@@ -142,47 +132,48 @@ const AdminNotifications = () => {
           });
         }
       } else {
-        setError(data.message || 'Failed to fetch notifications.');
+        setError(data?.message || 'Failed to fetch notifications.');
       }
     } catch (err) {
       console.error('API logs fetch failed:', err);
-      setError('Could not connect to database.');
+      setError(err?.response?.data?.message || 'Could not connect to database.');
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [API_BASE]);
+  }, []);
 
   useEffect(() => {
     fetchNotificationLogs();
   }, [fetchNotificationLogs]);
+
+  // Handle deep-linking by ID from notification clicks
+  useEffect(() => {
+    const targetId = searchParams.get('id');
+    if (targetId && notifications.length > 0) {
+      const found = notifications.find(n => n._id === targetId);
+      if (found) {
+        setSelectedNotif(found);
+      }
+    }
+  }, [searchParams, notifications]);
 
   // Mark Single Notification Read / Unread
   const handleToggleRead = async (notif, e) => {
     if (e) e.stopPropagation();
     const newStatus = !notif.isRead;
     try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_BASE}/api/admin/notifications/${notif._id}/read`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isRead: newStatus }),
-      });
-      if (response.ok) {
-        setNotifications((prev) =>
-          prev.map((item) => (item._id === notif._id ? { ...item, isRead: newStatus } : item))
-        );
-        setCounts((prev) => ({
-          ...prev,
-          unread: Math.max(0, prev.unread + (newStatus ? -1 : 1)),
-        }));
-        if (selectedNotif && selectedNotif._id === notif._id) {
-          setSelectedNotif((prev) => ({ ...prev, isRead: newStatus }));
-        }
-        triggerToast(newStatus ? 'Marked as read' : 'Marked as unread');
+      await API.patch(`/admin/notifications/${notif._id}/read`, { isRead: newStatus });
+      setNotifications((prev) =>
+        prev.map((item) => (item._id === notif._id ? { ...item, isRead: newStatus } : item))
+      );
+      setCounts((prev) => ({
+        ...prev,
+        unread: Math.max(0, prev.unread + (newStatus ? -1 : 1)),
+      }));
+      if (selectedNotif && selectedNotif._id === notif._id) {
+        setSelectedNotif((prev) => ({ ...prev, isRead: newStatus }));
       }
+      triggerToast(newStatus ? 'Marked as read' : 'Marked as unread');
     } catch (err) {
       console.error('Error toggling read state:', err);
     }
@@ -191,16 +182,10 @@ const AdminNotifications = () => {
   // Mark All Notifications Read
   const handleMarkAllRead = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_BASE}/api/admin/notifications/mark-all-read`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-        setCounts((prev) => ({ ...prev, unread: 0 }));
-        triggerToast('All marked as read');
-      }
+      await API.post('/admin/notifications/mark-all-read');
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setCounts((prev) => ({ ...prev, unread: 0 }));
+      triggerToast('All marked as read');
     } catch (err) {
       console.error('Error marking all as read:', err);
     }
@@ -210,19 +195,13 @@ const AdminNotifications = () => {
   const handleDeleteNotif = async (id, e) => {
     if (e) e.stopPropagation();
     try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_BASE}/api/admin/notifications/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        setNotifications((prev) => prev.filter((n) => n._id !== id));
-        if (selectedNotif && selectedNotif._id === id) {
-          setSelectedNotif(null);
-        }
-        triggerToast('Notification removed');
-        fetchNotificationLogs(true);
+      await API.delete(`/admin/notifications/${id}`);
+      setNotifications((prev) => prev.filter((n) => n._id !== id));
+      if (selectedNotif && selectedNotif._id === id) {
+        setSelectedNotif(null);
       }
+      triggerToast('Notification removed');
+      fetchNotificationLogs(true);
     } catch (err) {
       console.error('Error deleting notification:', err);
     }
@@ -231,18 +210,12 @@ const AdminNotifications = () => {
   // Clear All Notifications
   const handleClearAll = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_BASE}/api/admin/notifications/clear-all`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        setNotifications([]);
-        setShowClearConfirm(false);
-        setSelectedNotif(null);
-        setCounts({ total: 0, unread: 0, enquiries: 0, visits: 0, tokens: 0, verifications: 0, system: 0 });
-        triggerToast('History cleared');
-      }
+      await API.delete('/admin/notifications/clear-all');
+      setNotifications([]);
+      setShowClearConfirm(false);
+      setSelectedNotif(null);
+      setCounts({ total: 0, unread: 0, enquiries: 0, visits: 0, tokens: 0, verifications: 0, system: 0 });
+      triggerToast('History cleared');
     } catch (err) {
       console.error('Error clearing notifications:', err);
     }
@@ -287,44 +260,35 @@ const AdminNotifications = () => {
 
     setActionLoading(true);
     try {
-      const token = localStorage.getItem('adminToken');
-      let url = '';
+      let endpoint = '';
       let payload = {};
 
       if (targetType === 'visit') {
-        url = `${API_BASE}/api/admin/visit-requests/${targetId}/${action === 'accept' ? 'accept' : 'reject'}`;
+        endpoint = `/admin/visit-requests/${targetId}/${action === 'accept' ? 'accept' : 'reject'}`;
         payload = action === 'accept'
           ? { adminNote: note }
           : { adminNote: note, reason: note };
       } else if (targetType === 'token') {
-        url = `${API_BASE}/api/admin/tokens/${targetId}/status`;
+        endpoint = `/admin/tokens/${targetId}/status`;
         payload = {
           action: action === 'accept' ? 'accept' : 'reject',
           notes: note,
         };
       }
 
-      const response = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
+      const response = await API.patch(endpoint, payload);
+      const data = response.data;
+      if (data?.status === 'success') {
         triggerToast(action === 'accept' ? 'Request accepted' : 'Request declined');
         if (notif && !notif.isRead) handleToggleRead(notif);
         setActionDialog({ show: false, action: 'accept', notif: null, targetType: '', targetId: '', note: '' });
         fetchNotificationLogs(true);
       } else {
-        triggerToast(data.message || 'Operation failed', 'error');
+        triggerToast(data?.message || 'Operation failed', 'error');
       }
     } catch (err) {
       console.error('Decision execution error:', err);
-      triggerToast('Network error', 'error');
+      triggerToast(err?.response?.data?.message || 'Network error', 'error');
     } finally {
       setActionLoading(false);
     }

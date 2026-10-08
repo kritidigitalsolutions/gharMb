@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import AdminLoader from '../components/common/AdminLoader';
 import {
   Search, RefreshCw, MapPin, Building, Building2,
@@ -14,10 +15,7 @@ import {
   PhoneCall, RotateCcw, CreditCard, Wallet, Percent, Tag, BadgePercent,
   Star, LayoutGrid, ListFilter
 } from 'lucide-react';
-
-const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
-const API_URL = `${API_BASE}/api`;
+import API from '../api/api';
 
 const QUICK_REJECTION_REASONS = [
   'Documents incomplete or missing',
@@ -39,6 +37,8 @@ const STANDARD_DOCUMENT_TYPES = [
 ];
 
 const PropertyVerification = () => {
+  const [searchParams] = useSearchParams();
+
   // --- Core States ---
   const [activePipeline, setActivePipeline] = useState('properties'); // 'properties' | 'projects'
   const [properties, setProperties] = useState([]);
@@ -117,13 +117,6 @@ const PropertyVerification = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [lightboxOpen, selectedItem]);
 
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('adminToken');
-    return {
-      'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-    };
-  };
 
   const formatCurrency = (val) => {
     if (!val || isNaN(val)) return '0';
@@ -308,22 +301,19 @@ const PropertyVerification = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const propRes = await fetch(`${API_URL}/admin/properties`, {
-        headers: getAuthHeaders()
-      });
-      const propData = await propRes.json();
+      const [propRes, projRes] = await Promise.all([
+        API.get('/admin/properties'),
+        API.get('/admin/projects')
+      ]);
+
       let mappedProps = [];
-      if (propRes.ok && propData.status === 'success') {
-        mappedProps = (propData.data?.properties || []).map(mapPropertyToUi);
+      if (propRes.data?.status === 'success') {
+        mappedProps = (propRes.data?.data?.properties || []).map(mapPropertyToUi);
         setProperties(mappedProps);
       }
 
-      const projRes = await fetch(`${API_URL}/admin/projects`, {
-        headers: getAuthHeaders()
-      });
-      const projData = await projRes.json();
-      if (projRes.ok && projData.status === 'success') {
-        const mappedProj = (projData.data?.projects || []).map(mapProjectToUi);
+      if (projRes.data?.status === 'success') {
+        const mappedProj = (projRes.data?.data?.projects || []).map(mapProjectToUi);
         setProjects(mappedProj);
       }
 
@@ -340,7 +330,7 @@ const PropertyVerification = () => {
       setLastSyncTime(new Date());
     } catch (err) {
       console.error('Error fetching admin moderation data:', err);
-      setError('Could not connect to backend server. Please verify backend is running on port 5001.');
+      setError(err?.response?.data?.message || 'Could not connect to backend server. Please verify backend is running on port 5001.');
     } finally {
       setIsLoading(false);
     }
@@ -349,6 +339,39 @@ const PropertyVerification = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Handle direct navigation & search params from notifications
+  useEffect(() => {
+    const q = searchParams.get('search') || searchParams.get('q');
+    const targetId = searchParams.get('id');
+
+    if (q) {
+      setSearchQuery(q);
+      setStatusFilter('All');
+      setHasUserChangedFilter(true);
+    }
+
+    if (properties.length > 0) {
+      if (targetId) {
+        const found = properties.find(p => p._id === targetId || p.id === targetId || p.submissionId === targetId);
+        if (found) {
+          setStatusFilter('All');
+          handleSelectItem(found);
+        }
+      } else if (q) {
+        const lowerQ = q.toLowerCase();
+        const found = properties.find(p =>
+          (p.title && p.title.toLowerCase().includes(lowerQ)) ||
+          (p.id && p.id.toLowerCase().includes(lowerQ)) ||
+          (p.submissionId && p.submissionId.toLowerCase().includes(lowerQ)) ||
+          (p.ownerName && p.ownerName.toLowerCase().includes(lowerQ))
+        );
+        if (found) {
+          handleSelectItem(found);
+        }
+      }
+    }
+  }, [searchParams, properties]);
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
@@ -389,25 +412,21 @@ const PropertyVerification = () => {
     if (!formData) return;
     try {
       const endpoint = formData.itemType === 'project'
-        ? `${API_URL}/admin/projects/${formData._id}`
-        : `${API_URL}/admin/properties/${formData._id}`;
+        ? `/admin/projects/${formData._id}`
+        : `/admin/properties/${formData._id}`;
 
-      const res = await fetch(endpoint, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          title: formData.title,
-          price: formData.priceVal || formData.price,
-          description: formData.description,
-          bedrooms: formData.bedrooms,
-          bathrooms: formData.bathrooms,
-          locality: formData.locality,
-          city: formData.city,
-        })
+      const res = await API.put(endpoint, {
+        title: formData.title,
+        price: formData.priceVal || formData.price,
+        description: formData.description,
+        bedrooms: formData.bedrooms,
+        bathrooms: formData.bathrooms,
+        locality: formData.locality,
+        city: formData.city,
       });
 
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
+      const data = res.data;
+      if (data?.status === 'success') {
         setIsEditing(false);
         showToast(`Listing ${formData.id} updated successfully!`, 'success');
         await fetchData();
@@ -420,11 +439,11 @@ const PropertyVerification = () => {
           setFormData(updated);
         }
       } else {
-        showToast(data.message || 'Failed to save edits.', 'error');
+        showToast(data?.message || 'Failed to save edits.', 'error');
       }
     } catch (err) {
       console.error(err);
-      showToast('Network error while saving edits.', 'error');
+      showToast(err?.response?.data?.message || 'Network error while saving edits.', 'error');
     }
   };
 
@@ -443,8 +462,8 @@ const PropertyVerification = () => {
 
     try {
       const endpoint = selectedItem.itemType === 'project'
-        ? `${API_URL}/admin/projects/${selectedItem._id}/status`
-        : `${API_URL}/admin/properties/${selectedItem._id}/status`;
+        ? `/admin/projects/${selectedItem._id}/status`
+        : `/admin/properties/${selectedItem._id}/status`;
 
       const requestBody = {
         approvalStatus: apiStatus,
@@ -456,14 +475,9 @@ const PropertyVerification = () => {
         if (commissionPayload.commissionDiscount) requestBody.commissionDiscount = commissionPayload.commissionDiscount;
       }
 
-      const res = await fetch(endpoint, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(requestBody)
-      });
-
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
+      const res = await API.patch(endpoint, requestBody);
+      const data = res.data;
+      if (data?.status === 'success') {
         setRemarks('');
         setShowRejectModal(false);
         setCustomRejectNote('');
@@ -491,11 +505,11 @@ const PropertyVerification = () => {
           }
         }
       } else {
-        showToast(data.message || 'Failed to update status.', 'error');
+        showToast(data?.message || 'Failed to update status.', 'error');
       }
     } catch (err) {
       console.error('Error updating status:', err);
-      showToast('Connection error while updating status.', 'error');
+      showToast(err?.response?.data?.message || 'Connection error while updating status.', 'error');
     } finally {
       setIsSubmittingAction(false);
     }
@@ -582,28 +596,19 @@ const PropertyVerification = () => {
 
     try {
       const endpoint = selectedItem.itemType === 'project'
-        ? `${API_URL}/admin/projects/${selectedItem._id}`
-        : `${API_URL}/admin/properties/${selectedItem._id}`;
+        ? `/admin/projects/${selectedItem._id}`
+        : `/admin/properties/${selectedItem._id}`;
 
-      const res = await fetch(endpoint, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-
-      if (res.ok) {
-        const deletedId = selectedItem.id;
-        setShowDeleteModal(false);
-        setSelectedItem(null);
-        setFormData(null);
-        showToast(`Listing ${deletedId} deleted successfully.`, 'success');
-        await fetchData();
-      } else {
-        const data = await res.json();
-        showToast(data.message || 'Failed to delete listing.', 'error');
-      }
+      await API.delete(endpoint);
+      const deletedId = selectedItem.id;
+      setShowDeleteModal(false);
+      setSelectedItem(null);
+      setFormData(null);
+      showToast(`Listing ${deletedId} deleted successfully.`, 'success');
+      await fetchData();
     } catch (err) {
       console.error(err);
-      showToast('Error connecting to server while deleting.', 'error');
+      showToast(err?.response?.data?.message || 'Error connecting to server while deleting.', 'error');
     } finally {
       setIsDeleting(false);
     }

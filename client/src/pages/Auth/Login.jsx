@@ -9,14 +9,12 @@ import {
   Loader2,
   Info,
   AlertCircle,
-  CheckCircle2,
-  ArrowRight,
-  KeyRound,
-  Check
+  CheckCircle2
 } from 'lucide-react';
 import API, { isTokenExpired, clearAuthSession } from "../../api/api";
 import { signInWithFirebaseEmail, sendFirebasePasswordReset } from "../../config/firebase";
 import AnimatedGradientBackground from "../../components/common/AnimatedGradientBackground";
+import { InteractiveHoverButton } from "../../components/ui/interactive-hover-button";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -28,22 +26,10 @@ const Login = () => {
   const [error, setError] = useState("");
   const [sessionNotice, setSessionNotice] = useState("");
   const [success, setSuccess] = useState("");
-  const [isFilled, setIsFilled] = useState(false);
-
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
-
-  const handleAutoFill = () => {
-    setFormData({
-      email: 'annika9070@gmail.com',
-      password: '123123'
-    });
-    setError('');
-    setIsFilled(true);
-    setTimeout(() => setIsFilled(false), 2000);
-  };
 
   // Always force Dark Mode on the Login Page
   useEffect(() => {
@@ -204,27 +190,39 @@ const Login = () => {
         breathingRange={6}
       />
 
+      {/* ── Brand Logo & Name on Background ── */}
+      <motion.div
+        initial={{ opacity: 0, y: -12, scale: 0.92 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 mb-4 sm:mb-5 flex flex-col items-center justify-center text-center"
+      >
+        <img 
+          src="/logo-dark.png" 
+          alt="GHARMB Logo" 
+          className="w-18 h-18 sm:w-20 sm:h-20 object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)] mb-1.5" 
+        />
+        <h2 className="text-xl sm:text-2xl font-black tracking-wider text-white">
+          GHAR<span className="text-[#FF5A3C]">MB</span>
+        </h2>
+      </motion.div>
+
       {/* ── Main Clean Animated Dark Card ── */}
       <motion.div 
         initial={{ opacity: 0, y: 18, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-[420px] rounded-[28px] p-7 sm:p-9 z-10 bg-[#111111]/90 backdrop-blur-xl border border-[#444444]/80 shadow-2xl"
+        className="relative w-full max-w-[365px] rounded-[22px] p-5 sm:p-6.5 z-10 bg-[#111111]/90 backdrop-blur-xl border border-[#444444]/80 shadow-2xl"
       >
 
-        {/* Logo and Admin Panel Heading */}
+        {/* Admin Panel Heading */}
         <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
+          initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
-          className="flex flex-col items-center mb-5 text-center"
+          className="flex flex-col items-center mb-3.5 text-center"
         >
-          <img 
-            src="/logo.png" 
-            alt="GHARMB Logo" 
-            className="w-16 h-16 object-contain mb-2.5" 
-          />
-          <h1 className="text-xl sm:text-2xl font-black text-[#DDDDDD] tracking-tight">
+          <h1 className="text-lg sm:text-xl font-black text-[#DDDDDD] tracking-tight">
             Admin Panel
           </h1>
         </motion.div>
@@ -239,10 +237,10 @@ const Login = () => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -4, scale: 0.98 }}
               transition={{ duration: 0.2 }}
-              className="mb-4 px-3.5 py-2.5 bg-blue-500/[0.08] border border-blue-500/20 rounded-xl flex items-start gap-2.5 text-left"
+              className="mb-3 px-3 py-2 bg-blue-500/[0.08] border border-blue-500/20 rounded-xl flex items-start gap-2.5 text-left"
             >
-              <Info size={15} className="text-blue-400 shrink-0 mt-0.5" />
-              <span className="text-[12px] font-medium text-blue-200/90 leading-snug">{sessionNotice}</span>
+              <Info size={14} className="text-blue-400 shrink-0 mt-0.5" />
+              <span className="text-[11px] font-medium text-blue-200/90 leading-snug">{sessionNotice}</span>
             </motion.div>
           )}
 
@@ -258,10 +256,10 @@ const Login = () => {
               }}
               exit={{ opacity: 0, y: -4, scale: 0.98 }}
               transition={{ duration: 0.25 }}
-              className="mb-4 px-3.5 py-2.5 bg-rose-500/[0.08] border border-rose-500/25 rounded-xl flex items-start gap-2.5 text-left"
+              className="mb-3 px-3 py-2 bg-rose-500/[0.08] border border-rose-500/25 rounded-xl flex items-start gap-2.5 text-left"
             >
-              <AlertCircle size={15} className="text-rose-400 shrink-0 mt-0.5" />
-              <span className="text-[12px] font-medium text-rose-200/90 leading-snug">{error}</span>
+              <AlertCircle size={14} className="text-rose-400 shrink-0 mt-0.5" />
+              <span className="text-[11px] font-medium text-rose-200/90 leading-snug">{error}</span>
             </motion.div>
           )}
           
@@ -272,16 +270,16 @@ const Login = () => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -4, scale: 0.98 }}
               transition={{ duration: 0.2 }}
-              className="mb-4 px-3.5 py-2.5 bg-emerald-500/[0.08] border border-emerald-500/25 rounded-xl flex items-start gap-2.5 text-left"
+              className="mb-3 px-3 py-2 bg-emerald-500/[0.08] border border-emerald-500/25 rounded-xl flex items-start gap-2.5 text-left"
             >
-              <CheckCircle2 size={15} className="text-emerald-400 shrink-0 mt-0.5" />
-              <span className="text-[12px] font-medium text-emerald-200/90 leading-snug">{success}</span>
+              <CheckCircle2 size={14} className="text-emerald-400 shrink-0 mt-0.5" />
+              <span className="text-[11px] font-medium text-emerald-200/90 leading-snug">{success}</span>
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* Email & Password Authentication Form */}
-        <form onSubmit={handleLogin} className="space-y-3.5">
+        <form onSubmit={handleLogin} className="space-y-3">
           
           {/* Email Field */}
           <motion.div 
@@ -290,8 +288,8 @@ const Login = () => {
             transition={{ delay: 0.14, duration: 0.3 }}
             className="group relative flex items-center rounded-xl border border-[#444444]/80 bg-[#111111] hover:border-[#888888]/60 focus-within:border-[#FF5A3C] focus-within:ring-2 focus-within:ring-[#FF5A3C]/20 transition-all duration-200 overflow-hidden"
           >
-            <div className="pl-3.5 pr-2.5 text-[#888888] flex items-center pointer-events-none group-focus-within:text-[#FF5A3C] transition-colors">
-              <Mail size={16} />
+            <div className="pl-3 pr-2 text-[#888888] flex items-center pointer-events-none group-focus-within:text-[#FF5A3C] transition-colors">
+              <Mail size={15} />
             </div>
             <input
               type="email"
@@ -306,7 +304,7 @@ const Login = () => {
                 WebkitBoxShadow: '0 0 0 1000px #111111 inset',
                 WebkitTextFillColor: '#DDDDDD'
               }}
-              className="w-full py-2.5 sm:py-3 pr-3.5 bg-[#111111] text-xs sm:text-sm text-[#DDDDDD] placeholder:text-[#888888]/60 focus:outline-none font-medium"
+              className="w-full py-2 sm:py-2.5 pr-3 bg-[#111111] text-xs sm:text-sm text-[#DDDDDD] placeholder:text-[#888888]/60 focus:outline-none font-medium"
             />
           </motion.div>
 
@@ -315,11 +313,11 @@ const Login = () => {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.3 }}
-            className="space-y-1.5"
+            className="space-y-1"
           >
             <div className="group relative flex items-center rounded-xl border border-[#444444]/80 bg-[#111111] hover:border-[#888888]/60 focus-within:border-[#FF5A3C] focus-within:ring-2 focus-within:ring-[#FF5A3C]/20 transition-all duration-200 overflow-hidden">
-              <div className="pl-3.5 pr-2.5 text-[#888888] flex items-center pointer-events-none group-focus-within:text-[#FF5A3C] transition-colors">
-                <Lock size={16} />
+              <div className="pl-3 pr-2 text-[#888888] flex items-center pointer-events-none group-focus-within:text-[#FF5A3C] transition-colors">
+                <Lock size={15} />
               </div>
               <input
                 type={showPassword ? "text" : "password"}
@@ -334,15 +332,15 @@ const Login = () => {
                   WebkitBoxShadow: '0 0 0 1000px #111111 inset',
                   WebkitTextFillColor: '#DDDDDD'
                 }}
-                className="w-full py-2.5 sm:py-3 pr-2 bg-[#111111] text-xs sm:text-sm text-[#DDDDDD] placeholder:text-[#888888]/60 focus:outline-none font-medium"
+                className="w-full py-2 sm:py-2.5 pr-2 bg-[#111111] text-xs sm:text-sm text-[#DDDDDD] placeholder:text-[#888888]/60 focus:outline-none font-medium"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="p-2 mr-1 rounded-lg text-[#888888] hover:text-[#DDDDDD] hover:bg-[#444444]/40 transition-colors cursor-pointer"
+                className="p-1.5 mr-1 rounded-lg text-[#888888] hover:text-[#DDDDDD] hover:bg-[#444444]/40 transition-colors cursor-pointer"
                 title={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
 
@@ -367,51 +365,21 @@ const Login = () => {
           </motion.div>
 
           {/* Submit Action Button */}
-          <motion.button
+          <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.26, duration: 0.3 }}
-            whileHover={{ scale: 1.015 }}
-            whileTap={{ scale: 0.985 }}
-            type="submit"
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-[#FF5A3C] hover:bg-[#DD543C] text-white font-bold rounded-xl transition-all duration-150 disabled:opacity-60 disabled:pointer-events-none mt-5 cursor-pointer text-xs sm:text-sm tracking-wide shadow-md"
+            className="mt-4"
           >
-            {loading ? (
-              <>
-                <Loader2 size={17} className="animate-spin text-white" />
-                <span>Authenticating Credentials...</span>
-              </>
-            ) : (
-              <>
-                <span>Sign In to Admin Workspace</span>
-                <ArrowRight size={15} />
-              </>
-            )}
-          </motion.button>
+            <InteractiveHoverButton
+              type="submit"
+              text="Sign In"
+              loading={loading}
+              loadingText="Signing in..."
+              className="w-full rounded-xl py-2.5 sm:py-3 text-xs sm:text-sm font-bold"
+            />
+          </motion.div>
         </form>
-
-        {/* Small Auto Credential Button */}
-        <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-center">
-          <button
-            type="button"
-            onClick={handleAutoFill}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-[#FF5A3C]/10 border border-white/[0.08] hover:border-[#FF5A3C]/40 text-[#888888] hover:text-[#FF5A3C] transition-all duration-150 cursor-pointer text-[11px] font-medium"
-            title="Auto-fill credentials"
-          >
-            {isFilled ? (
-              <>
-                <Check size={12} className="text-emerald-400" />
-                <span className="text-emerald-400 font-semibold">Credentials filled</span>
-              </>
-            ) : (
-              <>
-                <KeyRound size={12} className="text-[#FF5A3C]" />
-                <span>Auto Credential</span>
-              </>
-            )}
-          </button>
-        </div>
       </motion.div>
     </div>
   );

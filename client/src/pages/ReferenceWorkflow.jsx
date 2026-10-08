@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
+import API from '../api/api';
 import {
   Users, Gift, Award, CheckCircle2, XCircle, Clock,
   Search, Filter, Plus, ArrowRight, IndianRupee,
@@ -42,14 +43,6 @@ const ReferenceWorkflow = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-  const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
-
-  const getAuthHeader = () => {
-    const token = localStorage.getItem('adminToken') || localStorage.getItem('token') || '';
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  };
-
   // New Referral Form
   const [newRef, setNewRef] = useState({
     referrerName: '',
@@ -74,20 +67,16 @@ const ReferenceWorkflow = () => {
   const fetchReferrals = async () => {
     setIsLoading(true);
     try {
-      const headers = getAuthHeader();
-      const res = await fetch(`${API_BASE}/api/admin/referrals`, { headers });
-      const data = await res.json();
+      const res = await API.get('/admin/referrals');
+      const data = res.data;
 
-      if (res.ok && data.status === 'success' && data.data) {
+      if (data && data.status === 'success' && data.data) {
         setReferences(data.data.referrals || []);
         if (data.data.stats) {
           setStats(data.data.stats);
         }
       } else {
         setReferences([]);
-        if (res.status === 401 || res.status === 403) {
-          showToastMsg('Session expired or admin access required.', 'error');
-        }
       }
     } catch (err) {
       console.error('Error fetching real referrals:', err.message);
@@ -101,10 +90,9 @@ const ReferenceWorkflow = () => {
   // 2. Fetch Real Properties for Property Selector
   const fetchProperties = async () => {
     try {
-      const headers = getAuthHeader();
-      const res = await fetch(`${API_BASE}/api/admin/properties?limit=100`, { headers });
-      const data = await res.json();
-      if (res.ok && data.data?.properties) {
+      const res = await API.get('/admin/properties', { params: { limit: 100 } });
+      const data = res.data;
+      if (data && data.data?.properties) {
         setAvailableProperties(data.data.properties);
       }
     } catch (err) {
@@ -134,24 +122,15 @@ const ReferenceWorkflow = () => {
 
     setIsSubmitting(true);
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      };
-
       const id = payoutModal.mongoId || payoutModal.id;
-      const res = await fetch(`${API_BASE}/api/admin/referrals/${id}/payout`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({
-          payoutRefId: payoutRefId.trim(),
-          payoutMethod,
-          notes: payoutNotes.trim(),
-        }),
+      const res = await API.patch(`/admin/referrals/${id}/payout`, {
+        payoutRefId: payoutRefId.trim(),
+        payoutMethod,
+        notes: payoutNotes.trim(),
       });
 
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
+      const data = res.data;
+      if (data && data.status === 'success') {
         showToastMsg(`Payout of ₹${payoutModal.rewardAmount.toLocaleString()} marked as Paid.`);
         setPayoutModal(null);
         setPayoutRefId('');
@@ -166,10 +145,10 @@ const ReferenceWorkflow = () => {
           }));
         }
       } else {
-        showToastMsg(data.message || 'Failed to process payout.', 'error');
+        showToastMsg(data?.message || 'Failed to process payout.', 'error');
       }
     } catch (err) {
-      showToastMsg('Network error while processing payout.', 'error');
+      showToastMsg(err.response?.data?.message || 'Network error while processing payout.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -178,33 +157,24 @@ const ReferenceWorkflow = () => {
   // 4. Update Status Lifecycle (e.g. Eligible for Payout, In Progress, Audit)
   const handleUpdateStatus = async (refItem, newStatus) => {
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      };
-
       const id = refItem.mongoId || refItem.id;
-      const res = await fetch(`${API_BASE}/api/admin/referrals/${id}/status`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({
-          payoutStatus: newStatus,
-          notes: `Status updated by administrator to ${newStatus}`,
-        }),
+      const res = await API.patch(`/admin/referrals/${id}/status`, {
+        payoutStatus: newStatus,
+        notes: `Status updated by administrator to ${newStatus}`,
       });
 
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
+      const data = res.data;
+      if (data && data.status === 'success') {
         showToastMsg(`Referral ${refItem.id} marked as "${newStatus}".`);
         fetchReferrals();
         if (selectedRef && (selectedRef.id === refItem.id || selectedRef.mongoId === refItem.mongoId)) {
           setSelectedRef(prev => ({ ...prev, payoutStatus: newStatus }));
         }
       } else {
-        showToastMsg(data.message || 'Failed to update referral status.', 'error');
+        showToastMsg(data?.message || 'Failed to update referral status.', 'error');
       }
     } catch (err) {
-      showToastMsg('Network error updating status.', 'error');
+      showToastMsg(err.response?.data?.message || 'Network error updating status.', 'error');
     }
   };
 
@@ -213,16 +183,10 @@ const ReferenceWorkflow = () => {
     if (!deleteModal) return;
     setIsSubmitting(true);
     try {
-      const headers = getAuthHeader();
       const id = deleteModal.mongoId || deleteModal.id;
-
-      const res = await fetch(`${API_BASE}/api/admin/referrals/${id}`, {
-        method: 'DELETE',
-        headers,
-      });
-
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
+      const res = await API.delete(`/admin/referrals/${id}`);
+      const data = res.data;
+      if (data && data.status === 'success') {
         showToastMsg(`Referral ${deleteModal.id} permanently deleted.`);
         setReferences(prev => prev.filter(r => r.id !== deleteModal.id && r.mongoId !== deleteModal.mongoId));
         if (selectedRef && (selectedRef.id === deleteModal.id || selectedRef.mongoId === deleteModal.mongoId)) {
@@ -231,10 +195,10 @@ const ReferenceWorkflow = () => {
         setDeleteModal(null);
         fetchReferrals();
       } else {
-        showToastMsg(data.message || 'Failed to delete referral record.', 'error');
+        showToastMsg(data?.message || 'Failed to delete referral record.', 'error');
       }
     } catch (err) {
-      showToastMsg('Network error deleting referral.', 'error');
+      showToastMsg(err.response?.data?.message || 'Network error deleting referral.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -250,11 +214,6 @@ const ReferenceWorkflow = () => {
 
     setIsSubmitting(true);
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      };
-
       const payload = {
         referrerName: newRef.referrerName.trim(),
         referrerPhone: newRef.referrerPhone.trim() || '+91 98000 00000',
@@ -274,14 +233,9 @@ const ReferenceWorkflow = () => {
         notes: newRef.notes.trim() || 'Registered via Admin Referral Hub.',
       };
 
-      const res = await fetch(`${API_BASE}/api/admin/referrals`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
+      const res = await API.post('/admin/referrals', payload);
+      const data = res.data;
+      if (data && data.status === 'success') {
         showToastMsg('Real referral deal registered in database!');
         setIsAddModalOpen(false);
         setNewRef({
@@ -304,10 +258,10 @@ const ReferenceWorkflow = () => {
         });
         fetchReferrals();
       } else {
-        showToastMsg(data.message || 'Failed to register referral.', 'error');
+        showToastMsg(data?.message || 'Failed to register referral.', 'error');
       }
     } catch (err) {
-      showToastMsg('Network error while registering referral.', 'error');
+      showToastMsg(err.response?.data?.message || 'Network error while registering referral.', 'error');
     } finally {
       setIsSubmitting(false);
     }

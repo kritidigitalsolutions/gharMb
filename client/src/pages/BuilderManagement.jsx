@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
+import API, { getMediaUrl } from '../api/api';
 import {
   HardHat,
   Award,
@@ -80,25 +81,8 @@ const BuilderManagement = () => {
     showToast(`${label} copied to clipboard!`, 'info');
   };
 
-  const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-  const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
-  const API_URL = `${API_BASE}/api`;
-
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('adminToken');
-    return {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    };
-  };
-
-  // Helper to normalize uploaded file URLs (handles localhost vs host IP mismatch)
   const getDocumentUrl = (url) => {
-    if (!url) return '';
-    if (url.startsWith('/uploads')) return `${API_BASE}${url}`;
-    const match = url.match(/\/uploads\/[^\s"']+/);
-    if (match) return `${API_BASE}${match[0]}`;
-    return url;
+    return getMediaUrl(url);
   };
 
   // Relative time helper
@@ -127,11 +111,9 @@ const BuilderManagement = () => {
   const fetchBuilders = async () => {
     setIsLoadingBuilders(true);
     try {
-      const response = await fetch(`${API_URL}/admin/users?role=builder`, {
-        headers: getAuthHeaders()
-      });
-      const data = await response.json();
-      if (response.ok && data.status === 'success' && data.data?.users) {
+      const response = await API.get('/admin/users?role=builder');
+      const data = response.data;
+      if (data?.status === 'success' && data.data?.users) {
         const mapped = data.data.users.map((u) => {
           let status = 'Pending';
           if (u.builderVerificationStatus === 'approved') status = 'Approved';
@@ -192,11 +174,9 @@ const BuilderManagement = () => {
   const fetchProjects = async () => {
     setIsLoadingProjects(true);
     try {
-      const response = await fetch(`${API_URL}/admin/projects`, {
-        headers: getAuthHeaders()
-      });
-      const data = await response.json();
-      if (response.ok && data.status === 'success' && data.data?.projects) {
+      const response = await API.get('/admin/projects');
+      const data = response.data;
+      if (data?.status === 'success' && data.data?.projects) {
         const mapped = data.data.projects.map((p) => {
           let status = 'Draft';
           if (p.approvalStatus === 'approved') status = 'Published';
@@ -235,16 +215,12 @@ const BuilderManagement = () => {
   const updateBuilderStatus = async (builder, newStatus, reason = '') => {
     try {
       let bodyStatus = newStatus === 'Approved' ? 'approved' : 'rejected';
-      const response = await fetch(`${API_URL}/admin/users/${builder._id}/verify-developer`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          builderVerificationStatus: bodyStatus,
-          rejectReason: reason || (newStatus === 'Approved' ? 'Verified by Admin' : 'Application rejected by Admin')
-        })
+      const response = await API.patch(`/admin/users/${builder._id}/verify-developer`, {
+        builderVerificationStatus: bodyStatus,
+        rejectReason: reason || (newStatus === 'Approved' ? 'Verified by Admin' : 'Application rejected by Admin')
       });
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
+      const data = response.data;
+      if (data?.status === 'success') {
         await fetchBuilders();
         if (selectedBuilder && selectedBuilder._id === builder._id) {
           setSelectedBuilder((prev) => ({
@@ -262,32 +238,24 @@ const BuilderManagement = () => {
           'success'
         );
       } else {
-        showToast(data.message || 'Failed to update builder status.', 'error');
+        showToast(data?.message || 'Failed to update builder status.', 'error');
       }
     } catch (err) {
       console.error(err);
-      showToast('Connection error updating builder status.', 'error');
+      showToast(err?.response?.data?.message || 'Connection error updating builder status.', 'error');
     }
   };
 
   const deleteBuilder = async (builder) => {
     try {
-      const response = await fetch(`${API_URL}/admin/users/${builder._id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-      const data = await response.json();
-      if (response.ok) {
-        fetchBuilders();
-        setSelectedBuilder(null);
-        setDeleteConfirm(null);
-        showToast('Builder deactivated successfully.', 'info');
-      } else {
-        showToast(data.message || 'Failed to delete builder.', 'error');
-      }
+      await API.delete(`/admin/users/${builder._id}`);
+      fetchBuilders();
+      setSelectedBuilder(null);
+      setDeleteConfirm(null);
+      showToast('Builder deactivated successfully.', 'info');
     } catch (err) {
       console.error(err);
-      showToast('Error connecting to server.', 'error');
+      showToast(err?.response?.data?.message || 'Error connecting to server.', 'error');
     }
   };
 
@@ -298,13 +266,12 @@ const BuilderManagement = () => {
       if (newStatus === 'Published') apiStatus = 'approved';
       else if (newStatus === 'Archived') apiStatus = 'rejected';
 
-      const response = await fetch(`${API_URL}/admin/projects/${project._id}/status`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ approvalStatus: apiStatus, rejectionReason: reason })
+      const response = await API.patch(`/admin/projects/${project._id}/status`, {
+        approvalStatus: apiStatus,
+        rejectionReason: reason
       });
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
+      const data = response.data;
+      if (data?.status === 'success') {
         fetchProjects();
         if (selectedProject && selectedProject._id === project._id) {
           setSelectedProject((prev) => ({ ...prev, status: newStatus }));
@@ -312,32 +279,24 @@ const BuilderManagement = () => {
         setRejectPrompt(null);
         showToast(`Project status updated to ${newStatus}.`, 'success');
       } else {
-        showToast(data.message || 'Failed to update project status.', 'error');
+        showToast(data?.message || 'Failed to update project status.', 'error');
       }
     } catch (err) {
       console.error(err);
-      showToast('Connection error updating project status.', 'error');
+      showToast(err?.response?.data?.message || 'Connection error updating project status.', 'error');
     }
   };
 
   const deleteProject = async (project) => {
     try {
-      const response = await fetch(`${API_URL}/admin/projects/${project._id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-      const data = await response.json();
-      if (response.ok) {
-        fetchProjects();
-        setSelectedProject(null);
-        setDeleteConfirm(null);
-        showToast('Project deleted successfully.', 'info');
-      } else {
-        showToast(data.message || 'Failed to delete project.', 'error');
-      }
+      await API.delete(`/admin/projects/${project._id}`);
+      fetchProjects();
+      setSelectedProject(null);
+      setDeleteConfirm(null);
+      showToast('Project deleted successfully.', 'info');
     } catch (err) {
       console.error(err);
-      showToast('Error connecting to server.', 'error');
+      showToast(err?.response?.data?.message || 'Error connecting to server.', 'error');
     }
   };
 

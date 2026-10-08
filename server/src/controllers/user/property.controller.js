@@ -745,6 +745,9 @@ exports.createProperty = async (req, res, next) => {
           title: 'New Property Verification Pending',
           message: `A new property listing "${property.title}" (${property.category} - ${property.listingFor}) by ${user.name} requires verification.`,
           type: 'verification',
+          metadata: {
+            propertyId: property._id,
+          },
           isRead: false,
         }));
         await Notification.insertMany(notificationsData);

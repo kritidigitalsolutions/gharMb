@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
+import API from '../api/api';
 import {
   IndianRupee, ShieldCheck, Lock, RotateCcw, CheckCircle2,
   XCircle, Clock, Search, Filter, AlertCircle, Download,
@@ -10,10 +11,11 @@ import {
   Phone, MessageSquare, Mail, AlertTriangle, Copy, PhoneCall,
   MoreHorizontal, ChevronDown
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const TokenBooking = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [tokens, setTokens] = useState([]);
   const [stats, setStats] = useState({
     totalRequests: 0,
@@ -86,23 +88,14 @@ const TokenBooking = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-  const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
-
-  const getAuthHeader = () => {
-    const token = localStorage.getItem('adminToken') || localStorage.getItem('token') || '';
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  };
-
   // 1. Fetch Real Tokens from Backend API
   const fetchTokens = async () => {
     setIsLoading(true);
     try {
-      const headers = getAuthHeader();
-      const res = await fetch(`${API_BASE}/api/admin/tokens`, { headers });
-      const data = await res.json();
+      const res = await API.get('/admin/tokens');
+      const data = res.data;
 
-      if (res.ok && data.status === 'success' && data.data) {
+      if (data && data.status === 'success' && data.data) {
         setTokens(data.data.tokens || []);
         if (data.data.stats) {
           setStats({
@@ -116,9 +109,6 @@ const TokenBooking = () => {
         }
       } else {
         setTokens([]);
-        if (res.status === 401 || res.status === 403) {
-          showToastMsg('Session expired or admin access required.', 'error');
-        }
       }
     } catch (err) {
       console.error('API error fetching real tokens:', err.message);
@@ -132,11 +122,10 @@ const TokenBooking = () => {
   // 2. Fetch Token Settings (Configured by Admin)
   const fetchTokenSettings = async () => {
     try {
-      const headers = getAuthHeader();
-      const res = await fetch(`${API_BASE}/api/admin/tokens/settings`, { headers });
-      const data = await res.json();
+      const res = await API.get('/admin/tokens/settings');
+      const data = res.data;
 
-      if (res.ok && data.status === 'success' && data.data?.settings) {
+      if (data && data.status === 'success' && data.data?.settings) {
         const s = data.data.settings;
         setTokenConfig({
           tokenAmounts: s.tokenAmounts && s.tokenAmounts.length > 0 ? s.tokenAmounts : [2000, 5000],
@@ -156,10 +145,9 @@ const TokenBooking = () => {
   // 3. Fetch Real Properties for Property Selector
   const fetchProperties = async () => {
     try {
-      const headers = getAuthHeader();
-      const res = await fetch(`${API_BASE}/api/admin/properties?limit=100`, { headers });
-      const data = await res.json();
-      if (res.ok && data.data?.properties) {
+      const res = await API.get('/admin/properties', { params: { limit: 100 } });
+      const data = res.data;
+      if (data && data.data?.properties) {
         setPropertiesList(data.data.properties);
       }
     } catch (err) {
@@ -173,6 +161,40 @@ const TokenBooking = () => {
     fetchProperties();
   }, []);
 
+  // Handle direct navigation & search params from notifications
+  useEffect(() => {
+    const q = searchParams.get('search') || searchParams.get('q');
+    const targetId = searchParams.get('id');
+
+    if (q) {
+      setSearchQuery(q);
+      setStatusFilter('All');
+    }
+
+    if (tokens.length > 0) {
+      if (targetId) {
+        const found = tokens.find(t => t._id === targetId || t.id === targetId || t.tokenRequestId === targetId);
+        if (found) {
+          setSelectedToken(found);
+          setStatusFilter('All');
+        }
+      } else if (q) {
+        const lowerQ = q.toLowerCase();
+        const found = tokens.find(t =>
+          (t.clientDetails?.name && t.clientDetails.name.toLowerCase().includes(lowerQ)) ||
+          (t.personalDetails?.fullName && t.personalDetails.fullName.toLowerCase().includes(lowerQ)) ||
+          (t.propertyDetails?.title && t.propertyDetails.title.toLowerCase().includes(lowerQ)) ||
+          (t.propertyId?.title && t.propertyId.title.toLowerCase().includes(lowerQ)) ||
+          (t.tokenRequestId && t.tokenRequestId.toLowerCase().includes(lowerQ))
+        );
+        if (found) {
+          setSelectedToken(found);
+          setStatusFilter('All');
+        }
+      }
+    }
+  }, [searchParams, tokens]);
+
   // 4. Save Admin Token Amount Settings
   const handleSaveTokenConfig = async (e) => {
     e?.preventDefault();
@@ -183,26 +205,16 @@ const TokenBooking = () => {
 
     setIsSavingConfig(true);
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      };
-
-      const res = await fetch(`${API_BASE}/api/admin/tokens/settings`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify(tokenConfig),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
+      const res = await API.patch('/admin/tokens/settings', tokenConfig);
+      const data = res.data;
+      if (data && data.status === 'success') {
         showToastMsg(`Token amounts updated: ${tokenConfig.tokenAmounts.map(a => `₹${a.toLocaleString()}`).join(', ')}`);
         setShowConfigModal(false);
       } else {
-        showToastMsg(data.message || 'Failed to save token settings', 'error');
+        showToastMsg(data?.message || 'Failed to save token settings', 'error');
       }
     } catch (err) {
-      showToastMsg('Network error while saving token settings', 'error');
+      showToastMsg(err.response?.data?.message || 'Network error while saving token settings', 'error');
     } finally {
       setIsSavingConfig(false);
     }
@@ -247,26 +259,17 @@ const TokenBooking = () => {
     setIsSubmitting(true);
 
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      };
-
       const idToUpdate = token.mongoId || token.id;
       const targetStatus = type === 'contact' ? 'contacted' : type === 'accept' ? 'accepted' : type === 'reject' ? 'rejected' : 'cancelled';
-      const res = await fetch(`${API_BASE}/api/admin/tokens/${idToUpdate}/status`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({
-          status: targetStatus,
-          action: type,
-          notes: actionReason.trim() || undefined,
-        }),
+      const res = await API.patch(`/admin/tokens/${idToUpdate}/status`, {
+        status: targetStatus,
+        action: type,
+        notes: actionReason.trim() || undefined,
       });
 
-      const data = await res.json();
+      const data = res.data;
 
-      if (res.ok && data.status === 'success') {
+      if (data && data.status === 'success') {
         const newStatus = targetStatus;
         showToastMsg(`Token request ${token.id} updated to "${newStatus}".`);
         setActionModal(null);
@@ -283,10 +286,10 @@ const TokenBooking = () => {
           }));
         }
       } else {
-        showToastMsg(data.message || 'Failed to update token request status.', 'error');
+        showToastMsg(data?.message || 'Failed to update token request status.', 'error');
       }
     } catch (err) {
-      showToastMsg('Network error while updating token status.', 'error');
+      showToastMsg(err.response?.data?.message || 'Network error while updating token status.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -297,16 +300,10 @@ const TokenBooking = () => {
     if (!deleteModal) return;
     setIsSubmitting(true);
     try {
-      const headers = getAuthHeader();
       const idToDelete = deleteModal.mongoId || deleteModal.id;
-
-      const res = await fetch(`${API_BASE}/api/admin/tokens/${idToDelete}`, {
-        method: 'DELETE',
-        headers,
-      });
-
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
+      const res = await API.delete(`/admin/tokens/${idToDelete}`);
+      const data = res.data;
+      if (data && data.status === 'success') {
         showToastMsg(`Token booking ${deleteModal.id} permanently deleted.`);
         setTokens(prev => prev.filter(t => t.id !== deleteModal.id && t.mongoId !== deleteModal.mongoId));
         if (selectedToken && (selectedToken.id === deleteModal.id || selectedToken.mongoId === deleteModal.mongoId)) {
@@ -315,10 +312,10 @@ const TokenBooking = () => {
         setDeleteModal(null);
         fetchTokens();
       } else {
-        showToastMsg(data.message || 'Failed to delete token record.', 'error');
+        showToastMsg(data?.message || 'Failed to delete token record.', 'error');
       }
     } catch (err) {
-      showToastMsg('Network error while deleting token.', 'error');
+      showToastMsg(err.response?.data?.message || 'Network error while deleting token.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -334,11 +331,6 @@ const TokenBooking = () => {
 
     setIsSubmitting(true);
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        ...getAuthHeader(),
-      };
-
       const payload = {
         buyerName: createForm.buyerName.trim(),
         buyerPhone: createForm.buyerPhone.trim(),
@@ -361,14 +353,9 @@ const TokenBooking = () => {
         },
       };
 
-      const res = await fetch(`${API_BASE}/api/admin/tokens`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
+      const res = await API.post('/admin/tokens', payload);
+      const data = res.data;
+      if (data && data.status === 'success') {
         showToastMsg('Token booking request created successfully in database!');
         setShowCreateModal(false);
         setCreateForm({
@@ -388,10 +375,10 @@ const TokenBooking = () => {
         });
         fetchTokens();
       } else {
-        showToastMsg(data.message || 'Failed to create token booking request.', 'error');
+        showToastMsg(data?.message || 'Failed to create token booking request.', 'error');
       }
     } catch (err) {
-      showToastMsg('Network error creating token booking.', 'error');
+      showToastMsg(err.response?.data?.message || 'Network error creating token booking.', 'error');
     } finally {
       setIsSubmitting(false);
     }

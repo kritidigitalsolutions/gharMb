@@ -70,7 +70,16 @@ exports.getAllUsers = async (req, res, next) => {
 
     const filter = conditions.length > 0 ? { $and: conditions } : {};
 
-    const users = await User.find(filter).sort({ createdAt: -1 });
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : null;
+    const skip = (page - 1) * (limit || 0);
+
+    const totalUsers = await User.countDocuments(filter);
+    let query = User.find(filter).sort({ createdAt: -1 });
+    if (limit) {
+      query = query.skip(skip).limit(limit);
+    }
+    const users = await query;
 
     // Fetch dynamic listings counts and property owner ratings for each user
     const Property = require('../../models/property.model');
@@ -108,8 +117,15 @@ exports.getAllUsers = async (req, res, next) => {
     res.status(200).json({
       status: 'success',
       results: usersWithListings.length,
+      pagination: limit ? {
+        page,
+        limit,
+        total: totalUsers,
+        pages: Math.ceil(totalUsers / limit),
+      } : undefined,
       data: {
         users: usersWithListings,
+        total: totalUsers,
       },
     });
   } catch (error) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
 import { useSearchParams } from 'react-router-dom';
+import API, { getMediaUrl } from '../api/api';
 import {
   UserCheck,
   ShieldCheck,
@@ -67,24 +68,8 @@ const AgentManagement = () => {
     }, 3500);
   };
 
-  const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-  const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
-  const API_URL = `${API_BASE}/api`;
-
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('adminToken');
-    return {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    };
-  };
-
   const getDocumentUrl = (url) => {
-    if (!url) return '';
-    if (url.startsWith('/uploads')) return `${API_BASE}${url}`;
-    const match = url.match(/\/uploads\/[^\s"']+/);
-    if (match) return `${API_BASE}${match[0]}`;
-    return url;
+    return getMediaUrl(url);
   };
 
   const copyToClipboard = (text, label = 'Information') => {
@@ -96,11 +81,9 @@ const AgentManagement = () => {
   const fetchAgents = async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const response = await fetch(`${API_URL}/admin/users?role=agent`, {
-        headers: getAuthHeaders()
-      });
-      const data = await response.json();
-      if (response.ok && data.status === 'success' && data.data?.users) {
+      const response = await API.get('/admin/users?role=agent');
+      const data = response.data;
+      if (data?.status === 'success' && data.data?.users) {
         const mapped = data.data.users.map((u) => {
           let verificationStatus = u.agentVerificationStatus || 'unverified';
           if (!u.agentVerificationStatus && u.isVerified) verificationStatus = 'approved';
@@ -157,11 +140,11 @@ const AgentManagement = () => {
           }
         }
       } else {
-        showToast(data.message || 'Failed to fetch agent records.', 'error');
+        showToast(data?.message || 'Failed to fetch agent records.', 'error');
       }
     } catch (err) {
       console.error('Error fetching agents:', err);
-      showToast('Network error while connecting to server.', 'error');
+      showToast(err?.response?.data?.message || 'Network error while connecting to server.', 'error');
     } finally {
       if (!silent) setIsLoading(false);
     }
@@ -175,19 +158,15 @@ const AgentManagement = () => {
   const handleUpdateStatus = async (agent, newStatus, reason = '') => {
     setActionInProgress(true);
     try {
-      const response = await fetch(`${API_URL}/admin/users/${agent._id}/verify-agent`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          agentVerificationStatus: newStatus,
-          status: newStatus,
-          rejectReason: reason,
-          agentRejectionReason: reason
-        })
+      const response = await API.patch(`/admin/users/${agent._id}/verify-agent`, {
+        agentVerificationStatus: newStatus,
+        status: newStatus,
+        rejectReason: reason,
+        agentRejectionReason: reason
       });
 
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
+      const data = response.data;
+      if (data?.status === 'success') {
         showToast(
           newStatus === 'approved'
             ? `Agent "${agent.name}" approved successfully.`
@@ -210,11 +189,11 @@ const AgentManagement = () => {
           }));
         }
       } else {
-        showToast(data.message || 'Failed to update agent status.', 'error');
+        showToast(data?.message || 'Failed to update agent status.', 'error');
       }
     } catch (err) {
       console.error('Error updating agent status:', err);
-      showToast('Network error while updating status.', 'error');
+      showToast(err?.response?.data?.message || 'Network error while updating status.', 'error');
     } finally {
       setActionInProgress(false);
     }

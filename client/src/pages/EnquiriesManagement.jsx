@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
+import API from '../api/api';
 import {
   Inbox,
   Search,
@@ -33,7 +34,7 @@ import {
   TrendingUp,
   FileSpreadsheet
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 // Normalize any database status string to standard category keys
 const normalizeStatus = (status) => {
@@ -91,6 +92,7 @@ const getStatusBadge = (status) => {
 
 export default function EnquiriesManagement() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // Loading & Data States
   const [isLoading, setIsLoading] = useState(true);
@@ -111,6 +113,19 @@ export default function EnquiriesManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('newest');
+
+  // Handle direct navigation & search params from notifications
+  useEffect(() => {
+    const tab = searchParams.get('tab') || searchParams.get('category');
+    const q = searchParams.get('search') || searchParams.get('q');
+    if (tab) {
+      setActiveCategory(tab);
+    }
+    if (q) {
+      setSearchQuery(q);
+      setStatusFilter('all');
+    }
+  }, [searchParams]);
 
   // Selection & Details Drawer
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
@@ -154,39 +169,22 @@ export default function EnquiriesManagement() {
     setTimeout(() => setCopiedKey(null), 1800);
   };
 
-  const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-  const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
-
-  const getAuthToken = () => {
-    return localStorage.getItem('adminToken') || localStorage.getItem('token') || '';
-  };
-
   // Fetch all enquiry streams from database
   const fetchEnquiries = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     else setIsRefreshing(true);
     setError(null);
 
-    const token = getAuthToken();
-    const headers = {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    };
-
     try {
-      const dashPromise = fetch(`${API_BASE}/api/admin/dashboard/enquiries`, { headers })
-        .then((res) => (res.ok ? res.json() : null))
-        .catch(() => null);
+      const [dashRes, webRes, serviceRes] = await Promise.all([
+        API.get('/admin/dashboard/enquiries').catch(() => null),
+        API.get('/admin/web-inquiries', { params: { limit: 100 } }).catch(() => null),
+        API.get('/admin/services').catch(() => null)
+      ]);
 
-      const webPromise = fetch(`${API_BASE}/api/admin/web-inquiries?limit=100`, { headers })
-        .then((res) => (res.ok ? res.json() : null))
-        .catch(() => null);
-
-      const servicePromise = fetch(`${API_BASE}/api/admin/services`, { headers })
-        .then((res) => (res.ok ? res.json() : null))
-        .catch(() => null);
-
-      const [dashData, webData, serviceData] = await Promise.all([dashPromise, webPromise, servicePromise]);
+      const dashData = dashRes?.data;
+      const webData = webRes?.data;
+      const serviceData = serviceRes?.data;
 
       if (dashData && dashData.status === 'success' && dashData.data) {
         setPropertyEnquiries(dashData.data.propertyEnquiries || []);
@@ -208,7 +206,7 @@ export default function EnquiriesManagement() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [API_BASE]);
+  }, []);
 
   useEffect(() => {
     fetchEnquiries();
@@ -478,13 +476,12 @@ export default function EnquiriesManagement() {
   // Update Status across all streams with robust mapping
   const handleUpdateStatus = async (enquiry, newStatusKey) => {
     setStatusUpdatingId(enquiry.id);
-    const token = getAuthToken();
     try {
       let url = '';
       let targetDbStatus = newStatusKey;
 
       if (enquiry.stream === 'service') {
-        url = `${API_BASE}/api/admin/services/${enquiry.id}`;
+        url = `/admin/services/${enquiry.id}`;
         const serviceMap = {
           pending: 'In Progress',
           contacted: 'In Progress',
@@ -494,7 +491,7 @@ export default function EnquiriesManagement() {
         };
         targetDbStatus = serviceMap[newStatusKey] || 'In Progress';
       } else if (enquiry.stream === 'visit') {
-        url = `${API_BASE}/api/admin/dashboard/enquiries/${enquiry.id}`;
+        url = `/admin/dashboard/enquiries/${enquiry.id}`;
         const visitMap = {
           pending: 'pending',
           contacted: 'contacted',
@@ -504,7 +501,7 @@ export default function EnquiriesManagement() {
         };
         targetDbStatus = visitMap[newStatusKey] || newStatusKey;
       } else if (enquiry.stream === 'web') {
-        url = `${API_BASE}/api/admin/web-inquiries/${enquiry.id}`;
+        url = `/admin/web-inquiries/${enquiry.id}`;
         const webMap = {
           pending: 'new',
           contacted: 'in_progress',
@@ -514,7 +511,7 @@ export default function EnquiriesManagement() {
         };
         targetDbStatus = webMap[newStatusKey] || newStatusKey;
       } else {
-        url = `${API_BASE}/api/admin/dashboard/enquiries/${enquiry.id}`;
+        url = `/admin/dashboard/enquiries/${enquiry.id}`;
         const propMap = {
           pending: 'pending',
           contacted: 'contacted',
@@ -525,18 +522,9 @@ export default function EnquiriesManagement() {
         targetDbStatus = propMap[newStatusKey] || newStatusKey;
       }
 
-      const res = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: targetDbStatus }),
-      });
+      const res = await API.patch(url, { status: targetDbStatus });
 
-      const resData = await res.json().catch(() => null);
-
-      if (res.ok) {
+      if (res.data && res.data.status === 'success') {
         showToast(`Status updated to ${getStatusBadge(targetDbStatus).label}`);
 
         // Update local state immediately
@@ -555,7 +543,7 @@ export default function EnquiriesManagement() {
         // Silent re-fetch to ensure complete sync
         fetchEnquiries(true);
       } else {
-        showToast(resData?.message || 'Failed to update status', 'error');
+        showToast(res.data?.message || 'Failed to update status', 'error');
       }
     } catch (err) {
       console.error('Error updating status:', err);
@@ -571,33 +559,25 @@ export default function EnquiriesManagement() {
     if (!selectedEnquiry || !noteText.trim()) return;
 
     setIsSubmittingNote(true);
-    const token = getAuthToken();
 
     try {
       let url = '';
       let payload = {};
 
       if (selectedEnquiry.stream === 'web') {
-        url = `${API_BASE}/api/admin/web-inquiries/${selectedEnquiry.id}`;
+        url = `/admin/web-inquiries/${selectedEnquiry.id}`;
         payload = { adminNotes: noteText.trim() };
       } else if (selectedEnquiry.stream === 'service') {
-        url = `${API_BASE}/api/admin/services/${selectedEnquiry.id}`;
+        url = `/admin/services/${selectedEnquiry.id}`;
         payload = { notes: noteText.trim() };
       } else {
-        url = `${API_BASE}/api/admin/dashboard/enquiries/${selectedEnquiry.id}`;
+        url = `/admin/dashboard/enquiries/${selectedEnquiry.id}`;
         payload = { newNote: noteText.trim() };
       }
 
-      const res = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+      const res = await API.patch(url, payload);
 
-      if (res.ok) {
+      if (res.data && res.data.status === 'success') {
         showToast('Note added');
         const newNoteItem = {
           text: noteText.trim(),
@@ -627,24 +607,20 @@ export default function EnquiriesManagement() {
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
     setIsDeleting(true);
-    const token = getAuthToken();
 
     try {
       let url = '';
       if (deleteTarget.stream === 'web') {
-        url = `${API_BASE}/api/admin/web-inquiries/${deleteTarget.id}`;
+        url = `/admin/web-inquiries/${deleteTarget.id}`;
       } else if (deleteTarget.stream === 'service') {
-        url = `${API_BASE}/api/admin/services/${deleteTarget.id}`;
+        url = `/admin/services/${deleteTarget.id}`;
       } else {
-        url = `${API_BASE}/api/admin/dashboard/enquiries/${deleteTarget.id}`;
+        url = `/admin/dashboard/enquiries/${deleteTarget.id}`;
       }
 
-      const res = await fetch(url, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await API.delete(url);
 
-      if (res.ok) {
+      if (res.data && res.data.status === 'success') {
         showToast('Enquiry deleted');
         if (deleteTarget.stream === 'property') {
           setPropertyEnquiries((prev) => prev.filter((i) => i._id !== deleteTarget.id));
@@ -682,20 +658,11 @@ export default function EnquiriesManagement() {
     }
 
     setIsSubmittingLead(true);
-    const token = getAuthToken();
 
     try {
-      const res = await fetch(`${API_BASE}/api/admin/dashboard/enquiries`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newLeadForm),
-      });
-
-      const resData = await res.json();
-      if (res.ok && resData.status === 'success') {
+      const res = await API.post('/admin/dashboard/enquiries', newLeadForm);
+      const resData = res.data;
+      if (resData && resData.status === 'success') {
         showToast('Lead recorded');
         setShowAddModal(false);
         setNewLeadForm({
@@ -711,7 +678,7 @@ export default function EnquiriesManagement() {
         });
         fetchEnquiries(true);
       } else {
-        showToast(resData.message || 'Failed to record lead', 'error');
+        showToast(resData?.message || 'Failed to record lead', 'error');
       }
     } catch (err) {
       console.error('Error creating lead:', err);
