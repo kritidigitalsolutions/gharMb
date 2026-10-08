@@ -15,6 +15,10 @@ export const ThemeProvider = ({ children }) => {
     } else {
       document.documentElement.classList.remove("dark");
     }
+    const faviconLink = document.querySelector("link[rel*='icon']");
+    if (faviconLink) {
+      faviconLink.href = theme === "dark" ? "/favicon-dark.png" : "/favicon.png";
+    }
     localStorage.setItem("adminTheme", theme);
   }, [theme]);
 

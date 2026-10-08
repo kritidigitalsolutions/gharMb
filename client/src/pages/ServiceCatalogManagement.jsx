@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
+import API from '../api/api';
 import {
   CreditCard, Home, Truck, Scale, Search, Plus,
   X, Layers, Check, Edit2, Trash2, RefreshCw,
@@ -46,16 +47,9 @@ const ServiceCatalogManagement = () => {
     isActive: true
   });
 
-  const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-  const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
-
   const showToast = (text, type = 'success') => {
     setFeedbackMsg({ text, type });
     setTimeout(() => setFeedbackMsg(null), 3500);
-  };
-
-  const getAuthToken = () => {
-    return localStorage.getItem('adminToken') || localStorage.getItem('token') || '';
   };
 
   // Fetch real offerings from MongoDB
@@ -64,16 +58,10 @@ const ServiceCatalogManagement = () => {
     else setIsRefreshing(true);
 
     try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/api/admin/service-catalog`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await API.get('/admin/service-catalog');
+      const resData = response.data;
 
-      const resData = await response.json();
-
-      if (response.ok && resData.status === 'success') {
+      if (resData && resData.status === 'success') {
         setOfferings(resData.data.offerings || []);
       } else {
         setOfferings([]);
@@ -129,7 +117,6 @@ const ServiceCatalogManagement = () => {
 
     setIsSubmitting(true);
     try {
-      const token = getAuthToken();
       const numPrice = Number(formData.price) || 0;
       const cleanDisplay = formData.priceDisplay.trim() || (numPrice > 0 ? `₹${numPrice.toLocaleString('en-IN')}` : 'Contact for Quote');
 
@@ -147,29 +134,18 @@ const ServiceCatalogManagement = () => {
         isActive: Boolean(formData.isActive)
       };
 
-      const url = editingItem
-        ? `${API_BASE}/api/admin/service-catalog/${editingItem._id}`
-        : `${API_BASE}/api/admin/service-catalog`;
+      const response = editingItem
+        ? await API.patch(`/admin/service-catalog/${editingItem._id}`, payload)
+        : await API.post('/admin/service-catalog', payload);
 
-      const method = editingItem ? 'PATCH' : 'POST';
+      const resData = response.data;
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const resData = await response.json();
-
-      if (response.ok && resData.status === 'success') {
+      if (resData && resData.status === 'success') {
         showToast(editingItem ? 'Service offering updated successfully' : 'New service offering created');
         setIsAddEditModalOpen(false);
         fetchOfferings(true);
       } else {
-        showToast(resData.message || 'Failed to save offering', 'error');
+        showToast(resData?.message || 'Failed to save offering', 'error');
       }
     } catch (err) {
       console.error('Error saving offering:', err);
@@ -182,19 +158,10 @@ const ServiceCatalogManagement = () => {
   // Toggle Active Status directly
   const handleToggleActive = async (item) => {
     try {
-      const token = getAuthToken();
       const nextState = !item.isActive;
+      const response = await API.patch(`/admin/service-catalog/${item._id}`, { isActive: nextState });
 
-      const response = await fetch(`${API_BASE}/api/admin/service-catalog/${item._id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ isActive: nextState })
-      });
-
-      if (response.ok) {
+      if (response.data && response.data.status === 'success') {
         setOfferings(prev => prev.map(o => o._id === item._id ? { ...o, isActive: nextState } : o));
         showToast(`${item.title} is now ${nextState ? 'Active (Live)' : 'Inactive (Hidden)'}`);
       } else {
@@ -209,15 +176,9 @@ const ServiceCatalogManagement = () => {
   // Delete Offering
   const handleDeleteOffering = async (id) => {
     try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/api/admin/service-catalog/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await API.delete(`/admin/service-catalog/${id}`);
 
-      if (response.ok) {
+      if (response.data && response.data.status === 'success') {
         setOfferings(prev => prev.filter(o => o._id !== id));
         showToast('Service offering deleted');
       } else {
@@ -237,13 +198,9 @@ const ServiceCatalogManagement = () => {
       return;
     }
     try {
-      const token = getAuthToken();
-      const res = await fetch(`${API_BASE}/api/admin/service-catalog/seed?force=true`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
+      const res = await API.post('/admin/service-catalog/seed?force=true');
+      const data = res.data;
+      if (data && data.status === 'success') {
         showToast('Service catalog reset to system defaults');
         fetchOfferings();
       }

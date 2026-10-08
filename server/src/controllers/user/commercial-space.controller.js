@@ -674,6 +674,9 @@ exports.createSpace = async (req, res, next) => {
           title: 'New Commercial Space Pending Verification',
           message: `A new commercial listing "${space.title}" (${space.spaceType} - ${space.listingFor}) by ${user.name} requires verification.`,
           type: 'verification',
+          metadata: {
+            propertyId: space._id,
+          },
           isRead: false,
         }));
         await Notification.insertMany(notifications);

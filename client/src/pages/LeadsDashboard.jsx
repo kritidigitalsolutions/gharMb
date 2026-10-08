@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
+import API from '../api/api';
 import {
   PhoneCall, MessageSquare, FileSpreadsheet, CalendarDays,
   ArrowRight, TrendingUp, Percent, MapPin, ExternalLink,
@@ -55,17 +56,9 @@ const LeadsDashboard = () => {
   const [availableProperties, setAvailableProperties] = useState([]);
   const [availableAgents, setAvailableAgents] = useState([]);
 
-  const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-  const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
-
   const showToast = (text, type = 'success') => {
     setFeedbackMsg({ text, type });
     setTimeout(() => setFeedbackMsg(null), 3500);
-  };
-
-  // Helper to fetch admin authentication token
-  const getAuthToken = () => {
-    return localStorage.getItem('adminToken') || localStorage.getItem('token') || '';
   };
 
   // Fetch real leads & enquiries from backend
@@ -74,16 +67,10 @@ const LeadsDashboard = () => {
     else setIsRefreshing(true);
 
     try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/api/admin/dashboard/enquiries`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await API.get('/admin/dashboard/enquiries');
+      const resData = response.data;
 
-      const resData = await response.json();
-
-      if (response.ok && resData.status === 'success') {
+      if (resData && resData.status === 'success') {
         const rawPropEnquiries = resData.data.propertyEnquiries || [];
         const rawDevEnquiries = resData.data.developerEnquiries || [];
         const rawVisitRequests = resData.data.visitRequests || [];
@@ -210,12 +197,9 @@ const LeadsDashboard = () => {
   // Fetch available real properties to link with new leads
   const fetchAvailableProperties = async () => {
     try {
-      const token = getAuthToken();
-      const res = await fetch(`${API_BASE}/api/admin/properties?limit=100`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
+      const res = await API.get('/admin/properties', { params: { limit: 100 } });
+      const data = res.data;
+      if (data && data.status === 'success') {
         const props = data.data?.properties || [];
         setAvailableProperties(props);
       }
@@ -227,12 +211,9 @@ const LeadsDashboard = () => {
   // Fetch real team agents & users
   const fetchAvailableAgents = async () => {
     try {
-      const token = getAuthToken();
-      const res = await fetch(`${API_BASE}/api/admin/users?limit=50`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
+      const res = await API.get('/admin/users', { params: { limit: 50 } });
+      const data = res.data;
+      if (data && data.status === 'success') {
         const users = data.data?.users || [];
         // Filter agents or staff
         const agents = users.filter(u => u.role === 'agent' || u.role === 'admin');
@@ -358,20 +339,12 @@ const LeadsDashboard = () => {
     const cleanAgentName = selectedAgentToAssign.split(' (')[0].trim();
 
     try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/api/admin/dashboard/enquiries/${assignModalLead._id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          assignedTo: cleanAgentName,
-          newNote: `Lead re-assigned to ${cleanAgentName}`
-        })
+      const response = await API.patch(`/admin/dashboard/enquiries/${assignModalLead._id}`, {
+        assignedTo: cleanAgentName,
+        newNote: `Lead re-assigned to ${cleanAgentName}`
       });
 
-      if (response.ok) {
+      if (response.data && response.data.status === 'success') {
         setLeads(prev => prev.map(l => l._id === assignModalLead._id ? {
           ...l,
           assignedTo: cleanAgentName,
@@ -410,20 +383,12 @@ const LeadsDashboard = () => {
     setIsSubmittingNote(true);
 
     try {
-      const token = getAuthToken();
       const trimmedNote = noteText.trim();
-      const response = await fetch(`${API_BASE}/api/admin/dashboard/enquiries/${selectedLead._id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          newNote: trimmedNote
-        })
+      const response = await API.patch(`/admin/dashboard/enquiries/${selectedLead._id}`, {
+        newNote: trimmedNote
       });
 
-      if (response.ok) {
+      if (response.data && response.data.status === 'success') {
         const newNoteObj = {
           date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
           text: trimmedNote,
@@ -456,21 +421,12 @@ const LeadsDashboard = () => {
   // Update Lead Status and persist to MongoDB
   const handleUpdateStatus = async (leadId, newStatus) => {
     try {
-      const token = getAuthToken();
       const formattedStatus = newStatus.toLowerCase();
-
-      const response = await fetch(`${API_BASE}/api/admin/dashboard/enquiries/${leadId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          status: formattedStatus
-        })
+      const response = await API.patch(`/admin/dashboard/enquiries/${leadId}`, {
+        status: formattedStatus
       });
 
-      if (response.ok) {
+      if (response.data && response.data.status === 'success') {
         const capitalized = newStatus.charAt(0).toUpperCase() + newStatus.slice(1).toLowerCase();
         setLeads(prev => prev.map(l => l._id === leadId ? { ...l, status: capitalized } : l));
 
@@ -491,15 +447,9 @@ const LeadsDashboard = () => {
   // Delete Lead from MongoDB
   const handleDeleteLead = async (leadId) => {
     try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/api/admin/dashboard/enquiries/${leadId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await API.delete(`/admin/dashboard/enquiries/${leadId}`);
 
-      if (response.ok) {
+      if (response.data && response.data.status === 'success') {
         setLeads(prev => prev.filter(l => l._id !== leadId));
         if (selectedLead?._id === leadId) setSelectedLead(null);
         showToast('Inquiry lead deleted permanently');
@@ -521,8 +471,6 @@ const LeadsDashboard = () => {
 
     setIsSubmittingLead(true);
     try {
-      const token = getAuthToken();
-
       let targetLocation = newLeadLocation.trim();
       let targetPropertyName = newLeadPropertyName.trim();
 
@@ -548,18 +496,10 @@ const LeadsDashboard = () => {
         assignedTo: selectedAgentToAssign.split(' (')[0].trim() || 'Executive Desk'
       };
 
-      const response = await fetch(`${API_BASE}/api/admin/dashboard/enquiries`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
+      const response = await API.post('/admin/dashboard/enquiries', payload);
+      const data = response.data;
 
-      const data = await response.json();
-
-      if (response.ok && data.status === 'success') {
+      if (data && data.status === 'success') {
         const created = data.data.enquiry;
         const newLeadItem = {
           id: `LED-${created._id.slice(-4).toUpperCase()}`,
@@ -594,7 +534,7 @@ const LeadsDashboard = () => {
         setNewLeadMessage('');
         showToast('New lead inquiry recorded successfully in database');
       } else {
-        showToast(data.message || 'Failed to create lead on server', 'error');
+        showToast(data?.message || 'Failed to create lead on server', 'error');
       }
     } catch (err) {
       console.error('Error creating lead:', err);

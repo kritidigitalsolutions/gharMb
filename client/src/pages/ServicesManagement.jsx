@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
+import API from '../api/api';
 import {
   Home, Truck, Scale, Search, Plus,
   MapPin, UserCheck, X, Eye, Layers, Check, Edit2,
@@ -66,16 +67,9 @@ const ServicesManagement = () => {
     legal: 0
   });
 
-  const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-  const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
-
   const showToast = (text, type = 'success') => {
     setFeedbackMsg({ text, type });
     setTimeout(() => setFeedbackMsg(null), 3500);
-  };
-
-  const getAuthToken = () => {
-    return localStorage.getItem('adminToken') || localStorage.getItem('token') || '';
   };
 
   const [catalogOfferings, setCatalogOfferings] = useState([]);
@@ -106,16 +100,10 @@ const ServicesManagement = () => {
     else setIsRefreshing(true);
 
     try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/api/admin/services`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await API.get('/admin/services');
+      const resData = response.data;
 
-      const resData = await response.json();
-
-      if (response.ok && resData.status === 'success') {
+      if (resData && resData.status === 'success') {
         const rawServices = resData.data.services || [];
         const mapped = rawServices.map(item => ({
           _id: item._id,
@@ -180,12 +168,9 @@ const ServicesManagement = () => {
   // Fetch real properties for linking
   const fetchAvailableProperties = async () => {
     try {
-      const token = getAuthToken();
-      const res = await fetch(`${API_BASE}/api/admin/properties?limit=100`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
+      const res = await API.get('/admin/properties', { params: { limit: 100 } });
+      const data = res.data;
+      if (data && data.status === 'success') {
         setAvailableProperties(data.data?.properties || []);
       }
     } catch (err) {
@@ -196,12 +181,9 @@ const ServicesManagement = () => {
   // Fetch live offerings from service catalog for auto-populating
   const fetchCatalogOfferings = async () => {
     try {
-      const token = getAuthToken();
-      const res = await fetch(`${API_BASE}/api/admin/service-catalog`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
+      const res = await API.get('/admin/service-catalog');
+      const data = res.data;
+      if (data && data.status === 'success') {
         setCatalogOfferings(data.data?.offerings || []);
       }
     } catch (err) {
@@ -218,20 +200,12 @@ const ServicesManagement = () => {
   // Update Status in MongoDB
   const handleUpdateStatus = async (id, newStatus) => {
     try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/api/admin/services/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          status: newStatus,
-          newNote: `Status updated to ${newStatus}`
-        })
+      const response = await API.patch(`/admin/services/${id}`, {
+        status: newStatus,
+        newNote: `Status updated to ${newStatus}`
       });
 
-      if (response.ok) {
+      if (response.data && response.data.status === 'success') {
         setEnquiries(prev => prev.map(e => e._id === id ? { ...e, status: newStatus } : e));
         if (selectedEnquiry?._id === id) {
           setSelectedEnquiry(prev => ({ ...prev, status: newStatus }));
@@ -255,24 +229,16 @@ const ServicesManagement = () => {
       : item.quotation;
 
     try {
-      const token = getAuthToken();
       const newStatus = item.status === 'New' ? 'In Progress' : item.status;
 
-      const response = await fetch(`${API_BASE}/api/admin/services/${item._id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          assignedPartner: selectedPartner,
-          quotation: cleanQuote,
-          status: newStatus,
-          newNote: `Partner assigned: ${selectedPartner} (Quote: ${cleanQuote})`
-        })
+      const response = await API.patch(`/admin/services/${item._id}`, {
+        assignedPartner: selectedPartner,
+        quotation: cleanQuote,
+        status: newStatus,
+        newNote: `Partner assigned: ${selectedPartner} (Quote: ${cleanQuote})`
       });
 
-      if (response.ok) {
+      if (response.data && response.data.status === 'success') {
         setEnquiries(prev => prev.map(e => e._id === item._id ? {
           ...e,
           assignedPartner: selectedPartner,
@@ -321,19 +287,11 @@ const ServicesManagement = () => {
     });
 
     try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/api/admin/services/${selectedEnquiry._id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          timeline: updatedTimeline
-        })
+      const response = await API.patch(`/admin/services/${selectedEnquiry._id}`, {
+        timeline: updatedTimeline
       });
 
-      if (response.ok) {
+      if (response.data && response.data.status === 'success') {
         setEnquiries(prev => prev.map(e => e._id === selectedEnquiry._id ? { ...e, timeline: updatedTimeline } : e));
         setSelectedEnquiry(prev => ({ ...prev, timeline: updatedTimeline }));
         showToast('Milestone status updated');
@@ -349,17 +307,9 @@ const ServicesManagement = () => {
     if (!editingEnquiry) return;
 
     try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/api/admin/services/${editingEnquiry._id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(editingEnquiry)
-      });
+      const response = await API.patch(`/admin/services/${editingEnquiry._id}`, editingEnquiry);
 
-      if (response.ok) {
+      if (response.data && response.data.status === 'success') {
         setEnquiries(prev => prev.map(item => item._id === editingEnquiry._id ? editingEnquiry : item));
         if (selectedEnquiry?._id === editingEnquiry._id) {
           setSelectedEnquiry(editingEnquiry);
@@ -381,20 +331,12 @@ const ServicesManagement = () => {
     setIsSubmittingNote(true);
 
     try {
-      const token = getAuthToken();
       const trimmed = drawerNoteText.trim();
-      const response = await fetch(`${API_BASE}/api/admin/services/${selectedEnquiry._id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          newNote: trimmed
-        })
+      const response = await API.patch(`/admin/services/${selectedEnquiry._id}`, {
+        newNote: trimmed
       });
 
-      if (response.ok) {
+      if (response.data && response.data.status === 'success') {
         const newNoteObj = {
           text: trimmed,
           date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
@@ -429,15 +371,9 @@ const ServicesManagement = () => {
   // Delete Service Request from MongoDB
   const handleDeleteService = async (id) => {
     try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/api/admin/services/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await API.delete(`/admin/services/${id}`);
 
-      if (response.ok) {
+      if (response.data && response.data.status === 'success') {
         setEnquiries(prev => prev.filter(e => e._id !== id));
         if (selectedEnquiry?._id === id) setSelectedEnquiry(null);
         showToast('Service inquiry deleted permanently');
@@ -459,8 +395,6 @@ const ServicesManagement = () => {
 
     setIsSubmittingNew(true);
     try {
-      const token = getAuthToken();
-
       let targetRef = newRequest.propertyRef.trim();
       let targetLoc = newRequest.location.trim();
       let targetVal = newRequest.propertyValue.trim();
@@ -482,18 +416,10 @@ const ServicesManagement = () => {
         assignedPartner: newRequest.assignedPartner || (partnersCatalog[newRequest.serviceType] && partnersCatalog[newRequest.serviceType][0]) || 'Specialist Desk'
       };
 
-      const response = await fetch(`${API_BASE}/api/admin/services`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
+      const response = await API.post('/admin/services', payload);
+      const resData = response.data;
 
-      const resData = await response.json();
-
-      if (response.ok && resData.status === 'success') {
+      if (resData && resData.status === 'success') {
         const created = resData.data.service;
         const mappedNew = {
           _id: created._id,
@@ -538,7 +464,7 @@ const ServicesManagement = () => {
         });
         showToast('New service request created in database');
       } else {
-        showToast(resData.message || 'Failed to create service request', 'error');
+        showToast(resData?.message || 'Failed to create service request', 'error');
       }
     } catch (err) {
       console.error('Error creating service:', err);

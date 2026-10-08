@@ -41,10 +41,7 @@ import {
   CheckCheck,
   Star
 } from 'lucide-react';
-
-const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
-const API_URL = `${API_BASE}/api`;
+import API from '../api/api';
 
 const UserManagement = () => {
   // Core Directory State
@@ -130,14 +127,6 @@ const UserManagement = () => {
     builderVerificationStatus: 'unverified'
   });
 
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('adminToken');
-    return {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    };
-  };
-
   const copyToClipboard = (text, label) => {
     if (!text || text === 'N/A') return;
     navigator.clipboard?.writeText(text);
@@ -171,11 +160,9 @@ const UserManagement = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/admin/users`, {
-        headers: getAuthHeaders()
-      });
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
+      const response = await API.get('/admin/users');
+      const data = response.data;
+      if (data?.status === 'success') {
         const mappedUsers = (data.data.users || []).map(u => ({
           ...u,
           id: u._id,
@@ -187,11 +174,11 @@ const UserManagement = () => {
         }));
         setUsers(mappedUsers);
       } else {
-        setError(data.message || 'Failed to fetch users.');
+        setError(data?.message || 'Failed to fetch users.');
       }
     } catch (err) {
       console.error('Error fetching users:', err);
-      setError('Could not connect to backend. Please ensure the server is running.');
+      setError(err?.response?.data?.message || 'Could not connect to backend. Please ensure the server is running.');
     } finally {
       setIsLoading(false);
     }
@@ -216,35 +203,14 @@ const UserManagement = () => {
       setIsDrawerLoading(true);
       try {
         if (userDrawerTab === 'Listings') {
-          const response = await fetch(`${API_URL}/admin/properties?owner=${selectedUser.id}`, {
-            headers: getAuthHeaders()
-          });
-          const data = await response.json();
-          if (response.ok && data.status === 'success') {
-            setRealProperties(data.data.properties || []);
-          } else {
-            setRealProperties([]);
-          }
+          const response = await API.get(`/admin/properties?owner=${selectedUser.id}`);
+          setRealProperties(response.data?.data?.properties || []);
         } else if (userDrawerTab === 'Ratings') {
-          const response = await fetch(`${API_URL}/admin/users/${selectedUser.id}/ratings`, {
-            headers: getAuthHeaders()
-          });
-          const data = await response.json();
-          if (response.ok && data.status === 'success') {
-            setRealRatings(data.data || { averageRating: 0, totalReviews: 0, breakdown: {}, reviews: [] });
-          } else {
-            setRealRatings({ averageRating: 0, totalReviews: 0, breakdown: {}, reviews: [] });
-          }
+          const response = await API.get(`/admin/users/${selectedUser.id}/ratings`);
+          setRealRatings(response.data?.data || { averageRating: 0, totalReviews: 0, breakdown: {}, reviews: [] });
         } else if (userDrawerTab === 'Enquiries') {
-          const response = await fetch(`${API_URL}/admin/users/${selectedUser.id}/enquiries`, {
-            headers: getAuthHeaders()
-          });
-          const data = await response.json();
-          if (response.ok && data.status === 'success') {
-            setRealEnquiries(data.data || { sent: { property: [], developer: [] }, received: { property: [], developer: [] } });
-          } else {
-            setRealEnquiries({ sent: { property: [], developer: [] }, received: { property: [], developer: [] } });
-          }
+          const response = await API.get(`/admin/users/${selectedUser.id}/enquiries`);
+          setRealEnquiries(response.data?.data || { sent: { property: [], developer: [] }, received: { property: [], developer: [] } });
         }
       } catch (err) {
         console.error('Error fetching drawer details:', err);
@@ -290,16 +256,12 @@ const UserManagement = () => {
   // --- Handlers: Verification Actions (always real API) ---
   const handleVerifyAgent = async (userId, targetStatus, explicitReason = '') => {
     try {
-      const response = await fetch(`${API_URL}/admin/users/${userId}/verify-agent`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          agentVerificationStatus: targetStatus,
-          agentRejectionReason: explicitReason
-        })
+      const response = await API.patch(`/admin/users/${userId}/verify-agent`, {
+        agentVerificationStatus: targetStatus,
+        agentRejectionReason: explicitReason
       });
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
+      const data = response.data;
+      if (data?.status === 'success') {
         showToast(`Agent status updated to ${targetStatus}!`, targetStatus === 'approved' ? 'success' : 'info');
         if (selectedUser && selectedUser.id === userId) {
           setSelectedUser(prev => ({
@@ -311,26 +273,22 @@ const UserManagement = () => {
         }
         await fetchUsers();
       } else {
-        showToast(data.message || 'Failed to update agent verification.', 'error');
+        showToast(data?.message || 'Failed to update agent verification.', 'error');
       }
     } catch (err) {
       console.error('Error verifying agent:', err);
-      showToast('Network connection error.', 'error');
+      showToast(err?.response?.data?.message || 'Network connection error.', 'error');
     }
   };
 
   const handleVerifyDeveloper = async (userId, targetStatus, explicitReason = '') => {
     try {
-      const response = await fetch(`${API_URL}/admin/users/${userId}/verify-developer`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          builderVerificationStatus: targetStatus,
-          builderRejectionReason: explicitReason
-        })
+      const response = await API.patch(`/admin/users/${userId}/verify-developer`, {
+        builderVerificationStatus: targetStatus,
+        builderRejectionReason: explicitReason
       });
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
+      const data = response.data;
+      if (data?.status === 'success') {
         showToast(`Developer status updated to ${targetStatus}!`, targetStatus === 'approved' ? 'success' : 'info');
         if (selectedUser && selectedUser.id === userId) {
           setSelectedUser(prev => ({
@@ -342,11 +300,11 @@ const UserManagement = () => {
         }
         await fetchUsers();
       } else {
-        showToast(data.message || 'Failed to update developer verification.', 'error');
+        showToast(data?.message || 'Failed to update developer verification.', 'error');
       }
     } catch (err) {
       console.error('Error verifying developer:', err);
-      showToast('Network connection error.', 'error');
+      showToast(err?.response?.data?.message || 'Network connection error.', 'error');
     }
   };
 
@@ -363,21 +321,15 @@ const UserManagement = () => {
     } else {
       const newVerified = !u.isVerified;
       try {
-        const response = await fetch(`${API_URL}/admin/users/${u.id}`, {
-          method: 'PATCH',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ isVerified: newVerified })
-        });
-        if (response.ok) {
-          showToast(`KYC status updated to ${newVerified ? 'Verified' : 'Unverified'}!`);
-          if (selectedUser && selectedUser.id === u.id) {
-            setSelectedUser(prev => ({ ...prev, isVerified: newVerified }));
-          }
-          await fetchUsers();
+        await API.patch(`/admin/users/${u.id}`, { isVerified: newVerified });
+        showToast(`KYC status updated to ${newVerified ? 'Verified' : 'Unverified'}!`);
+        if (selectedUser && selectedUser.id === u.id) {
+          setSelectedUser(prev => ({ ...prev, isVerified: newVerified }));
         }
+        await fetchUsers();
       } catch (err) {
         console.error('Error toggling KYC verification:', err);
-        showToast('Failed to update verification status.', 'error');
+        showToast(err?.response?.data?.message || 'Failed to update verification status.', 'error');
       }
     }
   };
@@ -388,24 +340,20 @@ const UserManagement = () => {
     if (!userToToggle) return;
     const newStatus = userToToggle.status === 'Active' ? 'Blocked' : 'Active';
     try {
-      const response = await fetch(`${API_URL}/admin/users/${id}`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ status: newStatus })
-      });
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
+      const response = await API.patch(`/admin/users/${id}`, { status: newStatus });
+      const data = response.data;
+      if (data?.status === 'success') {
         showToast(`Account status updated to ${newStatus}`);
         if (selectedUser && selectedUser.id === id) {
           setSelectedUser({ ...selectedUser, status: newStatus });
         }
         await fetchUsers();
       } else {
-        showToast(data.message || 'Failed to toggle account status.', 'error');
+        showToast(data?.message || 'Failed to toggle account status.', 'error');
       }
     } catch (err) {
       console.error('Error toggling status:', err);
-      showToast('Network connection error.', 'error');
+      showToast(err?.response?.data?.message || 'Network connection error.', 'error');
     }
   };
 
@@ -436,30 +384,26 @@ const UserManagement = () => {
       return;
     }
     try {
-      const response = await fetch(`${API_URL}/admin/users`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          name: newUser.name,
-          email: newUser.email,
-          phone: newUser.phone,
-          role: mapUiToApiRole(newUser.role),
-          status: newUser.status,
-          isVerified: newUser.isVerified
-        })
+      const response = await API.post('/admin/users', {
+        name: newUser.name,
+        email: newUser.email,
+        phone: newUser.phone,
+        role: mapUiToApiRole(newUser.role),
+        status: newUser.status,
+        isVerified: newUser.isVerified
       });
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
+      const data = response.data;
+      if (data?.status === 'success') {
         setIsAddUserModalOpen(false);
         showToast(`User profile created successfully!`, 'success');
         setNewUser({ name: '', email: '', phone: '', role: 'Buyer', status: 'Active', isVerified: false });
         await fetchUsers();
       } else {
-        showToast(data.message || 'Failed to create user profile.', 'error');
+        showToast(data?.message || 'Failed to create user profile.', 'error');
       }
     } catch (err) {
       console.error('Error creating user:', err);
-      showToast('Network connection error.', 'error');
+      showToast(err?.response?.data?.message || 'Network connection error.', 'error');
     }
   };
 
@@ -490,25 +434,21 @@ const UserManagement = () => {
       return;
     }
     try {
-      const response = await fetch(`${API_URL}/admin/users/${editUserData.id}`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          name: editUserData.name,
-          email: editUserData.email,
-          phone: editUserData.phone,
-          role: mapUiToApiRole(editUserData.role),
-          status: editUserData.status,
-          isVerified: editUserData.isVerified,
-          reraNumber: editUserData.reraNumber,
-          companyName: editUserData.companyName,
-          gstNumber: editUserData.gstNumber,
-          agentVerificationStatus: editUserData.role === 'Agent' ? editUserData.agentVerificationStatus : undefined,
-          builderVerificationStatus: editUserData.role === 'Builder' ? editUserData.builderVerificationStatus : undefined
-        })
+      const response = await API.patch(`/admin/users/${editUserData.id}`, {
+        name: editUserData.name,
+        email: editUserData.email,
+        phone: editUserData.phone,
+        role: mapUiToApiRole(editUserData.role),
+        status: editUserData.status,
+        isVerified: editUserData.isVerified,
+        reraNumber: editUserData.reraNumber,
+        companyName: editUserData.companyName,
+        gstNumber: editUserData.gstNumber,
+        agentVerificationStatus: editUserData.role === 'Agent' ? editUserData.agentVerificationStatus : undefined,
+        builderVerificationStatus: editUserData.role === 'Builder' ? editUserData.builderVerificationStatus : undefined
       });
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
+      const data = response.data;
+      if (data?.status === 'success') {
         setIsEditUserModalOpen(false);
         showToast('User details updated successfully!', 'success');
         if (selectedUser && selectedUser.id === editUserData.id) {
@@ -516,11 +456,11 @@ const UserManagement = () => {
         }
         await fetchUsers();
       } else {
-        showToast(data.message || 'Failed to update user.', 'error');
+        showToast(data?.message || 'Failed to update user.', 'error');
       }
     } catch (err) {
       console.error('Error updating user:', err);
-      showToast('Network connection error.', 'error');
+      showToast(err?.response?.data?.message || 'Network connection error.', 'error');
     }
   };
 
@@ -529,23 +469,15 @@ const UserManagement = () => {
     if (!userToDelete) return;
     setIsDeleting(true);
     try {
-      const response = await fetch(`${API_URL}/admin/users/${userToDelete.id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-      if (response.ok) {
-        if (selectedUser?.id === userToDelete.id) setSelectedUser(null);
-        showToast(`User profile deleted permanently.`, 'success');
-        await fetchUsers();
-      } else {
-        const data = await response.json();
-        showToast(data.message || 'Failed to delete user.', 'error');
-      }
+      await API.delete(`/admin/users/${userToDelete.id}`);
+      if (selectedUser?.id === userToDelete.id) setSelectedUser(null);
+      showToast(`User profile deleted permanently.`, 'success');
+      await fetchUsers();
       setShowDeleteModal(false);
       setUserToDelete(null);
     } catch (err) {
       console.error('Error deleting user:', err);
-      showToast('Network connection error.', 'error');
+      showToast(err?.response?.data?.message || 'Network connection error.', 'error');
     } finally {
       setIsDeleting(false);
     }

@@ -38,7 +38,7 @@ export const clearAuthSession = (message = null) => {
   }
 };
 
-const getBaseUrl = () => {
+export const getBaseUrl = () => {
   let base = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
 
   if (!base && typeof window !== 'undefined') {
@@ -56,6 +56,20 @@ const getBaseUrl = () => {
 
   // Ensure base URL cleanly resolves to /api endpoint for Axios calls
   return base.endsWith('/api') ? base : `${base}/api`;
+};
+
+export const getServerRootUrl = () => {
+  return getBaseUrl().replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
+};
+
+export const getMediaUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  const root = getServerRootUrl();
+  const cleanPath = url.startsWith('/') ? url : `/${url}`;
+  return `${root}${cleanPath}`;
 };
 
 const API = axios.create({

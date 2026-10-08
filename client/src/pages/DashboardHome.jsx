@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import ProgressMetricCard from '@/components/ui/progress-metric-card';
 import { useTheme } from '../contexts/ThemeContexts';
+import API from '../api/api';
 
 
 // ── Exact Image 1 & 2 Wave Signatures ─────────────────────────────────────────
@@ -366,23 +367,9 @@ const DashboardHome = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('adminToken');
-      if (!token) {
-        setError('Please log in with an admin account to view live analytics.');
-        setIsLoading(false);
-        return;
-      }
-
-      const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-      const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
-      const response = await fetch(`${API_BASE}/api/admin/dashboard/stats`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
+      const response = await API.get('/admin/dashboard/stats');
+      const data = response.data;
+      if (data?.status === 'success' && data.data) {
         setStats(data.data.stats || {
           totalUsers: 0,
           activeUsers: 0,
@@ -401,13 +388,13 @@ const DashboardHome = () => {
         setVerificationAlerts(data.data.verificationAlerts || []);
         setAuditLogs(data.data.auditLogs || []);
       } else {
-        setError(data.message || 'Failed to fetch dashboard stats.');
+        setError(data?.message || 'Failed to fetch dashboard stats.');
       }
       setLastSyncTime(new Date());
       setRefreshCount(prev => prev + 1);
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
-      setError('Could not connect to backend server. Please verify backend is running.');
+      setError(err?.response?.data?.message || 'Could not connect to backend server. Please verify backend is running.');
     } finally {
       setIsLoading(false);
     }

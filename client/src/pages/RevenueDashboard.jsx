@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
+import API from '../api/api';
 import {
   TrendingUp,
   ShieldCheck,
@@ -45,30 +46,15 @@ const RevenueDashboard = () => {
   const [activeChartMetric, setActiveChartMetric] = useState('gross');
   const [selectedPeriod, setSelectedPeriod] = useState('Past 6 months');
 
-  const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-  const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
-
   const fetchRevenueData = async (isManualRefresh = false) => {
     if (isManualRefresh) setIsRefreshing(true);
     else setIsLoading(true);
     setError(null);
 
     try {
-      const token = localStorage.getItem('adminToken');
-      if (!token) {
-        setError('Please log in with an admin account to view revenue details.');
-        setIsLoading(false);
-        setIsRefreshing(false);
-        return;
-      }
-
-      const response = await fetch(`${API_BASE}/api/admin/dashboard/revenue`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
+      const response = await API.get('/admin/dashboard/revenue');
+      const data = response.data;
+      if (data && data.status === 'success') {
         setStats(data.data.stats || {
           totalRevenue: 0,
           featuredRev: 0,
@@ -102,11 +88,11 @@ const RevenueDashboard = () => {
         });
         setTokens(data.data.tokenTransactions || []);
       } else {
-        setError(data.message || 'Failed to fetch revenue data.');
+        setError(data?.message || 'Failed to fetch revenue data.');
       }
     } catch (err) {
       console.error('Error fetching revenue details:', err);
-      setError('Could not connect to backend server.');
+      setError(err.response?.data?.message || 'Could not connect to backend server.');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -123,27 +109,19 @@ const RevenueDashboard = () => {
     if (!targetId) return;
     setIsProcessingAction(true);
     try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_BASE}/api/admin/tokens/${targetId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ action: 'release' })
-      });
-      const data = await response.json();
-      if (response.ok) {
+      const response = await API.patch(`/admin/tokens/${targetId}/status`, { action: 'release' });
+      const data = response.data;
+      if (data && data.status === 'success') {
         await fetchRevenueData(true);
         if (selectedTransaction?.id === transaction.id || selectedTransaction?.rawId === transaction.rawId) {
           setSelectedTransaction(prev => prev ? { ...prev, status: 'Approved', escrowStatus: 'Released' } : null);
         }
       } else {
-        alert(data.message || 'Failed to release escrow.');
+        alert(data?.message || 'Failed to release escrow.');
       }
     } catch (err) {
       console.error(err);
-      alert('Error updating token status.');
+      alert(err.response?.data?.message || 'Error updating token status.');
     } finally {
       setIsProcessingAction(false);
     }
@@ -156,27 +134,19 @@ const RevenueDashboard = () => {
     if (!window.confirm(`Are you sure you want to refund Token ${transaction.id}?`)) return;
     setIsProcessingAction(true);
     try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_BASE}/api/admin/tokens/${targetId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ action: 'refund' })
-      });
-      const data = await response.json();
-      if (response.ok) {
+      const response = await API.patch(`/admin/tokens/${targetId}/status`, { action: 'refund' });
+      const data = response.data;
+      if (data && data.status === 'success') {
         await fetchRevenueData(true);
         if (selectedTransaction?.id === transaction.id || selectedTransaction?.rawId === transaction.rawId) {
           setSelectedTransaction(prev => prev ? { ...prev, status: 'Refunded', escrowStatus: 'Refunded' } : null);
         }
       } else {
-        alert(data.message || 'Failed to process refund.');
+        alert(data?.message || 'Failed to process refund.');
       }
     } catch (err) {
       console.error(err);
-      alert('Error processing refund.');
+      alert(err.response?.data?.message || 'Error processing refund.');
     } finally {
       setIsProcessingAction(false);
     }

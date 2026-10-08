@@ -257,6 +257,9 @@ exports.updatePropertyStatus = async (req, res, next) => {
           title: 'Property Listing Approved & Live! 🏡',
           message: `Your property listing "${property.title}" (${property.submissionId || ''}) has been verified and approved by admin. It is now live for all buyers/tenants.`,
           type: 'verification',
+          metadata: {
+            propertyId: property._id,
+          },
           isRead: false,
         });
 
