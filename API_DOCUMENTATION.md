@@ -7,7 +7,7 @@ This documentation provides an exhaustive, role-based technical blueprint of all
 ## 📌 Global Architecture & Conventions
 
 ### Base URLs
-- **Development Localhost:** `http://localhost:5001/api`
+- **Development Localhost** `http://localhost:5001/api`
 - **Production Server:** `https://server.gharmb.com/api` (or environment-configured domain)
 - **Static Assets / Media:** `http://localhost:5001/uploads/`
 
