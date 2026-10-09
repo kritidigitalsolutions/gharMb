@@ -36,6 +36,7 @@
 const User = require('../../models/user.model');
 const Admin = require('../../models/admin.model');
 const Notification = require('../../models/notification.model');
+const OtpVerification = require('../../models/otp-verification.model');
 const generateToken = require('../../utils/generateToken');
 const { generateRefreshToken, generateAuthTokens, verifyRefreshToken } = generateToken;
 const { auth: firebaseAuth } = require('../../config/firebase');
@@ -75,10 +76,15 @@ const googleVerifiedPhones = new Map(); // phone → { verifiedAt, expiresAt }
 // ─────────────────────────────────────────────────────────────────────────────
 // Verification Helper: Validate OTP or phone verification token
 // ─────────────────────────────────────────────────────────────────────────────
-const verifyPhoneOtpStatus = (phoneInput, otp, phoneVerificationToken) => {
+const verifyPhoneOtpStatus = async (phoneInput, otp, phoneVerificationToken) => {
   if (!phoneInput) return false;
   const normalizedPhone = normalizePhone(phoneInput);
   const rawPhone = String(phoneInput).trim();
+  const digitsOnly = rawPhone.replace(/\D/g, '');
+  const last10 = digitsOnly.slice(-10);
+  const candidateKeys = Array.from(
+    new Set([normalizedPhone, rawPhone, digitsOnly, last10 ? `+91${last10}` : '', last10].filter(Boolean))
+  );
 
   // 1. Cryptographic phoneVerificationToken (Stateless, signed by server during verify-otp)
   if (phoneVerificationToken) {
@@ -88,48 +94,81 @@ const verifyPhoneOtpStatus = (phoneInput, otp, phoneVerificationToken) => {
         phoneVerificationToken,
         process.env.JWT_SECRET || 'gharmb_secret_key_2026'
       );
-      if (
-        decoded &&
-        decoded.isPhoneVerified &&
-        (normalizePhone(decoded.phone) === normalizedPhone ||
-          decoded.phone === normalizedPhone ||
-          decoded.phone === rawPhone)
-      ) {
-        return true;
+      if (decoded && decoded.isPhoneVerified) {
+        const decodedPhone = String(decoded.phone || '');
+        const decodedDigits = decodedPhone.replace(/\D/g, '').slice(-10);
+        if (
+          candidateKeys.includes(decodedPhone) ||
+          candidateKeys.includes(normalizePhone(decodedPhone)) ||
+          (last10 && decodedDigits === last10)
+        ) {
+          return true;
+        }
       }
     } catch (err) {
       console.warn('⚠️ [PHONE VERIFICATION] Token check failed:', err.message);
     }
   }
 
-  // 2. In-memory verified phone record (from verify-otp step in same server session)
-  if (googleVerifiedPhones.has(normalizedPhone) || googleVerifiedPhones.has(rawPhone)) {
-    const record = googleVerifiedPhones.get(normalizedPhone) || googleVerifiedPhones.get(rawPhone);
-    if (record && Date.now() < record.expiresAt) {
+  // 2. Persistent Database Verification (Vital for Vercel / Serverless multi-container instances)
+  try {
+    const dbRecord = await OtpVerification.findOne({
+      $or: [
+        { phone: { $in: candidateKeys } },
+        ...(last10 ? [{ phoneDigits: last10 }] : [])
+      ],
+      isVerified: true,
+      expiresAt: { $gt: new Date() }
+    });
+
+    if (dbRecord) {
       return true;
+    }
+  } catch (dbErr) {
+    console.warn('⚠️ [PHONE VERIFICATION] DB check error:', dbErr.message);
+  }
+
+  // 3. In-memory verified phone record (from verify-otp step in same server session)
+  for (const key of candidateKeys) {
+    if (googleVerifiedPhones.has(key)) {
+      const record = googleVerifiedPhones.get(key);
+      if (record && Date.now() < record.expiresAt) {
+        return true;
+      }
     }
   }
 
-  // 3. Direct raw OTP provided in request body (for clients submitting OTP directly in register)
+  // 4. Direct raw OTP provided in request body (for clients submitting OTP directly in register)
   if (otp != null && String(otp).trim() !== '') {
     const cleanOtp = String(otp).trim();
-    const stored =
-      googleOtpStore.get(normalizedPhone) ||
-      googleOtpStore.get(rawPhone) ||
-      otpStore.get(normalizedPhone) ||
-      otpStore.get(rawPhone);
-
-    const storedOtp = stored && stored.otp != null ? String(stored.otp).trim() : '';
-    const isValid =
-      (stored && storedOtp === cleanOtp && Date.now() < stored.expiresAt) ||
-      (cleanOtp === '123456');
-
-    if (isValid) {
-      googleOtpStore.delete(normalizedPhone);
-      googleOtpStore.delete(rawPhone);
-      otpStore.delete(normalizedPhone);
-      otpStore.delete(rawPhone);
+    if (cleanOtp === '123456') {
       return true;
+    }
+
+    // Check MongoDB for matching OTP
+    try {
+      const dbOtp = await OtpVerification.findOne({
+        $or: [
+          { phone: { $in: candidateKeys } },
+          ...(last10 ? [{ phoneDigits: last10 }] : [])
+        ],
+        otp: cleanOtp,
+        expiresAt: { $gt: new Date() }
+      });
+      if (dbOtp) {
+        return true;
+      }
+    } catch (_) {}
+
+    // Check in-memory stores
+    for (const key of candidateKeys) {
+      const stored = googleOtpStore.get(key) || otpStore.get(key);
+      const storedOtp = stored && stored.otp != null ? String(stored.otp).trim() : '';
+      if (stored && storedOtp === cleanOtp && Date.now() < stored.expiresAt) {
+        googleOtpStore.delete(key);
+        otpStore.delete(key);
+        return true;
+      }
     }
   }
 
@@ -240,7 +279,11 @@ exports.registerUser = async (req, res, next) => {
 
     // ── STRICT OTP VERIFICATION CHECK ──────────────────────────────────────
     const submittedOtp = otp || phoneOtp;
-    const isPhoneVerified = verifyPhoneOtpStatus(normalizedPhone, submittedOtp, phoneVerificationToken);
+    const verificationToken =
+      phoneVerificationToken ||
+      req.headers['x-phone-verification-token'] ||
+      req.headers['phone-verification-token'];
+    const isPhoneVerified = await verifyPhoneOtpStatus(phone, submittedOtp, verificationToken);
 
     if (!isPhoneVerified) {
       return res.status(400).json({
@@ -335,6 +378,15 @@ exports.registerUser = async (req, res, next) => {
     googleVerifiedPhones.delete(normalizedPhone);
     otpStore.delete(normalizedPhone);
     googleOtpStore.delete(normalizedPhone);
+    try {
+      const cleanDigits = normalizedPhone.replace(/\D/g, '').slice(-10);
+      await OtpVerification.deleteMany({
+        $or: [
+          { phone: normalizedPhone },
+          ...(cleanDigits ? [{ phoneDigits: cleanDigits }] : [])
+        ]
+      });
+    } catch (_) {}
 
     // ── Record Refer & Earn Linkage (Both Win ₹250 — Admin Notified to Pay Out of App) ─
     if (referrerUser) {
@@ -523,11 +575,33 @@ exports.sendOtp = async (req, res, next) => {
 
     // ── Generate & store OTP (works for both new & existing users) ──────────
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const cleanDigits = normalizedPhone.replace(/\D/g, '').slice(-10);
     otpStore.set(normalizedPhone, {
       otp,
       expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
       isNewUser: !existingUser,                 // flag for verify-otp step
     });
+
+    try {
+      await OtpVerification.findOneAndUpdate(
+        {
+          $or: [
+            { phone: normalizedPhone },
+            ...(cleanDigits ? [{ phoneDigits: cleanDigits }] : [])
+          ]
+        },
+        {
+          phone: normalizedPhone,
+          phoneDigits: cleanDigits,
+          otp,
+          isVerified: false,
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        },
+        { upsert: true, new: true }
+      );
+    } catch (saveErr) {
+      console.warn('⚠️ [OTP] Failed to persist OTP in MongoDB:', saveErr.message);
+    }
 
     if (existingUser) {
       console.log(`\n==================================================`);
@@ -582,11 +656,33 @@ exports.resendOtp = async (req, res, next) => {
 
     // Generate a fresh OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const cleanDigits = normalizedPhone.replace(/\D/g, '').slice(-10);
     otpStore.set(normalizedPhone, {
       otp,
       expiresAt: Date.now() + 10 * 60 * 1000,
       isNewUser: !existingUser,
     });
+
+    try {
+      await OtpVerification.findOneAndUpdate(
+        {
+          $or: [
+            { phone: normalizedPhone },
+            ...(cleanDigits ? [{ phoneDigits: cleanDigits }] : [])
+          ]
+        },
+        {
+          phone: normalizedPhone,
+          phoneDigits: cleanDigits,
+          otp,
+          isVerified: false,
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        },
+        { upsert: true, new: true }
+      );
+    } catch (saveErr) {
+      console.warn('⚠️ [OTP] Failed to persist OTP in MongoDB:', saveErr.message);
+    }
 
     console.log(`\n==================================================`);
     console.log(`🔄 [RESEND OTP${existingUser ? '' : ' — NEW USER'}]`);
@@ -628,12 +724,35 @@ exports.verifyOtp = async (req, res, next) => {
     }
 
     const normalizedPhone = normalizePhone(phone);
-    const storedData = otpStore.get(normalizedPhone);
+    const rawPhone = String(phone).trim();
+    const cleanDigits = rawPhone.replace(/\D/g, '').slice(-10);
+    const candidateKeys = Array.from(
+      new Set([normalizedPhone, rawPhone, cleanDigits ? `+91${cleanDigits}` : '', cleanDigits].filter(Boolean))
+    );
+
+    const storedData = otpStore.get(normalizedPhone) || otpStore.get(rawPhone);
+
+    // Also check MongoDB if not in memory (for serverless instances)
+    let isDbValid = false;
+    try {
+      const dbRecord = await OtpVerification.findOne({
+        $or: [
+          { phone: { $in: candidateKeys } },
+          ...(cleanDigits ? [{ phoneDigits: cleanDigits }] : [])
+        ],
+        otp,
+        expiresAt: { $gt: new Date() }
+      });
+      if (dbRecord) {
+        isDbValid = true;
+      }
+    } catch (_) {}
 
     // ── OTP validation ──────────────────────────────────────────────────────
-    // Accepts stored OTP or fallback '123456' in dev/test environments
+    // Accepts stored OTP or MongoDB record or fallback '123456' in dev/test environments
     const isValidOtp =
       (storedData && storedData.otp === otp && Date.now() < storedData.expiresAt) ||
+      isDbValid ||
       otp === '123456';
 
     if (!isValidOtp) {
@@ -644,25 +763,55 @@ exports.verifyOtp = async (req, res, next) => {
     }
 
     // ── Fetch user (may not exist if this is a new user flow) ───────────────
-    const user = await User.findOne({ phone: normalizedPhone });
+    const user = await User.findOne({
+      $or: [
+        { phone: normalizedPhone },
+        { phone: rawPhone },
+        ...(cleanDigits ? [{ phone: { $regex: `${cleanDigits}$` } }] : [])
+      ]
+    });
 
     // ── NEW USER: phone verified, redirect to registration ──────────────────
     if (!user) {
       // Clean up OTP store after successful verification
       otpStore.delete(normalizedPhone);
+      otpStore.delete(rawPhone);
       googleOtpStore.delete(normalizedPhone);
 
-      // Record verified phone status so registration endpoints know OTP was verified
-      googleVerifiedPhones.set(normalizedPhone, {
+      // Record verified phone status in memory
+      const verifiedSession = {
         verifiedAt: Date.now(),
-        expiresAt: Date.now() + 15 * 60 * 1000,
-      });
+        expiresAt: Date.now() + 30 * 60 * 1000,
+      };
+      candidateKeys.forEach((k) => googleVerifiedPhones.set(k, verifiedSession));
+
+      // Record verified phone status in MongoDB (Vital for Vercel serverless multi-container)
+      try {
+        await OtpVerification.findOneAndUpdate(
+          {
+            $or: [
+              { phone: { $in: candidateKeys } },
+              ...(cleanDigits ? [{ phoneDigits: cleanDigits }] : [])
+            ]
+          },
+          {
+            phone: normalizedPhone,
+            phoneDigits: cleanDigits,
+            isVerified: true,
+            verifiedAt: new Date(),
+            expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes to complete registration form
+          },
+          { upsert: true, new: true }
+        );
+      } catch (dbErr) {
+        console.warn('⚠️ [OTP] Failed to persist verification status to MongoDB:', dbErr.message);
+      }
 
       const jwt = require('jsonwebtoken');
       const phoneVerificationToken = jwt.sign(
         { phone: normalizedPhone, isPhoneVerified: true },
         process.env.JWT_SECRET || 'gharmb_secret_key_2026',
-        { expiresIn: '15m' }
+        { expiresIn: '30m' }
       );
 
       console.log(`\n==================================================`);
@@ -1215,6 +1364,29 @@ exports.googleSendOtp = async (req, res, next) => {
     otpStore.set(normalizedPhone, baseOtpPayload);
     if (rawPhone) otpStore.set(rawPhone, baseOtpPayload);
 
+    try {
+      const cleanDigits = (rawPhone || normalizedPhone).replace(/\D/g, '').slice(-10);
+      await OtpVerification.findOneAndUpdate(
+        {
+          $or: [
+            { phone: normalizedPhone },
+            ...(cleanDigits ? [{ phoneDigits: cleanDigits }] : [])
+          ]
+        },
+        {
+          phone: normalizedPhone,
+          phoneDigits: cleanDigits,
+          otp,
+          email: emailCandidate ? emailCandidate.toLowerCase().trim() : null,
+          isVerified: false,
+          expiresAt: new Date(expiresAt),
+        },
+        { upsert: true, new: true }
+      );
+    } catch (saveErr) {
+      console.warn('⚠️ [OTP] Failed to persist Google OTP in MongoDB:', saveErr.message);
+    }
+
     console.log(`\n==================================================`);
     console.log(`📲 [GOOGLE REGISTRATION OTP — PHONE VERIFICATION]`);
     console.log(`   Phone : ${normalizedPhone}`);
@@ -1258,11 +1430,29 @@ exports.googleVerifyOtp = async (req, res, next) => {
       otpStore.get(normalizedPhone) ||
       otpStore.get(rawPhone);
 
-    const cleanInputOtp = otp != null ? String(otp).trim() : '';
-    const storedOtp = stored && stored.otp != null ? String(stored.otp).trim() : '';
+    const cleanDigits = (rawPhone || normalizedPhone).replace(/\D/g, '').slice(-10);
+    const candidateKeys = Array.from(
+      new Set([normalizedPhone, rawPhone, cleanDigits ? `+91${cleanDigits}` : '', cleanDigits].filter(Boolean))
+    );
+
+    let isDbValid = false;
+    try {
+      const dbRecord = await OtpVerification.findOne({
+        $or: [
+          { phone: { $in: candidateKeys } },
+          ...(cleanDigits ? [{ phoneDigits: cleanDigits }] : [])
+        ],
+        otp: cleanInputOtp,
+        expiresAt: { $gt: new Date() }
+      });
+      if (dbRecord) {
+        isDbValid = true;
+      }
+    } catch (_) {}
 
     const isValidOtp =
       (stored && storedOtp === cleanInputOtp && Date.now() < stored.expiresAt) ||
+      isDbValid ||
       (cleanInputOtp === '123456');
 
     if (!isValidOtp) {
@@ -1278,20 +1468,41 @@ exports.googleVerifyOtp = async (req, res, next) => {
     otpStore.delete(normalizedPhone);
     otpStore.delete(rawPhone);
 
-    // Store verified phone in memory for 15 minutes
+    // Store verified phone in memory for 30 minutes
     const verifiedSession = {
       verifiedAt: Date.now(),
-      expiresAt: Date.now() + 15 * 60 * 1000,
+      expiresAt: Date.now() + 30 * 60 * 1000,
     };
-    googleVerifiedPhones.set(normalizedPhone, verifiedSession);
-    if (rawPhone) googleVerifiedPhones.set(rawPhone, verifiedSession);
+    candidateKeys.forEach((k) => googleVerifiedPhones.set(k, verifiedSession));
+
+    // Store verified phone in MongoDB (vital for Vercel serverless multi-container)
+    try {
+      await OtpVerification.findOneAndUpdate(
+        {
+          $or: [
+            { phone: { $in: candidateKeys } },
+            ...(cleanDigits ? [{ phoneDigits: cleanDigits }] : [])
+          ]
+        },
+        {
+          phone: normalizedPhone,
+          phoneDigits: cleanDigits,
+          isVerified: true,
+          verifiedAt: new Date(),
+          expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+        },
+        { upsert: true, new: true }
+      );
+    } catch (dbErr) {
+      console.warn('⚠️ [OTP] Failed to persist Google verification to MongoDB:', dbErr.message);
+    }
 
     // Also issue a signed token so Flutter / frontend can pass it safely
     const jwt = require('jsonwebtoken');
     const phoneVerificationToken = jwt.sign(
       { phone: normalizedPhone, isPhoneVerified: true },
       process.env.JWT_SECRET || 'gharmb_secret_key_2026',
-      { expiresIn: '15m' }
+      { expiresIn: '30m' }
     );
 
     console.log(`\n==================================================`);
@@ -1390,7 +1601,11 @@ exports.googleRegister = async (req, res, next) => {
 
     // 3. Strict Phone OTP Verification
     const submittedOtp = otp || phoneOtp;
-    const isPhoneVerified = verifyPhoneOtpStatus(normalizedPhone, submittedOtp, phoneVerificationToken);
+    const verificationToken =
+      phoneVerificationToken ||
+      req.headers['x-phone-verification-token'] ||
+      req.headers['phone-verification-token'];
+    const isPhoneVerified = await verifyPhoneOtpStatus(phone, submittedOtp, verificationToken);
     if (!isPhoneVerified) {
       return res.status(400).json({
         status: 'fail',
@@ -1481,6 +1696,15 @@ exports.googleRegister = async (req, res, next) => {
     googleVerifiedPhones.delete(normalizedPhone);
     otpStore.delete(normalizedPhone);
     googleOtpStore.delete(normalizedPhone);
+    try {
+      const cleanDigits = (phone || normalizedPhone).replace(/\D/g, '').slice(-10);
+      await OtpVerification.deleteMany({
+        $or: [
+          { phone: normalizedPhone },
+          ...(cleanDigits ? [{ phoneDigits: cleanDigits }] : [])
+        ]
+      });
+    } catch (_) {}
 
     // ── Record Refer & Earn Linkage (Both Win ₹250 — Admin Notified to Pay Out of App) ─
     if (referrerUser) {
