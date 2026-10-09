@@ -205,7 +205,7 @@ const initAdmin = async () => {
         await dummyAdmin.save();
         console.log(`Migrated Admin email to ${adminEmail}`);
       } else {
-        const hashedPassword = await bcrypt.hash("admin123", 10);
+        const hashedPassword = await bcrypt.hash("123123", 10);
         await Admin.create({
           name: "Admin",
           email: adminEmail,
