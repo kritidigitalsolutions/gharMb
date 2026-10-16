@@ -8,60 +8,16 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-const os = require('os');
-
-// Detect serverless environment (Vercel, AWS Lambda, etc.)
-const isServerless = Boolean(
-  process.env.VERCEL || 
-  process.env.AWS_LAMBDA_FUNCTION_NAME || 
-  process.env.LAMBDA_TASK_ROOT || 
-  process.env.VERCEL_ENV
-);
-
-// Determine safe uploads directory (use /tmp on serverless environments)
-const getUploadDir = () => {
-  if (isServerless) {
-    const tmpDir = path.join(os.tmpdir(), 'uploads');
-    try {
-      if (!fs.existsSync(tmpDir)) {
-        fs.mkdirSync(tmpDir, { recursive: true });
-      }
-      return tmpDir;
-    } catch (e) {
-      return os.tmpdir();
-    }
-  }
-
-  const localDir = path.join(__dirname, '../../uploads');
-  try {
-    if (!fs.existsSync(localDir)) {
-      fs.mkdirSync(localDir, { recursive: true });
-    }
-    return localDir;
-  } catch (err) {
-    const fallbackDir = path.join(os.tmpdir(), 'uploads');
-    try {
-      if (!fs.existsSync(fallbackDir)) {
-        fs.mkdirSync(fallbackDir, { recursive: true });
-      }
-      return fallbackDir;
-    } catch {
-      return os.tmpdir();
-    }
-  }
-};
-
-const uploadDir = getUploadDir();
+// Ensure uploads directory exists at project root server/uploads
+const uploadDir = path.join(__dirname, '../../uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 // Multer Disk Storage Configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    try {
-      const targetDir = getUploadDir();
-      cb(null, targetDir);
-    } catch (err) {
-      cb(err);
-    }
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
@@ -89,8 +45,5 @@ const upload = multer({
   limits: { fileSize: 15 * 1024 * 1024 }, // Max 15 MB file size
   fileFilter,
 });
-
-upload.getUploadDir = getUploadDir;
-upload.uploadDir = uploadDir;
 
 module.exports = upload;

@@ -9,7 +9,6 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
-const os = require('os');
 
 const dotenv = require('dotenv');
 dotenv.config({ path: path.join(__dirname, '.env') });
@@ -165,7 +164,6 @@ const serveUploads = (req, res, next) => {
 
 app.use('/uploads', serveUploads, express.static(path.join(__dirname, '../uploads')));
 app.use('/uploads', serveUploads, express.static(path.join(__dirname, 'uploads')));
-app.use('/uploads', serveUploads, express.static(path.join(os.tmpdir(), 'uploads')));
 
 // 6. Database Connection Middleware (Awaits connection for serverless requests)
 app.use(async (req, res, next) => {
