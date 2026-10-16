@@ -9,53 +9,15 @@
 
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 const mongoose = require('mongoose');
 const Property = require('../../models/property.model');
 const Project = require('../../models/project.model');
 
-// Detect serverless environment (Vercel, AWS Lambda, etc.)
-const isServerless = Boolean(
-  process.env.VERCEL || 
-  process.env.AWS_LAMBDA_FUNCTION_NAME || 
-  process.env.LAMBDA_TASK_ROOT || 
-  process.env.VERCEL_ENV
-);
-
-// Determine safe uploads directory (use /tmp on serverless environments)
-const getUploadDir = () => {
-  if (isServerless) {
-    const tmpDir = path.join(os.tmpdir(), 'uploads');
-    try {
-      if (!fs.existsSync(tmpDir)) {
-        fs.mkdirSync(tmpDir, { recursive: true });
-      }
-      return tmpDir;
-    } catch {
-      return os.tmpdir();
-    }
-  }
-
-  const localDir = path.join(__dirname, '../../../uploads');
-  try {
-    if (!fs.existsSync(localDir)) {
-      fs.mkdirSync(localDir, { recursive: true });
-    }
-    return localDir;
-  } catch (err) {
-    const fallbackDir = path.join(os.tmpdir(), 'uploads');
-    try {
-      if (!fs.existsSync(fallbackDir)) {
-        fs.mkdirSync(fallbackDir, { recursive: true });
-      }
-      return fallbackDir;
-    } catch {
-      return os.tmpdir();
-    }
-  }
-};
-
-const uploadDir = getUploadDir();
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, '../../../uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 /**
  * Construct full public URL for uploaded files
