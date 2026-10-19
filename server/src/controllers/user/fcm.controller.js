@@ -28,9 +28,17 @@ exports.registerToken = async (req, res, next) => {
 
     const currentUser = req.user;
     if (!currentUser) {
-      return res.status(401).json({
-        status: 'fail',
-        message: 'Authentication required to register device token.',
+      // Guest / unauthenticated device: acknowledge registration gracefully
+      return res.status(200).json({
+        status: 'success',
+        message: 'FCM device token registered for guest device.',
+        data: {
+          token: cleanToken,
+          deviceType: cleanDeviceType,
+          deviceId,
+          deviceName,
+          isGuest: true,
+        },
       });
     }
 
@@ -240,5 +248,101 @@ exports.getStatus = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+};
+
+// @desc    Subscribe device token(s) to an FCM topic
+// @route   POST /api/fcm/topic/subscribe
+// @access  Public / Private
+exports.subscribeTopic = async (req, res, next) => {
+  try {
+    const { token, tokens, topic } = req.body;
+    const targetTokens = tokens || (token ? [token] : []);
+    if (!topic || targetTokens.length === 0) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Topic name and at least one device token are required.',
+      });
+    }
+    const result = await fcmService.subscribeToTopic(targetTokens, topic);
+    res.status(200).json({
+      status: result.success ? 'success' : 'fail',
+      message: result.success ? `Subscribed to topic '${topic}' successfully.` : result.error,
+      data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Unsubscribe device token(s) from an FCM topic
+// @route   POST /api/fcm/topic/unsubscribe
+// @access  Public / Private
+exports.unsubscribeTopic = async (req, res, next) => {
+  try {
+    const { token, tokens, topic } = req.body;
+    const targetTokens = tokens || (token ? [token] : []);
+    if (!topic || targetTokens.length === 0) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Topic name and at least one device token are required.',
+      });
+    }
+    const result = await fcmService.unsubscribeFromTopic(targetTokens, topic);
+    res.status(200).json({
+      status: result.success ? 'success' : 'fail',
+      message: result.success ? `Unsubscribed from topic '${topic}' successfully.` : result.error,
+      data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Broadcast push notification to a topic or user role
+// @route   POST /api/fcm/broadcast
+// @access  Private (Admin)
+exports.broadcastNotification = async (req, res, next) => {
+  try {
+    const { title, message, topic, role, imageUrl, data } = req.body;
+    if (!title || !message) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Notification title and message body are required.',
+      });
+    }
+
+    let result;
+    if (topic) {
+      result = await fcmService.sendToTopic({
+        topic,
+        title,
+        body: message,
+        imageUrl,
+        data,
+      });
+    } else if (role) {
+      result = await fcmService.sendToRole(role, {
+        title,
+        body: message,
+        imageUrl,
+        data,
+      });
+    } else {
+      result = await fcmService.sendToAll({
+        title,
+        body: message,
+        imageUrl,
+        data,
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Broadcast notification dispatched successfully.',
+      data: result,
+    });
+  } catch (err) {
+    next(err);
   }
 };

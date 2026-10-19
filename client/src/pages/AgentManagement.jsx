@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
+import CallContactModal from '../components/common/CallContactModal';
 import { useSearchParams } from 'react-router-dom';
 import API, { getMediaUrl } from '../api/api';
 import {
@@ -43,6 +44,7 @@ const AgentManagement = () => {
 
   // Selected agent for slide-over drawer
   const [selectedAgent, setSelectedAgent] = useState(null);
+  const [callTarget, setCallTarget] = useState(null);
 
   // Document Lightbox preview
   const [lightboxDoc, setLightboxDoc] = useState(null); // { url, title, type }
@@ -99,7 +101,7 @@ const AgentManagement = () => {
             email: u.email || 'N/A',
             phone: u.phone || 'N/A',
             cityOfOperation: u.cityOfOperation || 'India',
-            experience: u.experience || '1-3 yrs',
+            experience: u.experience || 'Not specified',
             reraNumber: u.reraNumber || 'Not provided',
             verificationStatus,
             rejectionReason: u.agentRejectionReason || '',
@@ -432,9 +434,14 @@ const AgentManagement = () => {
                             <span>{agent.phone}</span>
                             {agent.phone && agent.phone !== 'N/A' && (
                               <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                <a href={`tel:${agent.phone}`} className="hover:text-emerald-500" title="Call">
+                                <button
+                                  type="button"
+                                  onClick={() => setCallTarget(agent)}
+                                  className="hover:text-emerald-500 cursor-pointer"
+                                  title="Call"
+                                >
                                   <Phone size={10} />
-                                </a>
+                                </button>
                                 <a
                                   href={`https://wa.me/${agent.phone.replace(/[^0-9]/g, '')}`}
                                   target="_blank"
@@ -768,9 +775,14 @@ const AgentManagement = () => {
                     <span className="text-[var(--text-muted)] text-[11px]">Phone:</span>
                     <div className="flex items-center gap-1.5">
                       <span className="font-mono font-medium text-[var(--text-primary)]">{selectedAgent.phone}</span>
-                      <a href={`tel:${selectedAgent.phone}`} className="p-1 text-[var(--text-muted)] hover:text-emerald-500">
+                      <button
+                        type="button"
+                        onClick={() => setCallTarget(selectedAgent)}
+                        className="p-1 text-[var(--text-muted)] hover:text-emerald-500 cursor-pointer"
+                        title="Call"
+                      >
                         <Phone size={12} />
-                      </a>
+                      </button>
                       <a
                         href={`https://wa.me/${selectedAgent.phone.replace(/[^0-9]/g, '')}`}
                         target="_blank"
@@ -1162,6 +1174,22 @@ const AgentManagement = () => {
             </div>
           </div>
         </div>
+      )}
+      {/* ─── MODAL: CALL & CONTACT AGENT (CUSTOM UI) ─── */}
+      {callTarget && (
+        <CallContactModal
+          isOpen={Boolean(callTarget)}
+          onClose={() => setCallTarget(null)}
+          contact={{
+            clientName: callTarget.name || callTarget.agencyName,
+            clientPhone: callTarget.phone,
+            clientEmail: callTarget.email,
+            title: callTarget.agencyName || 'Registered Agent',
+            code: callTarget.code || callTarget.id || callTarget._id,
+            category: 'Broker / Agent Profile',
+            status: callTarget.status
+          }}
+        />
       )}
     </div>
   );

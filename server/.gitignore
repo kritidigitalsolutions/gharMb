@@ -6,8 +6,14 @@
 node_modules/
 
 # User uploads directory
+uploads/*
+!uploads/.gitkeep
 src/uploads/*
 !src/uploads/.gitkeep
+
+# Credentials and Keys
+serviceAccountKey.json
+*.pem
 
 # Local logs
 logs/

@@ -45,6 +45,51 @@ const { sendOtpSms } = require('../../services/sms.service');
 
 const googleOAuthClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+/**
+ * Helper to auto-register FCM device token during login/registration
+ */
+const attachFcmTokenIfPresent = async (userDoc, reqBody) => {
+  if (!userDoc || !reqBody) return;
+  const rawToken = reqBody.fcmToken || reqBody.deviceToken || reqBody.fcm_token || reqBody.token;
+  if (!rawToken || typeof rawToken !== 'string' || !rawToken.trim() || rawToken.length < 15) return;
+
+  const cleanToken = rawToken.trim();
+  const cleanDeviceType = ['android', 'ios', 'web'].includes((reqBody.deviceType || '').toLowerCase())
+    ? reqBody.deviceType.toLowerCase()
+    : 'android';
+
+  try {
+    // 1. Remove this token from any other accounts to prevent crossover
+    await User.updateMany(
+      { _id: { $ne: userDoc._id }, 'fcmTokens.token': cleanToken },
+      { $pull: { fcmTokens: { token: cleanToken } } }
+    );
+
+    // 2. Add or update on this user
+    if (!Array.isArray(userDoc.fcmTokens)) userDoc.fcmTokens = [];
+    const idx = userDoc.fcmTokens.findIndex((t) => t.token === cleanToken);
+    if (idx >= 0) {
+      userDoc.fcmTokens[idx].lastActiveAt = new Date();
+      userDoc.fcmTokens[idx].deviceType = cleanDeviceType;
+      if (reqBody.deviceId) userDoc.fcmTokens[idx].deviceId = reqBody.deviceId;
+      if (reqBody.deviceName) userDoc.fcmTokens[idx].deviceName = reqBody.deviceName;
+    } else {
+      if (userDoc.fcmTokens.length >= 10) userDoc.fcmTokens.shift();
+      userDoc.fcmTokens.push({
+        token: cleanToken,
+        deviceType: cleanDeviceType,
+        deviceId: reqBody.deviceId || null,
+        deviceName: reqBody.deviceName || null,
+        lastActiveAt: new Date(),
+      });
+    }
+    await userDoc.save();
+    console.log(`📱 [FCM] Auto-registered device token for user ${userDoc.name || userDoc.phone}`);
+  } catch (err) {
+    console.warn('⚠️ [FCM Auth Auto-register] Warning:', err.message);
+  }
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPER: Normalize phone numbers
 // Accepts: +91XXXXXXXXXX | 9876543210 | +91 98765 43210  →  +919876543210
@@ -462,6 +507,7 @@ exports.registerUser = async (req, res, next) => {
     }
 
     const { token, refreshToken } = generateAuthTokens(newUser._id, newUser.role);
+    await attachFcmTokenIfPresent(newUser, req.body);
 
     console.log(`\n==================================================`);
     console.log(`✅ [NEW USER REGISTERED — No OTP]`);
@@ -698,6 +744,7 @@ exports.verifyOtp = async (req, res, next) => {
     otpStore.delete(normalizedPhone);
 
     const { token, refreshToken } = generateAuthTokens(user._id, user.role);
+    await attachFcmTokenIfPresent(user, req.body);
 
     console.log(`\n==================================================`);
     console.log(`🚀 [OTP VERIFIED — LOGIN SUCCESS]`);
@@ -1061,6 +1108,7 @@ exports.googleAuth = async (req, res, next) => {
       if (hasUpdates) await user.save();
 
       const { token: platformToken, refreshToken } = generateAuthTokens(user._id, user.role);
+      await attachFcmTokenIfPresent(user, req.body);
 
       console.log(`\n==================================================`);
       console.log(`🚀 [GOOGLE AUTH — EXISTING USER SIGN-IN] (${authSource})`);
@@ -1611,6 +1659,7 @@ exports.googleRegister = async (req, res, next) => {
     }
 
     const { token, refreshToken } = generateAuthTokens(newUser._id, newUser.role);
+    await attachFcmTokenIfPresent(newUser, req.body);
 
     console.log(`\n==================================================`);
     console.log(`✅ [NEW GOOGLE USER REGISTERED WITH PHONE & OTP]`);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
+import CallContactModal from '../components/common/CallContactModal';
 import API from '../api/api';
 import {
   IndianRupee, ShieldCheck, Lock, RotateCcw, CheckCircle2,
@@ -31,6 +32,7 @@ const TokenBooking = () => {
   const [actionModal, setActionModal] = useState(null); // { type: 'accept' | 'reject', token }
   const [actionReason, setActionReason] = useState('');
   const [deleteModal, setDeleteModal] = useState(null); // token to delete
+  const [callTarget, setCallTarget] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -710,7 +712,7 @@ const TokenBooking = () => {
                 <th className="py-3 px-3.5 align-middle whitespace-nowrap min-w-[130px]">Proposed Token</th>
                 <th className="py-3 px-3.5 align-middle whitespace-nowrap min-w-[110px]">Agreed Rent</th>
                 <th className="py-3 px-3.5 align-middle text-center whitespace-nowrap min-w-[130px]">Status</th>
-                <th className="py-3 px-3.5 align-middle text-right whitespace-nowrap min-w-[100px]">Actions</th>
+                <th className="py-3 px-3.5 align-middle text-right whitespace-nowrap min-w-[100px] sticky right-0 bg-[var(--bg-surface)] shadow-[-4px_0_8px_rgba(0,0,0,0.03)]">Actions</th>
               </tr>
             </thead>
 
@@ -854,7 +856,7 @@ const TokenBooking = () => {
                       </td>
 
                       {/* 7. Actions (Quick WA, Quick Call, More Actions Dropdown) */}
-                      <td className="py-3.5 px-3.5 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-3.5 px-3.5 align-middle text-right whitespace-nowrap sticky right-0 bg-[var(--bg-surface)] shadow-[-4px_0_8px_rgba(0,0,0,0.03)] group-hover:bg-slate-50 dark:group-hover:bg-slate-800 transition-colors" onClick={(e) => e.stopPropagation()}>
                         <div className="relative inline-flex items-center justify-end gap-1.5 row-actions-dropdown">
                           {t.buyerPhone && (
                             <a
@@ -869,13 +871,14 @@ const TokenBooking = () => {
                           )}
 
                           {t.buyerPhone && (
-                            <a
-                              href={`tel:${t.buyerPhone}`}
+                            <button
+                              type="button"
+                              onClick={() => setCallTarget(t)}
                               title={`Call Tenant (${t.buyerPhone})`}
-                              className="w-7.5 h-7.5 rounded-lg flex items-center justify-center text-blue-600 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/25 transition-all active:scale-95 shrink-0"
+                              className="w-7.5 h-7.5 rounded-lg flex items-center justify-center text-blue-600 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/25 transition-all active:scale-95 shrink-0 cursor-pointer"
                             >
                               <Phone size={13} />
-                            </a>
+                            </button>
                           )}
 
                           {/* More Options Button */}
@@ -1504,13 +1507,14 @@ const TokenBooking = () => {
 
                 <div className="grid grid-cols-3 gap-2 pt-1">
                   {selectedToken.buyerPhone ? (
-                    <a
-                      href={`tel:${selectedToken.buyerPhone}`}
-                      className="py-2 px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-xs active:scale-95"
+                    <button
+                      type="button"
+                      onClick={() => setCallTarget(selectedToken)}
+                      className="py-2 px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-xs active:scale-95 cursor-pointer"
                     >
                       <Phone size={13} />
                       <span>Call Now</span>
-                    </a>
+                    </button>
                   ) : null}
 
                   {selectedToken.buyerPhone ? (
@@ -1550,13 +1554,14 @@ const TokenBooking = () => {
                   {/* Quick Direct Triggers */}
                   <div className="flex items-center gap-1">
                     {selectedToken.buyerPhone && (
-                      <a
-                        href={`tel:${selectedToken.buyerPhone}`}
+                      <button
+                        type="button"
+                        onClick={() => setCallTarget(selectedToken)}
                         title="Call Buyer"
-                        className="p-1 rounded bg-[var(--bg-surface)] hover:text-emerald-600 border border-[var(--border)] transition-colors"
+                        className="p-1 rounded bg-[var(--bg-surface)] hover:text-emerald-600 border border-[var(--border)] transition-colors cursor-pointer"
                       >
                         <Phone size={12} />
-                      </a>
+                      </button>
                     )}
                     {selectedToken.buyerPhone && (
                       <a
@@ -1808,6 +1813,22 @@ const TokenBooking = () => {
         </div>
       )}
 
+      {/* ─── MODAL: CALL & CONTACT CLIENT (CUSTOM UI) ─── */}
+      {callTarget && (
+        <CallContactModal
+          isOpen={Boolean(callTarget)}
+          onClose={() => setCallTarget(null)}
+          contact={{
+            clientName: callTarget.buyerName,
+            clientPhone: callTarget.buyerPhone,
+            clientEmail: callTarget.buyerEmail,
+            title: callTarget.propertyTitle,
+            code: callTarget.id || callTarget._id,
+            category: 'Token Booking Request',
+            status: callTarget.status
+          }}
+        />
+      )}
     </div>
   );
 };

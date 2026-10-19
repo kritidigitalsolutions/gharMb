@@ -5,6 +5,25 @@
 
 const PageContent = require('../../models/page-content.model');
 
+// @desc    Get all static page contents for Admin
+// @route   GET /api/admin/pages
+// @access  Private (Admin only)
+exports.getAllPages = async (req, res, next) => {
+  try {
+    const pages = await PageContent.find().populate('lastUpdatedBy', 'name email');
+    res.status(200).json({
+      status: 'success',
+      success: true,
+      results: pages.length,
+      data: {
+        pages
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Get static page content by type for Admin
 // @route   GET /api/admin/pages/:type
 // @access  Private (Admin only)

@@ -5,6 +5,7 @@
  */
 
 const Banner = require('../../models/banner.model');
+const firebaseStorageService = require('../../services/firebaseStorage.service');
 
 // @desc    Get all banners (Admin - includes inactive & expired)
 // @route   GET /api/admin/banners
@@ -92,13 +93,13 @@ exports.createBanner = async (req, res, next) => {
     // Process file uploads if passed through multer
     if (req.files) {
       if (req.files.image && req.files.image[0]) {
-        bannerData.image = `${req.protocol}://${req.get('host')}/uploads/${req.files.image[0].filename}`;
+        bannerData.image = await firebaseStorageService.resolveFileUrl(req, req.files.image[0], 'banners');
       }
       if (req.files.mobileImage && req.files.mobileImage[0]) {
-        bannerData.mobileImage = `${req.protocol}://${req.get('host')}/uploads/${req.files.mobileImage[0].filename}`;
+        bannerData.mobileImage = await firebaseStorageService.resolveFileUrl(req, req.files.mobileImage[0], 'banners');
       }
     } else if (req.file) {
-      bannerData.image = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+      bannerData.image = await firebaseStorageService.resolveFileUrl(req, req.file, 'banners');
     }
 
     if (!bannerData.image) {
@@ -152,13 +153,13 @@ exports.updateBanner = async (req, res, next) => {
     // Process file uploads if passed
     if (req.files) {
       if (req.files.image && req.files.image[0]) {
-        bannerData.image = `${req.protocol}://${req.get('host')}/uploads/${req.files.image[0].filename}`;
+        bannerData.image = await firebaseStorageService.resolveFileUrl(req, req.files.image[0], 'banners');
       }
       if (req.files.mobileImage && req.files.mobileImage[0]) {
-        bannerData.mobileImage = `${req.protocol}://${req.get('host')}/uploads/${req.files.mobileImage[0].filename}`;
+        bannerData.mobileImage = await firebaseStorageService.resolveFileUrl(req, req.files.mobileImage[0], 'banners');
       }
     } else if (req.file) {
-      bannerData.image = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+      bannerData.image = await firebaseStorageService.resolveFileUrl(req, req.file, 'banners');
     }
 
     // Support removing mobileImage if specified

@@ -1,4 +1,5 @@
 const Testimonial = require('../../models/testimonial.model');
+const firebaseStorageService = require('../../services/firebaseStorage.service');
 
 // Get all testimonials (with filters & search)
 exports.getTestimonials = async (req, res) => {
@@ -65,10 +66,10 @@ exports.createTestimonial = async (req, res) => {
 
     if (req.files) {
       if (req.files.avatar && req.files.avatar[0]) {
-        testimonialData.avatar = `${req.protocol}://${req.get('host')}/uploads/${req.files.avatar[0].filename}`;
+        testimonialData.avatar = await firebaseStorageService.resolveFileUrl(req, req.files.avatar[0], 'testimonials');
       }
       if (req.files.propertyImage && req.files.propertyImage[0]) {
-        testimonialData.propertyImage = `${req.protocol}://${req.get('host')}/uploads/${req.files.propertyImage[0].filename}`;
+        testimonialData.propertyImage = await firebaseStorageService.resolveFileUrl(req, req.files.propertyImage[0], 'testimonials');
       }
     }
 
@@ -99,10 +100,10 @@ exports.updateTestimonial = async (req, res) => {
 
     if (req.files) {
       if (req.files.avatar && req.files.avatar[0]) {
-        testimonialData.avatar = `${req.protocol}://${req.get('host')}/uploads/${req.files.avatar[0].filename}`;
+        testimonialData.avatar = await firebaseStorageService.resolveFileUrl(req, req.files.avatar[0], 'testimonials');
       }
       if (req.files.propertyImage && req.files.propertyImage[0]) {
-        testimonialData.propertyImage = `${req.protocol}://${req.get('host')}/uploads/${req.files.propertyImage[0].filename}`;
+        testimonialData.propertyImage = await firebaseStorageService.resolveFileUrl(req, req.files.propertyImage[0], 'testimonials');
       }
     }
     

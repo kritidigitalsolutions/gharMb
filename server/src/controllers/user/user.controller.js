@@ -22,7 +22,22 @@ const normalizePhone = (phone) => {
   return cleaned;
 };
 
-/// Helper to construct full public URL for uploaded files
+const firebaseStorageService = require('../../services/firebaseStorage.service');
+
+/// Helper to construct full public URL for uploaded files (Firebase Storage with local fallback)
+const resolveFileUrl = async (req, file, folder = 'users') => {
+  if (firebaseStorageService.isConfigured()) {
+    try {
+      const url = await firebaseStorageService.resolveFileUrl(req, file, folder);
+      if (url) return url;
+    } catch (_) {}
+  }
+  const protocol = req.protocol;
+  const host = req.get('host');
+  const filename = file.filename || file;
+  return `${protocol}://${host}/uploads/${filename}`;
+};
+
 const getFileUrl = (req, filename) => {
   const protocol = req.protocol;
   const host = req.get('host');
@@ -156,7 +171,7 @@ exports.updateMe = async (req, res, next) => {
     // Handle file upload via form-data
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
-        const fileUrl = getFileUrl(req, file.filename);
+        const fileUrl = await resolveFileUrl(req, file, 'users/avatars');
         const fieldname = (file.fieldname || '').toLowerCase();
         if (fieldname.includes('profile') || fieldname.includes('photo') || fieldname.includes('avatar') || fieldname === 'image') {
           profilePicture = fileUrl;
@@ -244,7 +259,7 @@ exports.registerAgent = async (req, res, next) => {
     // Handle files uploaded via FormData (multipart/form-data)
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
-        const fileUrl = getFileUrl(req, file.filename);
+        const fileUrl = await resolveFileUrl(req, file, 'agents');
         const fieldname = (file.fieldname || '').toLowerCase();
         if (fieldname.includes('rera') || fieldname === 'reracertificate') {
           reraCertificate = fileUrl;
@@ -408,7 +423,7 @@ exports.registerDeveloper = async (req, res, next) => {
     // Handle files uploaded via FormData (multipart/form-data)
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
-        const fileUrl = getFileUrl(req, file.filename);
+        const fileUrl = await resolveFileUrl(req, file, 'developers');
         const fieldname = (file.fieldname || '').toLowerCase();
         if (fieldname.includes('rera')) {
           reraCertificate = fileUrl;

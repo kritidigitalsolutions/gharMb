@@ -9,19 +9,27 @@ import {
   signOut,
   sendPasswordResetEmail,
 } from "firebase/auth";
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAAqrQkw6wmDLWUgy2b8iEQK0LPUh5m-G8",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "gharmb-aba6e.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "gharmb-aba6e",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "gharmb-aba6e.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "734300419980",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:734300419980:android:cc6774bcfa19d3440288a9",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAsB0yRhrbHbbCCwec9y-MTh35E7914HAA",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "gharmb-1ce6f.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "gharmb-1ce6f",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "gharmb-1ce6f.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "9610363754",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:9610363754:android:c91e1762b2edf2bb295b13",
 };
 
 // Safe initialization of Firebase app
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const storage = getStorage(app);
 
 // Configure Google Auth Provider
 const googleProvider = new GoogleAuthProvider();
@@ -157,6 +165,114 @@ export const sendFirebasePasswordReset = async (email) => {
   }
 };
 
-export { app, auth, googleProvider };
+/**
+ * Direct client-side file upload helper to Firebase Storage
+ * @param {File|Blob} file - File or Blob object from input
+ * @param {string} folder - Target folder in bucket (e.g. 'user_uploads')
+ * @returns {Promise<{ success: boolean, url?: string, path?: string, error?: string }>}
+ */
+export const uploadFileToFirebaseStorage = async (file, folder = 'uploads') => {
+  try {
+    const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}-${file.name || 'file'}`;
+    const storagePath = `${folder}/${uniqueName}`;
+    const storageRef = ref(storage, storagePath);
+    const snapshot = await uploadBytes(storageRef, file);
+    const downloadUrl = await getDownloadURL(snapshot.ref);
+    return {
+      success: true,
+      url: downloadUrl,
+      path: storagePath,
+    };
+  } catch (error) {
+    console.error("Firebase Storage Client Upload Error:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to upload file to Firebase Storage",
+    };
+  }
+};
+
+let messagingInstance = null;
+
+/**
+ * Get or initialize Firebase Cloud Messaging for Web
+ */
+export const getClientMessaging = async () => {
+  if (typeof window === "undefined") return null;
+  try {
+    const { getMessaging, isSupported } = await import("firebase/messaging");
+    const supported = await isSupported();
+    if (supported && !messagingInstance) {
+      messagingInstance = getMessaging(app);
+    }
+    return messagingInstance;
+  } catch (err) {
+    console.warn("FCM Web Messaging is not supported in this browser:", err.message);
+    return null;
+  }
+};
+
+/**
+ * Request notification permission and retrieve the FCM device registration token
+ * @param {string} [vapidKey] - Optional Firebase Web Push certificate key
+ * @returns {Promise<{ success: boolean, token?: string, error?: string }>}
+ */
+export const requestFcmToken = async (vapidKey) => {
+  try {
+    const msg = await getClientMessaging();
+    if (!msg) {
+      return { success: false, error: "FCM is not supported in this browser environment." };
+    }
+
+    if (typeof Notification === "undefined") {
+      return { success: false, error: "Browser does not support notifications." };
+    }
+
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      return { success: false, error: `Notification permission ${permission}.` };
+    }
+
+    const { getToken } = await import("firebase/messaging");
+    const key = vapidKey || import.meta.env.VITE_FIREBASE_VAPID_KEY;
+    const token = await getToken(msg, key ? { vapidKey: key } : undefined);
+
+    if (token) {
+      return { success: true, token };
+    }
+    return { success: false, error: "Failed to generate FCM token from browser." };
+  } catch (err) {
+    console.error("FCM Token generation error:", err);
+    return { success: false, error: err.message || "Failed to retrieve FCM token." };
+  }
+};
+
+/**
+ * Register foreground notification listener
+ * @param {Function} callback - Function called with incoming FCM message
+ */
+export const onFcmForegroundMessage = async (callback) => {
+  try {
+    const msg = await getClientMessaging();
+    if (msg && typeof callback === "function") {
+      const { onMessage } = await import("firebase/messaging");
+      return onMessage(msg, callback);
+    }
+  } catch (err) {
+    console.warn("onFcmForegroundMessage error:", err.message);
+  }
+  return () => {};
+};
+
+export {
+  app,
+  auth,
+  googleProvider,
+  storage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+};
 export default auth;
 

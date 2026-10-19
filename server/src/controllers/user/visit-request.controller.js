@@ -73,7 +73,7 @@ exports.createVisitRequest = async (req, res, next) => {
     if (!ownerUser) {
       return res.status(400).json({
         status: 'fail',
-        message: 'The property owner must have an active account in the app to receive and manage visit requests.',
+        message: 'The property owner account was not found in the platform.',
       });
     }
 
@@ -149,32 +149,8 @@ exports.createVisitRequest = async (req, res, next) => {
       },
     });
 
-    // 8. Send notification to the property owner containing full visit & visitor details
+    // 8. Dispatch notification directly to Admin Notification Panel (Admin coordinates visits; owner is not notified directly)
     try {
-      const userContact = [
-        req.user.name ? `Name: ${req.user.name}` : '',
-        req.user.phone ? `Phone: ${req.user.phone}` : '',
-        req.user.email ? `Email: ${req.user.email}` : '',
-      ]
-        .filter(Boolean)
-        .join(' | ');
-
-      const propertyLocation = [property.locality, property.city].filter(Boolean).join(', ');
-
-      const notificationMessage = `New site visit request received for "${property.title}"${propertyLocation ? ` (${propertyLocation})` : ''}.\nRequested Date: ${formattedDateStr}\nRequested Time: ${cleanedVisitTime}\nVisitor: ${userContact}${userNotes ? `\nNote: ${userNotes}` : ''}`;
-
-      await Notification.create({
-        recipient: property.owner,
-        title: 'New Site Visit Request 🗓️',
-        message: notificationMessage,
-        type: 'visit_booking',
-        metadata: {
-          propertyId: property._id,
-          visitRequestId: visitRequest._id,
-        },
-      });
-
-      // Dispatch direct notification to Admin Notification Panel
       await notifyAdmin({
         title: 'New Site Visit Scheduled 🗓️',
         message: `${req.user.name || 'A visitor'} scheduled a visit for "${property.title}" on ${formattedDateStr} at ${cleanedVisitTime}. Phone: ${req.user.phone || 'N/A'}${userNotes ? ` | Note: "${userNotes}"` : ''}`,
@@ -195,12 +171,12 @@ exports.createVisitRequest = async (req, res, next) => {
         },
       });
     } catch (notifErr) {
-      console.error('Failed to create notification for property owner / admin:', notifErr.message);
+      console.error('Failed to create notification for admin:', notifErr.message);
     }
 
     res.status(201).json({
       status: 'success',
-      message: 'Property visit request scheduled successfully. The property owner has been notified.',
+      message: 'Property visit request scheduled successfully. Our admin team will coordinate your visit.',
       data: {
         visitRequest,
       },
@@ -437,19 +413,7 @@ exports.acceptVisitRequest = async (req, res, next) => {
         });
       }
 
-      // If Admin accepted, notify the property owner as an informational alert
-      if (isAdmin && visitRequest.owner) {
-        await Notification.create({
-          recipient: visitRequest.owner,
-          title: 'Site Visit Confirmed by Admin 🗓️',
-          message: `GharMB Admin confirmed a scheduled site visit for your listing "${propertyTitle}" on ${formattedDate} at ${visitRequest.visitTime}. Visitor: ${visitRequest.userDetails?.name || 'Client'} (${visitRequest.userDetails?.phone || 'N/A'}).`,
-          type: 'visit_booking',
-          metadata: {
-            propertyId: visitRequest.property?._id || visitRequest.property,
-            visitRequestId: visitRequest._id,
-          },
-        });
-      }
+
     } catch (notifErr) {
       console.error('Failed to notify user on visit request accept:', notifErr.message);
     }
@@ -537,19 +501,7 @@ exports.rejectVisitRequest = async (req, res, next) => {
         });
       }
 
-      // If Admin declined, also notify property owner
-      if (isAdmin && visitRequest.owner) {
-        await Notification.create({
-          recipient: visitRequest.owner,
-          title: 'Site Visit Request Declined by Admin ❌',
-          message: `Visit request for your listing "${propertyTitle}" was declined by Admin.${finalRejectionMessage ? ` Reason: ${finalRejectionMessage}` : ''}`,
-          type: 'visit_booking',
-          metadata: {
-            propertyId: visitRequest.property?._id || visitRequest.property,
-            visitRequestId: visitRequest._id,
-          },
-        });
-      }
+
     } catch (notifErr) {
       console.error('Failed to notify user on visit request rejection:', notifErr.message);
     }

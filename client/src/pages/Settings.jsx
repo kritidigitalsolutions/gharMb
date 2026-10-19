@@ -62,7 +62,7 @@ const Settings = () => {
         setFormData(prev => ({
           ...prev,
           name: profileData.name || 'Admin',
-          email: profileData.email || 'annika9070@gmail.com'
+          email: profileData.email || ''
         }));
       }
     } catch (err) {
@@ -322,7 +322,7 @@ const Settings = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="annika9070@gmail.com"
+                placeholder="admin@gharmb.com"
                 className="w-full sm:max-w-[280px] py-1.5 px-3 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/50 text-[var(--text-primary)] text-xs placeholder:text-[var(--text-muted)]/50 focus:border-brand focus:outline-hidden transition-all duration-150 font-medium"
               />
             </div>

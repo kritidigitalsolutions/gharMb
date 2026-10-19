@@ -1,9 +1,10 @@
 /**
  * Firebase Cloud Messaging (FCM) Service
- * Handles dispatching push notifications to Flutter mobile devices, topics,
- * multi-device broadcasting, and automatic invalid token pruning.
+ * Handles dispatching push notifications to Flutter mobile devices (Android/iOS),
+ * Web clients, FCM topics, and role-based audience broadcasting.
  */
 
+const mongoose = require('mongoose');
 const { messaging } = require('../config/firebase');
 const User = require('../models/user.model');
 const Admin = require('../models/admin.model');
@@ -79,6 +80,9 @@ class FcmService {
         notification: {
           channelId: 'gharmb_notifications',
           sound: 'default',
+          color: '#FF5A3C',
+          defaultSound: true,
+          defaultVibrateTimings: true,
           clickAction: 'FLUTTER_NOTIFICATION_CLICK',
           ...(imageUrl ? { imageUrl } : {}),
         },
@@ -89,9 +93,28 @@ class FcmService {
             sound: 'default',
             badge: 1,
             contentAvailable: true,
+            alert: {
+              title: title || 'GharMB Notification',
+              body: body || '',
+            },
           },
         },
         fcmOptions: imageUrl ? { imageUrl } : undefined,
+      },
+      webpush: {
+        headers: {
+          Urgency: priority === 'high' ? 'high' : 'normal',
+        },
+        notification: {
+          title: title || 'GharMB Notification',
+          body: body || '',
+          icon: '/logo.png',
+          badge: '/logo.png',
+          ...(imageUrl ? { image: imageUrl } : {}),
+        },
+        fcmOptions: {
+          link: data.link || data.url || '/',
+        },
       },
     };
 
@@ -164,6 +187,9 @@ class FcmService {
           notification: {
             channelId: 'gharmb_notifications',
             sound: 'default',
+            color: '#FF5A3C',
+            defaultSound: true,
+            defaultVibrateTimings: true,
             clickAction: 'FLUTTER_NOTIFICATION_CLICK',
             ...(imageUrl ? { imageUrl } : {}),
           },
@@ -174,9 +200,28 @@ class FcmService {
               sound: 'default',
               badge: 1,
               contentAvailable: true,
+              alert: {
+                title: title || 'GharMB Notification',
+                body: body || '',
+              },
             },
           },
           fcmOptions: imageUrl ? { imageUrl } : undefined,
+        },
+        webpush: {
+          headers: {
+            Urgency: priority === 'high' ? 'high' : 'normal',
+          },
+          notification: {
+            title: title || 'GharMB Notification',
+            body: body || '',
+            icon: '/logo.png',
+            badge: '/logo.png',
+            ...(imageUrl ? { image: imageUrl } : {}),
+          },
+          fcmOptions: {
+            link: data.link || data.url || '/',
+          },
         },
       };
 
@@ -217,9 +262,9 @@ class FcmService {
   }
 
   /**
-   * Send push notification to a topic (e.g. 'all_users', 'role_buyer', 'announcements')
+   * Send push notification to an FCM topic (e.g. 'all_users', 'role_buyer', 'announcements')
    */
-  async sendToTopic({ topic, title, body, data = {}, imageUrl = null }) {
+  async sendToTopic({ topic, title, body, data = {}, imageUrl = null, priority = 'high' }) {
     if (!this.isConfigured()) {
       return { success: false, error: 'FCM not initialized' };
     }
@@ -233,8 +278,10 @@ class FcmService {
       click_action: 'FLUTTER_NOTIFICATION_CLICK',
     });
 
+    const cleanTopic = topic.trim().replace(/[^a-zA-Z0-9-_.~%]+/g, '_');
+
     const message = {
-      topic: topic.trim().replace(/[^a-zA-Z0-9-_.~%]+/g, '_'),
+      topic: cleanTopic,
       notification: {
         title: title || 'GharMB Notification',
         body: body || '',
@@ -242,10 +289,13 @@ class FcmService {
       },
       data: cleanData,
       android: {
-        priority: 'high',
+        priority: priority === 'high' ? 'high' : 'normal',
         notification: {
           channelId: 'gharmb_notifications',
           sound: 'default',
+          color: '#FF5A3C',
+          defaultSound: true,
+          defaultVibrateTimings: true,
           clickAction: 'FLUTTER_NOTIFICATION_CLICK',
           ...(imageUrl ? { imageUrl } : {}),
         },
@@ -256,7 +306,27 @@ class FcmService {
             sound: 'default',
             badge: 1,
             contentAvailable: true,
+            alert: {
+              title: title || 'GharMB Notification',
+              body: body || '',
+            },
           },
+        },
+        fcmOptions: imageUrl ? { imageUrl } : undefined,
+      },
+      webpush: {
+        headers: {
+          Urgency: priority === 'high' ? 'high' : 'normal',
+        },
+        notification: {
+          title: title || 'GharMB Notification',
+          body: body || '',
+          icon: '/logo.png',
+          badge: '/logo.png',
+          ...(imageUrl ? { image: imageUrl } : {}),
+        },
+        fcmOptions: {
+          link: data.link || data.url || '/',
         },
       },
     };
@@ -265,7 +335,57 @@ class FcmService {
       const messageId = await messaging.send(message);
       return { success: true, messageId };
     } catch (err) {
-      console.error(`❌ FCM Topic (${topic}) send error:`, err.message);
+      console.error(`❌ FCM Topic (${cleanTopic}) send error:`, err.message);
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
+   * Subscribe device token(s) to an FCM topic
+   * @param {string|string[]} tokens - Token or array of tokens
+   * @param {string} topic - Topic name
+   */
+  async subscribeToTopic(tokens, topic) {
+    if (!this.isConfigured() || !tokens || !topic) {
+      return { success: false, error: 'FCM not ready or missing parameters' };
+    }
+    const tokenList = Array.isArray(tokens) ? tokens : [tokens];
+    const cleanTopic = topic.trim().replace(/[^a-zA-Z0-9-_.~%]+/g, '_');
+    try {
+      const response = await messaging.subscribeToTopic(tokenList, cleanTopic);
+      return {
+        success: true,
+        successCount: response.successCount,
+        failureCount: response.failureCount,
+        errors: response.errors,
+      };
+    } catch (err) {
+      console.error(`❌ FCM subscribeToTopic (${cleanTopic}) error:`, err.message);
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
+   * Unsubscribe device token(s) from an FCM topic
+   * @param {string|string[]} tokens - Token or array of tokens
+   * @param {string} topic - Topic name
+   */
+  async unsubscribeFromTopic(tokens, topic) {
+    if (!this.isConfigured() || !tokens || !topic) {
+      return { success: false, error: 'FCM not ready or missing parameters' };
+    }
+    const tokenList = Array.isArray(tokens) ? tokens : [tokens];
+    const cleanTopic = topic.trim().replace(/[^a-zA-Z0-9-_.~%]+/g, '_');
+    try {
+      const response = await messaging.unsubscribeFromTopic(tokenList, cleanTopic);
+      return {
+        success: true,
+        successCount: response.successCount,
+        failureCount: response.failureCount,
+        errors: response.errors,
+      };
+    } catch (err) {
+      console.error(`❌ FCM unsubscribeFromTopic (${cleanTopic}) error:`, err.message);
       return { success: false, error: err.message };
     }
   }
@@ -327,6 +447,26 @@ class FcmService {
   }
 
   /**
+   * Dispatch push notification to all users with a specific role ('buyer', 'agent', 'builder', 'tenant', 'owner')
+   */
+  async sendToRole(role, { title, body, data = {}, imageUrl = null, priority = 'high' }) {
+    try {
+      if (!role) return { successCount: 0, failureCount: 0 };
+      const users = await User.find({ role: String(role).toLowerCase() }).select('fcmTokens');
+      const tokens = [];
+      users.forEach((u) => {
+        if (u.fcmTokens && u.fcmTokens.length > 0) {
+          u.fcmTokens.forEach((t) => tokens.push(t.token));
+        }
+      });
+      return await this.sendToTokens({ tokens, title, body, data, imageUrl, priority });
+    } catch (err) {
+      console.error(`❌ FCM sendToRole (${role}) error:`, err.message);
+      return { successCount: 0, failureCount: 0, error: err.message };
+    }
+  }
+
+  /**
    * Dispatch push notification to all Active Admins with registered device tokens
    */
   async sendToAdmins({ title, body, data = {}, imageUrl = null, priority = 'high' }) {
@@ -354,10 +494,18 @@ class FcmService {
   }
 
   /**
-   * Remove invalid or expired tokens from database
+   * Broadcast notification to all users via 'all_users' topic
+   */
+  async sendToAll({ title, body, data = {}, imageUrl = null, priority = 'high' }) {
+    return await this.sendToTopic({ topic: 'all_users', title, body, data, imageUrl, priority });
+  }
+
+  /**
+   * Remove invalid or expired tokens from database (safe when DB is connected)
    */
   async cleanInvalidTokens(invalidTokens = []) {
     if (!invalidTokens || invalidTokens.length === 0) return;
+    if (mongoose.connection.readyState !== 1) return; // Skip if DB is not connected
 
     try {
       await Promise.all([

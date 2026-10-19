@@ -75,6 +75,10 @@ router.use(restrictTo('admin'));
  *       401:
  *         description: Unauthorized
  */
+router.route('/')
+  .get(legalController.getAllPolicies)
+  .post(legalController.createPolicy);
+
 router.route('/policies')
   .get(legalController.getAllPolicies)
   .post(legalController.createPolicy);

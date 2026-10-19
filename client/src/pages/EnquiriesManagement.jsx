@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
+import CallContactModal from '../components/common/CallContactModal';
 import API from '../api/api';
 import {
   Inbox,
@@ -151,6 +152,9 @@ export default function EnquiriesManagement() {
   // Delete Modal
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Call / Contact Modal Target
+  const [callTarget, setCallTarget] = useState(null);
 
   // Feedback Toast
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -1134,13 +1138,14 @@ export default function EnquiriesManagement() {
 
                           {/* Direct Call Trigger */}
                           {enquiry.clientPhone && (
-                            <a
-                              href={`tel:${enquiry.clientPhone}`}
+                            <button
+                              type="button"
+                              onClick={() => setCallTarget(enquiry)}
                               title={`Call ${enquiry.clientName}`}
                               className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-sky-600 hover:border-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90"
                             >
                               <Phone size={12} />
-                            </a>
+                            </button>
                           )}
 
                           {/* Inspect Eye */}
@@ -1281,13 +1286,14 @@ export default function EnquiriesManagement() {
                       <MessageCircle size={13} />
                       <span>WhatsApp</span>
                     </a>
-                    <a
-                      href={`tel:${selectedEnquiry.clientPhone}`}
-                      className="flex-1 py-1.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                    <button
+                      type="button"
+                      onClick={() => setCallTarget(selectedEnquiry)}
+                      className="flex-1 py-1.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                     >
                       <Phone size={13} />
                       <span>Call Client</span>
-                    </a>
+                    </button>
                   </div>
                 )}
               </div>
@@ -1625,6 +1631,34 @@ export default function EnquiriesManagement() {
         </div>
       )}
 
+      {/* ─── MODAL: CALL & CONTACT CLIENT (CUSTOM UI) ─── */}
+      {callTarget && (
+        <CallContactModal
+          isOpen={Boolean(callTarget)}
+          onClose={() => setCallTarget(null)}
+          contact={callTarget}
+          onUpdateStatus={(newStatus) => handleUpdateStatus(callTarget, newStatus)}
+          onAddNote={async (text) => {
+            let url = '';
+            let payload = {};
+            if (callTarget.stream === 'web') {
+              url = `/admin/web-inquiries/${callTarget.id}`;
+              payload = { adminNotes: text };
+            } else if (callTarget.stream === 'service') {
+              url = `/admin/services/${callTarget.id}`;
+              payload = { notes: text };
+            } else {
+              url = `/admin/dashboard/enquiries/${callTarget.id}`;
+              payload = { newNote: text };
+            }
+            const res = await API.patch(url, payload);
+            if (res.data?.status === 'success') {
+              showToast('Call note logged successfully');
+              fetchEnquiries(true);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
