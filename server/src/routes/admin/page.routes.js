@@ -68,6 +68,9 @@ router.use(restrictTo('admin'));
  *       401:
  *         description: Unauthorized
  */
+router.route('/')
+  .get(pageController.getAllPages);
+
 router.route('/:type')
   .get(pageController.getPageContent)
   .put(pageController.updatePageContent);

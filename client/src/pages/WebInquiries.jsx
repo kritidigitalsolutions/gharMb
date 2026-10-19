@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
+import CallContactModal from '../components/common/CallContactModal';
 import {
   Inbox,
   Search,
@@ -60,6 +61,7 @@ export default function WebInquiries() {
   const [selectedInquiry, setSelectedInquiry] = useState(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [adminNotesInput, setAdminNotesInput] = useState('');
+  const [callTarget, setCallTarget] = useState(null);
 
   // Delete Single Modal
   const [deleteModal, setDeleteModal] = useState({
@@ -724,15 +726,27 @@ export default function WebInquiries() {
                                 <Mail size={10} className="shrink-0" />
                                 <span className="truncate">{item.email}</span>
                               </a>
-                              <a
-                                href={`tel:${item.phone}`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="hover:text-brand flex items-center gap-1 font-mono text-[10.5px]"
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCallTarget({
+                                    clientName: item.name,
+                                    clientPhone: item.phone,
+                                    clientEmail: item.email,
+                                    title: item.subject || item.message,
+                                    code: item.code || item._id,
+                                    category: 'Web Inquiry',
+                                    id: item._id,
+                                    status: item.status
+                                  });
+                                }}
+                                className="hover:text-brand flex items-center gap-1 font-mono text-[10.5px] cursor-pointer"
                                 title={item.phone}
                               >
                                 <Phone size={10} className="shrink-0" />
                                 <span>{item.phone}</span>
-                              </a>
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -1129,6 +1143,26 @@ export default function WebInquiries() {
         </div>
       )}
 
+      {/* ─── MODAL: CALL & CONTACT CLIENT (CUSTOM UI) ─── */}
+      {callTarget && (
+        <CallContactModal
+          isOpen={Boolean(callTarget)}
+          onClose={() => setCallTarget(null)}
+          contact={callTarget}
+          onUpdateStatus={async (newStatus) => {
+            const res = await API.patch(`/admin/web-inquiries/${callTarget.id}`, { status: newStatus });
+            if (res.data?.status === 'success') {
+              fetchInquiries(false);
+            }
+          }}
+          onAddNote={async (text) => {
+            const res = await API.patch(`/admin/web-inquiries/${callTarget.id}`, { adminNotes: text });
+            if (res.data?.status === 'success') {
+              fetchInquiries(false);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -12,6 +12,7 @@ const path = require('path');
 const mongoose = require('mongoose');
 const Property = require('../../models/property.model');
 const Project = require('../../models/project.model');
+const firebaseStorageService = require('../../services/firebaseStorage.service');
 
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, '../../../uploads');
@@ -20,12 +21,47 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 /**
- * Construct full public URL for uploaded files
+ * Construct full public URL for uploaded files (local fallback)
  */
 const getFileUrl = (req, filename) => {
   const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
   const host = req.get('host') || 'localhost:5001';
   return `${protocol}://${host}/uploads/${filename}`;
+};
+
+/**
+ * Resolve upload URL: uploads to Firebase Cloud Storage if connected,
+ * otherwise falls back to local server URL.
+ */
+const resolveFileUrl = async (req, f, folder = 'uploads') => {
+  if (firebaseStorageService.isConfigured()) {
+    try {
+      if (f.buffer) {
+        const cloudRes = await firebaseStorageService.uploadBuffer(f.buffer, f.originalname, f.mimetype, folder);
+        return cloudRes.url;
+      }
+      const localPath = f.path || (f.filename ? path.join(uploadDir, f.filename) : null);
+      if (localPath && fs.existsSync(localPath)) {
+        const cloudRes = await firebaseStorageService.uploadLocalFile(localPath, f.originalname || f.filename, f.mimetype, folder, true);
+        return cloudRes.url;
+      }
+    } catch (fbErr) {
+      console.warn(`⚠️ Firebase Storage upload notice, falling back to local URL:`, fbErr.message);
+    }
+  }
+
+  // Fallback to local server if Firebase fails or not configured
+  let filename = f.filename;
+  if (!filename) {
+    const ext = path.extname(f.originalname || '').toLowerCase() || '.jpg';
+    filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    if (f.buffer) {
+      try {
+        fs.writeFileSync(path.join(uploadDir, filename), f.buffer);
+      } catch (_) {}
+    }
+  }
+  return getFileUrl(req, filename);
 };
 
 /**
@@ -53,9 +89,9 @@ const findProjectById = async (id) => {
 };
 
 /**
- * Save a Base64 string or data URL to the disk in /uploads
+ * Save a Base64 string or data URL to Firebase Cloud Storage or disk in /uploads
  */
-const saveBase64File = (base64String, fallbackName = 'upload') => {
+const saveBase64File = async (base64String, fallbackName = 'upload', folder = 'uploads') => {
   try {
     let mimeType = 'image/jpeg';
     let base64Data = base64String;
@@ -75,12 +111,30 @@ const saveBase64File = (base64String, fallbackName = 'upload') => {
     else if (mimeType.includes('gif')) ext = 'gif';
 
     const filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`;
+    const origName = `${fallbackName}.${ext}`;
+
+    if (firebaseStorageService.isConfigured()) {
+      try {
+        const cloudRes = await firebaseStorageService.uploadBuffer(buffer, origName, mimeType, folder);
+        return {
+          isCloud: true,
+          url: cloudRes.url,
+          filename: cloudRes.filename,
+          originalname: origName,
+          mimetype: mimeType,
+          size: buffer.length,
+        };
+      } catch (cloudErr) {
+        console.warn('Firebase base64 upload failed, falling back to local disk:', cloudErr.message);
+      }
+    }
+
     const filePath = path.join(uploadDir, filename);
     fs.writeFileSync(filePath, buffer);
 
     return {
       filename,
-      originalname: `${fallbackName}.${ext}`,
+      originalname: origName,
       mimetype: mimeType,
       size: buffer.length,
     };
@@ -106,6 +160,8 @@ exports.uploadMultipleFiles = async (req, res, next) => {
     if (req.files && Array.isArray(req.files) && req.files.length > 0) {
       for (const f of req.files) {
         collectedFiles.push({
+          buffer: f.buffer,
+          path: f.path,
           filename: f.filename,
           originalname: f.originalname,
           mimetype: f.mimetype,
@@ -115,6 +171,8 @@ exports.uploadMultipleFiles = async (req, res, next) => {
       }
     } else if (req.file) {
       collectedFiles.push({
+        buffer: req.file.buffer,
+        path: req.file.path,
         filename: req.file.filename,
         originalname: req.file.originalname,
         mimetype: req.file.mimetype,
@@ -132,11 +190,12 @@ exports.uploadMultipleFiles = async (req, res, next) => {
       if (typeof req.body.image === 'string') list.push(req.body.image);
       if (typeof req.body.file === 'string') list.push(req.body.file);
 
-      list.forEach((item, index) => {
-        if (!item || typeof item !== 'string') return;
+      for (let index = 0; index < list.length; index++) {
+        const item = list[index];
+        if (!item || typeof item !== 'string') continue;
 
         if (item.startsWith('data:') || (item.length > 200 && !item.startsWith('http'))) {
-          const saved = saveBase64File(item, `image-${index + 1}`);
+          const saved = await saveBase64File(item, `image-${index + 1}`, 'uploads');
           if (saved) collectedFiles.push(saved);
         } else if (item.startsWith('http://') || item.startsWith('https://')) {
           // Keep existing HTTP URLs
@@ -150,7 +209,7 @@ exports.uploadMultipleFiles = async (req, res, next) => {
             size: 0,
           });
         }
-      });
+      }
     }
 
     // 3. Validate that at least one file was received
@@ -167,12 +226,19 @@ exports.uploadMultipleFiles = async (req, res, next) => {
     const filesMeta = [];
 
     for (const f of collectedFiles) {
-      const fileUrl = f.isExistingUrl ? f.url : getFileUrl(req, f.filename);
+      let fileUrl;
+      if (f.isExistingUrl) {
+        fileUrl = f.url;
+      } else if (f.isCloud && f.url) {
+        fileUrl = f.url;
+      } else {
+        fileUrl = await resolveFileUrl(req, f, 'uploads');
+      }
       fileUrls.push(fileUrl);
       filesMeta.push({
         url: fileUrl,
         fileUrl,
-        filename: f.filename,
+        filename: f.filename || f.originalname || path.basename(fileUrl.split('?')[0]),
         originalName: f.originalname || f.filename,
         originalname: f.originalname || f.filename,
         mimeType: f.mimetype,
@@ -247,7 +313,7 @@ exports.uploadSingleFile = async (req, res, next) => {
     if (!file && req.body && (req.body.file || req.body.image)) {
       const item = req.body.file || req.body.image;
       if (typeof item === 'string' && (item.startsWith('data:') || item.length > 200)) {
-        file = saveBase64File(item, 'single_upload');
+        file = await saveBase64File(item, 'single_upload', 'uploads');
       }
     }
 
@@ -259,7 +325,12 @@ exports.uploadSingleFile = async (req, res, next) => {
       });
     }
 
-    const fileUrl = getFileUrl(req, file.filename);
+    let fileUrl;
+    if (file.isCloud && file.url) {
+      fileUrl = file.url;
+    } else {
+      fileUrl = await resolveFileUrl(req, file, 'uploads');
+    }
 
     return res.status(200).json({
       status: 'success',
@@ -268,7 +339,7 @@ exports.uploadSingleFile = async (req, res, next) => {
       data: {
         url: fileUrl,
         fileUrl,
-        filename: file.filename,
+        filename: file.filename || file.originalname || path.basename(fileUrl.split('?')[0]),
         originalName: file.originalname,
         mimeType: file.mimetype,
         mimetype: file.mimetype,
@@ -323,7 +394,7 @@ exports.uploadPropertyFiles = async (req, res, next) => {
     const uploadedFilesMeta = [];
 
     for (const file of rawFiles) {
-      const fileUrl = getFileUrl(req, file.filename);
+      const fileUrl = await resolveFileUrl(req, file, 'properties');
       const fieldname = (file.fieldname || '').toLowerCase();
       const isPdfOrDoc =
         file.mimetype === 'application/pdf' ||
@@ -335,7 +406,7 @@ exports.uploadPropertyFiles = async (req, res, next) => {
       uploadedFilesMeta.push({
         fieldname: file.fieldname,
         originalName: file.originalname,
-        filename: file.filename,
+        filename: file.filename || file.originalname || path.basename(fileUrl.split('?')[0]),
         mimetype: file.mimetype,
         size: file.size,
         fileUrl,
@@ -427,7 +498,7 @@ exports.uploadProjectFiles = async (req, res, next) => {
     const uploadedFilesMeta = [];
 
     for (const file of rawFiles) {
-      const fileUrl = getFileUrl(req, file.filename);
+      const fileUrl = await resolveFileUrl(req, file, 'projects');
       const fieldname = (file.fieldname || '').toLowerCase();
       const isPdfOrDoc =
         file.mimetype === 'application/pdf' ||

@@ -66,8 +66,16 @@ exports.getDashboardStats = async (req, res, next) => {
       Notification.find({ recipient: { $in: validUserIds } }).sort({ createdAt: -1 }).limit(7)
     ]);
 
+    // 1.1 Calculate real token booking revenue dynamically
+    const tokenSumRes = await TokenRequest.aggregate([
+      { $match: { status: { $in: ['accepted', 'pending'] } } },
+      { $group: { _id: null, total: { $sum: '$tokenAmount' } } }
+    ]);
+    const realTokenVolume = (tokenSumRes[0]?.total) || 0;
+
     const totalEnquiries = propEnquiriesCount + devEnquiriesCount;
-    const revenueGenerated = (featuredCount * 5000) + (premiumCount * 10000);
+    const listingRevenue = (featuredCount * 5000) + (premiumCount * 10000);
+    const revenueGenerated = realTokenVolume + listingRevenue;
 
     // 2. Dynamic Chart Data (Last 12 Months parallelized queries)
     const chartQueries = [];
@@ -80,14 +88,16 @@ exports.getDashboardStats = async (req, res, next) => {
       const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
       
       chartQueries.push((async () => {
-        const [mPropEnq, mDevEnq, mFeatured, mPremium] = await Promise.all([
+        const [mPropEnq, mDevEnq, mTokens, mFeatured, mPremium] = await Promise.all([
           PropertyEnquiry.countDocuments({ createdAt: { $gte: startOfMonth, $lte: endOfMonth } }),
           DeveloperEnquiry.countDocuments({ createdAt: { $gte: startOfMonth, $lte: endOfMonth } }),
+          TokenRequest.find({ createdAt: { $gte: startOfMonth, $lte: endOfMonth } }).select('tokenAmount status'),
           Property.countDocuments({ listingTier: 'Featured', createdAt: { $gte: startOfMonth, $lte: endOfMonth } }),
           Property.countDocuments({ listingTier: 'Premium', createdAt: { $gte: startOfMonth, $lte: endOfMonth } }),
         ]);
         
-        const mRevenue = (mFeatured * 5000) + (mPremium * 10000);
+        const mTokenRev = (mTokens || []).reduce((acc, t) => acc + (Number(t.tokenAmount) || 0), 0);
+        const mRevenue = mTokenRev + (mFeatured * 5000) + (mPremium * 10000);
 
         return {
           name: months[d.getMonth()],
@@ -421,13 +431,22 @@ exports.getRevenueStats = async (req, res, next) => {
     const subsRev = featuredRev + premiumRev;
     const boostRev = promotedCount * 2500;
     
-    // Token requests are direct booking requests without online payments
-    const escrowCommission = 0;
-    const heldEscrow = 0;
-    const settledEscrow = 0;
-    const refundedEscrow = 0;
+    // Dynamic token calculations from real database TokenRequests
+    const heldEscrow = tokenRequests
+      .filter(t => t.status === 'pending')
+      .reduce((s, t) => s + (Number(t.tokenAmount) || 0), 0);
 
-    const grossRevenue = subsRev + boostRev;
+    const settledEscrow = tokenRequests
+      .filter(t => t.status === 'accepted')
+      .reduce((s, t) => s + (Number(t.tokenAmount) || 0), 0);
+
+    const refundedEscrow = tokenRequests
+      .filter(t => t.status === 'rejected' || t.status === 'cancelled')
+      .reduce((s, t) => s + (Number(t.tokenAmount) || 0), 0);
+
+    const escrowCommission = Math.round(settledEscrow * 0.02); // 2% platform transaction commission
+    const totalTokenVolume = tokenRequests.reduce((s, t) => s + (Number(t.tokenAmount) || 0), 0);
+    const grossRevenue = subsRev + boostRev + totalTokenVolume;
 
     // 3. Compute real 30-day comparison (current 30 days vs previous 30 days)
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -609,7 +628,8 @@ exports.getRevenueStats = async (req, res, next) => {
         monthlyIncome: t.occupationDetails?.monthlyIncome || '—',
         familyMembers: t.familyDetails?.numberOfFamilyMembers || '—',
         maritalStatus: t.familyDetails?.maritalStatus || '—',
-        idProof: t.idProof?.documentOriginalName || t.idProof?.idProofType || 'Aadhaar'
+        idProof: t.idProof?.documentOriginalName || t.idProof?.idProofType || 'Aadhaar',
+        escrowBank: t.escrowBank || (t.isRental ? 'Rental Escrow / Deposit' : 'GharMB Escrow Desk')
       };
     });
 

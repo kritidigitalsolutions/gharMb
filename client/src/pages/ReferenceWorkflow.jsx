@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
+import CallContactModal from '../components/common/CallContactModal';
 import API from '../api/api';
 import {
   Users, Gift, Award, CheckCircle2, XCircle, Clock,
@@ -29,6 +30,7 @@ const ReferenceWorkflow = () => {
   const [deleteModal, setDeleteModal] = useState(null);
   const [copiedCode, setCopiedCode] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [callTarget, setCallTarget] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -708,13 +710,14 @@ const ReferenceWorkflow = () => {
                       <td className="py-3 px-3.5 align-middle text-right whitespace-nowrap w-[120px]" onClick={(e) => e.stopPropagation()}>
                         <div className="inline-flex items-center justify-end gap-1.5">
                           {r.refereePhone && (
-                            <a
-                              href={`tel:${r.refereePhone}`}
+                            <button
+                              type="button"
+                              onClick={() => setCallTarget(r)}
                               title={`Call Referee (${r.refereePhone})`}
-                              className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-emerald-600 hover:bg-emerald-500/10 border border-[var(--border)] transition-all duration-150 active:scale-90 shadow-2xs shrink-0"
+                              className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-emerald-600 hover:bg-emerald-500/10 border border-[var(--border)] transition-all duration-150 active:scale-90 shadow-2xs shrink-0 cursor-pointer"
                             >
                               <Phone size={12} />
-                            </a>
+                            </button>
                           )}
 
                           <button
@@ -1294,6 +1297,22 @@ const ReferenceWorkflow = () => {
         </div>
       )}
 
+      {/* ─── MODAL: CALL & CONTACT REFEREE (CUSTOM UI) ─── */}
+      {callTarget && (
+        <CallContactModal
+          isOpen={Boolean(callTarget)}
+          onClose={() => setCallTarget(null)}
+          contact={{
+            clientName: callTarget.refereeName,
+            clientPhone: callTarget.refereePhone,
+            clientEmail: callTarget.refereeEmail,
+            title: `Referred by: ${callTarget.referrerName || 'Ambassador'}`,
+            code: callTarget.referralCode || callTarget.id || callTarget._id,
+            category: 'Referral Deal',
+            status: callTarget.payoutStatus
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -52,13 +52,23 @@ exports.adminLogin = async (req, res) => {
     // 5. Successful login: Reset login attempts and lock status
     admin.loginAttempts = 0;
     admin.lockUntil = undefined;
-    if (req.body.firebaseToken && !admin.firebaseUid) {
-      try {
-        const decodedJwt = jwt.decode(req.body.firebaseToken);
-        if (decodedJwt?.user_id || decodedJwt?.sub) {
-          admin.firebaseUid = decodedJwt.user_id || decodedJwt.sub;
-        }
-      } catch (_) {}
+    // Auto-register FCM device token if passed during login
+    const rawFcmToken = req.body.fcmToken || req.body.deviceToken || req.body.fcm_token;
+    if (rawFcmToken && typeof rawFcmToken === 'string' && rawFcmToken.trim()) {
+      const cleanToken = rawFcmToken.trim();
+      if (!Array.isArray(admin.fcmTokens)) admin.fcmTokens = [];
+      const idx = admin.fcmTokens.findIndex((t) => t.token === cleanToken);
+      if (idx >= 0) {
+        admin.fcmTokens[idx].lastActiveAt = new Date();
+      } else {
+        if (admin.fcmTokens.length >= 10) admin.fcmTokens.shift();
+        admin.fcmTokens.push({
+          token: cleanToken,
+          deviceType: req.body.deviceType || 'web',
+          deviceId: req.body.deviceId || null,
+          lastActiveAt: new Date(),
+        });
+      }
     }
     await admin.save();
 
@@ -179,7 +189,7 @@ exports.adminFirebaseLogin = async (req, res) => {
     // 2. Strict check: Admin MUST EXIST in database (or match configured ADMIN_EMAIL)
     let admin = await Admin.findOne({ email: { $regex: new RegExp(`^${verifiedEmail}$`, "i") } });
 
-    const configuredAdminEmail = (process.env.ADMIN_EMAIL || "annika9070@gmail.com").toLowerCase().trim();
+    const configuredAdminEmail = (process.env.ADMIN_EMAIL || "admin@gharmb.com").toLowerCase().trim();
     if (!admin && verifiedEmail.toLowerCase() === configuredAdminEmail) {
       admin = await Admin.create({
         name: decodedName || "Admin",

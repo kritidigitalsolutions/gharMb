@@ -195,19 +195,7 @@ exports.acceptVisitRequest = async (req, res, next) => {
         });
       }
 
-      // 2. Notify property owner as informational update
-      if (visitRequest.owner) {
-        await Notification.create({
-          recipient: visitRequest.owner,
-          title: 'Site Visit Confirmed by Admin 🗓️',
-          message: `GharMB Admin confirmed a scheduled site visit for your listing "${propertyTitle}" on ${formattedDate} at ${visitRequest.visitTime}. Visitor: ${visitRequest.userDetails?.name || 'Client'} (${visitRequest.userDetails?.phone || 'N/A'}).`,
-          type: 'visit_booking',
-          metadata: {
-            propertyId: visitRequest.property?._id || visitRequest.property,
-            visitRequestId: visitRequest._id,
-          },
-        });
-      }
+
     } catch (notifErr) {
       console.error('Failed to dispatch notifications on visit request accept:', notifErr.message);
     }
@@ -282,19 +270,7 @@ exports.rejectVisitRequest = async (req, res, next) => {
         });
       }
 
-      // 2. Notify property owner
-      if (visitRequest.owner) {
-        await Notification.create({
-          recipient: visitRequest.owner,
-          title: 'Site Visit Request Declined by Admin ❌',
-          message: `Visit request for your listing "${propertyTitle}" was declined by Admin. Reason: ${finalReason}`,
-          type: 'visit_booking',
-          metadata: {
-            propertyId: visitRequest.property?._id || visitRequest.property,
-            visitRequestId: visitRequest._id,
-          },
-        });
-      }
+
     } catch (notifErr) {
       console.error('Failed to dispatch notifications on visit request decline:', notifErr.message);
     }

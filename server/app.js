@@ -193,7 +193,7 @@ const initAdmin = async () => {
   isSeedingAdmin = true;
   try {
     await connectDB();
-    const adminEmail = (process.env.ADMIN_EMAIL || "annika9070@gmail.com").toLowerCase().trim();
+    const adminEmail = (process.env.ADMIN_EMAIL || "admin@gharmb.com").toLowerCase().trim();
     const existingAdmin = await Admin.findOne({ email: adminEmail });
     if (!existingAdmin) {
       // Check if dummy admin exists and migrate to real email

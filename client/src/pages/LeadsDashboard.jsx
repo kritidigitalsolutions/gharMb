@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
+import CallContactModal from '../components/common/CallContactModal';
 import API from '../api/api';
 import {
   PhoneCall, MessageSquare, FileSpreadsheet, CalendarDays,
@@ -34,6 +35,7 @@ const LeadsDashboard = () => {
   const [assignModalLead, setAssignModalLead] = useState(null);
   const [selectedAgentToAssign, setSelectedAgentToAssign] = useState('Executive Desk');
   const [deleteConfirmLead, setDeleteConfirmLead] = useState(null);
+  const [callTarget, setCallTarget] = useState(null);
 
   // Form states for creating a new inquiry
   const [newLeadName, setNewLeadName] = useState('');
@@ -1010,13 +1012,14 @@ const LeadsDashboard = () => {
                           <div className="inline-flex items-center gap-1">
                             {/* Call Trigger */}
                             {lead.phone && lead.phone !== 'N/A' && (
-                              <a
-                                href={`tel:${lead.phone}`}
+                              <button
+                                type="button"
+                                onClick={() => setCallTarget(lead)}
                                 title={`Call ${lead.client}`}
                                 className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90 shadow-2xs"
                               >
                                 <Phone size={12} />
-                              </a>
+                              </button>
                             )}
 
                             {/* WhatsApp Trigger */}
@@ -1167,13 +1170,14 @@ const LeadsDashboard = () => {
 
                       <div className="flex items-center gap-1.5">
                         {lead.phone && lead.phone !== 'N/A' && (
-                          <a
-                            href={`tel:${lead.phone}`}
-                            className="p-1 text-[var(--text-muted)] hover:text-emerald-600 transition-colors"
+                          <button
+                            type="button"
+                            onClick={() => setCallTarget(lead)}
+                            className="p-1 text-[var(--text-muted)] hover:text-emerald-600 transition-colors cursor-pointer"
                             title="Call Buyer"
                           >
                             <Phone size={13} />
-                          </a>
+                          </button>
                         )}
                         {lead.phone && lead.phone !== 'N/A' && (
                           <a
@@ -1651,12 +1655,13 @@ const LeadsDashboard = () => {
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-semibold text-[var(--text-primary)]">{selectedLead.client}</span>
                   {selectedLead.phone && selectedLead.phone !== 'N/A' && (
-                    <a
-                      href={`tel:${selectedLead.phone}`}
-                      className="inline-flex items-center gap-1 text-[11px] text-brand hover:underline font-mono"
+                    <button
+                      type="button"
+                      onClick={() => setCallTarget(selectedLead)}
+                      className="inline-flex items-center gap-1 text-[11px] text-brand hover:underline font-mono cursor-pointer"
                     >
                       <Phone size={10} /> {selectedLead.phone}
-                    </a>
+                    </button>
                   )}
                 </div>
                 {selectedLead.email && (
@@ -1784,6 +1789,22 @@ const LeadsDashboard = () => {
         </div>
       )}
 
+      {/* ─── MODAL: CALL & CONTACT CLIENT (CUSTOM UI) ─── */}
+      {callTarget && (
+        <CallContactModal
+          isOpen={Boolean(callTarget)}
+          onClose={() => setCallTarget(null)}
+          contact={callTarget}
+          onUpdateStatus={(newStatus) => handleUpdateStatus(callTarget._id, newStatus)}
+          onAddNote={async (text) => {
+            const res = await API.patch(`/admin/dashboard/enquiries/${callTarget._id}`, { newNote: text });
+            if (res.data?.status === 'success') {
+              showToast('Call note logged');
+              fetchLeads(true);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

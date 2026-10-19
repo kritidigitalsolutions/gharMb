@@ -14,17 +14,8 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Multer Disk Storage Configuration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, `file-${uniqueSuffix}${ext}`);
-  },
-});
+// Multer In-Memory Storage: buffers held in RAM, uploaded directly to Firebase Storage without touching disk
+const storage = multer.memoryStorage();
 
 // File Filter allowing all standard image and document formats
 const fileFilter = (req, file, cb) => {

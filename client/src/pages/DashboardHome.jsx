@@ -363,8 +363,10 @@ const DashboardHome = () => {
   }, [chartData]);
 
 
-  const fetchDashboardStats = async () => {
-    setIsLoading(true);
+  const fetchDashboardStats = async (isBackground = false) => {
+    if (!isBackground) {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       const response = await API.get('/admin/dashboard/stats');
@@ -388,20 +390,31 @@ const DashboardHome = () => {
         setVerificationAlerts(data.data.verificationAlerts || []);
         setAuditLogs(data.data.auditLogs || []);
       } else {
-        setError(data?.message || 'Failed to fetch dashboard stats.');
+        if (!isBackground) {
+          setError(data?.message || 'Failed to fetch dashboard stats.');
+        }
       }
       setLastSyncTime(new Date());
       setRefreshCount(prev => prev + 1);
     } catch (err) {
-      console.error('Error fetching dashboard stats:', err);
-      setError(err?.response?.data?.message || 'Could not connect to backend server. Please verify backend is running.');
+      if (!isBackground) {
+        console.error('Error fetching dashboard stats:', err);
+        setError(err?.response?.data?.message || 'Could not connect to backend server. Please verify backend is running.');
+      }
     } finally {
-      setIsLoading(false);
+      if (!isBackground) {
+        setIsLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     fetchDashboardStats();
+    // Live Auto-Refresh every 45 seconds in the background
+    const timer = setInterval(() => {
+      fetchDashboardStats(true);
+    }, 45000);
+    return () => clearInterval(timer);
   }, []);
 
   const formatLogTime = (isoString) => {
@@ -583,9 +596,12 @@ const DashboardHome = () => {
           <h1 className="text-xs sm:text-[13px] font-semibold text-[var(--text-primary)] tracking-tight">
             Dashboard Overview
           </h1>
-          <span className="inline-flex items-center gap-1.5 text-[10.5px] text-[var(--text-muted)]">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-            Synced {lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          <span className="inline-flex items-center gap-1.5 text-[10.5px] text-[var(--text-muted)] font-medium">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            Synced {lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Live Auto-sync
           </span>
         </div>
         <button

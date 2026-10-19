@@ -42,17 +42,7 @@ exports.createEnquiry = async (req, res, next) => {
       status: 'pending',
     });
 
-    // Notify property owner about the new lead
-    await Notification.create({
-      recipient: property.owner,
-      title: 'New Property Enquiry',
-      message: `${req.user.name} has queried about your listing "${property.title}".`,
-      type: 'enquiry',
-      metadata: {
-        propertyId: property._id,
-        enquiryId: enquiry._id,
-      },
-    });
+    // Inquiries are handled exclusively by Admin (owner is not notified)
 
     // Notify Admin Notification Panel directly
     await notifyAdmin({
@@ -234,16 +224,7 @@ exports.createDeveloperEnquiry = async (req, res, next) => {
       status: 'pending',
     });
 
-    // 4. Notify developer
-    await Notification.create({
-      recipient: developerId,
-      title: 'New Developer Enquiry',
-      message: `${req.user.name} has submitted an enquiry regarding your developer profile.`,
-      type: 'enquiry',
-      metadata: {
-        enquiryId: enquiry._id,
-      },
-    });
+    // Developer inquiries are handled exclusively by Admin (developer is not notified directly)
 
     // 5. Notify Admin Notification Panel directly
     await notifyAdmin({

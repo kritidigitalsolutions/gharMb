@@ -41,12 +41,13 @@ export const clearAuthSession = (message = null) => {
 export const getBaseUrl = () => {
   let base = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
 
-  if (!base && typeof window !== 'undefined') {
+  if (typeof window !== 'undefined') {
     const host = window.location.hostname;
-    if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.')) {
-      base = 'http://localhost:5001';
-    } else {
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.');
+    if (!isLocalhost && (!base || base.includes('localhost') || base.includes('127.0.0.1'))) {
       base = 'https://server.gharmb.com';
+    } else if (isLocalhost && !base) {
+      base = 'http://localhost:5001';
     }
   }
 

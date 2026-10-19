@@ -53,9 +53,9 @@ export default function AboutSettings() {
             mission: meta.mission || 'To eliminate unverified listings and deliver a transparent property discovery ecosystem.',
             vision: meta.vision || 'To become India’s most trusted real-estate marketplace for buyers and developers.',
             supportEmail: meta.supportEmail || 'support@gharmb.com',
-            helpline: meta.helpline || '+91 98765 43210',
-            headquarters: meta.headquarters || 'Cyber City, Gurugram, Haryana, India',
-            reraRegistration: meta.reraRegistration || 'HRERA-PKL-GGM-1240-2024',
+            helpline: meta.helpline || '',
+            headquarters: meta.headquarters || '',
+            reraRegistration: meta.reraRegistration || '',
             websiteUrl: meta.websiteUrl || 'https://gharmb.com'
           };
           setForm(loaded);

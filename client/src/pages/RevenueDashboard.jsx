@@ -518,7 +518,7 @@ const RevenueDashboard = () => {
                 <th className="py-2.5 px-3 align-middle text-center whitespace-nowrap">Escrow Sum</th>
                 <th className="py-2.5 px-3 align-middle whitespace-nowrap">Date</th>
                 <th className="py-2.5 px-3 align-middle text-center whitespace-nowrap">Escrow Status</th>
-                <th className="py-2.5 px-3 align-middle text-right whitespace-nowrap w-[76px]">Actions</th>
+                <th className="py-2.5 px-3 align-middle text-right whitespace-nowrap w-[76px] sticky right-0 bg-[var(--bg-surface)] shadow-[-4px_0_8px_rgba(0,0,0,0.03)]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)] text-xs">
@@ -634,7 +634,7 @@ const RevenueDashboard = () => {
                       </td>
 
                       {/* Strictly Aligned Actions Column (Fixed Width 76px) */}
-                      <td className="py-2.5 px-3 align-middle text-right whitespace-nowrap w-[76px]">
+                      <td className="py-2.5 px-3 align-middle text-right whitespace-nowrap w-[76px] sticky right-0 bg-[var(--bg-surface)] shadow-[-4px_0_8px_rgba(0,0,0,0.03)] group-hover:bg-slate-50 dark:group-hover:bg-slate-800 transition-colors">
                         <div
                           className="flex items-center justify-end gap-1.5 w-[76px]"
                           onClick={(e) => e.stopPropagation()}

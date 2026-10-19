@@ -6,16 +6,18 @@ const { getMessaging } = require("firebase-admin/messaging");
 const fs = require("fs");
 const path = require("path");
 
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+
 let app;
 let auth;
 let bucket;
 let messaging;
 let hasServiceAccount = false;
+const projectId = process.env.FIREBASE_PROJECT_ID || 'gharmb-1ce6f';
 
 try {
   const apps = getApps();
   if (!apps.length) {
-    const projectId = process.env.FIREBASE_PROJECT_ID || 'gharmb-aba6e';
 
     // 1. Check for Service Account file paths
     const possibleFilePaths = [
@@ -64,12 +66,13 @@ try {
     }
 
     if (serviceAccount) {
-      const activeProject = serviceAccount.projectId || projectId;
-      if (serviceAccount.projectId && projectId && serviceAccount.projectId !== projectId) {
+      const saProjectId = serviceAccount.projectId || serviceAccount.project_id;
+      const activeProject = saProjectId || projectId;
+      if (saProjectId && projectId && saProjectId !== projectId) {
         console.error(`\n🚨 ============================================================`);
         console.error(`🚨 FIREBASE SERVICE ACCOUNT MISMATCH DETECTED!`);
         console.error(`🚨 App/Backend Project ID : ${projectId}`);
-        console.error(`🚨 Service Account Project: ${serviceAccount.projectId}`);
+        console.error(`🚨 Service Account Project: ${saProjectId}`);
         console.error(`🚨 RESULT: FCM push notifications to devices will fail with`);
         console.error(`🚨 'SenderId mismatch' until you generate a key for '${projectId}'!`);
         console.error(`🚨 FIX: Download service account from Firebase Console > Project settings >`);
@@ -112,9 +115,11 @@ try {
     console.warn("⚠️ Firebase Messaging initialization notice:", msgErr.message);
   }
 
-  if (process.env.FIREBASE_STORAGE_BUCKET) {
+  const bucketName = process.env.FIREBASE_STORAGE_BUCKET || (projectId ? `${projectId}.firebasestorage.app` : 'gharmb-1ce6f.firebasestorage.app');
+  if (bucketName) {
     try {
-      bucket = getStorage(app).bucket();
+      bucket = getStorage(app).bucket(bucketName);
+      console.log(`🔥 Firebase Storage Bucket initialized: ${bucket.name}`);
     } catch (storageErr) {
       console.warn("⚠️ Firebase Storage Bucket initialization warning:", storageErr.message);
     }

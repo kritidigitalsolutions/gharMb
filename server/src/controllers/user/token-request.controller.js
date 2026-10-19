@@ -14,6 +14,7 @@ const Notification = require('../../models/notification.model');
 const TokenSetting = require('../../models/token-setting.model');
 const User = require('../../models/user.model');
 const { notifyAdmin } = require('../../utils/adminNotification.helper');
+const firebaseStorageService = require('../../services/firebaseStorage.service');
 
 // Helper for pagination
 const getPagination = (page, limit, defaultLimit = 10) => {
@@ -353,10 +354,10 @@ exports.createTokenRequest = async (req, res, next) => {
     let idProofOrigName = parsedIdProof.documentOriginalName || '';
 
     if (req.file) {
-      idProofDocUrl = `/uploads/${req.file.filename}`;
+      idProofDocUrl = await firebaseStorageService.resolveFileUrl(req, req.file, 'token-requests');
       idProofOrigName = req.file.originalname;
     } else if (req.files && req.files.length > 0) {
-      idProofDocUrl = `/uploads/${req.files[0].filename}`;
+      idProofDocUrl = await firebaseStorageService.resolveFileUrl(req, req.files[0], 'token-requests');
       idProofOrigName = req.files[0].originalname;
     }
 
@@ -475,29 +476,7 @@ exports.createTokenRequest = async (req, res, next) => {
       console.error('Failed to notify admins of token request:', adminNotifErr.message);
     }
 
-    // Also notify property owner as an informational update
-    if (property.owner) {
-      try {
-        await Notification.create({
-          recipient: property.owner,
-          title: isRental
-            ? 'Rental Token Request Received (Handled by Admin)'
-            : 'Property Booking Request Received (Handled by Admin)',
-          message: isRental
-            ? `A client requested a token reservation for rental listing "${property.title}". GharMB Admin is coordinating directly with the tenant out of the app.`
-            : `A client requested booking for listing "${property.title}". GharMB Admin is coordinating directly out of the app.`,
-          type: 'token_request',
-          metadata: {
-            propertyId: property._id,
-            tokenRequestId: tokenRequest._id,
-            listingFor: property.listingFor,
-            isRental,
-          },
-        });
-      } catch (ownerNotifErr) {
-        console.error('Failed to notify owner:', ownerNotifErr.message);
-      }
-    }
+    // All token and booking requests are coordinated and handled exclusively by GharMB Admin (owner is not notified)
 
     // Increment inquiry/token counter on property
     await Property.findByIdAndUpdate(propertyId, {

@@ -54,18 +54,18 @@ export default function ContactManagement() {
           const loaded = {
             title: pc.title || 'Get in Touch with GharMB',
             content: pc.content || 'Have questions regarding properties or partnerships? Our team is here to assist.',
-            helpline: m.helpline || '+91 98765 43210',
-            tollFree: m.tollFree || '1800-120-GHARMB',
-            whatsapp: m.whatsapp || '+91 98765 43210',
+            helpline: m.helpline || '',
+            tollFree: m.tollFree || '',
+            whatsapp: m.whatsapp || '',
             supportEmail: m.supportEmail || 'support@gharmb.com',
             salesEmail: m.salesEmail || 'sales@gharmb.com',
             workingHours: m.workingHours || 'Mon – Sat: 9:00 AM – 8:00 PM IST',
             responseSLA: m.responseSLA || 'Replies within 15 minutes',
-            headquartersAddress: hq.address || 'Sector 29, Cyber City Phase 2',
-            headquartersCity: hq.city || 'Gurugram',
-            headquartersState: hq.state || 'Haryana',
-            headquartersPincode: hq.pincode || '122002',
-            mapsUrl: hq.mapsUrl || 'https://maps.google.com'
+            headquartersAddress: hq.address || '',
+            headquartersCity: hq.city || '',
+            headquartersState: hq.state || '',
+            headquartersPincode: hq.pincode || '',
+            mapsUrl: hq.mapsUrl || ''
           };
           setForm(loaded);
           setSaved(loaded);

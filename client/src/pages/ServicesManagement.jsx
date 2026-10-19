@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
+import CallContactModal from '../components/common/CallContactModal';
 import API from '../api/api';
 import {
   Home, Truck, Scale, Search, Plus,
@@ -33,6 +34,7 @@ const ServicesManagement = () => {
   const [selectedPartner, setSelectedPartner] = useState('');
   const [newQuotationAmount, setNewQuotationAmount] = useState('');
   const [deleteConfirmItem, setDeleteConfirmItem] = useState(null);
+  const [callTarget, setCallTarget] = useState(null);
 
   // Note submission in drawer
   const [drawerNoteText, setDrawerNoteText] = useState('');
@@ -74,24 +76,26 @@ const ServicesManagement = () => {
 
   const [catalogOfferings, setCatalogOfferings] = useState([]);
 
-  // Dynamically compute partners from active service catalog
+  // Dynamically compute partners from active service catalog stored in database
   const partnersCatalog = useMemo(() => {
-    const base = {
-      Interior: ['Studio Luxe Interiors', 'Livspace Certified Partner', 'HomeLane Studio', 'Urban Woodcrafts Delhi/NCR', 'DecorSpace Mumbai'],
-      Movers: ['SafeMove Packers', 'Agarwal Premium Shifting', 'Gati Relocations', 'Porter Enterprise', 'SafeX Packers & Movers'],
-      Legal: ['Adv. M.K. Shinde', 'LawDesk Property Advisors', 'LexJuris Legal Associates', 'Chambers of R.N. Joshi']
+    const map = {
+      Interior: [],
+      Movers: [],
+      Legal: []
     };
     catalogOfferings.forEach(item => {
-      if (item.category && Array.isArray(item.partners)) {
+      const cat = item.category;
+      if (cat && Array.isArray(item.partners)) {
+        if (!map[cat]) map[cat] = [];
         item.partners.forEach(p => {
-          const cat = item.category;
-          if (base[cat] && !base[cat].includes(p)) {
-            base[cat].push(p);
+          const cleanPartner = typeof p === 'string' ? p.trim() : '';
+          if (cleanPartner && !map[cat].includes(cleanPartner)) {
+            map[cat].push(cleanPartner);
           }
         });
       }
     });
-    return base;
+    return map;
   }, [catalogOfferings]);
 
   // Fetch real service inquiries from MongoDB
@@ -946,13 +950,14 @@ const ServicesManagement = () => {
                             </span>
                             {item.clientPhone && item.clientPhone !== 'N/A' && (
                               <div className="inline-flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                <a
-                                  href={`tel:${item.clientPhone}`}
+                                <button
+                                  type="button"
+                                  onClick={() => setCallTarget(item)}
                                   title={`Call ${item.clientName}`}
                                   className="w-4 h-4 rounded text-[var(--text-muted)] hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center justify-center transition-colors cursor-pointer"
                                 >
                                   <Phone size={10} />
-                                </a>
+                                </button>
                                 <a
                                   href={`https://wa.me/${item.clientPhone.replace(/[^0-9]/g, '')}`}
                                   target="_blank"
@@ -1687,12 +1692,13 @@ const ServicesManagement = () => {
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-semibold text-[var(--text-primary)]">{selectedEnquiry.clientName}</span>
                   {selectedEnquiry.clientPhone && (
-                    <a
-                      href={`tel:${selectedEnquiry.clientPhone}`}
-                      className="inline-flex items-center gap-1 text-[11px] text-brand hover:underline font-mono"
+                    <button
+                      type="button"
+                      onClick={() => setCallTarget(selectedEnquiry)}
+                      className="inline-flex items-center gap-1 text-[11px] text-brand hover:underline font-mono cursor-pointer"
                     >
                       <Phone size={10} /> {selectedEnquiry.clientPhone}
-                    </a>
+                    </button>
                   )}
                 </div>
                 {selectedEnquiry.clientEmail && (
@@ -1898,6 +1904,22 @@ const ServicesManagement = () => {
         </div>
       )}
 
+      {/* ─── MODAL: CALL & CONTACT CLIENT (CUSTOM UI) ─── */}
+      {callTarget && (
+        <CallContactModal
+          isOpen={Boolean(callTarget)}
+          onClose={() => setCallTarget(null)}
+          contact={callTarget}
+          onUpdateStatus={(newStatus) => handleUpdateStatus(callTarget._id, newStatus)}
+          onAddNote={async (text) => {
+            const res = await API.patch(`/admin/services/${callTarget._id}`, { notes: text });
+            if (res.data?.status === 'success') {
+              showFeedback('Call note saved');
+              fetchServices(true);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

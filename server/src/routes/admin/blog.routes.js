@@ -1,11 +1,12 @@
 const express = require('express');
 const blogController = require('../../controllers/admin/blog.controller');
 const upload = require('../../middlewares/upload.middleware');
+const firebaseStorageService = require('../../services/firebaseStorage.service');
 
 const router = express.Router();
 
 // Upload image for blog banner or editor
-router.post('/upload', upload.single('image'), (req, res, next) => {
+router.post('/upload', upload.single('image'), async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -13,7 +14,7 @@ router.post('/upload', upload.single('image'), (req, res, next) => {
         message: 'No image file uploaded.',
       });
     }
-    const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    const imageUrl = await firebaseStorageService.resolveFileUrl(req, req.file, 'blogs');
     res.status(200).json({
       status: 'success',
       data: {

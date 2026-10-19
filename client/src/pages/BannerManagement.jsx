@@ -693,6 +693,60 @@ const BannerManagement = () => {
                 </div>
               </div>
 
+              {/* Mobile App Banner (Optional) */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-[var(--text-primary)]">
+                    Mobile App Banner (Optional)
+                  </label>
+                  <span className="text-[10px] text-brand bg-brand/10 px-1.5 py-0.5 rounded font-medium">4:5 or 1:1 mobile carousel</span>
+                </div>
+
+                {modalState.mobileImage ? (
+                  <div className="relative aspect-[16/9] max-h-32 rounded-lg overflow-hidden border border-[var(--border)] bg-zinc-900">
+                    <img src={modalState.mobileImage} alt="Mobile Preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setModalState(prev => ({ ...prev, mobileImage: '', mobileImageFile: null }))}
+                      className="absolute top-2 right-2 p-1 rounded-full bg-black/70 text-white hover:bg-rose-600 transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="border border-dashed border-[var(--border)] rounded-xl p-3 text-center bg-[var(--bg-muted)]/20 relative hover:border-brand/50 transition-colors">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setModalState(prev => ({
+                            ...prev,
+                            mobileImageFile: file,
+                            mobileImage: URL.createObjectURL(file),
+                          }));
+                        }
+                      }}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    />
+                    <UploadCloud size={18} className="text-brand mx-auto mb-1" />
+                    <span className="text-xs font-medium text-[var(--text-primary)] block">Choose mobile image file</span>
+                    <span className="text-[10px] text-[var(--text-muted)]">Optimized for Android / iOS mobile app carousels</span>
+                  </div>
+                )}
+
+                <div className="pt-0.5">
+                  <input
+                    type="url"
+                    placeholder="Or paste mobile image URL directly"
+                    value={modalState.mobileImageFile ? '' : (modalState.mobileImage || '')}
+                    onChange={(e) => setModalState(prev => ({ ...prev, mobileImage: e.target.value, mobileImageFile: null }))}
+                    className="w-full px-3 py-1.5 rounded-lg text-xs bg-[var(--bg-muted)]/40 border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-brand"
+                  />
+                </div>
+              </div>
+
               {/* Title & Subtitle */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-[var(--text-primary)]">Title *</label>

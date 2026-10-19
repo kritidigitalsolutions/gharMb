@@ -130,7 +130,14 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
   const mobileInputRef = useRef(null);
   const resultsListRef = useRef(null);
 
-  const adminUser = getAdminUser();
+  const [adminUser, setAdminUser] = useState(getAdminUser);
+
+  useEffect(() => {
+    const syncAdminUser = () => setAdminUser(getAdminUser());
+    window.addEventListener('storage', syncAdminUser);
+    return () => window.removeEventListener('storage', syncAdminUser);
+  }, []);
+
   const isAdmin = (adminUser.role || '').toLowerCase().includes('admin') ||
                   (adminUser.name || '').toLowerCase().includes('admin');
 
