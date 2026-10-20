@@ -16,6 +16,7 @@ import {
   Star, LayoutGrid, ListFilter
 } from 'lucide-react';
 import API from '../api/api';
+import SmoothImage from '../components/common/SmoothImage';
 
 const QUICK_REJECTION_REASONS = [
   'Documents incomplete or missing',
@@ -84,6 +85,90 @@ const PropertyVerification = () => {
     discountValue: 0,
     discountNotes: '',
   });
+
+  // Project Investment Score Modal
+  const [showProjectScoreModal, setShowProjectScoreModal] = useState(false);
+  const [projectScoreForm, setProjectScoreForm] = useState({
+    connectivity: 9.0,
+    rentalPotential: 8.5,
+    growthPotential: 9.0,
+    familyLiving: 8.8,
+    futureDemand: 9.0,
+  });
+  const [isSavingScore, setIsSavingScore] = useState(false);
+
+  const openProjectScoreModal = (project) => {
+    const cur = project.investmentScore?.metrics || {};
+    setProjectScoreForm({
+      connectivity: cur.connectivity ?? 9.0,
+      rentalPotential: cur.rentalPotential ?? 8.5,
+      growthPotential: cur.growthPotential ?? 9.0,
+      familyLiving: cur.familyLiving ?? 8.8,
+      futureDemand: cur.futureDemand ?? 9.0,
+    });
+    setShowProjectScoreModal(true);
+  };
+
+  const computedProjectOverall = useMemo(() => {
+    const vals = [
+      Number(projectScoreForm.connectivity) || 0,
+      Number(projectScoreForm.rentalPotential) || 0,
+      Number(projectScoreForm.growthPotential) || 0,
+      Number(projectScoreForm.familyLiving) || 0,
+      Number(projectScoreForm.futureDemand) || 0,
+    ];
+    const sum = vals.reduce((a, b) => a + b, 0);
+    return Math.round((sum / vals.length) * 10) / 10;
+  }, [projectScoreForm]);
+
+  const computedProjectGrade = useMemo(() => {
+    if (computedProjectOverall >= 8.0) return 'Excellent';
+    if (computedProjectOverall >= 6.5) return 'Good';
+    if (computedProjectOverall >= 5.0) return 'Average';
+    return 'Below Average';
+  }, [computedProjectOverall]);
+
+  const handleSaveProjectScore = async () => {
+    if (!selectedItem) return;
+    setIsSavingScore(true);
+    try {
+      const payload = {
+        connectivity: Number(projectScoreForm.connectivity),
+        rentalPotential: Number(projectScoreForm.rentalPotential),
+        growthPotential: Number(projectScoreForm.growthPotential),
+        familyLiving: Number(projectScoreForm.familyLiving),
+        futureDemand: Number(projectScoreForm.futureDemand),
+      };
+      const endpoint = selectedItem.itemType === 'project'
+        ? `/admin/projects/${selectedItem._id}/investment-score`
+        : `/admin/properties/${selectedItem._id}/investment-score`;
+
+      const res = await API.put(endpoint, payload);
+      if (res.data?.status === 'success') {
+        const newScore = res.data.data.investmentScore;
+        if (selectedItem.itemType === 'project') {
+          setProjects((prev) =>
+            prev.map((p) => (p._id === selectedItem._id ? { ...p, investmentScore: newScore } : p))
+          );
+        } else {
+          setProperties((prev) =>
+            prev.map((p) => (p._id === selectedItem._id ? { ...p, investmentScore: newScore } : p))
+          );
+        }
+        setSelectedItem((prev) => ({ ...prev, investmentScore: newScore }));
+        setFormData((prev) => ({ ...prev, investmentScore: newScore }));
+        showToast(
+          `${selectedItem.itemType === 'project' ? 'Project' : 'Property'} investment score updated successfully!`,
+          'success'
+        );
+        setShowProjectScoreModal(false);
+      }
+    } catch (err) {
+      showToast(err?.response?.data?.message || 'Failed to update investment score.', 'error');
+    } finally {
+      setIsSavingScore(false);
+    }
+  };
 
   // Toast Feedback
   const [toast, setToast] = useState(null);
@@ -222,6 +307,17 @@ const PropertyVerification = () => {
       discountAmount: Number(p.discountAmount || p.commissionDiscount?.discountAmount || 0),
       effectiveBuyerPrice: Number(p.effectiveBuyerPrice || (priceNum - (p.commissionDiscount?.discountAmount || 0))),
       pricingSummary: p.pricingSummary || null,
+      investmentScore: p.investmentScore || {
+        overall: 0,
+        grade: 'Not Rated',
+        metrics: {
+          connectivity: 0,
+          rentalPotential: 0,
+          growthPotential: 0,
+          familyLiving: 0,
+          futureDemand: 0,
+        },
+      },
       itemType: 'property'
     };
   };
@@ -292,6 +388,17 @@ const PropertyVerification = () => {
       inquiriesCount: p.inquiriesCount || 0,
       rating: Number(p.rating || p.averageRating) || 0,
       reviewsCount: Number(p.reviewsCount || p.totalRatings) || 0,
+      investmentScore: p.investmentScore || {
+        overall: 0,
+        grade: 'Not Rated',
+        metrics: {
+          connectivity: 0,
+          rentalPotential: 0,
+          growthPotential: 0,
+          familyLiving: 0,
+          futureDemand: 0,
+        },
+      },
       itemType: 'project'
     };
   };
@@ -302,8 +409,8 @@ const PropertyVerification = () => {
     setError(null);
     try {
       const [propRes, projRes] = await Promise.all([
-        API.get('/admin/properties'),
-        API.get('/admin/projects')
+        API.get('/admin/properties', { params: { limit: 1000 } }),
+        API.get('/admin/projects', { params: { limit: 1000 } })
       ]);
 
       let mappedProps = [];
@@ -317,14 +424,9 @@ const PropertyVerification = () => {
         setProjects(mappedProj);
       }
 
-      // Smart initial status: If pending exists, default to Pending. Else default to All!
+      // Default to All listings so all properties are shown by default
       if (!hasUserChangedFilter) {
-        const pendingCount = mappedProps.filter(p => p.status === 'Pending').length;
-        if (pendingCount > 0) {
-          setStatusFilter('Pending');
-        } else {
-          setStatusFilter('All');
-        }
+        setStatusFilter('All');
       }
 
       setLastSyncTime(new Date());
@@ -628,18 +730,63 @@ const PropertyVerification = () => {
   const totalRejected = currentList.filter(p => p.status === 'Rejected').length;
   const totalAll = currentList.length;
 
+  // Active status filtered subset for context-aware category counts
+  const statusFilteredList = useMemo(() => {
+    if (statusFilter === 'All') return currentList;
+    return currentList.filter(p => p.status === statusFilter);
+  }, [currentList, statusFilter]);
+
+  // Dynamic categories with standard defaults
+  const categories = useMemo(() => {
+    const listCats = Array.from(new Set(currentList.map(p => p.category).filter(Boolean)));
+    const base = ['ALL', 'Residential', 'Commercial', 'Land'];
+    listCats.forEach(c => {
+      if (!base.some(b => b.toLowerCase() === c.toLowerCase())) {
+        base.push(c);
+      }
+    });
+    return base;
+  }, [currentList]);
+
+  // Context-aware category counts (for active status queue)
+  const categoryCounts = useMemo(() => {
+    const counts = {};
+    categories.forEach(cat => {
+      if (cat === 'ALL') {
+        counts[cat] = statusFilteredList.length;
+      } else {
+        counts[cat] = statusFilteredList.filter(p => p.category?.toLowerCase() === cat.toLowerCase()).length;
+      }
+    });
+    return counts;
+  }, [categories, statusFilteredList]);
+
+  // Total inventory counts for each category (across all statuses)
+  const totalCategoryCounts = useMemo(() => {
+    const counts = {};
+    categories.forEach(cat => {
+      if (cat === 'ALL') {
+        counts[cat] = currentList.length;
+      } else {
+        counts[cat] = currentList.filter(p => p.category?.toLowerCase() === cat.toLowerCase()).length;
+      }
+    });
+    return counts;
+  }, [categories, currentList]);
+
   // Filtering Logic
   const filteredItems = useMemo(() => {
     return currentList.filter(p => {
+      const q = searchQuery.toLowerCase().trim();
       const matchesSearch = 
-        !searchQuery.trim() ||
-        p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        p.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.ownerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.city.toLowerCase().includes(searchQuery.toLowerCase());
+        !q ||
+        (p.title && p.title.toLowerCase().includes(q)) || 
+        (p.location && p.location.toLowerCase().includes(q)) ||
+        (p.id && p.id.toLowerCase().includes(q)) ||
+        (p.ownerName && p.ownerName.toLowerCase().includes(q)) ||
+        (p.city && p.city.toLowerCase().includes(q));
       
-      const matchesCategory = activeCategory === 'ALL' || p.category === activeCategory;
+      const matchesCategory = activeCategory === 'ALL' || (p.category && p.category.toLowerCase() === activeCategory.toLowerCase());
       const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
 
       return matchesSearch && matchesCategory && matchesStatus;
@@ -651,16 +798,13 @@ const PropertyVerification = () => {
     if (filteredItems.length > 0) {
       const isStillSelected = selectedItem && filteredItems.some(i => i._id === selectedItem._id);
       if (!isStillSelected) {
-        const firstPending = filteredItems.find(i => i.status === 'Pending') || filteredItems[0];
-        handleSelectItem(firstPending);
+        handleSelectItem(filteredItems[0]);
       }
     } else {
       setSelectedItem(null);
       setFormData(null);
     }
   }, [filteredItems]);
-
-  const categories = ['ALL', 'Residential', 'Commercial', 'Land'];
 
   return (
     <div className="space-y-4 pb-8 relative">
@@ -822,9 +966,8 @@ const PropertyVerification = () => {
             {/* Category Filter Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 custom-scrollbar text-[11px]">
               {categories.map((cat) => {
-                const count = cat === 'ALL'
-                  ? currentList.length
-                  : currentList.filter(p => p.category?.toLowerCase() === cat.toLowerCase()).length;
+                const count = categoryCounts[cat] ?? 0;
+                const totalInCat = totalCategoryCounts[cat] ?? 0;
                 const isActive = activeCategory === cat;
                 return (
                   <button
@@ -836,15 +979,64 @@ const PropertyVerification = () => {
                         ? 'bg-brand text-white font-bold shadow-2xs'
                         : 'bg-[var(--bg-muted)]/70 text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                     }`}
+                    title={statusFilter !== 'All' ? `${count} ${statusFilter} of ${totalInCat} total` : `${count} total`}
                   >
                     <span>{cat}</span>
-                    <span className={`text-[9px] px-1 py-0.2 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-black/5 dark:bg-white/10'}`}>
+                    <span className={`text-[9px] px-1 py-0.2 rounded-full font-bold ${
+                      isActive ? 'bg-white/20 text-white' : 'bg-black/5 dark:bg-white/10'
+                    }`}>
                       {count}
                     </span>
                   </button>
                 );
               })}
             </div>
+
+            {/* Active Queue Status Context Bar */}
+            <div className="flex items-center justify-between px-2 py-1 text-[10.5px] rounded-lg bg-[var(--bg-muted)]/50 border border-[var(--border)]">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                  statusFilter === 'Pending' ? 'bg-amber-500 animate-pulse' :
+                  statusFilter === 'Approved' ? 'bg-emerald-500' :
+                  statusFilter === 'Rejected' ? 'bg-rose-500' :
+                  'bg-brand'
+                }`} />
+                <span className="font-semibold text-[var(--text-secondary)] truncate">
+                  Queue: <strong className="text-[var(--text-primary)]">{statusFilter === 'Pending' ? 'Needs Audit' : statusFilter === 'Approved' ? 'Live & Approved' : statusFilter === 'Rejected' ? 'Rejected' : 'All Listings'}</strong>
+                </span>
+                {activeCategory !== 'ALL' && (
+                  <span className="text-[var(--text-muted)] truncate">
+                    • {activeCategory}
+                  </span>
+                )}
+              </div>
+              {statusFilter !== 'All' && (
+                <button
+                  type="button"
+                  onClick={() => { setStatusFilter('All'); setHasUserChangedFilter(true); }}
+                  className="text-[10px] text-brand hover:underline font-semibold cursor-pointer shrink-0 ml-1.5"
+                  title="View inventory across all statuses"
+                >
+                  View All ({currentList.length})
+                </button>
+              )}
+            </div>
+
+            {/* Cross-status hint when category has more items in other statuses */}
+            {activeCategory !== 'ALL' && statusFilter !== 'All' && (totalCategoryCounts[activeCategory] || 0) > (categoryCounts[activeCategory] || 0) && (
+              <div className="px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[10.5px] text-amber-700 dark:text-amber-400 flex items-center justify-between gap-1">
+                <span className="truncate">
+                  Showing {categoryCounts[activeCategory] || 0} {statusFilter.toLowerCase()} of <strong>{totalCategoryCounts[activeCategory]}</strong> {activeCategory}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setStatusFilter('All'); setHasUserChangedFilter(true); }}
+                  className="font-bold underline cursor-pointer shrink-0 ml-1"
+                >
+                  Show All {totalCategoryCounts[activeCategory]}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Queue Listing Scroll Area */}
@@ -892,7 +1084,12 @@ const PropertyVerification = () => {
                     {/* Thumbnail */}
                     <div className="relative w-18 h-18 rounded-lg overflow-hidden bg-[var(--bg-muted)] shrink-0 border border-[var(--border)] flex items-center justify-center">
                       {coverImg ? (
-                        <img src={coverImg} alt={item.title} className="w-full h-full object-cover" />
+                        <SmoothImage
+                          src={coverImg}
+                          alt={item.title}
+                          className="w-full h-full object-cover"
+                          containerClassName="w-full h-full"
+                        />
                       ) : (
                         <ImageIcon size={18} className="text-[var(--text-muted)]" />
                       )}
@@ -943,7 +1140,10 @@ const PropertyVerification = () => {
 
           {/* List Footer Counter */}
           <div className="p-2.5 border-t border-[var(--border)] bg-[var(--bg-muted)]/30 text-[11px] text-[var(--text-muted)] flex items-center justify-between">
-            <span>Showing <strong>{filteredItems.length}</strong> of {currentList.length}</span>
+            <span>
+              Showing <strong>{filteredItems.length}</strong> of {statusFilteredList.length}
+              {statusFilter !== 'All' ? ` ${statusFilter.toLowerCase()} (${currentList.length} total in catalog)` : ' listings'}
+            </span>
             <span className="text-[10px]">Auto-selects active</span>
           </div>
         </div>
@@ -1026,6 +1226,17 @@ const PropertyVerification = () => {
                       <span>{formData.hasDiscount ? 'Edit Discount' : 'Set Discount'}</span>
                     </button>
                   )}
+
+                  <button
+                    type="button"
+                    disabled={isSubmittingAction}
+                    onClick={() => openProjectScoreModal(formData)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                    title={`Set ${formData.itemType === 'project' ? 'Project' : 'Property'} Investment Score`}
+                  >
+                    <Sparkles size={13} />
+                    <span>Investment Score ({formData.investmentScore?.overall || 0}/10)</span>
+                  </button>
 
                   {formData.status !== 'Rejected' && (
                     <button
@@ -1121,10 +1332,11 @@ const PropertyVerification = () => {
                           className="relative w-44 sm:w-52 aspect-video rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--bg-muted)] shrink-0 group cursor-pointer shadow-xs"
                           title="Click to view full photo gallery"
                         >
-                          <img
+                          <SmoothImage
                             src={formData.images[0]}
                             alt="Cover"
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            containerClassName="w-full h-full"
                           />
                           <span className="absolute top-1.5 left-1.5 bg-brand text-white text-[8px] font-bold px-1.5 py-0.2 rounded">
                             Cover ({formData.images.length})
@@ -1150,7 +1362,12 @@ const PropertyVerification = () => {
                               onClick={() => openLightbox(idx)}
                               className="relative w-22 aspect-video rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--bg-muted)] shrink-0 hover:border-brand transition-all cursor-pointer"
                             >
-                              <img src={img} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
+                              <SmoothImage
+                                src={img}
+                                alt={`Thumb ${idx + 1}`}
+                                className="w-full h-full object-cover"
+                                containerClassName="w-full h-full"
+                              />
                             </button>
                           ))}
                         </div>
@@ -1212,6 +1429,65 @@ const PropertyVerification = () => {
                         </div>
                       </div>
                     )}
+
+                    {/* Official Investment Score Info Card (Properties & Projects) */}
+                    <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-xs space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-emerald-500/20">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                            <Sparkles size={14} />
+                          </div>
+                          <div>
+                            <span className="font-extrabold text-[var(--text-primary)] block text-xs">
+                              GharMB Official Investment Score
+                            </span>
+                            <span className="text-[10px] text-[var(--text-muted)]">
+                              Curated parameters rendered in mobile app for {formData.itemType === 'project' ? 'this project' : 'this property'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-base font-black text-emerald-600 dark:text-emerald-400">
+                            {formData.investmentScore?.overall || 0} / 10
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                            {formData.investmentScore?.grade || 'Not Rated'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 5 Metric Progress Bars */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                        {[
+                          { label: 'Connectivity', val: formData.investmentScore?.metrics?.connectivity || 0 },
+                          { label: 'Rental Potential', val: formData.investmentScore?.metrics?.rentalPotential || 0 },
+                          { label: 'Growth Potential', val: formData.investmentScore?.metrics?.growthPotential || 0 },
+                          { label: 'Family Living', val: formData.investmentScore?.metrics?.familyLiving || 0 },
+                          { label: 'Future Demand', val: formData.investmentScore?.metrics?.futureDemand || 0 },
+                        ].map(({ label, val }) => (
+                          <div key={label} className="p-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] space-y-1">
+                            <div className="flex justify-between text-[11px] font-semibold">
+                              <span className="text-[var(--text-subtle)]">{label}</span>
+                              <span className="font-bold text-[var(--text-primary)]">{val}/10</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-[var(--bg-muted)] rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-emerald-500 rounded-full transition-all"
+                                style={{ width: `${Math.min(100, (val / 10) * 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => openProjectScoreModal(formData)}
+                        className="w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                      >
+                        <Sparkles size={13} /> Edit {formData.itemType === 'project' ? 'Project' : 'Property'} Investment Score
+                      </button>
+                    </div>
 
                     {/* Commission & Discount Info Card */}
                     {formData.itemType === 'property' && (
@@ -1721,6 +1997,124 @@ const PropertyVerification = () => {
         </div>
       )}
 
+      {/* ─── 08. PROJECT INVESTMENT SCORE MODAL ─── */}
+      {showProjectScoreModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] max-w-lg w-full rounded-2xl shadow-2xl border border-[var(--border)] p-6 space-y-5 animate-scale-up">
+            <div className="flex justify-between items-start border-b border-[var(--border)] pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                  <Sparkles size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">
+                    Edit {formData.itemType === 'project' ? 'Project' : 'Property'} Investment Score
+                  </h3>
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    {formData.title} ({formData.id})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowProjectScoreModal(false)}
+                className="p-1.5 bg-[var(--bg-muted)] hover:bg-[var(--bg-muted)]/80 text-[var(--text-muted)] rounded-lg cursor-pointer"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Live Overall Preview */}
+            <div className="p-3.5 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/25 rounded-xl flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
+                  Calculated Overall Score
+                </span>
+                <div className="flex items-baseline gap-2 mt-0.5">
+                  <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                    {computedProjectOverall}
+                  </span>
+                  <span className="text-xs text-[var(--text-muted)] font-bold">/ 10</span>
+                </div>
+              </div>
+              <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                {computedProjectGrade}
+              </span>
+            </div>
+
+            {/* 5 Metrics Sliders & Numeric Inputs */}
+            <div className="space-y-3.5 text-xs">
+              {[
+                { key: 'connectivity', label: 'Connectivity', desc: 'Metro, highway, railway proximity' },
+                { key: 'rentalPotential', label: 'Rental Potential', desc: 'Expected rental yield & tenant demand' },
+                { key: 'growthPotential', label: 'Growth Potential', desc: '5-year capital appreciation projection' },
+                { key: 'familyLiving', label: 'Family Living', desc: 'Schools, parks, hospitals & safety' },
+                { key: 'futureDemand', label: 'Future Demand', desc: 'Upcoming infra, SEZ, commercial hubs' },
+              ].map(({ key, label, desc }) => (
+                <div key={key} className="p-2.5 bg-[var(--bg-muted)]/60 rounded-xl space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="font-bold text-[var(--text-primary)]">{label}</span>
+                      <span className="text-[10px] text-[var(--text-muted)] block">{desc}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min="0"
+                        max="10"
+                        step="0.1"
+                        value={projectScoreForm[key]}
+                        onChange={(e) => {
+                          const val = Math.min(10, Math.max(0, parseFloat(e.target.value) || 0));
+                          setProjectScoreForm((prev) => ({ ...prev, [key]: val }));
+                        }}
+                        className="w-14 px-2 py-1 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-center font-black text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
+                      />
+                      <span className="text-[10px] font-bold text-[var(--text-muted)]">/ 10</span>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    step="0.1"
+                    value={projectScoreForm[key]}
+                    onChange={(e) =>
+                      setProjectScoreForm((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
+                    }
+                    className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-[var(--border)] rounded-lg"
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center gap-2 pt-2 border-t border-[var(--border)]">
+              <button
+                type="button"
+                onClick={() => setShowProjectScoreModal(false)}
+                className="flex-1 py-2.5 border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-subtle)] rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveProjectScore}
+                disabled={isSavingScore}
+                className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20"
+              >
+                {isSavingScore ? (
+                  <>Saving...</>
+                ) : (
+                  <>
+                    <Check size={14} /> Save Investment Score
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

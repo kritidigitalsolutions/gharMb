@@ -90,14 +90,22 @@ exports.createBanner = async (req, res, next) => {
   try {
     const bannerData = { ...req.body };
 
-    // Process file uploads if passed through multer
+    // Process file uploads concurrently if passed through multer
     if (req.files) {
+      const uploadPromises = [];
       if (req.files.image && req.files.image[0]) {
-        bannerData.image = await firebaseStorageService.resolveFileUrl(req, req.files.image[0], 'banners');
+        uploadPromises.push(
+          firebaseStorageService.resolveFileUrl(req, req.files.image[0], 'banners')
+            .then(url => { bannerData.image = url; })
+        );
       }
       if (req.files.mobileImage && req.files.mobileImage[0]) {
-        bannerData.mobileImage = await firebaseStorageService.resolveFileUrl(req, req.files.mobileImage[0], 'banners');
+        uploadPromises.push(
+          firebaseStorageService.resolveFileUrl(req, req.files.mobileImage[0], 'banners')
+            .then(url => { bannerData.mobileImage = url; })
+        );
       }
+      await Promise.all(uploadPromises);
     } else if (req.file) {
       bannerData.image = await firebaseStorageService.resolveFileUrl(req, req.file, 'banners');
     }
@@ -150,14 +158,22 @@ exports.updateBanner = async (req, res, next) => {
   try {
     const bannerData = { ...req.body };
 
-    // Process file uploads if passed
+    // Process file uploads concurrently if passed
     if (req.files) {
+      const uploadPromises = [];
       if (req.files.image && req.files.image[0]) {
-        bannerData.image = await firebaseStorageService.resolveFileUrl(req, req.files.image[0], 'banners');
+        uploadPromises.push(
+          firebaseStorageService.resolveFileUrl(req, req.files.image[0], 'banners')
+            .then(url => { bannerData.image = url; })
+        );
       }
       if (req.files.mobileImage && req.files.mobileImage[0]) {
-        bannerData.mobileImage = await firebaseStorageService.resolveFileUrl(req, req.files.mobileImage[0], 'banners');
+        uploadPromises.push(
+          firebaseStorageService.resolveFileUrl(req, req.files.mobileImage[0], 'banners')
+            .then(url => { bannerData.mobileImage = url; })
+        );
       }
+      await Promise.all(uploadPromises);
     } else if (req.file) {
       bannerData.image = await firebaseStorageService.resolveFileUrl(req, req.file, 'banners');
     }

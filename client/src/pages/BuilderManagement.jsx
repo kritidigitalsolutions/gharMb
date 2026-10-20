@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import AdminLoader from '../components/common/AdminLoader';
 import API, { getMediaUrl } from '../api/api';
 import {
@@ -42,7 +43,15 @@ const BuilderManagement = () => {
   const [isLoadingBuilders, setIsLoadingBuilders] = useState(true);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
 
-  const [activeTab, setActiveTab] = useState('builders'); // 'builders' or 'projects'
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  const [activeTab, setActiveTab] = useState(() => {
+    if (location.pathname.includes('/projects') || searchParams.get('tab') === 'projects') {
+      return 'projects';
+    }
+    return 'builders';
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All'); // 'All', 'Pending', 'Approved', 'Suspended'
 
@@ -62,6 +71,79 @@ const BuilderManagement = () => {
 
   // Delete confirmation
   const [deleteConfirm, setDeleteConfirm] = useState(null); // { item, type: 'builder' | 'project' }
+
+  // Investment Score Modal state
+  const [editingScoreProject, setEditingScoreProject] = useState(null);
+  const [scoreForm, setScoreForm] = useState({
+    connectivity: 9.0,
+    rentalPotential: 8.5,
+    growthPotential: 9.0,
+    familyLiving: 8.8,
+    futureDemand: 9.0,
+  });
+  const [isSavingScore, setIsSavingScore] = useState(false);
+
+  const openScoreModal = (project) => {
+    const cur = project.investmentScore?.metrics || {};
+    setScoreForm({
+      connectivity: cur.connectivity ?? 9.0,
+      rentalPotential: cur.rentalPotential ?? 8.5,
+      growthPotential: cur.growthPotential ?? 9.0,
+      familyLiving: cur.familyLiving ?? 8.8,
+      futureDemand: cur.futureDemand ?? 9.0,
+    });
+    setEditingScoreProject(project);
+  };
+
+  const computedOverall = useMemo(() => {
+    const vals = [
+      Number(scoreForm.connectivity) || 0,
+      Number(scoreForm.rentalPotential) || 0,
+      Number(scoreForm.growthPotential) || 0,
+      Number(scoreForm.familyLiving) || 0,
+      Number(scoreForm.futureDemand) || 0,
+    ];
+    const sum = vals.reduce((a, b) => a + b, 0);
+    return Math.round((sum / vals.length) * 10) / 10;
+  }, [scoreForm]);
+
+  const computedGrade = useMemo(() => {
+    if (computedOverall >= 8.0) return 'Excellent';
+    if (computedOverall >= 6.5) return 'Good';
+    if (computedOverall >= 5.0) return 'Average';
+    return 'Below Average';
+  }, [computedOverall]);
+
+  const handleSaveScore = async () => {
+    if (!editingScoreProject) return;
+    setIsSavingScore(true);
+    try {
+      const payload = {
+        connectivity: Number(scoreForm.connectivity),
+        rentalPotential: Number(scoreForm.rentalPotential),
+        growthPotential: Number(scoreForm.growthPotential),
+        familyLiving: Number(scoreForm.familyLiving),
+        futureDemand: Number(scoreForm.futureDemand),
+      };
+      const res = await API.put(`/admin/projects/${editingScoreProject._id}/investment-score`, payload);
+      if (res.data?.status === 'success') {
+        showToast('Project investment score updated successfully!', 'success');
+        fetchProjects();
+        if (selectedProject && selectedProject._id === editingScoreProject._id) {
+          setSelectedProject((prev) => ({
+            ...prev,
+            investmentScore: res.data.data.investmentScore,
+            score: res.data.data.investmentScore.overall,
+          }));
+        }
+        setEditingScoreProject(null);
+      }
+    } catch (err) {
+      showToast(err?.response?.data?.message || 'Failed to update investment score.', 'error');
+    } finally {
+      setIsSavingScore(false);
+    }
+  };
 
   // Toast feedback
   const [toast, setToast] = useState(null);
@@ -182,13 +264,26 @@ const BuilderManagement = () => {
           if (p.approvalStatus === 'approved') status = 'Published';
           else if (p.approvalStatus === 'rejected') status = 'Archived';
 
+          const invScore = p.investmentScore || {
+            overall: 0,
+            grade: 'Not Rated',
+            metrics: {
+              connectivity: 0,
+              rentalPotential: 0,
+              growthPotential: 0,
+              familyLiving: 0,
+              futureDemand: 0,
+            },
+          };
+
           return {
             id: p.submissionId || `PRJ-${p._id.slice(-4).toUpperCase()}`,
             _id: p._id,
             title: p.projectName,
             builder: p.developerName || p.developer?.companyName || p.developer?.name || 'Developer',
             location: `${p.locality ? p.locality + ', ' : ''}${p.city}`,
-            score: p.approvalStatus === 'approved' ? 9.2 : 7.0,
+            score: invScore.overall || (p.approvalStatus === 'approved' ? 9.2 : 7.0),
+            investmentScore: invScore,
             status,
             units: `${p.totalUnits || 0} Units`,
             stage: p.projectStatus || 'Under construction',
@@ -338,7 +433,11 @@ const BuilderManagement = () => {
 
   const filteredProjects = useMemo(() => {
     return projects.filter((p) => {
-      if (statusFilter !== 'All' && p.status !== statusFilter) return false;
+      if (statusFilter !== 'All') {
+        if (statusFilter === 'Pending' && p.status !== 'Draft' && p.status !== 'Pending') return false;
+        if (statusFilter === 'Approved' && p.status !== 'Published' && p.status !== 'Approved') return false;
+        if (statusFilter === 'Suspended' && p.status !== 'Archived' && p.status !== 'Suspended') return false;
+      }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         return (
@@ -548,6 +647,8 @@ const BuilderManagement = () => {
               type="button"
               onClick={() => {
                 setActiveTab('builders');
+                setStatusFilter('All');
+                setSearchQuery('');
               }}
               className={`pb-2 text-xs font-bold transition-all relative cursor-pointer flex items-center gap-2 ${
                 activeTab === 'builders' ? 'text-brand font-black' : 'text-[var(--text-subtle)] hover:text-[var(--text-primary)]'
@@ -569,6 +670,8 @@ const BuilderManagement = () => {
               type="button"
               onClick={() => {
                 setActiveTab('projects');
+                setStatusFilter('All');
+                setSearchQuery('');
               }}
               className={`pb-2 text-xs font-bold transition-all relative cursor-pointer flex items-center gap-2 ${
                 activeTab === 'projects' ? 'text-brand font-black' : 'text-[var(--text-subtle)] hover:text-[var(--text-primary)]'
@@ -1054,7 +1157,15 @@ const BuilderManagement = () => {
                           {p.status}
                         </span>
                       </td>
-                      <td className="py-3.5 px-6 text-right">
+                      <td className="py-3.5 px-6 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => openScoreModal(p)}
+                          className="px-2.5 py-1.5 border border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-[10px] font-bold transition-all cursor-pointer inline-flex items-center gap-1 mr-1.5"
+                          title="Set Investment Score"
+                        >
+                          <Sparkles size={11} /> Score ({p.score || 0})
+                        </button>
                         <button
                           type="button"
                           onClick={() => setSelectedProject(p)}
@@ -1577,6 +1688,40 @@ const BuilderManagement = () => {
                   </div>
                 </div>
 
+                {/* Investment Score Card */}
+                <div className="p-3.5 border border-emerald-500/30 bg-emerald-500/5 rounded-xl space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-emerald-500" />
+                      <span className="text-xs font-black text-[var(--text-primary)]">GharMB Investment Score</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                        {selectedProject.investmentScore?.overall || selectedProject.score || 0} / 10
+                      </span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        {selectedProject.investmentScore?.grade || 'Good'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1.5 text-[10px] text-[var(--text-subtle)] pt-1">
+                    <div>Connectivity: <strong className="text-[var(--text-primary)]">{selectedProject.investmentScore?.metrics?.connectivity ?? 0}/10</strong></div>
+                    <div>Rental Potential: <strong className="text-[var(--text-primary)]">{selectedProject.investmentScore?.metrics?.rentalPotential ?? 0}/10</strong></div>
+                    <div>Growth Potential: <strong className="text-[var(--text-primary)]">{selectedProject.investmentScore?.metrics?.growthPotential ?? 0}/10</strong></div>
+                    <div>Family Living: <strong className="text-[var(--text-primary)]">{selectedProject.investmentScore?.metrics?.familyLiving ?? 0}/10</strong></div>
+                    <div className="col-span-2">Future Demand: <strong className="text-[var(--text-primary)]">{selectedProject.investmentScore?.metrics?.futureDemand ?? 0}/10</strong></div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => openScoreModal(selectedProject)}
+                    className="w-full mt-2 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 shadow-xs"
+                  >
+                    <Sparkles size={11} /> Edit Investment Score
+                  </button>
+                </div>
+
                 <div className="p-3 border border-[var(--border)] rounded-xl space-y-1.5 bg-[var(--bg-surface)]">
                   <div className="flex justify-between items-center text-[10px] font-bold text-[var(--text-muted)] uppercase">
                     <span>Audit Checklist</span>
@@ -1861,6 +2006,124 @@ const BuilderManagement = () => {
           <div className="w-full max-w-5xl text-center text-[11px] text-white/50 pt-2 border-t border-white/10 flex items-center justify-between">
             <span>Use Zoom & Rotate to audit license registration numbers, seals, and dates</span>
             <span className="font-mono">URL: {lightboxDoc.url}</span>
+          </div>
+        </div>
+      )}
+      {/* Investment Score Modal */}
+      {editingScoreProject && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] max-w-lg w-full rounded-2xl shadow-2xl border border-[var(--border)] p-6 space-y-5 animate-scale-up">
+            <div className="flex justify-between items-start border-b border-[var(--border)] pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                  <Sparkles size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">
+                    Edit Investment Score
+                  </h3>
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    {editingScoreProject.title} ({editingScoreProject.id})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingScoreProject(null)}
+                className="p-1.5 bg-[var(--bg-muted)] hover:bg-[var(--bg-muted)]/80 text-[var(--text-muted)] rounded-lg cursor-pointer"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Live Overall Preview */}
+            <div className="p-3.5 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/25 rounded-xl flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
+                  Calculated Overall Score
+                </span>
+                <div className="flex items-baseline gap-2 mt-0.5">
+                  <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                    {computedOverall}
+                  </span>
+                  <span className="text-xs text-[var(--text-muted)] font-bold">/ 10</span>
+                </div>
+              </div>
+              <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                {computedGrade}
+              </span>
+            </div>
+
+            {/* 5 Metrics Sliders & Numeric Inputs */}
+            <div className="space-y-3.5 text-xs">
+              {[
+                { key: 'connectivity', label: 'Connectivity', desc: 'Metro, highway, railway proximity' },
+                { key: 'rentalPotential', label: 'Rental Potential', desc: 'Expected rental yield & tenant demand' },
+                { key: 'growthPotential', label: 'Growth Potential', desc: '5-year capital appreciation projection' },
+                { key: 'familyLiving', label: 'Family Living', desc: 'Schools, parks, hospitals & safety' },
+                { key: 'futureDemand', label: 'Future Demand', desc: 'Upcoming infra, SEZ, commercial hubs' },
+              ].map(({ key, label, desc }) => (
+                <div key={key} className="p-2.5 bg-[var(--bg-muted)]/60 rounded-xl space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="font-bold text-[var(--text-primary)]">{label}</span>
+                      <span className="text-[10px] text-[var(--text-muted)] block">{desc}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min="0"
+                        max="10"
+                        step="0.1"
+                        value={scoreForm[key]}
+                        onChange={(e) => {
+                          const val = Math.min(10, Math.max(0, parseFloat(e.target.value) || 0));
+                          setScoreForm((prev) => ({ ...prev, [key]: val }));
+                        }}
+                        className="w-14 px-2 py-1 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-center font-black text-xs text-[var(--text-primary)] focus:outline-none focus:border-emerald-500"
+                      />
+                      <span className="text-[10px] font-bold text-[var(--text-muted)]">/ 10</span>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    step="0.1"
+                    value={scoreForm[key]}
+                    onChange={(e) =>
+                      setScoreForm((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
+                    }
+                    className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-[var(--border)] rounded-lg"
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center gap-2 pt-2 border-t border-[var(--border)]">
+              <button
+                type="button"
+                onClick={() => setEditingScoreProject(null)}
+                className="flex-1 py-2.5 border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-subtle)] rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveScore}
+                disabled={isSavingScore}
+                className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20"
+              >
+                {isSavingScore ? (
+                  <>Saving...</>
+                ) : (
+                  <>
+                    <Check size={14} /> Save Investment Score
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

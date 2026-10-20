@@ -165,18 +165,29 @@ export const sendFirebasePasswordReset = async (email) => {
   }
 };
 
+import { compressImage } from '../utils/imageCompressor';
+
 /**
- * Direct client-side file upload helper to Firebase Storage
+ * Direct client-side file upload helper to Firebase Storage with pre-compression and CDN caching
  * @param {File|Blob} file - File or Blob object from input
  * @param {string} folder - Target folder in bucket (e.g. 'user_uploads')
  * @returns {Promise<{ success: boolean, url?: string, path?: string, error?: string }>}
  */
 export const uploadFileToFirebaseStorage = async (file, folder = 'uploads') => {
   try {
-    const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}-${file.name || 'file'}`;
+    // ⚡ Auto-compress image before sending over network
+    const fileToUpload = await compressImage(file);
+    const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}-${fileToUpload.name || 'file'}`;
     const storagePath = `${folder}/${uniqueName}`;
     const storageRef = ref(storage, storagePath);
-    const snapshot = await uploadBytes(storageRef, file);
+
+    // 🚀 Set 1-year immutable cache header for instant repeat loads worldwide
+    const metadata = {
+      contentType: fileToUpload.type || 'application/octet-stream',
+      cacheControl: 'public, max-age=31536000, immutable',
+    };
+
+    const snapshot = await uploadBytes(storageRef, fileToUpload, metadata);
     const downloadUrl = await getDownloadURL(snapshot.ref);
     return {
       success: true,

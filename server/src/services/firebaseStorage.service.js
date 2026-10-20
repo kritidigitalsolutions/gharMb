@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { bucket } = require('../config/firebase');
+const { optimizeImage } = require('../utils/imageOptimizer');
 
 class FirebaseStorageService {
   /**
@@ -37,7 +38,7 @@ class FirebaseStorageService {
   }
 
   /**
-   * Upload a memory Buffer directly to Firebase Storage
+   * Upload a memory Buffer directly to Firebase Storage with automatic Sharp optimization & CDN caching
    * @param {Buffer} buffer - File buffer to upload
    * @param {string} originalname - Original file name (e.g. photo.jpg)
    * @param {string} mimetype - MIME type (e.g. image/jpeg)
@@ -53,19 +54,27 @@ class FirebaseStorageService {
       throw new Error('Invalid file buffer provided for Firebase Storage upload.');
     }
 
-    const cleanFilename = this._sanitizeFilename(originalname);
-    const destinationPath = folder ? `${folder.replace(/^\/+|\/+$/g, '')}/${cleanFilename}` : cleanFilename;
+    // ⚡ Auto-optimize images (WebP conversion, resize large images, strip bloated metadata)
+    const optimized = await optimizeImage(buffer, originalname, mimetype);
+    const finalBuffer = optimized.buffer;
+    const finalFilename = this._sanitizeFilename(optimized.filename);
+    const finalMimetype = optimized.mimetype;
+
+    const destinationPath = folder ? `${folder.replace(/^\/+|\/+$/g, '')}/${finalFilename}` : finalFilename;
 
     const fileRef = bucket.file(destinationPath);
     const downloadToken = crypto.randomUUID();
 
-    await fileRef.save(buffer, {
+    // 🚀 Set 1-year immutable cache header for instant repeat loads worldwide
+    await fileRef.save(finalBuffer, {
       resumable: false,
       metadata: {
-        contentType: mimetype,
+        contentType: finalMimetype,
+        cacheControl: 'public, max-age=31536000, immutable',
         metadata: {
           firebaseStorageDownloadTokens: downloadToken,
           originalName: originalname,
+          optimized: String(optimized.wasOptimized),
           uploadedAt: new Date().toISOString(),
         },
       },
@@ -86,10 +95,10 @@ class FirebaseStorageService {
       url: firebaseUrl,
       firebaseUrl,
       publicUrl,
-      filename: cleanFilename,
+      filename: finalFilename,
       path: destinationPath,
-      size: buffer.length,
-      mimetype,
+      size: finalBuffer.length,
+      mimetype: finalMimetype,
       originalName: originalname,
     };
   }
@@ -154,15 +163,27 @@ class FirebaseStorageService {
     const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
     const host = req.get('host') || 'localhost:5001';
     let filename = file.filename;
-    if (!filename) {
-      const ext = path.extname(file.originalname || '').toLowerCase() || '.jpg';
-      filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-      if (file.buffer) {
+    let fileBuffer = file.buffer;
+
+    if (!filename || fileBuffer) {
+      const uploadDir = path.join(__dirname, '../../uploads');
+      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+      if (fileBuffer) {
         try {
-          const uploadDir = path.join(__dirname, '../../uploads');
-          if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-          fs.writeFileSync(path.join(uploadDir, filename), file.buffer);
-        } catch (_) {}
+          const opt = await optimizeImage(fileBuffer, file.originalname || 'file.jpg', file.mimetype || 'image/jpeg');
+          fileBuffer = opt.buffer;
+          const ext = path.extname(opt.filename || '').toLowerCase() || '.webp';
+          filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+          fs.writeFileSync(path.join(uploadDir, filename), fileBuffer);
+        } catch (_) {
+          const ext = path.extname(file.originalname || '').toLowerCase() || '.jpg';
+          filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+          fs.writeFileSync(path.join(uploadDir, filename), fileBuffer);
+        }
+      } else {
+        const ext = path.extname(file.originalname || '').toLowerCase() || '.jpg';
+        filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
       }
     }
     return `${protocol}://${host}/uploads/${filename}`;

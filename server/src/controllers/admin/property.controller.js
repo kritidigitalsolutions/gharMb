@@ -509,3 +509,113 @@ exports.updateCommissionDiscount = async (req, res, next) => {
   }
 };
 
+// @desc    Update property investment score (Admin Curated)
+// @route   PUT /api/admin/properties/:id/investment-score
+// @access  Private (Admin only)
+exports.updateInvestmentScore = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const property = await Property.findById(id);
+
+    if (!property) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'No property found with that ID.',
+      });
+    }
+
+    const connectivity = Number(req.body.connectivity ?? req.body.metrics?.connectivity);
+    const rentalPotential = Number(req.body.rentalPotential ?? req.body.metrics?.rentalPotential);
+    const growthPotential = Number(req.body.growthPotential ?? req.body.metrics?.growthPotential);
+    const familyLiving = Number(req.body.familyLiving ?? req.body.metrics?.familyLiving);
+    const futureDemand = Number(req.body.futureDemand ?? req.body.metrics?.futureDemand);
+
+    if (
+      isNaN(connectivity) ||
+      isNaN(rentalPotential) ||
+      isNaN(growthPotential) ||
+      isNaN(familyLiving) ||
+      isNaN(futureDemand)
+    ) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'All 5 metrics (connectivity, rentalPotential, growthPotential, familyLiving, futureDemand) are required numbers between 0 and 10.',
+      });
+    }
+
+    const metricsList = [connectivity, rentalPotential, growthPotential, familyLiving, futureDemand];
+    if (metricsList.some((val) => val < 0 || val > 10)) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'All metric scores must be between 0 and 10.',
+      });
+    }
+
+    const {
+      roundToOneDecimal,
+      calculateGrade,
+      calculateOverallFromMetrics,
+    } = require('../../utils/investmentScore.helper');
+
+    const metrics = {
+      connectivity: roundToOneDecimal(connectivity),
+      rentalPotential: roundToOneDecimal(rentalPotential),
+      growthPotential: roundToOneDecimal(growthPotential),
+      familyLiving: roundToOneDecimal(familyLiving),
+      futureDemand: roundToOneDecimal(futureDemand),
+    };
+
+    const overall = req.body.overall !== undefined
+      ? roundToOneDecimal(Number(req.body.overall))
+      : calculateOverallFromMetrics(metrics);
+
+    const grade = req.body.grade || calculateGrade(overall);
+
+    property.investmentScore = {
+      overall,
+      grade,
+      metrics,
+    };
+
+    await property.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Property investment score updated successfully.',
+      data: {
+        investmentScore: property.investmentScore,
+        property,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get property investment score
+// @route   GET /api/admin/properties/:id/investment-score
+// @access  Private (Admin only)
+exports.getInvestmentScore = async (req, res, next) => {
+  try {
+    const property = await Property.findById(req.params.id).select('title submissionId investmentScore city locality category');
+
+    if (!property) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'No property found with that ID.',
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        investmentScore: property.investmentScore,
+        property,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+

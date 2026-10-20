@@ -5,6 +5,8 @@ import {
   Link as LinkIcon, X, Grid, List, UploadCloud, Check, Eye, MousePointerClick
 } from 'lucide-react';
 import API from '../api/api';
+import { compressImage } from '../utils/imageCompressor';
+import SmoothImage from '../components/common/SmoothImage';
 
 const PLACEMENT_OPTIONS = [
   { id: 'all', label: 'All Placements' },
@@ -429,14 +431,11 @@ const BannerManagement = () => {
               >
                 {/* Banner Thumbnail */}
                 <div className="relative aspect-[16/8] bg-zinc-900 overflow-hidden">
-                  <img
+                  <SmoothImage
                     src={banner.image}
                     alt={banner.title}
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80';
-                    }}
+                    containerClassName="w-full h-full"
                   />
                   {/* Select Checkbox & Placement Badge */}
                   <div className="absolute top-2 left-2 flex items-center gap-1.5">
@@ -558,7 +557,12 @@ const BannerManagement = () => {
                       </td>
                       <td className="py-2.5 px-3">
                         <div className="w-16 h-9 rounded-md bg-zinc-900 overflow-hidden border border-[var(--border)]">
-                          <img src={banner.image} alt={banner.title} className="w-full h-full object-cover" />
+                          <SmoothImage
+                            src={banner.image}
+                            alt={banner.title}
+                            className="w-full h-full object-cover"
+                            containerClassName="w-full h-full"
+                          />
                         </div>
                       </td>
                       <td className="py-2.5 px-3 max-w-xs">
@@ -664,13 +668,14 @@ const BannerManagement = () => {
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
+                          const compressed = await compressImage(file, { maxWidth: 1920, quality: 0.82 });
                           setModalState(prev => ({
                             ...prev,
-                            imageFile: file,
-                            image: URL.createObjectURL(file),
+                            imageFile: compressed,
+                            image: URL.createObjectURL(compressed),
                           }));
                         }
                       }}
@@ -718,13 +723,14 @@ const BannerManagement = () => {
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
+                          const compressed = await compressImage(file, { maxWidth: 1200, quality: 0.82 });
                           setModalState(prev => ({
                             ...prev,
-                            mobileImageFile: file,
-                            mobileImage: URL.createObjectURL(file),
+                            mobileImageFile: compressed,
+                            mobileImage: URL.createObjectURL(compressed),
                           }));
                         }
                       }}

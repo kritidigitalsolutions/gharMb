@@ -6,6 +6,7 @@
 const mongoose = require('mongoose');
 const DeveloperReview = require('../../models/developer-review.model');
 const User = require('../../models/user.model');
+const { checkDeveloperOwnership } = require('../../utils/ownershipCheck.helper');
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -87,12 +88,14 @@ exports.createDeveloperReview = async (req, res, next) => {
       });
     }
 
-    // 2. Prevent self-reviewing
-    if (developerId.toString() === reviewerId.toString()) {
-      return res.status(400).json({
+    // 2. 🛡️ Prevent self-reviewing
+    const devOwnership = checkDeveloperOwnership(developer, req.user, req.body);
+    if (devOwnership.isOwner) {
+      return res.status(403).json({
         status: 'fail',
         success: false,
-        message: 'You cannot submit a review for your own profile.',
+        isOwnerBlocked: true,
+        message: devOwnership.message || 'Action not allowed: You cannot submit a review for your own profile.',
       });
     }
 

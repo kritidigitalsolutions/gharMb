@@ -539,6 +539,7 @@ const UserManagement = () => {
     All: users.length,
     Buyer: users.filter(u => u.role === 'Buyer').length,
     Seller: users.filter(u => u.role === 'Seller').length,
+    Tenant: users.filter(u => u.role === 'Tenant').length,
     Agent: users.filter(u => u.role === 'Agent').length,
     Builder: users.filter(u => u.role === 'Builder').length,
   }), [users]);
@@ -765,7 +766,7 @@ const UserManagement = () => {
 
           {/* Role Segmented Pills */}
           <div className="inline-flex items-center gap-1 bg-[var(--bg-muted)]/70 p-0.5 rounded-lg border border-[var(--border)] text-[11px] self-start md:self-auto overflow-x-auto max-w-full">
-            {['All', 'Buyer', 'Seller', 'Agent', 'Builder'].map((role) => {
+            {['All', 'Buyer', 'Seller', 'Tenant', 'Agent', 'Builder'].map((role) => {
               const count = roleCounts[role] || 0;
               const isActive = selectedRole === role;
               return (
@@ -1643,6 +1644,7 @@ const UserManagement = () => {
                   >
                     <option value="Buyer">Buyer</option>
                     <option value="Seller">Seller</option>
+                    <option value="Tenant">Tenant</option>
                     <option value="Agent">Agent</option>
                     <option value="Builder">Builder</option>
                   </select>
@@ -1759,6 +1761,7 @@ const UserManagement = () => {
                   >
                     <option value="Buyer">Buyer</option>
                     <option value="Seller">Seller</option>
+                    <option value="Tenant">Tenant</option>
                     <option value="Agent">Agent</option>
                     <option value="Builder">Builder</option>
                   </select>

@@ -9,6 +9,7 @@ const DeveloperEnquiry = require('../../models/developer-enquiry.model');
 const User = require('../../models/user.model');
 const Notification = require('../../models/notification.model');
 const { notifyAdmin } = require('../../utils/adminNotification.helper');
+const { checkPropertyOwnership, checkDeveloperOwnership } = require('../../utils/ownershipCheck.helper');
 
 // @desc    Submit an enquiry for a property listing
 // @route   POST /api/users/enquiries
@@ -17,7 +18,7 @@ exports.createEnquiry = async (req, res, next) => {
   try {
     const { propertyId, message, visitPreferredDate, visitTimeSlot } = req.body;
 
-    const property = await Property.findById(propertyId);
+    const property = await Property.findById(propertyId).populate('owner', 'name phone email role');
     if (!property || property.approvalStatus === 'rejected') {
       return res.status(404).json({
         status: 'fail',
@@ -25,11 +26,14 @@ exports.createEnquiry = async (req, res, next) => {
       });
     }
 
-    // Prevent self-enquiring
-    if (property.owner.toString() === req.user._id.toString()) {
-      return res.status(400).json({
+    // 🛡️ Prevent self-enquiring
+    const ownership = checkPropertyOwnership(property, req.user, req.body);
+    if (ownership.isOwner) {
+      return res.status(403).json({
         status: 'fail',
-        message: 'You cannot submit an enquiry on your own property listing.',
+        success: false,
+        isOwnerBlocked: true,
+        message: ownership.message || 'Action not allowed: You cannot submit an enquiry on your own property listing.',
       });
     }
 
@@ -208,11 +212,14 @@ exports.createDeveloperEnquiry = async (req, res, next) => {
       });
     }
 
-    // 2. Prevent self-enquiring
-    if (developerId.toString() === req.user._id.toString()) {
-      return res.status(400).json({
+    // 2. 🛡️ Prevent self-enquiring to developer profile
+    const devOwnership = checkDeveloperOwnership(developer, req.user, req.body);
+    if (devOwnership.isOwner) {
+      return res.status(403).json({
         status: 'fail',
-        message: 'You cannot submit an enquiry to your own developer profile.',
+        success: false,
+        isOwnerBlocked: true,
+        message: devOwnership.message || 'Action not allowed: You cannot submit an enquiry to your own developer profile.',
       });
     }
 

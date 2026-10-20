@@ -70,7 +70,7 @@ const AdminLayout = () => {
 
       {/* Main Content Area with synchronized margin animation */}
       <main className={`flex-1 flex flex-col min-w-0 transition-[margin-left] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] will-change-[margin-left] ${
-        sidebarCollapsed ? 'md:ml-[68px]' : 'md:ml-[218px]'
+        sidebarCollapsed ? 'md:ml-[72px]' : 'md:ml-[260px]'
       }`}>
 
         <Topbar 

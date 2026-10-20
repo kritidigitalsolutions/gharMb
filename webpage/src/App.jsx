@@ -9,6 +9,10 @@ import BlogDetail from './pages/BlogDetail/BlogDetail';
 import LegalPolicy from './pages/Legal/LegalPolicy';
 import DeleteProfile from './pages/Legal/DeleteProfile';
 
+import Properties from './pages/Properties/Properties';
+import Commercial from './pages/Commercial/Commercial';
+import Developers from './pages/Developers/Developers';
+
 function App() {
   return (
     <BrowserRouter>
@@ -18,6 +22,9 @@ function App() {
         <main className="flex-1">
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/properties" element={<Properties />} />
+            <Route path="/commercial" element={<Commercial />} />
+            <Route path="/developers" element={<Developers />} />
             <Route path="/insights" element={<Blog />} />
             <Route path="/insights/:slug" element={<BlogDetail />} />
             <Route path="/blog" element={<Blog />} />

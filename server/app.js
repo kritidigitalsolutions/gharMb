@@ -7,6 +7,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
@@ -148,6 +149,11 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// 2.1 HTTP Gzip & Brotli Response Compression (Accelerates JSON APIs & payload delivery)
+app.use(compression({
+  threshold: 1024,
+}));
+
 // 3. Logger Middleware
 app.use(morgan('dev'));
 
@@ -155,15 +161,23 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// 5. Serve Static Assets (Uploaded images & files locally) with Cross-Origin headers
+// 5. Serve Static Assets (Uploaded images & files locally) with aggressive CDN & Browser Caching
+const staticOptions = {
+  maxAge: '30d',
+  immutable: true,
+  etag: true,
+  lastModified: true,
+};
+
 const serveUploads = (req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
   next();
 };
 
-app.use('/uploads', serveUploads, express.static(path.join(__dirname, '../uploads')));
-app.use('/uploads', serveUploads, express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', serveUploads, express.static(path.join(__dirname, '../uploads'), staticOptions));
+app.use('/uploads', serveUploads, express.static(path.join(__dirname, 'uploads'), staticOptions));
 
 // 6. Database Connection Middleware (Awaits connection for serverless requests)
 app.use(async (req, res, next) => {

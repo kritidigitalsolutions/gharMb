@@ -13,6 +13,7 @@ const Property = require('../../models/property.model');
 const User = require('../../models/user.model');
 const Notification = require('../../models/notification.model');
 const { notifyAdmin } = require('../../utils/adminNotification.helper');
+const { checkPropertyOwnership } = require('../../utils/ownershipCheck.helper');
 
 // Helper for pagination
 const getPagination = (page, limit, defaultLimit = 10) => {
@@ -52,8 +53,8 @@ exports.createVisitRequest = async (req, res, next) => {
       });
     }
 
-    // 2. Validate property existence
-    const property = await Property.findById(propertyId);
+    // 2. Validate property existence & populate owner
+    const property = await Property.findById(propertyId).populate('owner', 'name phone email role');
     if (!property) {
       return res.status(404).json({
         status: 'fail',
@@ -61,27 +62,22 @@ exports.createVisitRequest = async (req, res, next) => {
       });
     }
 
-    // 3. Verify property owner account exists in app
+    // 3. 🛡️ Owner cannot schedule a visit, buy, or rent their own property
+    const ownership = checkPropertyOwnership(property, req.user, req.body);
+    if (ownership.isOwner) {
+      return res.status(403).json({
+        status: 'fail',
+        success: false,
+        isOwnerBlocked: true,
+        message: ownership.message || 'Action not allowed: You cannot schedule a visit or buy/rent your own property listing.',
+      });
+    }
+
+    // 4. Verify property owner account exists in app
     if (!property.owner) {
       return res.status(400).json({
         status: 'fail',
         message: 'This property does not have an assigned owner.',
-      });
-    }
-
-    const ownerUser = await User.findById(property.owner);
-    if (!ownerUser) {
-      return res.status(400).json({
-        status: 'fail',
-        message: 'The property owner account was not found in the platform.',
-      });
-    }
-
-    // 4. Owner cannot schedule a visit to their own property
-    if (property.owner.toString() === req.user._id.toString()) {
-      return res.status(400).json({
-        status: 'fail',
-        message: 'You cannot schedule a visit for your own property listing.',
       });
     }
 
