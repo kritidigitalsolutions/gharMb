@@ -207,6 +207,65 @@ exports.createProject = async (req, res, next) => {
   }
 };
 
+// @desc    Update developer project details by Admin
+// @route   PUT /api/admin/projects/:id OR PATCH /api/admin/projects/:id
+// @access  Private (Admin only)
+exports.updateProject = async (req, res, next) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'No project found with that ID.',
+      });
+    }
+
+    const {
+      title,
+      projectName,
+      description,
+      shortDescription,
+      city,
+      locality,
+      fullAddress,
+      pincode,
+      projectType,
+      projectStatus,
+      price,
+      developerName,
+      towers,
+      floors,
+      totalUnits
+    } = req.body;
+
+    if (projectName || title) project.projectName = projectName || title;
+    if (description) project.description = description;
+    if (shortDescription) project.shortDescription = shortDescription;
+    if (city) project.city = city;
+    if (locality !== undefined) project.locality = locality;
+    if (fullAddress !== undefined) project.fullAddress = fullAddress;
+    if (pincode !== undefined) project.pincode = pincode;
+    if (projectType) project.projectType = projectType;
+    if (projectStatus) project.projectStatus = projectStatus;
+    if (developerName) project.developerName = developerName;
+    if (towers !== undefined) project.towers = Number(towers);
+    if (floors !== undefined) project.floors = String(floors);
+    if (totalUnits !== undefined) project.totalUnits = Number(totalUnits);
+
+    await project.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Developer project updated successfully.',
+      data: {
+        project,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Delete developer project from platform
 // @route   DELETE /api/admin/projects/:id
 // @access  Private (Admin only)
@@ -231,5 +290,120 @@ exports.deleteProject = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Update project investment score (Admin Baseline / Override)
+// @route   PUT /api/admin/projects/:id/investment-score
+// @access  Private (Admin only)
+exports.updateInvestmentScore = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const project = await Project.findById(id);
+
+    if (!project) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'No project found with that ID.',
+      });
+    }
+
+    const connectivity = Number(req.body.connectivity ?? req.body.metrics?.connectivity);
+    const rentalPotential = Number(req.body.rentalPotential ?? req.body.metrics?.rentalPotential);
+    const growthPotential = Number(req.body.growthPotential ?? req.body.metrics?.growthPotential);
+    const familyLiving = Number(req.body.familyLiving ?? req.body.metrics?.familyLiving);
+    const futureDemand = Number(req.body.futureDemand ?? req.body.metrics?.futureDemand);
+
+    if (
+      isNaN(connectivity) ||
+      isNaN(rentalPotential) ||
+      isNaN(growthPotential) ||
+      isNaN(familyLiving) ||
+      isNaN(futureDemand)
+    ) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'All 5 metrics (connectivity, rentalPotential, growthPotential, familyLiving, futureDemand) are required numbers between 0 and 10.',
+      });
+    }
+
+    const metricsList = [connectivity, rentalPotential, growthPotential, familyLiving, futureDemand];
+    if (metricsList.some((val) => val < 0 || val > 10)) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'All metric scores must be between 0 and 10.',
+      });
+    }
+
+    const {
+      roundToOneDecimal,
+      calculateGrade,
+      calculateOverallFromMetrics,
+    } = require('../../utils/investmentScore.helper');
+
+    const metrics = {
+      connectivity: roundToOneDecimal(connectivity),
+      rentalPotential: roundToOneDecimal(rentalPotential),
+      growthPotential: roundToOneDecimal(growthPotential),
+      familyLiving: roundToOneDecimal(familyLiving),
+      futureDemand: roundToOneDecimal(futureDemand),
+    };
+
+    const overall = req.body.overall !== undefined
+      ? roundToOneDecimal(Number(req.body.overall))
+      : calculateOverallFromMetrics(metrics);
+
+    const grade = req.body.grade || calculateGrade(overall);
+
+    const totalVotes = req.body.totalVotes !== undefined
+      ? Number(req.body.totalVotes)
+      : (project.investmentScore?.totalVotes || 0);
+
+    project.investmentScore = {
+      overall,
+      grade,
+      totalVotes,
+      metrics,
+    };
+
+    await project.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Project investment score updated successfully.',
+      data: {
+        investmentScore: project.investmentScore,
+        project,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get project investment score
+// @route   GET /api/admin/projects/:id/investment-score
+// @access  Private (Admin only)
+exports.getInvestmentScore = async (req, res, next) => {
+  try {
+    const project = await Project.findById(req.params.id).select('projectName investmentScore developer developerName city locality');
+
+    if (!project) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'No project found with that ID.',
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        investmentScore: project.investmentScore,
+        projectName: project.projectName,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 

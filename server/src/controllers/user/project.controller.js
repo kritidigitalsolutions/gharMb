@@ -38,7 +38,7 @@ exports.getAllProjects = async (req, res, next) => {
   }
 };
 
-// @desc    Get detailed project view (increments view count)
+// @desc    Get detailed project view (increments view count, includes investmentScore)
 // @route   GET /api/user/projects/:id
 // @access  Public
 exports.getProjectDetails = async (req, res, next) => {
@@ -56,6 +56,21 @@ exports.getProjectDetails = async (req, res, next) => {
     // Increment views only for approved live projects
     if (project.approvalStatus === 'approved' && project.isLive) {
       await Project.findByIdAndUpdate(req.params.id, { $inc: { viewsCount: 1 } });
+    }
+
+    // Ensure investmentScore object is populated with metrics defaults
+    if (!project.investmentScore || !project.investmentScore.metrics) {
+      project.investmentScore = {
+        overall: 0,
+        grade: 'Not Rated',
+        metrics: {
+          connectivity: 0,
+          rentalPotential: 0,
+          growthPotential: 0,
+          familyLiving: 0,
+          futureDemand: 0,
+        },
+      };
     }
 
     res.status(200).json({
@@ -250,3 +265,4 @@ exports.deleteProject = async (req, res, next) => {
     next(error);
   }
 };
+

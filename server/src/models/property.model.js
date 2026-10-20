@@ -456,6 +456,28 @@ const propertySchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+
+    // Investment Score (Admin Curated)
+    investmentScore: {
+      overall: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 10,
+      },
+      grade: {
+        type: String,
+        trim: true,
+        default: 'Not Rated',
+      },
+      metrics: {
+        connectivity: { type: Number, default: 0, min: 0, max: 10 },
+        rentalPotential: { type: Number, default: 0, min: 0, max: 10 },
+        growthPotential: { type: Number, default: 0, min: 0, max: 10 },
+        familyLiving: { type: Number, default: 0, min: 0, max: 10 },
+        futureDemand: { type: Number, default: 0, min: 0, max: 10 },
+      },
+    },
   },
   {
     timestamps: true,

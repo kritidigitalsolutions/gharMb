@@ -16,6 +16,7 @@ import {
   AlignLeft, AlignCenter, AlignRight, Maximize2, ShieldCheck, Share2
 } from 'lucide-react';
 import API from '../api/api';
+import { compressImage } from '../utils/imageCompressor';
 
 const WEBPAGE_URL = 'http://localhost:5174';
 
@@ -399,8 +400,9 @@ const InsightsEditor = () => {
     if (!file) return;
 
     setIsUploadingInline(true);
+    const compressed = await compressImage(file, { maxWidth: 1600, quality: 0.82 });
     const uploadData = new FormData();
-    uploadData.append('image', file);
+    uploadData.append('image', compressed);
 
     try {
       const res = await API.post('/admin/blogs/upload', uploadData, {
@@ -447,8 +449,9 @@ const InsightsEditor = () => {
     if (!file) return;
 
     setIsUploadingBanner(true);
+    const compressed = await compressImage(file, { maxWidth: 1920, quality: 0.82 });
     const uploadData = new FormData();
-    uploadData.append('image', file);
+    uploadData.append('image', compressed);
 
     try {
       const res = await API.post('/admin/blogs/upload', uploadData, {

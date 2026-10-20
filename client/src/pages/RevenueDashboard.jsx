@@ -237,11 +237,11 @@ const RevenueDashboard = () => {
     },
     {
       title: 'Escrow Token Collections',
-      value: `₹${(stats?.escrowCommission || 0).toLocaleString('en-IN')}`,
+      value: `₹${((stats?.heldEscrow || 0) + (stats?.settledEscrow || 0)).toLocaleString('en-IN')}`,
       change: stats?.changes?.escrowGrowth || '0.0%',
-      trend: (stats?.escrowCommission || 0) > 0 ? 'up' : 'neutral',
+      trend: ((stats?.heldEscrow || 0) + (stats?.settledEscrow || 0)) > 0 ? 'up' : 'neutral',
       subtitle: counts.all > 0
-        ? `${counts.pending} held · ${counts.approved} settled`
+        ? `${counts.pending} held · ${counts.approved} settled · ₹${(stats?.escrowCommission || 0).toLocaleString('en-IN')} fee`
         : 'Verified booking advances held',
       tag: 'Escrow Custody',
       icon: ShieldCheck,

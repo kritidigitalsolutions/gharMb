@@ -8,10 +8,11 @@ import {
   ShieldCheck, MapPin, Building2, Sparkles, ChevronRight,
   RotateCcw, Upload, Check, ExternalLink, SlidersHorizontal
 } from 'lucide-react';
-import API from '../api/api';
+import API, { getBaseUrl } from '../api/api';
+import { compressImage } from '../utils/imageCompressor';
+import SmoothImage from '../components/common/SmoothImage';
 
-const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-const API_BASE = RAW_API_URL.replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
+const API_BASE = getBaseUrl().replace(/\/+api\/?$/i, '').replace(/\/+$/, '');
 
 const getMediaUrl = (url) => {
   if (!url) return '';
@@ -390,13 +391,15 @@ const TestimonialManagement = () => {
     });
   };
 
-  const handleImageUpload = (e, field) => {
+  const handleImageUpload = async (e, field) => {
     const file = e.target.files[0];
     if (file) {
+      const maxDim = field === 'avatar' ? 600 : 1600;
+      const compressed = await compressImage(file, { maxWidth: maxDim, quality: 0.82 });
       setModalState(prev => ({
         ...prev,
-        [`${field}File`]: file,
-        [field]: URL.createObjectURL(file),
+        [`${field}File`]: compressed,
+        [field]: URL.createObjectURL(compressed),
         [`remove${field.charAt(0).toUpperCase() + field.slice(1)}`]: false
       }));
     }
@@ -755,6 +758,8 @@ const TestimonialManagement = () => {
                               <img
                                 src={avatarSrc}
                                 alt={t.name}
+                                loading="lazy"
+                                decoding="async"
                                 onError={() => handleImageError(t._id)}
                                 className="w-10 h-10 rounded-full object-cover border border-[var(--border)] shadow-2xs"
                               />
@@ -942,10 +947,11 @@ const TestimonialManagement = () => {
               {/* Optional Property Header Image */}
               {previewTestimonial.propertyImage && (
                 <div className="relative w-full h-44 rounded-xl overflow-hidden border border-[var(--border)] bg-slate-100 dark:bg-slate-800">
-                  <img
+                  <SmoothImage
                     src={getMediaUrl(previewTestimonial.propertyImage)}
                     alt="Property"
                     className="w-full h-full object-cover"
+                    containerClassName="w-full h-full"
                   />
                   {previewTestimonial.propertyType && (
                     <div className="absolute top-3 left-3 px-2.5 py-1 rounded-lg text-xs font-semibold bg-black/60 backdrop-blur-md text-white border border-white/20">
@@ -1007,6 +1013,8 @@ const TestimonialManagement = () => {
                     <img
                       src={getMediaUrl(previewTestimonial.avatar)}
                       alt={previewTestimonial.name}
+                      loading="lazy"
+                      decoding="async"
                       className="w-11 h-11 rounded-full object-cover border border-[var(--border)] shadow-xs"
                     />
                   ) : (

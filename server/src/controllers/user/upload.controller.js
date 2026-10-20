@@ -221,32 +221,33 @@ exports.uploadMultipleFiles = async (req, res, next) => {
       });
     }
 
-    // 4. Construct file URLs and metadata
-    const fileUrls = [];
-    const filesMeta = [];
+    // 4. Construct file URLs and metadata concurrently in parallel
+    const filesMeta = await Promise.all(
+      collectedFiles.map(async (f) => {
+        let fileUrl;
+        if (f.isExistingUrl) {
+          fileUrl = f.url;
+        } else if (f.isCloud && f.url) {
+          fileUrl = f.url;
+        } else {
+          fileUrl = await resolveFileUrl(req, f, 'uploads');
+        }
 
-    for (const f of collectedFiles) {
-      let fileUrl;
-      if (f.isExistingUrl) {
-        fileUrl = f.url;
-      } else if (f.isCloud && f.url) {
-        fileUrl = f.url;
-      } else {
-        fileUrl = await resolveFileUrl(req, f, 'uploads');
-      }
-      fileUrls.push(fileUrl);
-      filesMeta.push({
-        url: fileUrl,
-        fileUrl,
-        filename: f.filename || f.originalname || path.basename(fileUrl.split('?')[0]),
-        originalName: f.originalname || f.filename,
-        originalname: f.originalname || f.filename,
-        mimeType: f.mimetype,
-        mimetype: f.mimetype,
-        size: f.size,
-        fieldname: f.fieldname || 'files',
-      });
-    }
+        return {
+          url: fileUrl,
+          fileUrl,
+          filename: f.filename || f.originalname || path.basename(fileUrl.split('?')[0]),
+          originalName: f.originalname || f.filename,
+          originalname: f.originalname || f.filename,
+          mimeType: f.mimetype,
+          mimetype: f.mimetype,
+          size: f.size,
+          fieldname: f.fieldname || 'files',
+        };
+      })
+    );
+
+    const fileUrls = filesMeta.map((item) => item.url);
 
     // 5. Optional auto-attachment to Property
     const propertyId = req.query.propertyId || req.body?.propertyId;
@@ -391,27 +392,34 @@ exports.uploadPropertyFiles = async (req, res, next) => {
     }
     property.documents = property.documents || [];
 
-    const uploadedFilesMeta = [];
+    // Process and resolve all files concurrently in parallel
+    const uploadedFilesMeta = await Promise.all(
+      rawFiles.map(async (file) => {
+        const fileUrl = await resolveFileUrl(req, file, 'properties');
+        const fieldname = (file.fieldname || '').toLowerCase();
+        const isPdfOrDoc =
+          file.mimetype === 'application/pdf' ||
+          file.mimetype.includes('msword') ||
+          file.mimetype.includes('document') ||
+          file.originalname.toLowerCase().endsWith('.pdf') ||
+          file.originalname.toLowerCase().endsWith('.docx');
 
-    for (const file of rawFiles) {
-      const fileUrl = await resolveFileUrl(req, file, 'properties');
-      const fieldname = (file.fieldname || '').toLowerCase();
-      const isPdfOrDoc =
-        file.mimetype === 'application/pdf' ||
-        file.mimetype.includes('msword') ||
-        file.mimetype.includes('document') ||
-        file.originalname.toLowerCase().endsWith('.pdf') ||
-        file.originalname.toLowerCase().endsWith('.docx');
+        return {
+          file,
+          fileUrl,
+          fieldname,
+          isPdfOrDoc,
+          originalName: file.originalname,
+          filename: file.filename || file.originalname || path.basename(fileUrl.split('?')[0]),
+          mimetype: file.mimetype,
+          size: file.size,
+          url: fileUrl,
+        };
+      })
+    );
 
-      uploadedFilesMeta.push({
-        fieldname: file.fieldname,
-        originalName: file.originalname,
-        filename: file.filename || file.originalname || path.basename(fileUrl.split('?')[0]),
-        mimetype: file.mimetype,
-        size: file.size,
-        fileUrl,
-        url: fileUrl,
-      });
+    for (const item of uploadedFilesMeta) {
+      const { file, fileUrl, fieldname, isPdfOrDoc } = item;
 
       if (fieldname.includes('titledeed') || fieldname === 'title_deed') {
         property.propertyDocuments.titleDeed = fileUrl;
@@ -495,27 +503,34 @@ exports.uploadProjectFiles = async (req, res, next) => {
       project.projectPhotos = project.projectPhotos || [];
     }
 
-    const uploadedFilesMeta = [];
+    // Process and resolve all files concurrently in parallel
+    const uploadedFilesMeta = await Promise.all(
+      rawFiles.map(async (file) => {
+        const fileUrl = await resolveFileUrl(req, file, 'projects');
+        const fieldname = (file.fieldname || '').toLowerCase();
+        const isPdfOrDoc =
+          file.mimetype === 'application/pdf' ||
+          file.mimetype.includes('msword') ||
+          file.mimetype.includes('document') ||
+          file.originalname.toLowerCase().endsWith('.pdf') ||
+          file.originalname.toLowerCase().endsWith('.docx');
 
-    for (const file of rawFiles) {
-      const fileUrl = await resolveFileUrl(req, file, 'projects');
-      const fieldname = (file.fieldname || '').toLowerCase();
-      const isPdfOrDoc =
-        file.mimetype === 'application/pdf' ||
-        file.mimetype.includes('msword') ||
-        file.mimetype.includes('document') ||
-        file.originalname.toLowerCase().endsWith('.pdf') ||
-        file.originalname.toLowerCase().endsWith('.docx');
+        return {
+          file,
+          fileUrl,
+          fieldname,
+          isPdfOrDoc,
+          originalName: file.originalname,
+          filename: file.filename,
+          mimetype: file.mimetype,
+          size: file.size,
+          url: fileUrl,
+        };
+      })
+    );
 
-      uploadedFilesMeta.push({
-        fieldname: file.fieldname,
-        originalName: file.originalname,
-        filename: file.filename,
-        mimetype: file.mimetype,
-        size: file.size,
-        fileUrl,
-        url: fileUrl,
-      });
+    for (const item of uploadedFilesMeta) {
+      const { fileUrl, fieldname, isPdfOrDoc } = item;
 
       if (fieldname.includes('masterplan') || fieldname === 'master_plan') {
         project.masterPlanUrl = fileUrl;

@@ -43,6 +43,7 @@ const AdminRoutes = () => {
                 <Route path="agents" element={<AgentManagement />} />
                 <Route path="agent-verification" element={<Navigate to="/admin/agents" replace />} />
                 <Route path="builders" element={<BuilderManagement />} />
+                <Route path="projects" element={<BuilderManagement />} />
                 <Route path="leads" element={<LeadsDashboard />} />
                 <Route path="enquiries" element={<EnquiriesManagement />} />
                 <Route path="enquiry" element={<Navigate to="/admin/enquiries" replace />} />

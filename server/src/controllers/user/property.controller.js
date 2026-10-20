@@ -8,6 +8,7 @@ const User = require('../../models/user.model');
 const Favorite = require('../../models/favorite.model');
 const PropertyEnquiry = require('../../models/property-enquiry.model');
 const TokenRequest = require('../../models/token-request.model');
+const { checkPropertyOwnership } = require('../../utils/ownershipCheck.helper');
 
 // Helper to format prices into standard Indian real estate notation (Lac / Cr)
 const formatIndianPrice = (price, listingFor) => {
@@ -264,6 +265,20 @@ const enrichPropertyWithSellerRole = (propertyDoc, fallbackOwner = null) => {
   const pricingMeta = getDiscountAndPricingMetadata(obj);
   Object.assign(obj, pricingMeta);
 
+  // 🛡️ Owner Restrictions: Owners cannot buy, rent, submit tokens, enquire, or review their own listings
+  const callerUser = (fallbackOwner && fallbackOwner._id) ? fallbackOwner : null;
+  const ownership = checkPropertyOwnership(obj, callerUser);
+  const isOwner = Boolean(ownership.isOwner);
+  obj.isOwner = isOwner;
+  obj.canBuyOrRent = !isOwner;
+  obj.canSubmitToken = !isOwner;
+  obj.canSubmitEnquiry = !isOwner;
+  obj.canSubmitReview = !isOwner;
+  obj.canScheduleVisit = !isOwner;
+  obj.ownerRestrictionMessage = isOwner
+    ? (ownership.message || 'You are the registered owner of this property listing. Owners cannot buy, rent, book tokens, send enquiries, or post reviews on their own properties.')
+    : null;
+
   return obj;
 };
 
@@ -444,6 +459,17 @@ const formatPropertyCard = (p, fallbackUser = null) => {
 
     // Commission-Absorbed Discount and Effective Buyer Pricing
     ...getDiscountAndPricingMetadata(obj),
+
+    // 🛡️ Owner Restrictions: Owners cannot buy, rent, submit tokens, enquire, or review their own listings
+    isOwner: Boolean(checkPropertyOwnership(obj, (fallbackUser && fallbackUser._id) ? fallbackUser : null).isOwner),
+    canBuyOrRent: !Boolean(checkPropertyOwnership(obj, (fallbackUser && fallbackUser._id) ? fallbackUser : null).isOwner),
+    canSubmitToken: !Boolean(checkPropertyOwnership(obj, (fallbackUser && fallbackUser._id) ? fallbackUser : null).isOwner),
+    canSubmitEnquiry: !Boolean(checkPropertyOwnership(obj, (fallbackUser && fallbackUser._id) ? fallbackUser : null).isOwner),
+    canSubmitReview: !Boolean(checkPropertyOwnership(obj, (fallbackUser && fallbackUser._id) ? fallbackUser : null).isOwner),
+    canScheduleVisit: !Boolean(checkPropertyOwnership(obj, (fallbackUser && fallbackUser._id) ? fallbackUser : null).isOwner),
+    ownerRestrictionMessage: Boolean(checkPropertyOwnership(obj, (fallbackUser && fallbackUser._id) ? fallbackUser : null).isOwner)
+      ? 'You are the registered owner of this property listing. Owners cannot buy, rent, book tokens, send enquiries, or post reviews on their own properties.'
+      : null,
   };
 };
 
@@ -545,7 +571,7 @@ exports.getAllProperties = async (req, res, next) => {
     ]);
 
     const totalPages = Math.ceil(total / limitNum) || 1;
-    const enrichedProperties = properties.map((p) => enrichPropertyWithSellerRole(p));
+    const enrichedProperties = properties.map((p) => enrichPropertyWithSellerRole(p, req.user));
 
     res.status(200).json({
       status: 'success',
@@ -584,14 +610,19 @@ exports.getPropertyDetails = async (req, res, next) => {
       await Property.findByIdAndUpdate(req.params.id, { $inc: { viewsCount: 1 } });
     }
 
-    const currentUserId = req.user?._id?.toString() || req.query.userId || req.query.currentUserId;
-    const isOwner = Boolean(
-      property.owner &&
-      currentUserId &&
-      (property.owner._id ? property.owner._id.toString() : property.owner.toString()) === currentUserId
-    );
+    const ownership = checkPropertyOwnership(property, req.user, req.query);
+    const isOwner = ownership.isOwner;
 
     const enrichedProperty = enrichPropertyWithSellerRole(property);
+    enrichedProperty.isOwner = isOwner;
+    enrichedProperty.canBuyOrRent = !isOwner;
+    enrichedProperty.canSubmitToken = !isOwner;
+    enrichedProperty.canSubmitEnquiry = !isOwner;
+    enrichedProperty.canSubmitReview = !isOwner;
+    enrichedProperty.canScheduleVisit = !isOwner;
+    enrichedProperty.ownerRestrictionMessage = isOwner
+      ? 'You are the registered owner of this property listing. Owners cannot buy, rent, book tokens, send enquiries, or post reviews on their own properties.'
+      : null;
 
     // Fetch rating breakdown and recent reviews for this property
     let recentReviews = [];
@@ -633,11 +664,31 @@ exports.getPropertyDetails = async (req, res, next) => {
       recentReviews,
     };
 
+    enrichedProperty.investmentScore = property.investmentScore?.metrics ? property.investmentScore : {
+      overall: property.investmentScore?.overall || 0,
+      grade: property.investmentScore?.grade || 'Not Rated',
+      metrics: {
+        connectivity: property.investmentScore?.metrics?.connectivity || 0,
+        rentalPotential: property.investmentScore?.metrics?.rentalPotential || 0,
+        growthPotential: property.investmentScore?.metrics?.growthPotential || 0,
+        familyLiving: property.investmentScore?.metrics?.familyLiving || 0,
+        futureDemand: property.investmentScore?.metrics?.futureDemand || 0,
+      },
+    };
+
     res.status(200).json({
       status: 'success',
       data: {
         property: enrichedProperty,
         isOwner,
+        canBuyOrRent: !isOwner,
+        canSubmitToken: !isOwner,
+        canSubmitEnquiry: !isOwner,
+        canSubmitReview: !isOwner,
+        canScheduleVisit: !isOwner,
+        ownerRestrictionMessage: isOwner
+          ? 'You are the registered owner of this property listing. Owners cannot buy, rent, book tokens, send enquiries, or post reviews on their own properties.'
+          : null,
         ratings: {
           averageRating: Number(property.rating) || 0,
           totalReviews: Number(property.reviewsCount) || 0,
@@ -1573,7 +1624,7 @@ exports.getLatestProperties = async (req, res, next) => {
     ]);
 
     const totalPages = Math.ceil(total / limitNum) || 1;
-    const enrichedProperties = properties.map((p) => enrichPropertyWithSellerRole(p));
+    const enrichedProperties = properties.map((p) => enrichPropertyWithSellerRole(p, req.user));
 
     res.status(200).json({
       status: 'success',

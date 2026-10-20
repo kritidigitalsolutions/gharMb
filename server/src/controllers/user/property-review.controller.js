@@ -8,6 +8,7 @@ const mongoose = require('mongoose');
 const PropertyReview = require('../../models/property-review.model');
 const Property = require('../../models/property.model');
 const User = require('../../models/user.model');
+const { checkPropertyOwnership } = require('../../utils/ownershipCheck.helper');
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -126,7 +127,7 @@ exports.createPropertyReview = async (req, res, next) => {
     }
 
     // 1. Verify property exists
-    const property = await Property.findById(propertyId).populate('owner', 'name email role');
+    const property = await Property.findById(propertyId).populate('owner', 'name phone email role');
     if (!property) {
       return res.status(404).json({
         status: 'fail',
@@ -136,11 +137,14 @@ exports.createPropertyReview = async (req, res, next) => {
 
     const ownerId = property.owner?._id || property.owner;
 
-    // 2. Prevent property owner from rating their own property
-    if (ownerId && ownerId.toString() === reviewerId.toString()) {
-      return res.status(400).json({
+    // 2. 🛡️ Prevent property owner from rating or reviewing their own property
+    const ownership = checkPropertyOwnership(property, req.user, req.body);
+    if (ownership.isOwner) {
+      return res.status(403).json({
         status: 'fail',
-        message: 'You cannot submit a rating for your own property.',
+        success: false,
+        isOwnerBlocked: true,
+        message: ownership.message || 'Action not allowed: You cannot submit a rating or review for your own property.',
       });
     }
 

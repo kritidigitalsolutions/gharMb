@@ -15,6 +15,7 @@ const TokenSetting = require('../../models/token-setting.model');
 const User = require('../../models/user.model');
 const { notifyAdmin } = require('../../utils/adminNotification.helper');
 const firebaseStorageService = require('../../services/firebaseStorage.service');
+const { checkPropertyOwnership } = require('../../utils/ownershipCheck.helper');
 
 // Helper for pagination
 const getPagination = (page, limit, defaultLimit = 10) => {
@@ -196,7 +197,7 @@ exports.createTokenRequest = async (req, res, next) => {
       });
     }
 
-    const property = await Property.findById(propertyId);
+    const property = await Property.findById(propertyId).populate('owner', 'name phone email role');
     if (!property) {
       return res.status(404).json({
         status: 'fail',
@@ -207,20 +208,14 @@ exports.createTokenRequest = async (req, res, next) => {
     // Determine whether property is rental or sale/non-rental
     const isRental = property.listingFor === 'Rent' || property.listingFor === 'Lease' || property.listingFor === 'PG';
 
-    // Owner cannot send token request to their own property
-    const isOwner = property.owner && req.user && property.owner.toString() === req.user._id.toString();
-    if (isOwner) {
-      return res.status(400).json({
+    // 🛡️ Owner cannot buy, rent, or send token request to their own property
+    const ownership = checkPropertyOwnership(property, req.user, req.body);
+    if (ownership.isOwner) {
+      return res.status(403).json({
         status: 'fail',
-        message: 'You cannot submit a booking or token request for your own property listing.',
-      });
-    }
-
-    const applicantUserId = req.user?._id?.toString() || req.body.userId || req.body.buyerId;
-    if (property.owner && applicantUserId && property.owner.toString() === applicantUserId.toString()) {
-      return res.status(400).json({
-        status: 'fail',
-        message: 'You cannot submit a booking or token request for your own property listing.',
+        success: false,
+        isOwnerBlocked: true,
+        message: ownership.message || 'Action not allowed: You cannot buy, rent, or submit a token booking request for your own property listing.',
       });
     }
 

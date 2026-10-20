@@ -76,6 +76,60 @@ router.patch('/:id/status', projectController.updateProjectStatus);
 
 /**
  * @swagger
+ * /api/admin/projects/{id}/investment-score:
+ *   put:
+ *     summary: Set baseline or update investment score metrics for a developer project
+ *     tags: [Admin Project Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - connectivity
+ *               - rentalPotential
+ *               - growthPotential
+ *               - familyLiving
+ *               - futureDemand
+ *             properties:
+ *               connectivity:
+ *                 type: number
+ *                 example: 9.0
+ *               rentalPotential:
+ *                 type: number
+ *                 example: 8.5
+ *               growthPotential:
+ *                 type: number
+ *                 example: 9.0
+ *               familyLiving:
+ *                 type: number
+ *                 example: 8.8
+ *               futureDemand:
+ *                 type: number
+ *                 example: 9.0
+ *     responses:
+ *       200:
+ *         description: Investment score updated successfully
+ *       400:
+ *         description: Invalid input metrics
+ *       404:
+ *         description: Project not found
+ */
+router.route('/:id/investment-score')
+  .get(projectController.getInvestmentScore)
+  .put(projectController.updateInvestmentScore);
+
+/**
+ * @swagger
  * /api/admin/projects/{id}:
  *   delete:
  *     summary: Permanently delete a developer project listing
@@ -96,7 +150,11 @@ router.patch('/:id/status', projectController.updateProjectStatus);
  *       404:
  *         description: Project not found
  */
-router.delete('/:id', projectController.deleteProject);
+router.route('/:id')
+  .put(projectController.updateProject)
+  .patch(projectController.updateProject)
+  .delete(projectController.deleteProject);
 
 module.exports = router;
+
 

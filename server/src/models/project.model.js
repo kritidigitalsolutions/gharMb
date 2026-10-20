@@ -199,6 +199,32 @@ const projectSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    // Investment Score & Ratings
+    investmentScore: {
+      overall: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 10,
+      },
+      grade: {
+        type: String,
+        trim: true,
+        default: 'Not Rated',
+      },
+      totalVotes: {
+        type: Number,
+        default: 0,
+      },
+      metrics: {
+        connectivity: { type: Number, default: 0, min: 0, max: 10 },
+        rentalPotential: { type: Number, default: 0, min: 0, max: 10 },
+        growthPotential: { type: Number, default: 0, min: 0, max: 10 },
+        familyLiving: { type: Number, default: 0, min: 0, max: 10 },
+        futureDemand: { type: Number, default: 0, min: 0, max: 10 },
+      },
+    },
   },
   {
     timestamps: true,

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, Clock, Calendar } from 'lucide-react';
+import SmoothImage from '../common/SmoothImage';
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80';
 
@@ -33,12 +34,11 @@ export default function BlogCard({ article, featured = false }) {
       <Link to={`/insights/${slug}`} className="group block min-w-0 w-full">
         <div className="grid md:grid-cols-2 gap-6 lg:gap-10 bg-white border border-[#E7EAED] hover:border-[#FF5A3C]/40 rounded-[24px] overflow-hidden hover:shadow-[0_12px_40px_rgba(0,0,0,0.06)] transition-all duration-400">
           <div className="aspect-[16/10] md:aspect-auto overflow-hidden bg-slate-100 min-w-0 w-full relative">
-            <img
+            <SmoothImage
               src={imageSrc}
               alt={title}
-              loading="lazy"
-              onError={(e) => { e.target.src = FALLBACK_IMAGE; }}
               className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-600 ease-out"
+              containerClassName="w-full h-full"
             />
           </div>
           <div className="flex flex-col justify-center p-6 md:p-0 md:pr-8 md:py-8 min-w-0 w-full">
@@ -77,12 +77,11 @@ export default function BlogCard({ article, featured = false }) {
       <div className="bg-white border border-[#E7EAED] hover:border-[#FF5A3C]/40 rounded-[20px] overflow-hidden hover:shadow-[0_12px_36px_rgba(0,0,0,0.05)] transition-all duration-400 h-full flex flex-col min-w-0">
         {/* 16:10 Ratio Cover Image */}
         <div className="aspect-[16/10] overflow-hidden bg-slate-100 relative min-w-0 w-full">
-          <img
+          <SmoothImage
             src={imageSrc}
             alt={title}
-            loading="lazy"
-            onError={(e) => { e.target.src = FALLBACK_IMAGE; }}
             className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-600 ease-out"
+            containerClassName="w-full h-full"
           />
         </div>
 

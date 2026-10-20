@@ -127,5 +127,9 @@ router.patch('/:id/commission-discount', propertyController.updateCommissionDisc
  */
 router.patch('/:id/featured', propertyController.toggleFeatured);
 
+router.route('/:id/investment-score')
+  .get(propertyController.getInvestmentScore)
+  .put(propertyController.updateInvestmentScore);
+
 module.exports = router;
 
