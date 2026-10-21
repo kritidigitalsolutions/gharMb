@@ -136,6 +136,10 @@ exports.getNotificationLogs = async (req, res, next) => {
         select: 'tokenAmount tokenRequestId status personalDetails clientDetails paymentPlanType'
       })
       .populate({
+        path: 'metadata.projectId',
+        select: 'projectName title builderName developer city locality startingPrice bannerImage images projectVideos'
+      })
+      .populate({
         path: 'metadata.agentId',
         select: 'name email phone role reraNumber experience cityOfOperation verificationDocs agentVerificationStatus agentRejectionReason profilePicture isVerified createdAt'
       });

@@ -2,6 +2,7 @@
  * GHARMB Server Entrypoint
  * This file boots the express application, connects to MongoDB,
  * and handles process-level events (unhandled exceptions, SIGTERM).
+ * Last updated for New Projects developer filter v2.
  */
 
 const dotenv = require('dotenv');
@@ -39,6 +40,14 @@ const server = app.listen(PORT, () => {
   console.log(`  GHARMB Backend Server Booted Successfully       `);
   console.log(`  Port: ${PORT}                                   `);
   console.log(`==================================================`);
+
+  // Start background sale confirmation scheduler (triggers notifications after 3 days)
+  try {
+    const { startSaleConfirmationScheduler } = require('./src/services/saleConfirmation.service');
+    startSaleConfirmationScheduler();
+  } catch (schedErr) {
+    console.warn('⚠️ Could not start sale confirmation scheduler:', schedErr.message);
+  }
 });
 
 

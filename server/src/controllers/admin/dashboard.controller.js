@@ -165,10 +165,12 @@ exports.getAllEnquiries = async (req, res, next) => {
     const [propEnquiries, devEnquiries, visitRequests] = await Promise.all([
       PropertyEnquiry.find()
         .populate('property', 'title price locality city carpetArea images propertyImages submissionId listingTier')
+        .populate('project', 'projectName developerName locality city projectPhotos submissionId')
         .populate('client', 'name email phone')
         .sort({ createdAt: -1 }),
       DeveloperEnquiry.find()
         .populate('developer', 'name companyName email phone')
+        .populate('project', 'projectName developerName locality city projectPhotos submissionId')
         .populate('client', 'name email phone')
         .sort({ createdAt: -1 }),
       VisitRequest.find()

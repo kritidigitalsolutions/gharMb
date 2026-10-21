@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -7,14 +8,11 @@ import {
   LayoutDashboard,
   BarChart3,
   IndianRupee,
-  CheckSquare,
   Building2,
-  FileCheck,
   Users,
   Inbox,
   MailCheck,
   UserCheck,
-  User,
   Briefcase,
   PackageCheck,
   Gift,
@@ -29,587 +27,647 @@ import {
   Info,
   PhoneCall,
   ChevronLeft,
-  Search,
   X,
+  Coins,
+  TrendingUp,
+  RefreshCw,
+  ShieldCheck,
 } from 'lucide-react';
 
 const Sidebar = ({
-  isOpen,
+  isOpen = false,
   toggleSidebar,
   isCollapsed,
   setIsCollapsed,
   collapsed,
-  setCollapsed
+  setCollapsed,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isDark } = useTheme();
 
+  // Collapsed state support
   const collapsedState = isCollapsed !== undefined ? isCollapsed : (collapsed !== undefined ? collapsed : false);
   const toggleCollapse = useCallback(() => {
     if (setIsCollapsed) setIsCollapsed(!collapsedState);
     else if (setCollapsed) setCollapsed(!collapsedState);
   }, [collapsedState, setIsCollapsed, setCollapsed]);
 
-  // Dynamic live badges
-  const [pendingVerificationCount, setPendingVerificationCount] = useState(0);
-  const [pendingAgentsCount, setPendingAgentsCount] = useState(0);
-  const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
-  const [pendingEnquiriesCount, setPendingEnquiriesCount] = useState(0);
+  // ── Real-Time Live Dynamic Badge Counts ──────────────────────────────────
+  const [badgeCounts, setBadgeCounts] = useState({
+    pendingVerifications: 0,
+    pendingAgents: 0,
+    unreadNotifications: 0,
+    pendingEnquiries: 0,
+    newWebInquiries: 0,
+    pendingTokens: 0,
+  });
 
-  // In-sidebar search query
-  const [searchQuery, setSearchQuery] = useState('');
-  const searchInputRef = useRef(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncedTime, setLastSyncedTime] = useState('Just now');
+  const lastSyncTimestampRef = useRef(0);
+  const isFetchingRef = useRef(false);
 
-  // Floating tooltip state for collapsed desktop view
+  // Floating tooltip for collapsed view
   const [hoveredTooltip, setHoveredTooltip] = useState(null);
 
-  // Fetch dynamic badge counts
-  useEffect(() => {
-    let isMounted = true;
-    const fetchBadgeCounts = async () => {
-      try {
-        const token = localStorage.getItem('adminToken');
-        if (!token) return;
 
-        // 1. Pending agents
-        API.get('/admin/users/pending-agents')
-          .then(res => {
-            if (!isMounted) return;
-            const data = res.data;
-            if (data?.status === 'success') {
-              setPendingAgentsCount(data.results || data.data?.agents?.length || 0);
-            }
-          })
-          .catch(() => {});
+  // ── Core Real-Time Data Sync Fetcher ──────────────────────────────────────
+  const fetchRealtimeBadgeCounts = useCallback(async (manual = false) => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
 
-        // 2. Unread notifications
-        API.get('/admin/notifications')
-          .then(res => {
-            if (!isMounted) return;
-            const data = res.data;
-            if (data?.status === 'success') {
-              setUnreadNotifsCount(data.counts?.unread || 0);
-            }
-          })
-          .catch(() => {});
+    if (manual) setIsSyncing(true);
 
-        // 3. Pending enquiries count
-        API.get('/admin/dashboard/enquiries')
-          .then(res => {
-            if (!isMounted) return;
-            const data = res.data;
-            if (data?.status === 'success' && data.data) {
-              const pCount = (data.data.propertyEnquiries || []).filter(e =>
-                ['pending', 'new', 'open'].includes((e.status || '').toLowerCase())
-              ).length;
-              const dCount = (data.data.developerEnquiries || []).filter(e =>
-                ['pending', 'new', 'open'].includes((e.status || '').toLowerCase())
-              ).length;
-              const vCount = (data.data.visitRequests || []).filter(e =>
-                ['pending', 'new', 'open'].includes((e.status || '').toLowerCase())
-              ).length;
-              setPendingEnquiriesCount(pCount + dCount + vCount);
-            }
-          })
-          .catch(() => {});
+    try {
+      const [
+        pendingAgentsRes,
+        notificationsRes,
+        enquiriesRes,
+        statsRes,
+        webInquiriesRes,
+        tokensRes,
+      ] = await Promise.allSettled([
+        API.get('/admin/users/pending-agents'),
+        API.get('/admin/notifications'),
+        API.get('/admin/dashboard/enquiries'),
+        API.get('/admin/dashboard/stats'),
+        API.get('/admin/web-inquiries/stats'),
+        API.get('/admin/tokens'),
+      ]);
 
-        // 4. Pending Property / Project Verifications
-        API.get('/admin/dashboard/stats')
-          .then(res => {
-            if (!isMounted) return;
-            const data = res.data;
-            if (data?.status === 'success' && data.data?.stats) {
-              setPendingVerificationCount(data.data.stats.pendingProperties || 0);
-            }
-          })
-          .catch(() => {});
-      } catch (_) {}
-    };
+      let pendingAgents = 0;
+      let unreadNotifications = 0;
+      let pendingEnquiries = 0;
+      let pendingVerifications = 0;
+      let newWebInquiries = 0;
+      let pendingTokens = 0;
 
-    fetchBadgeCounts();
-    const timer = setInterval(fetchBadgeCounts, 25000);
-    return () => {
-      isMounted = false;
-      clearInterval(timer);
-    };
+      if (pendingAgentsRes.status === 'fulfilled' && pendingAgentsRes.value?.data?.status === 'success') {
+        const d = pendingAgentsRes.value.data;
+        pendingAgents = d.results || d.data?.agents?.length || 0;
+      }
+
+      if (notificationsRes.status === 'fulfilled' && notificationsRes.value?.data?.status === 'success') {
+        const d = notificationsRes.value.data;
+        unreadNotifications = d.counts?.unread || 0;
+      }
+
+      if (enquiriesRes.status === 'fulfilled' && enquiriesRes.value?.data?.status === 'success' && enquiriesRes.value.data.data) {
+        const d = enquiriesRes.value.data.data;
+        const pCount = (d.propertyEnquiries || []).filter(e =>
+          ['pending', 'new', 'open'].includes((e.status || '').toLowerCase())
+        ).length;
+        const dCount = (d.developerEnquiries || []).filter(e =>
+          ['pending', 'new', 'open'].includes((e.status || '').toLowerCase())
+        ).length;
+        const vCount = (d.visitRequests || []).filter(e =>
+          ['pending', 'new', 'open'].includes((e.status || '').toLowerCase())
+        ).length;
+        pendingEnquiries = pCount + dCount + vCount;
+      }
+
+      if (statsRes.status === 'fulfilled' && statsRes.value?.data?.status === 'success' && statsRes.value.data.data?.stats) {
+        pendingVerifications = statsRes.value.data.data.stats.pendingProperties || 0;
+      }
+
+      if (webInquiriesRes.status === 'fulfilled' && webInquiriesRes.value?.data?.status === 'success' && webInquiriesRes.value.data.data?.stats) {
+        newWebInquiries = webInquiriesRes.value.data.data.stats.newInquiries || 0;
+      }
+
+      if (tokensRes.status === 'fulfilled' && tokensRes.value?.data?.status === 'success' && tokensRes.value.data.data) {
+        const stats = tokensRes.value.data.data.stats;
+        pendingTokens = stats?.pendingCount || 0;
+      }
+
+      setBadgeCounts(prev => {
+        if (
+          prev.pendingAgents === pendingAgents &&
+          prev.unreadNotifications === unreadNotifications &&
+          prev.pendingEnquiries === pendingEnquiries &&
+          prev.pendingVerifications === pendingVerifications &&
+          prev.newWebInquiries === newWebInquiries &&
+          prev.pendingTokens === pendingTokens
+        ) {
+          return prev;
+        }
+        return {
+          pendingAgents,
+          unreadNotifications,
+          pendingEnquiries,
+          pendingVerifications,
+          newWebInquiries,
+          pendingTokens,
+        };
+      });
+
+      lastSyncTimestampRef.current = Date.now();
+      setLastSyncedTime('Just now');
+    } catch {
+      // Silent error catching to ensure UI resilience
+    } finally {
+      isFetchingRef.current = false;
+      if (manual) {
+        setTimeout(() => setIsSyncing(false), 500);
+      }
+    }
   }, []);
 
-  // Keyboard shortcut listener for quick filter (press "/" or "Escape")
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable) {
-        if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
-          searchInputRef.current?.blur();
-          setSearchQuery('');
-        }
-        return;
+    fetchRealtimeBadgeCounts();
+    const intervalTimer = setInterval(() => {
+      if (!document.hidden) {
+        fetchRealtimeBadgeCounts();
       }
-      if (e.key === '/' && !collapsedState) {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [collapsedState]);
+    }, 30000);
 
-  // Perfectly organized semantic navigation groups
+    const clockTimer = setInterval(() => {
+      const diffSec = Math.floor((Date.now() - lastSyncTimestampRef.current) / 1000);
+      if (diffSec < 30) setLastSyncedTime('Just now');
+      else if (diffSec < 60) setLastSyncedTime('30s ago');
+      else {
+        const mins = Math.floor(diffSec / 60);
+        setLastSyncedTime(`${mins}m ago`);
+      }
+    }, 15000);
+
+    return () => {
+      clearInterval(intervalTimer);
+      clearInterval(clockTimer);
+    };
+  }, [fetchRealtimeBadgeCounts]);
+
+  useEffect(() => {
+    const handleSyncEvent = () => fetchRealtimeBadgeCounts();
+    window.addEventListener('admin-data-sync', handleSyncEvent);
+    window.addEventListener('admin-notifications-updated', handleSyncEvent);
+    window.addEventListener('focus', handleSyncEvent);
+    window.addEventListener('storage', handleSyncEvent);
+
+    return () => {
+      window.removeEventListener('admin-data-sync', handleSyncEvent);
+      window.removeEventListener('admin-notifications-updated', handleSyncEvent);
+      window.removeEventListener('focus', handleSyncEvent);
+      window.removeEventListener('storage', handleSyncEvent);
+    };
+  }, [fetchRealtimeBadgeCounts]);
+
+
+
+  // ── Complete Uncollapsed Navigation Hierarchy (Short, Simple, Clean Titles) ──
   const navGroups = useMemo(() => [
     {
       id: 'overview',
-      group: 'Overview & Stats',
-      short: 'Overview',
+      group: 'Overview',
       items: [
-        { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
-        { name: 'Reports & Export', path: '/admin/reports', icon: BarChart3 },
-        { name: 'Revenue & Finance', path: '/admin/revenue', icon: IndianRupee },
-      ]
+        {
+          name: 'Dashboard',
+          path: '/admin',
+          icon: LayoutDashboard,
+          hint: 'Platform KPIs & Summary',
+          aliases: ['dashboard', 'home', 'kpi', 'stats', 'analytics', 'overview'],
+        },
+        {
+          name: 'Revenue',
+          path: '/admin/revenue',
+          icon: IndianRupee,
+          hint: 'Earnings, Tokens & Escrow',
+          aliases: ['revenue', 'finance', 'money', 'earnings', 'payments', 'escrow', 'wallet'],
+        },
+        {
+          name: 'Reports',
+          path: '/admin/reports',
+          icon: BarChart3,
+          hint: 'Export CSV & Excel Data',
+          aliases: ['reports', 'export', 'csv', 'excel', 'download', 'audit', 'performance'],
+        },
+      ],
     },
     {
       id: 'properties',
-      group: 'Real Estate & Projects',
-      short: 'Properties',
+      group: 'Properties',
       items: [
         {
-          name: 'Property Verification',
+          name: 'Approvals',
           path: '/admin/verification',
-          icon: CheckSquare,
-          badge: pendingVerificationCount > 0 ? String(pendingVerificationCount) : null
+          icon: ShieldCheck,
+          hint: 'Review & Verify Listings',
+          badge: badgeCounts.pendingVerifications > 0 ? String(badgeCounts.pendingVerifications) : null,
+          badgeColor: 'bg-amber-500 text-white',
+          aliases: ['approvals', 'verification', 'property verification', 'approve property', 'kyc', 'listings', 'verify', 'compliance'],
         },
-        { name: 'Builders & Projects', path: '/admin/builders', icon: Building2 },
-        { name: 'Token Bookings', path: '/admin/tokens', icon: FileCheck },
-      ]
+        {
+          name: 'Builders',
+          path: '/admin/builders',
+          icon: Building2,
+          hint: 'Developers & RERA Projects',
+          aliases: ['builders', 'projects', 'developers', 'rera', 'apartments', 'towers', 'housing'],
+        },
+        {
+          name: 'Tokens',
+          path: '/admin/tokens',
+          icon: Coins,
+          hint: 'Token Deposits & Receipts',
+          badge: badgeCounts.pendingTokens > 0 ? String(badgeCounts.pendingTokens) : null,
+          badgeColor: 'bg-emerald-600 text-white',
+          aliases: ['tokens', 'token booking', 'advance payment', 'deposit', 'booking token', 'rental token'],
+        },
+      ],
     },
     {
       id: 'crm',
-      group: 'CRM & Inquiries',
-      short: 'CRM',
+      group: 'CRM & Leads',
       items: [
-        { name: 'Leads Pipeline', path: '/admin/leads', icon: Users },
         {
-          name: 'Property Enquiries',
+          name: 'Enquiries',
           path: '/admin/enquiries',
           icon: Inbox,
-          badge: pendingEnquiriesCount > 0 ? String(pendingEnquiriesCount) : null
+          hint: 'Property Leads & Site Visits',
+          badge: badgeCounts.pendingEnquiries > 0 ? String(badgeCounts.pendingEnquiries) : null,
+          badgeColor: 'bg-rose-500 text-white',
+          aliases: ['enquiries', 'inquiries', 'property enquiries', 'site visits', 'visits', 'client interest', 'leads'],
         },
-        { name: 'Website Enquiries', path: '/admin/web-inquiries', icon: MailCheck },
         {
-          name: 'Agents & Brokers',
+          name: 'Leads',
+          path: '/admin/leads',
+          icon: TrendingUp,
+          hint: 'Sales Pipeline & Follow-ups',
+          aliases: ['leads', 'leads pipeline', 'crm', 'sales', 'deals', 'buyer needs', 'follow ups'],
+        },
+        {
+          name: 'Web Forms',
+          path: '/admin/web-inquiries',
+          icon: MailCheck,
+          hint: 'Public Contact & Requests',
+          badge: badgeCounts.newWebInquiries > 0 ? String(badgeCounts.newWebInquiries) : null,
+          badgeColor: 'bg-blue-600 text-white',
+          aliases: ['web forms', 'web inquiries', 'website enquiries', 'contact form', 'deletion requests', 'messages', 'inbox'],
+        },
+        {
+          name: 'Agents',
           path: '/admin/agents',
           icon: UserCheck,
-          badge: pendingAgentsCount > 0 ? String(pendingAgentsCount) : null
+          hint: 'Agent Directory & KYC',
+          badge: badgeCounts.pendingAgents > 0 ? String(badgeCounts.pendingAgents) : null,
+          badgeColor: 'bg-purple-600 text-white',
+          aliases: ['agents', 'brokers', 'agent verification', 'realtors', 'partners', 'channel partners'],
         },
-        { name: 'User Accounts', path: '/admin/users', icon: User },
-      ]
+        {
+          name: 'Users',
+          path: '/admin/users',
+          icon: Users,
+          hint: 'Buyers, Owners & Admins',
+          aliases: ['users', 'registered users', 'user accounts', 'clients', 'owners', 'tenants', 'accounts', 'customers'],
+        },
+      ],
     },
     {
       id: 'services',
-      group: 'Services & Growth',
-      short: 'Services',
+      group: 'Services',
       items: [
-        { name: 'Services Hub', path: '/admin/services', icon: Briefcase },
-        { name: 'Service Catalog', path: '/admin/services-catalog', icon: PackageCheck },
-        { name: 'Referral Network', path: '/admin/references', icon: Gift },
-      ]
+        {
+          name: 'Services',
+          path: '/admin/services',
+          icon: Briefcase,
+          hint: 'Loans, Interiors & Legal',
+          aliases: ['services', 'home services', 'services hub', 'home loans', 'interior design', 'movers', 'packers', 'legal assistance'],
+        },
+        {
+          name: 'Plans',
+          path: '/admin/services-catalog',
+          icon: PackageCheck,
+          hint: 'Package Catalog & Pricing',
+          aliases: ['plans', 'pricing', 'service plans', 'service catalog', 'services-catalog', 'packages', 'vendors', 'offerings'],
+        },
+        {
+          name: 'Referrals',
+          path: '/admin/references',
+          icon: Gift,
+          hint: 'Referral Deals & Payouts',
+          aliases: ['referrals', 'references', 'referral network', 'refer & earn', 'rewards', 'commissions', 'payouts'],
+        },
+      ],
     },
     {
       id: 'content',
-      group: 'Content & Media',
-      short: 'Content',
+      group: 'Content',
       items: [
-        { name: 'Market Insights', path: '/admin/insights', icon: Sparkles },
-        { name: 'App Banners', path: '/admin/banners', icon: Layers },
-        { name: 'Client Reviews', path: '/admin/testimonials', icon: MessageSquareQuote },
-        { name: 'Help & FAQs', path: '/admin/faq', icon: HelpCircle },
-      ]
+        {
+          name: 'Banners',
+          path: '/admin/banners',
+          icon: Layers,
+          hint: 'Hero Promotions & Ads',
+          aliases: ['banners', 'app banners', 'sliders', 'promotions', 'hero slider', 'advertisements'],
+        },
+        {
+          name: 'Insights',
+          path: '/admin/insights',
+          icon: Sparkles,
+          hint: 'Articles, News & Editor',
+          aliases: ['insights', 'market insights', 'blogs', 'articles', 'news', 'editor', 'posts'],
+        },
+        {
+          name: 'Reviews',
+          path: '/admin/testimonials',
+          icon: MessageSquareQuote,
+          hint: 'Client Feedback & Ratings',
+          aliases: ['reviews', 'testimonials', 'ratings', 'feedback', 'client reviews', 'comments'],
+        },
+        {
+          name: 'FAQs',
+          path: '/admin/faq',
+          icon: HelpCircle,
+          hint: 'Frequently Asked Questions',
+          aliases: ['faq', 'faqs', 'help', 'questions', 'support', 'help center', 'knowledge base'],
+        },
+      ],
     },
     {
       id: 'system',
-      group: 'System & Platform',
-      short: 'System',
+      group: 'System',
       items: [
         {
-          name: 'System Notifications',
+          name: 'Notifications',
           path: '/admin/notifications',
           icon: Bell,
-          badge: unreadNotifsCount > 0 ? String(unreadNotifsCount) : null
+          hint: 'Admin Alerts & Audit Trail',
+          badge: badgeCounts.unreadNotifications > 0 ? String(badgeCounts.unreadNotifications) : null,
+          badgeColor: 'bg-rose-600 text-white',
+          aliases: ['notifications', 'alerts', 'system alerts', 'logs', 'audit', 'activity'],
         },
-        { name: 'Push Broadcasts', path: '/admin/broadcasts', icon: Radio },
-        { name: 'Platform Settings', path: '/admin/settings', icon: Settings },
-        { name: 'Legal Policies', path: '/admin/legal', icon: FileText },
-        { name: 'About Platform', path: '/admin/about', icon: Info },
-        { name: 'Contact Details', path: '/admin/contact', icon: PhoneCall },
-      ]
-    }
-  ], [pendingAgentsCount, pendingEnquiriesCount, unreadNotifsCount, pendingVerificationCount]);
-
-  // Filter items if user typed in sidebar search
-  const filteredGroups = useMemo(() => {
-    if (!searchQuery.trim()) return navGroups;
-    const query = searchQuery.toLowerCase().trim();
-    return navGroups
-      .map(group => {
-        const matchingItems = group.items.filter(item =>
-          item.name.toLowerCase().includes(query) ||
-          group.group.toLowerCase().includes(query)
-        );
-        return {
-          ...group,
-          items: matchingItems
-        };
-      })
-      .filter(group => group.items.length > 0);
-  }, [navGroups, searchQuery]);
-
-  const totalFilteredItems = useMemo(() => {
-    return filteredGroups.reduce((acc, g) => acc + g.items.length, 0);
-  }, [filteredGroups]);
+        {
+          name: 'Broadcasts',
+          path: '/admin/broadcasts',
+          icon: Radio,
+          hint: 'Broadcast Live Mobile Push',
+          aliases: ['broadcasts', 'push broadcasts', 'push notifications', 'announcements', 'broadcast message'],
+        },
+        {
+          name: 'Settings',
+          path: '/admin/settings',
+          icon: Settings,
+          hint: 'API Keys & System Config',
+          aliases: ['settings', 'platform settings', 'configuration', 'api keys', 'preferences', 'security'],
+        },
+        {
+          name: 'Legal',
+          path: '/admin/legal',
+          icon: FileText,
+          hint: 'Legal Terms & Policies',
+          aliases: ['legal', 'terms', 'privacy policy', 'terms of service', 'disclaimer'],
+        },
+        {
+          name: 'About',
+          path: '/admin/about',
+          icon: Info,
+          hint: 'Company Info & Version',
+          aliases: ['about', 'about platform', 'company', 'gharmb info', 'version'],
+        },
+        {
+          name: 'Contact',
+          path: '/admin/contact',
+          icon: PhoneCall,
+          hint: 'Support Phone & Address',
+          aliases: ['contact', 'contact details', 'office', 'phone', 'email', 'support address', 'help desk'],
+        },
+      ],
+    },
+  ], [badgeCounts]);
 
   return (
     <>
+      {/* ── Sidebar Container with Clean White Aesthetic ────────────────── */}
       <aside
-        className={`fixed top-0 left-0 z-40 h-screen bg-[var(--bg-surface)]/95 border-r border-[var(--border)] transition-[width,transform] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] will-change-[width] select-none flex flex-col backdrop-blur-xl ${
-          isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'
-        } ${collapsedState ? 'w-[260px] md:w-[72px]' : 'w-[260px]'}`}
+        className={`fixed top-0 left-0 z-40 h-screen select-none flex flex-col transition-[width,transform] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] will-change-[width] bg-white dark:bg-[#141916] border-r border-slate-200/80 dark:border-[#222a24] shadow-[1px_0_12px_rgba(0,0,0,0.02)] ${
+          isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        } ${collapsedState ? 'w-[200px] md:w-[68px]' : 'w-[200px]'}`}
       >
-        {/* ── Desktop Floating Edge Toggle Button ── */}
+        {/* ── Desktop Edge Collapse Toggle ── */}
         <button
           type="button"
           onClick={toggleCollapse}
-          className="hidden md:flex absolute top-4.5 -right-3.5 w-7 h-7 bg-[var(--bg-surface)] border border-[var(--border)] hover:border-brand text-[var(--text-muted)] hover:text-brand rounded-full items-center justify-center shadow-md hover:shadow-brand/20 transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer z-50 group"
+          className="hidden md:flex absolute top-5 -right-3.5 w-7 h-7 bg-white dark:bg-[#1f2621] border border-slate-200/80 dark:border-[#2b382f] text-slate-500 hover:text-[#133527] dark:hover:text-emerald-400 rounded-full items-center justify-center shadow-md hover:shadow-lg transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer z-50 group"
           title={collapsedState ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
           aria-label="Toggle sidebar collapse"
         >
           <ChevronLeft
             size={14}
             strokeWidth={2.5}
-            className={`transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
-              collapsedState ? 'rotate-180 text-brand' : 'rotate-0'
+            className={`transition-transform duration-300 ${
+              collapsedState ? 'rotate-180 text-[#133527] dark:text-emerald-400' : 'rotate-0'
             }`}
           />
         </button>
 
         {/* ── Brand Header ── */}
-        <div className="flex items-center justify-between border-b border-[var(--border)]/70 shrink-0 h-16 px-3.5 overflow-hidden transition-colors duration-300">
+        <div className={`flex items-center ${collapsedState ? 'justify-center px-0' : 'justify-between px-3.5'} border-b border-slate-200/80 dark:border-white/5 shrink-0 h-[64px] overflow-hidden`}>
           <div
             onClick={() => navigate('/admin')}
-            className="flex items-center gap-3 overflow-hidden cursor-pointer group/brand min-w-0"
+            className={`flex items-center ${collapsedState ? 'justify-center w-full' : 'gap-2.5'} overflow-hidden cursor-pointer group min-w-0`}
           >
-            {/* Logo container with brand glow */}
-            <div className="relative flex items-center justify-center w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-brand/15 via-brand/5 to-transparent border border-brand/20 p-1.5 transition-all duration-300 group-hover/brand:scale-105 group-hover/brand:border-brand/40 shadow-xs">
+            {/* Clean Brand Logo */}
+            <div className="relative flex items-center justify-center w-[36px] h-[36px] shrink-0 transition-transform duration-200 group-hover:scale-105">
               <img
-                src="/favicon.png"
+                src={isDark ? '/logo-icon-dark.png' : '/logo-icon.png'}
                 alt="GHARMB Logo"
-                className={`w-full h-full object-contain ${isDark ? 'hidden' : 'block'}`}
-              />
-              <img
-                src="/favicon-dark.png"
-                alt="GHARMB Logo"
-                className={`w-full h-full object-contain ${isDark ? 'block' : 'hidden'}`}
+                className="w-full h-full object-contain"
               />
             </div>
 
-            {/* Brand Name & Tag */}
-            <div
-              className={`flex flex-col whitespace-nowrap overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] will-change-[max-width,opacity] ${
-                collapsedState
-                  ? 'opacity-100 max-w-[170px] md:max-w-0 md:opacity-0 md:-translate-x-3 pointer-events-none'
-                  : 'opacity-100 max-w-[170px] translate-x-0'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="font-black text-sm text-[var(--text-primary)] tracking-tight">
+            {/* Brand Title (hidden when collapsed) */}
+            {!collapsedState && (
+              <div className="flex flex-col whitespace-nowrap overflow-hidden max-w-[145px]">
+                <span className="font-black text-sm text-[#133527] dark:text-white tracking-tight leading-tight">
                   GHARMB
                 </span>
-                <span className="text-[9px] font-extrabold text-brand bg-brand/12 border border-brand/25 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
-                  Admin
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold tracking-tight leading-tight">
+                  Real Estate Console
                 </span>
               </div>
-              <span className="text-[10px] text-[var(--text-muted)] font-medium tracking-tight">
-                Management Suite
-              </span>
-            </div>
+            )}
           </div>
 
           {/* Mobile close button */}
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            className="p-1.5 text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] md:hidden rounded-lg transition-all duration-200 active:scale-95 cursor-pointer"
-            title="Close navigation"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* ── Quick In-Sidebar Search / Filter Bar ── */}
-        <div
-          className={`px-3 pt-3 pb-1 border-b border-[var(--border)]/40 transition-[max-height,opacity,padding] duration-300 overflow-hidden ${
-            collapsedState
-              ? 'md:max-h-12 md:p-2 flex md:justify-center'
-              : 'max-h-16 opacity-100'
-          }`}
-        >
-          {collapsedState ? (
+          {!collapsedState && (
             <button
               type="button"
-              onClick={toggleCollapse}
-              className="hidden md:flex w-9 h-9 rounded-xl text-[var(--text-muted)] hover:text-brand hover:bg-brand/10 items-center justify-center transition-all cursor-pointer"
-              title="Search pages (Expand sidebar)"
+              onClick={toggleSidebar}
+              className="p-1.5 text-slate-500 hover:text-slate-800 md:hidden rounded-xl cursor-pointer"
+              title="Close navigation"
             >
-              <Search size={16} />
+              <X size={18} />
             </button>
-          ) : (
-            <div className="relative w-full flex items-center">
-              <Search
-                size={13}
-                className="absolute left-2.5 text-[var(--text-muted)] pointer-events-none"
-              />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Quick find page... (/)"
-                className="w-full h-8 pl-8 pr-7 bg-[var(--bg-muted)]/70 hover:bg-[var(--bg-muted)] focus:bg-[var(--bg-surface)] border border-transparent focus:border-brand/40 text-[11.5px] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none transition-all duration-150"
-              />
-              {searchQuery ? (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-md cursor-pointer"
-                  title="Clear filter"
-                >
-                  <X size={12} />
-                </button>
-              ) : (
-                <span className="absolute right-2 text-[10px] font-semibold text-[var(--text-muted)] border border-[var(--border)] px-1 rounded bg-[var(--bg-surface)]/80 pointer-events-none">
-                  /
-                </span>
-              )}
-            </div>
           )}
         </div>
 
-        {/* ── Navigation List ── */}
-        <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden sidebar-scrollbar px-2.5 transition-all duration-300">
-          {/* Results summary when filtering */}
-          {searchQuery.trim() && !collapsedState && (
-            <div className="flex items-center justify-between px-2 pb-2 text-[10.5px] text-[var(--text-muted)]">
-              <span>
-                Found <strong className="text-brand">{totalFilteredItems}</strong> page{totalFilteredItems !== 1 ? 's' : ''}
-              </span>
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="text-brand hover:underline font-semibold cursor-pointer"
-              >
-                Clear
-              </button>
-            </div>
-          )}
+        {/* ── Main Scrollable Navigation Area ── */}
+        <nav className={`flex-1 py-3 overflow-y-auto overflow-x-hidden sidebar-scrollbar ${collapsedState ? 'px-0 space-y-2' : 'px-2 space-y-3'}`}>
+          {navGroups.map((group, groupIdx) => (
+            <div key={group.id} className={collapsedState ? 'space-y-1.5' : 'space-y-0.5'}>
+              {/* Category Header Label (Expanded only) */}
+              {!collapsedState && (
+                <div className="max-h-7 opacity-100 px-1.5 pt-1 pb-0.5">
+                  <div className="flex items-center select-none">
+                    <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 shrink-0">
+                      {group.group}
+                    </span>
+                    <span className="h-[1px] flex-1 bg-slate-200/80 dark:bg-white/5 ml-2" />
+                  </div>
+                </div>
+              )}
 
-          {filteredGroups.length === 0 ? (
-            <div className="py-8 px-3 text-center">
-              <div className="w-8 h-8 mx-auto mb-2 rounded-xl bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)]">
-                <Search size={15} />
-              </div>
-              <div className="text-xs font-semibold text-[var(--text-primary)]">
-                No matching pages
-              </div>
-              <div className="text-[11px] text-[var(--text-muted)] mt-0.5 mb-2">
-                Try searching with different keywords
-              </div>
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="text-xs text-brand hover:underline font-semibold cursor-pointer"
-              >
-                Reset filter
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3.5">
-              {filteredGroups.map((group, groupIdx) => {
-                const hasActiveItem = group.items.some(item =>
-                  item.path === '/admin'
-                    ? location.pathname === '/admin'
-                    : location.pathname.startsWith(item.path)
-                );
+              {/* Collapsed Mode Divider */}
+              {collapsedState && groupIdx > 0 && (
+                <div className="my-2 mx-auto w-6 border-t border-slate-200/80 dark:border-white/10" />
+              )}
 
-                // Calculate total badges for this category
-                const groupBadgeCount = group.items.reduce((sum, item) => {
-                  const count = parseInt(item.badge || '0', 10);
-                  return sum + (isNaN(count) ? 0 : count);
-                }, 0);
+              {/* Menu Items */}
+              <div className={collapsedState ? 'space-y-1.5 flex flex-col items-center' : 'space-y-0.5'}>
+                {group.items.map((item) => {
+                  const Icon = item.icon;
 
-                return (
-                  <div key={group.id} className="space-y-1">
-                    {/* ── Highlighted Category Header (No dropdown chevron) ── */}
-                    <div
-                      className={`overflow-hidden transition-[max-height,opacity,margin,padding] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
-                        collapsedState
-                          ? 'md:max-h-0 md:opacity-0 md:p-0 md:m-0 pointer-events-none'
-                          : 'max-h-10 opacity-100 px-2 pt-2.5 pb-1'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 select-none">
-                        {/* Highlighted indicator dot */}
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all duration-300 ${
-                            hasActiveItem
-                              ? 'bg-brand ring-2 ring-brand/35 shadow-[0_0_8px_rgba(255,90,60,0.8)] scale-110'
-                              : 'bg-brand/50'
-                          }`}
-                        />
-
-                        {/* Highlighted Category Title */}
-                        <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text-primary)] dark:text-zinc-100 shrink-0">
-                          {group.group}
-                        </span>
-
-                        {/* Category Badge Pill */}
-                        {groupBadgeCount > 0 && (
-                          <span className="text-[9.5px] font-bold px-1.5 py-0.2 rounded-full bg-brand/15 text-brand border border-brand/25 shrink-0 animate-pulse">
-                            {groupBadgeCount}
-                          </span>
+                  if (collapsedState) {
+                    return (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        end={item.path === '/admin'}
+                        onClick={() => {
+                          if (window.innerWidth < 768 && toggleSidebar) toggleSidebar();
+                        }}
+                        onMouseEnter={(e) => {
+                          if (window.innerWidth < 768) return;
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setHoveredTooltip({
+                            name: item.name,
+                            group: group.group,
+                            hint: item.hint,
+                            badge: item.badge,
+                            badgeColor: item.badgeColor,
+                            top: rect.top + rect.height / 2,
+                          });
+                        }}
+                        onMouseLeave={() => setHoveredTooltip(null)}
+                        className={({ isActive }) =>
+                          `relative flex items-center justify-center w-9 h-9 mx-auto rounded-full transition-all duration-200 cursor-pointer ${
+                            isActive
+                              ? 'bg-[#133527] dark:bg-emerald-600 text-white shadow-sm scale-105'
+                              : 'bg-slate-50 dark:bg-[#1f2621] text-slate-500 dark:text-slate-400 border border-slate-200/80 dark:border-white/10 shadow-2xs hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-white/5 dark:hover:text-white hover:scale-105 hover:shadow-xs'
+                          }`
+                        }
+                      >
+                        {({ isActive }) => (
+                          <>
+                            <Icon size={16} strokeWidth={isActive ? 2.2 : 1.9} />
+                            {item.badge && (
+                              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white dark:ring-[#141916]" />
+                            )}
+                          </>
                         )}
+                      </NavLink>
+                    );
+                  }
 
-                        {/* Elegant divider line extending across */}
-                        <span className="h-[1px] flex-1 bg-gradient-to-r from-[var(--border)] via-[var(--border)]/50 to-transparent ml-1" />
-                      </div>
-                    </div>
+                  return (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      end={item.path === '/admin'}
+                      onClick={() => {
+                        if (window.innerWidth < 768 && toggleSidebar) toggleSidebar();
+                      }}
+                      className={({ isActive }) =>
+                        `group relative flex items-center justify-between w-full rounded-xl transition-all duration-150 cursor-pointer h-[36px] px-2.5 ${
+                          isActive
+                            ? 'bg-slate-100/90 dark:bg-white/10 shadow-xs border border-slate-200/90 dark:border-white/10'
+                            : 'hover:bg-slate-50 dark:hover:bg-white/5 border border-transparent'
+                        }`
+                      }
+                    >
+                      {({ isActive }) => (
+                        <>
+                          {/* Left: Icon container + Name */}
+                          <div className="flex items-center min-w-0 flex-1 pr-1.5">
+                            <div
+                              className={`w-7 h-7 shrink-0 rounded-lg flex items-center justify-center transition-all duration-150 ${
+                                isActive
+                                  ? 'bg-[#133527] dark:bg-emerald-600 text-white shadow-xs'
+                                  : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white'
+                              }`}
+                            >
+                              <Icon size={15} strokeWidth={isActive ? 2.2 : 1.9} />
+                            </div>
 
-                    {/* Collapsed divider on desktop */}
-                    <div
-                      className={`hidden md:block transition-[opacity,width,margin] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
-                        collapsedState && groupIdx > 0
-                          ? 'my-2 mx-auto w-6 border-t border-[var(--border)]/70 opacity-100'
-                          : 'my-0 w-0 h-0 border-transparent opacity-0 overflow-hidden'
-                      }`}
-                    />
-
-                    {/* Category Items List (Always visible, non-collapsing) */}
-                    <div className="space-y-0.5">
-                      {group.items.map((item) => (
-                        <NavLink
-                          key={item.path}
-                          to={item.path}
-                          end={item.path === '/admin'}
-                          onClick={() => {
-                            if (window.innerWidth < 768 && toggleSidebar) toggleSidebar();
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!collapsedState || window.innerWidth < 768) return;
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setHoveredTooltip({
-                              name: item.name,
-                              group: group.group,
-                              badge: item.badge,
-                              top: rect.top + rect.height / 2,
-                            });
-                          }}
-                          onMouseLeave={() => setHoveredTooltip(null)}
-                          className={({ isActive }) =>
-                            `group relative flex items-center w-full rounded-xl transition-all duration-200 ease-out active:scale-[0.98] cursor-pointer h-9 px-2.5 overflow-hidden ${
-                              isActive
-                                ? 'bg-gradient-to-r from-brand/12 via-brand/6 to-transparent text-brand border border-brand/25 dark:border-brand/35 font-semibold shadow-xs'
-                                : 'text-[var(--text-subtle)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] hover:translate-x-0.5 border border-transparent'
-                            } ${collapsedState ? 'md:justify-center md:px-0' : ''}`
-                          }
-                        >
-                          {({ isActive }) => (
-                            <>
-                              {/* Centered Icon Container with micro-animation */}
-                              <div
-                                className={`w-7 h-7 shrink-0 rounded-lg flex items-center justify-center transition-all duration-200 ${
-                                  isActive
-                                    ? 'bg-brand text-white shadow-xs shadow-brand/30'
-                                    : 'text-[var(--text-muted)] group-hover:text-brand group-hover:bg-brand/10 group-hover:scale-110'
-                                }`}
-                              >
-                                <item.icon
-                                  size={15}
-                                  strokeWidth={isActive ? 2.3 : 1.9}
-                                  className="shrink-0 transition-transform duration-200"
-                                />
-                              </div>
-
-                              {/* Text Label with fluid width and slide animation */}
+                            <div className="min-w-0 flex items-center whitespace-nowrap overflow-hidden ml-2 flex-1">
                               <span
-                                className={`flex-1 truncate tracking-tight text-[12px] whitespace-nowrap overflow-hidden transition-[max-width,opacity,transform,margin] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] will-change-[max-width,opacity] ${
-                                  collapsedState
-                                    ? 'opacity-100 max-w-[170px] ml-2.5 md:max-w-0 md:opacity-0 md:-translate-x-2 md:ml-0 pointer-events-none'
-                                    : 'max-w-[170px] opacity-100 translate-x-0 ml-2.5'
-                                } ${
+                                className={`truncate tracking-tight text-[11.5px] ${
                                   isActive
-                                    ? 'font-bold text-brand'
-                                    : 'font-medium text-[var(--text-subtle)] group-hover:text-[var(--text-primary)]'
+                                    ? 'font-bold text-[#133527] dark:text-emerald-400'
+                                    : 'font-medium text-slate-700 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors'
                                 }`}
                               >
                                 {item.name}
                               </span>
+                            </div>
+                          </div>
 
-                              {/* Badge with fluid collapse */}
-                              {item.badge && (
-                                <span
-                                  className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap overflow-hidden transition-[max-width,opacity,padding] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] shrink-0 ${
-                                    collapsedState
-                                      ? 'opacity-100 max-w-[40px] md:max-w-0 md:opacity-0 md:p-0 pointer-events-none'
-                                      : 'max-w-[40px] opacity-100'
-                                  } ${
-                                    isActive
-                                      ? 'bg-brand text-white shadow-2xs'
-                                      : 'bg-brand/12 text-brand ring-1 ring-brand/25 group-hover:bg-brand group-hover:text-white transition-all'
-                                  }`}
-                                >
-                                  {item.badge}
-                                </span>
-                              )}
-
-                              {/* Notification pip dot when collapsed on desktop */}
-                              {collapsedState && item.badge && !isActive && (
-                                <span className="hidden md:block absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-brand ring-2 ring-[var(--bg-surface)] animate-pulse" />
-                              )}
-                            </>
+                          {/* Right: Badge */}
+                          {item.badge && (
+                            <span
+                              className={`ml-auto shrink-0 min-w-[18px] h-[18px] px-1.5 flex items-center justify-center rounded-full text-[9.5px] font-bold tabular-nums leading-none ${
+                                item.badgeColor || 'bg-[#133527] text-white'
+                              }`}
+                            >
+                              {item.badge}
+                            </span>
                           )}
-                        </NavLink>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+                        </>
+                      )}
+                    </NavLink>
+                  );
+                })}
+              </div>
             </div>
-          )}
+          ))}
         </nav>
+
       </aside>
 
-      {/* ── Fixed Floating Tooltip Portal for Collapsed Desktop Mode ── */}
+      {/* ── Fixed Floating Tooltip Portal for Collapsed Mode ── */}
       <AnimatePresence>
         {hoveredTooltip && collapsedState && (
           <motion.div
-            initial={{ opacity: 0, x: -6, scale: 0.95 }}
+            initial={{ opacity: 0, x: -8, scale: 0.95 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: -6, scale: 0.95 }}
+            exit={{ opacity: 0, x: -8, scale: 0.95 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
             style={{ top: `${hoveredTooltip.top}px` }}
-            className="hidden md:flex fixed left-[78px] -translate-y-1/2 flex-col gap-0.5 bg-[var(--bg-surface)]/95 text-[var(--text-primary)] py-2 px-3 rounded-xl shadow-2xl border border-[var(--border)] whitespace-nowrap z-50 pointer-events-none min-w-[140px] backdrop-blur-xl"
+            className="hidden md:flex fixed left-[76px] -translate-y-1/2 flex-col gap-1 bg-white/98 dark:bg-[#18201b]/98 text-slate-800 dark:text-slate-100 py-2.5 px-3.5 rounded-2xl shadow-2xl border border-slate-200/80 dark:border-[#2b382f] whitespace-nowrap z-50 pointer-events-none min-w-[160px] backdrop-blur-2xl"
           >
-            <span className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 bg-[var(--bg-surface)] border-l border-b border-[var(--border)]" />
+            <span className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 bg-white dark:bg-[#18201b] border-l border-b border-slate-200/80 dark:border-[#2b382f]" />
+
             <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-bold text-[var(--text-primary)]">
+              <span className="text-[12.5px] font-bold">
                 {hoveredTooltip.name}
               </span>
               {hoveredTooltip.badge && (
-                <span className="text-[9.5px] font-bold px-1.5 py-0.2 rounded-full bg-brand/15 text-brand ring-1 ring-brand/30">
+                <span className="text-[9.5px] font-black px-1.5 py-0.2 rounded-full bg-rose-500 text-white">
                   {hoveredTooltip.badge}
                 </span>
               )}
             </div>
-            <span className="text-[10px] text-[var(--text-muted)] font-medium">
+
+            {hoveredTooltip.hint && (
+              <span className="text-[10.5px] text-slate-400 font-medium">
+                {hoveredTooltip.hint}
+              </span>
+            )}
+
+            <div className="pt-1 mt-0.5 border-t border-slate-100 dark:border-white/5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
               {hoveredTooltip.group}
-            </span>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

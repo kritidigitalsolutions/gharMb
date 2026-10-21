@@ -16,7 +16,7 @@ const Notification = require('../../models/notification.model');
 // @access  Private (Admin only)
 exports.getAllProperties = async (req, res, next) => {
   try {
-    const { category, listingFor, approvalStatus, search, owner, keyHandover } = req.query;
+    const { category, listingFor, approvalStatus, search, owner, keyHandover, saleStatus, isSold } = req.query;
     const filter = {};
 
     // Ensure only properties belonging to existing registered users are returned
@@ -30,6 +30,10 @@ exports.getAllProperties = async (req, res, next) => {
     if (category) filter.category = category;
     if (listingFor) filter.listingFor = listingFor;
     if (approvalStatus) filter.approvalStatus = approvalStatus;
+    if (saleStatus) filter.saleStatus = saleStatus;
+    if (isSold !== undefined) {
+      filter.isSold = isSold === 'true' || isSold === true;
+    }
     if (owner) filter.owner = owner;
     if (keyHandover !== undefined) {
       filter.keyHandover = keyHandover === 'true' || keyHandover === true;
@@ -114,6 +118,42 @@ exports.getAllProperties = async (req, res, next) => {
         reraNumber: ownerObj.reraNumber || '',
       };
 
+      const isVideoCheck = (url) => {
+        if (!url || typeof url !== 'string') return false;
+        try {
+          const decoded = decodeURIComponent(url).toLowerCase();
+          const cleanPath = decoded.split('?')[0];
+          return (
+            /\.(mp4|webm|mov|m4v|mkv|avi|3gp)$/i.test(cleanPath) ||
+            decoded.includes('/video/') ||
+            decoded.includes('/videos/') ||
+            decoded.includes('video/mp4') ||
+            decoded.includes('format=mp4') ||
+            decoded.includes('contenttype=video') ||
+            decoded.includes('uploads%2fvideo') ||
+            decoded.includes('uploads/video')
+          );
+        } catch (_) {
+          return /\.(mp4|webm|mov|m4v|mkv|avi|3gp)/i.test(url) || url.toLowerCase().includes('video');
+        }
+      };
+
+      const rawImages = Array.isArray(obj.images) ? obj.images : (Array.isArray(obj.photos) ? obj.photos : []);
+      const rawVideos = Array.isArray(obj.videos) ? obj.videos : (Array.isArray(obj.propertyVideos) ? obj.propertyVideos : []);
+
+      const pureImages = [];
+      const pureVideos = [];
+
+      for (const item of [...rawImages, ...rawVideos]) {
+        if (typeof item !== 'string' || !item.trim()) continue;
+        const trimmed = item.trim();
+        if (isVideoCheck(trimmed)) {
+          if (!pureVideos.includes(trimmed)) pureVideos.push(trimmed);
+        } else {
+          if (!pureImages.includes(trimmed)) pureImages.push(trimmed);
+        }
+      }
+
       return {
         ...obj,
         id: obj._id,
@@ -128,6 +168,36 @@ exports.getAllProperties = async (req, res, next) => {
         companyName: ownerObj.companyName || '',
         reraNumber: ownerObj.reraNumber || '',
         postedBy,
+        images: pureImages,
+        photos: pureImages,
+        videos: pureVideos,
+        propertyVideos: pureVideos,
+        video: pureVideos[0] || null,
+        videoUrl: pureVideos[0] || null,
+        hasVideo: pureVideos.length > 0,
+        videoCount: pureVideos.length,
+        gallery: [
+          ...pureImages.map((u) => ({ url: u, type: 'image' })),
+          ...pureVideos.map((u) => ({ url: u, type: 'video' })),
+        ],
+        // Sale status properties for admin moderation
+        isSold: Boolean(obj.isSold),
+        saleStatus: obj.saleStatus || 'available',
+        soldMarkedAt: obj.soldMarkedAt || null,
+        saleConfirmationDueDate: obj.saleConfirmationDueDate || null,
+        saleNotificationSent: Boolean(obj.saleNotificationSent),
+        saleConfirmedAt: obj.saleConfirmedAt || null,
+        isPendingSaleConfirmation: obj.saleStatus === 'marked_as_sold',
+        saleNotes: obj.saleNotes || '',
+        // Multiple BHK configurations (ONLY BHK and its custom Price)
+        bhkConfigurations: Array.isArray(obj.bhkConfigurations)
+          ? obj.bhkConfigurations.map((b) => ({
+              bhk: b.bhk || b.bhkType || '',
+              bhkType: b.bhk || b.bhkType || '',
+              price: Number(b.price) || 0,
+            }))
+          : [],
+        hasMultipleBhk: Array.isArray(obj.bhkConfigurations) && obj.bhkConfigurations.length > 0,
       };
     });
 
@@ -149,7 +219,28 @@ exports.getAllProperties = async (req, res, next) => {
 };
 
 // Helper to calculate and normalize Admin Commission & Commission-Absorbed Discount
-const calculateCommissionAndDiscount = (price, rawCommission, rawDiscount) => {
+const calculateCommissionAndDiscount = (price, rawCommission, rawDiscount, isBuilder = false) => {
+  // DEVELOPER RULE: Commission will NOT be included in property listings created by developers/builders
+  if (isBuilder) {
+    return {
+      adminCommission: {
+        type: 'percentage',
+        rate: 0,
+        amount: 0,
+      },
+      commissionDiscount: {
+        enabled: false,
+        discountType: 'percentage',
+        discountValue: 0,
+        discountAmount: 0,
+        netCommission: 0,
+        discountOnCommissionOnly: true,
+        appliedAt: undefined,
+        notes: 'Developer / Builder listings carry 0% platform commission.',
+      },
+    };
+  }
+
   const propPrice = Number(price) || 0;
 
   // Commission calculation
@@ -226,10 +317,17 @@ exports.updatePropertyStatus = async (req, res, next) => {
 
       // Handle Admin Commission & Commission-Absorbed Discount configured at verification
       if (req.body.adminCommission !== undefined || req.body.commissionDiscount !== undefined) {
+        const isBuilder =
+          existingProp.userRole === 'builder' ||
+          existingProp.postedByRole === 'Builder' ||
+          (existingProp.listingAs || '').toLowerCase().includes('builder') ||
+          (existingProp.listingAs || '').toLowerCase().includes('developer');
+
         const { adminCommission, commissionDiscount } = calculateCommissionAndDiscount(
           existingProp.price,
           req.body.adminCommission || existingProp.adminCommission,
-          req.body.commissionDiscount || existingProp.commissionDiscount
+          req.body.commissionDiscount || existingProp.commissionDiscount,
+          isBuilder
         );
         updateData.adminCommission = adminCommission;
         updateData.commissionDiscount = commissionDiscount;
@@ -437,12 +535,49 @@ exports.updateProperty = async (req, res, next) => {
       }
     }
 
+    // Security deposit and duration rule: Remove / clear for properties available for sale
+    const targetListingFor = updateFields.listingFor || property.listingFor;
+    if (String(targetListingFor || '').trim().toLowerCase() === 'sale') {
+      updateFields.securityDeposit = undefined;
+      updateFields.securityDepositDuration = undefined;
+    }
+
+    // Handle multiple BHK configurations: ONLY BHK and its Price
+    if (updateFields.bhkConfigurations !== undefined) {
+      let configs = updateFields.bhkConfigurations;
+      if (typeof configs === 'string') {
+        try {
+          configs = JSON.parse(configs);
+        } catch {
+          configs = [];
+        }
+      }
+      if (Array.isArray(configs)) {
+        updateFields.bhkConfigurations = configs
+          .map((item) => ({
+            bhk: item.bhk || item.bhkType || '',
+            bhkType: item.bhk || item.bhkType || '',
+            price: Number(item.price) || 0,
+          }))
+          .filter((b) => b.bhk && b.price > 0);
+      } else {
+        updateFields.bhkConfigurations = [];
+      }
+    }
+
     // Handle Admin Commission and Commission Discount updates
     if (updateFields.adminCommission !== undefined || updateFields.commissionDiscount !== undefined) {
+      const isBuilder =
+        property.userRole === 'builder' ||
+        property.postedByRole === 'Builder' ||
+        (property.listingAs || '').toLowerCase().includes('builder') ||
+        (property.listingAs || '').toLowerCase().includes('developer');
+
       const { adminCommission, commissionDiscount } = calculateCommissionAndDiscount(
         updateFields.price || property.price,
         updateFields.adminCommission || property.adminCommission,
-        updateFields.commissionDiscount || property.commissionDiscount
+        updateFields.commissionDiscount || property.commissionDiscount,
+        isBuilder
       );
       updateFields.adminCommission = adminCommission;
       updateFields.commissionDiscount = commissionDiscount;
@@ -478,10 +613,17 @@ exports.updateCommissionDiscount = async (req, res, next) => {
       });
     }
 
+    const isBuilder =
+      property.userRole === 'builder' ||
+      property.postedByRole === 'Builder' ||
+      (property.listingAs || '').toLowerCase().includes('builder') ||
+      (property.listingAs || '').toLowerCase().includes('developer');
+
     const { adminCommission, commissionDiscount } = calculateCommissionAndDiscount(
       property.price,
       req.body.adminCommission || property.adminCommission,
-      req.body.commissionDiscount !== undefined ? req.body.commissionDiscount : req.body
+      req.body.commissionDiscount !== undefined ? req.body.commissionDiscount : req.body,
+      isBuilder
     );
 
     property.adminCommission = adminCommission;
@@ -617,5 +759,278 @@ exports.getInvestmentScore = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Mark a property as sold by Admin (initiates 3-day confirmation countdown)
+// @route   PATCH /api/admin/properties/:id/mark-sold
+// @access  Private (Admin only)
+exports.markPropertyAsSold = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { notes, triggerDays } = req.body;
+
+    const property = await Property.findById(id).populate('owner', 'name email phone');
+    if (!property) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'No property found with that ID.',
+      });
+    }
+
+    // Days until confirmation notification triggers (default 3 days, support custom / 0 for testing)
+    const days = triggerDays !== undefined && !isNaN(Number(triggerDays)) ? Number(triggerDays) : 3;
+    const soldMarkedAt = new Date();
+    const saleConfirmationDueDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+    property.saleStatus = 'marked_as_sold';
+    property.soldMarkedAt = soldMarkedAt;
+    property.saleConfirmationDueDate = saleConfirmationDueDate;
+    property.saleNotificationSent = false;
+    property.soldByAdmin = req.admin?._id;
+    property.saleNotes = notes || req.body.saleNotes || 'Marked as sold by Admin';
+    // Notice: Property remains visible/available in the app until confirmation
+    await property.save();
+
+    // Trigger immediate notification if days === 0 (instant test mode)
+    if (days === 0) {
+      const { checkAndTriggerSaleConfirmationNotifications } = require('../../services/saleConfirmation.service');
+      await checkAndTriggerSaleConfirmationNotifications();
+    } else {
+      // Send preliminary notice to owner
+      try {
+        if (property.owner && (property.owner._id || property.owner)) {
+          await Notification.create({
+            recipient: property.owner._id || property.owner,
+            title: 'Property Listing Marked as Sold 🏷️',
+            message: `Your property "${property.title}" has been marked as sold by admin. A sale confirmation notification will be verified after 3 days.`,
+            type: 'property_sale',
+            metadata: {
+              propertyId: property._id,
+              submissionId: property.submissionId,
+              action: 'marked_as_sold',
+            },
+            isRead: false,
+          });
+        }
+      } catch (notifErr) {
+        console.warn('⚠️ Notification creation notice:', notifErr.message);
+      }
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: `Property "${property.title}" marked as sold. Sale confirmation notification will trigger in ${days} day(s).`,
+      data: {
+        property,
+        saleStatus: property.saleStatus,
+        soldMarkedAt: property.soldMarkedAt,
+        saleConfirmationDueDate: property.saleConfirmationDueDate,
+        daysUntilConfirmation: days,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Confirm or reject property sale status by Admin
+//          - If confirmed: property is marked as sold and NO LONGER displayed in the app (isLive: false)
+//          - If not confirmed: property remains available in the app (isLive: true, saleStatus: available)
+// @route   PATCH /api/admin/properties/:id/confirm-sale
+// @access  Private (Admin only)
+exports.confirmPropertySale = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { confirmed, notes } = req.body;
+
+    const isConfirmed = confirmed === true || confirmed === 'true';
+
+    const property = await Property.findById(id).populate('owner', 'name email phone');
+    if (!property) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'No property found with that ID.',
+      });
+    }
+
+    if (isConfirmed) {
+      // 1. Confirmed: Property is marked sold and removed from app display
+      property.isSold = true;
+      property.saleStatus = 'sold';
+      property.isLive = false; // No longer displayed in the app
+      property.saleConfirmedAt = new Date();
+      if (notes) property.saleNotes = notes;
+      await property.save();
+
+      // Notifications
+      try {
+        if (property.owner && (property.owner._id || property.owner)) {
+          await Notification.create({
+            recipient: property.owner._id || property.owner,
+            title: 'Property Sale Confirmed! 🎉',
+            message: `Congratulations! Your property "${property.title}" sale has been officially confirmed by admin. The listing has been archived from public feeds.`,
+            type: 'property_sale',
+            metadata: {
+              propertyId: property._id,
+              submissionId: property.submissionId,
+              action: 'sale_confirmed',
+            },
+            isRead: false,
+          });
+        }
+      } catch (notifErr) {
+        console.warn('⚠️ Owner notification notice:', notifErr.message);
+      }
+
+      return res.status(200).json({
+        status: 'success',
+        message: `Property sale confirmed successfully! The listing "${property.title}" is officially sold and will no longer be displayed in the app.`,
+        data: {
+          property,
+          isSold: true,
+          isLive: false,
+          saleStatus: 'sold',
+          displayedInApp: false,
+        },
+      });
+    } else {
+      // 2. Not Confirmed: Property remains available in the app
+      property.isSold = false;
+      property.saleStatus = 'available';
+      if (property.approvalStatus === 'approved') {
+        property.isLive = true; // Remains available in the app
+      }
+      property.saleCancelledAt = new Date();
+      if (notes) property.saleNotes = notes;
+      await property.save();
+
+      // Notifications
+      try {
+        if (property.owner && (property.owner._id || property.owner)) {
+          await Notification.create({
+            recipient: property.owner._id || property.owner,
+            title: 'Property Sale Not Confirmed - Listing Active 🏡',
+            message: `The sale for your property "${property.title}" was not confirmed. Your listing remains active and available on GharMB.`,
+            type: 'property_sale',
+            metadata: {
+              propertyId: property._id,
+              submissionId: property.submissionId,
+              action: 'sale_not_confirmed',
+            },
+            isRead: false,
+          });
+        }
+      } catch (notifErr) {
+        console.warn('⚠️ Owner notification notice:', notifErr.message);
+      }
+
+      return res.status(200).json({
+        status: 'success',
+        message: `Property sale was not confirmed. The listing "${property.title}" remains active and available in the app.`,
+        data: {
+          property,
+          isSold: false,
+          isLive: property.isLive,
+          saleStatus: 'available',
+          displayedInApp: true,
+        },
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Check and trigger 3-day sale confirmation notifications manually or on-demand
+// @route   GET /api/admin/properties/check-sale-confirmations
+// @access  Private (Admin only)
+exports.checkSaleConfirmations = async (req, res, next) => {
+  try {
+    const { checkAndTriggerSaleConfirmationNotifications } = require('../../services/saleConfirmation.service');
+    const result = await checkAndTriggerSaleConfirmationNotifications();
+
+    res.status(200).json({
+      status: 'success',
+      message: `Sale confirmation check executed successfully. ${result.count} notification(s) triggered.`,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Instantly toggle Sold Out status on a property by Admin
+// @route   PATCH /api/admin/properties/:id/toggle-sold
+// @access  Private (Admin only)
+exports.toggleSoldStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { isSold, notes } = req.body;
+
+    const property = await Property.findById(id).populate('owner', 'name email phone');
+    if (!property) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'No property found with that ID.',
+      });
+    }
+
+    const targetSold = isSold !== undefined ? (isSold === true || isSold === 'true') : !property.isSold;
+
+    property.isSold = targetSold;
+    property.saleStatus = targetSold ? 'sold' : 'available';
+    // If approved, keep live so clients can view the "Sold Out" state with disabled actions
+    if (property.approvalStatus === 'approved') {
+      property.isLive = true;
+    }
+    if (targetSold) {
+      property.soldMarkedAt = new Date();
+      property.saleConfirmedAt = new Date();
+      property.soldByAdmin = req.admin?._id;
+      property.saleNotes = notes || 'Marked as Sold Out by Admin';
+    } else {
+      property.saleCancelledAt = new Date();
+      property.saleNotes = notes || 'Relisted as Available by Admin';
+    }
+
+    await property.save();
+
+    // Send notification to Owner
+    try {
+      if (property.owner && (property.owner._id || property.owner)) {
+        await Notification.create({
+          recipient: property.owner._id || property.owner,
+          title: targetSold ? 'Property Listing Marked as Sold Out 🏷️' : 'Property Listing Relisted as Available 🏡',
+          message: targetSold
+            ? `Your property "${property.title}" has been marked as Sold Out by admin.`
+            : `Your property "${property.title}" has been relisted as available on GharMB.`,
+          type: 'property_sale',
+          metadata: {
+            propertyId: property._id,
+            submissionId: property.submissionId,
+            action: targetSold ? 'marked_sold' : 'relisted',
+          },
+          isRead: false,
+        });
+      }
+    } catch (notifErr) {
+      console.warn('⚠️ Notification notice:', notifErr.message);
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: targetSold
+        ? `Property "${property.title}" marked as Sold Out.`
+        : `Property "${property.title}" relisted as Available.`,
+      data: {
+        property,
+        isSold: property.isSold,
+        saleStatus: property.saleStatus,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 

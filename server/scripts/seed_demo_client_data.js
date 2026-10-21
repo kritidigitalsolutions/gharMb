@@ -1744,6 +1744,9 @@ async function seedData() {
         'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&h=800&fit=crop&q=80',
         'https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=1200&h=800&fit=crop&q=80',
       ],
+      projectVideos: [
+        'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      ],
       approvalStatus: 'approved',
       investmentScore: {
         overall: 9.7,
@@ -1778,6 +1781,9 @@ async function seedData() {
         'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200&h=800&fit=crop&q=80',
         'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?w=1200&h=800&fit=crop&q=80',
       ],
+      projectVideos: [
+        'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4',
+      ],
       approvalStatus: 'pending', // PENDING for Builder Project verification demo!
       investmentScore: {
         overall: 9.2,
@@ -1810,6 +1816,9 @@ async function seedData() {
       projectPhotos: [
         'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1200&h=800&fit=crop&q=80',
         'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&h=800&fit=crop&q=80',
+      ],
+      projectVideos: [
+        'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
       ],
       approvalStatus: 'approved',
       investmentScore: {

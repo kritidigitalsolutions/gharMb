@@ -18,6 +18,12 @@ export const properties = [
     reviewsCount: 7,
     allowTokenBooking: true,
     tokenAmount: 500000,
+    role: "builder",
+    userRole: "builder",
+    postedByRole: "Builder",
+    listingAs: "Developer / Builder",
+    developerName: "Singhania Lifespaces & Infra",
+    isDeveloper: true,
   },
   {
     id: 2,
@@ -118,6 +124,12 @@ export const properties = [
     reviewsCount: 12,
     allowTokenBooking: true,
     tokenAmount: 1000000,
+    role: "builder",
+    userRole: "builder",
+    postedByRole: "Builder",
+    listingAs: "Developer / Builder",
+    developerName: "Lodha Luxury Developers",
+    isDeveloper: true,
   },
   {
     id: 7,
@@ -158,6 +170,12 @@ export const properties = [
     reviewsCount: 5,
     tokenAmount: 150000,
     allowTokenBooking: true,
+    role: "builder",
+    userRole: "builder",
+    postedByRole: "Builder",
+    listingAs: "Developer / Builder",
+    developerName: "DLF Commercial Infra",
+    isDeveloper: true,
   },
   {
     id: 9,
@@ -213,6 +231,9 @@ export const developers = [
     image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&h=400&fit=crop",
     logo: "https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=300&h=300&fit=crop&q=80",
     units: 180,
+    videos: [
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+    ],
   },
   {
     id: 2,
@@ -225,6 +246,9 @@ export const developers = [
     image: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=600&h=400&fit=crop",
     logo: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&h=300&fit=crop&q=80",
     units: 540,
+    videos: [
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4"
+    ],
   },
   {
     id: 3,
@@ -237,6 +261,9 @@ export const developers = [
     image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&h=400&fit=crop",
     logo: "https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=300&h=300&fit=crop&q=80",
     units: 45,
+    videos: [
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"
+    ],
   },
   {
     id: 4,
@@ -249,6 +276,7 @@ export const developers = [
     image: "https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?w=600&h=400&fit=crop",
     logo: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&h=300&fit=crop&q=80",
     units: 320,
+    videos: [],
   },
 ];
 

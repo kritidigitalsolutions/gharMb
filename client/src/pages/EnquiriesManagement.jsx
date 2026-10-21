@@ -255,10 +255,13 @@ export default function EnquiriesManagement() {
 
     // 2. Developer Enquiries
     (developerEnquiries || []).forEach((item) => {
-      const clientName = item.client?.name || 'Prospective Buyer';
-      const clientPhone = item.client?.phone || item.clientPhone || '';
-      const clientEmail = item.client?.email || item.clientEmail || '';
-      const devName = item.developer?.companyName || item.developer?.name || 'Project Developer';
+      const clientName = item.clientDetails?.name || item.client?.name || item.clientName || 'Prospective Buyer';
+      const clientPhone = item.clientDetails?.phone || item.client?.phone || item.clientPhone || '';
+      const clientEmail = item.clientDetails?.email || item.client?.email || item.clientEmail || '';
+      const projectName = item.projectName || item.project?.projectName || '';
+      const devName = item.developerName || item.developer?.companyName || item.developer?.name || 'Project Developer';
+      const title = projectName ? projectName : devName;
+      const subtitle = projectName ? `By ${devName}` : (item.projectInterest || 'Developer / Project Enquiry');
 
       list.push({
         id: item._id,
@@ -266,15 +269,15 @@ export default function EnquiriesManagement() {
         stream: 'developer',
         categoryLabel: 'Builder Lead',
         categoryBadgeClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
-        title: devName,
-        subtitle: item.projectInterest || 'Developer / Project Enquiry',
+        title,
+        subtitle,
         budget: item.budget || '',
         clientName,
         clientPhone,
         clientEmail,
         isRegisteredUser: Boolean(item.client?._id),
         message: item.message || 'Direct lead submitted for builder/project.',
-        channel: 'Developer Portal',
+        channel: item.channel || 'Developer Portal',
         status: (item.status || 'pending').toLowerCase(),
         createdAt: item.createdAt,
         assignedTo: item.assignedTo || 'Developer Liaison',
@@ -986,25 +989,32 @@ export default function EnquiriesManagement() {
           </div>
         </div>
 
-        {/* ─── DATA TABLE: CLEAN, BEAUTIFUL & MINIMAL ─── */}
-        <div className="w-full overflow-x-auto min-h-[300px]">
-          <table className="w-full text-left border-collapse table-auto min-w-[860px]">
+        {/* ─── DATA TABLE: CLEAN, BEAUTIFUL & MINIMAL (Full-Fit 100% Zero Horizontal Scroll) ─── */}
+        <div className="w-full overflow-hidden min-h-[300px]">
+          <table className="w-full text-left border-collapse table-fixed">
+            <colgroup>
+              <col className="w-[14%]" />
+              <col className="w-[22%]" />
+              <col className="w-[26%]" />
+              <col className="w-[12%]" />
+              <col className="w-[14%]" />
+              <col className="w-[12%]" />
+            </colgroup>
             <thead>
-              <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-wider bg-[var(--bg-muted)]/40">
-                <th className="py-3 px-3.5 align-middle whitespace-nowrap w-[110px]">Lead ID</th>
-                <th className="py-3 px-3.5 align-middle min-w-[180px]">Client Details</th>
-                <th className="py-3 px-3.5 align-middle min-w-[220px]">Interest / Subject</th>
-                <th className="py-3 px-3.5 align-middle whitespace-nowrap min-w-[130px]">Category</th>
-                <th className="py-3 px-3.5 align-middle whitespace-nowrap min-w-[100px]">Date</th>
-                <th className="py-3 px-3.5 align-middle text-center whitespace-nowrap min-w-[130px]">Status</th>
-                <th className="py-3 px-3.5 align-middle text-right whitespace-nowrap min-w-[120px]">Actions</th>
+              <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-[9.5px] font-semibold uppercase tracking-wider bg-[var(--bg-muted)]/40 select-none">
+                <th className="py-2 px-3 align-middle">Lead ID & Stream</th>
+                <th className="py-2 px-3 align-middle">Client Details</th>
+                <th className="py-2 px-3 align-middle">Interest / Subject</th>
+                <th className="py-2 px-3 align-middle">Date</th>
+                <th className="py-2 px-3 align-middle text-center">Status</th>
+                <th className="py-2 pl-2 pr-3 align-middle text-right">Actions</th>
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-[var(--border)] text-xs">
+            <tbody className="divide-y divide-[var(--border)]/60 text-xs">
               {isLoading ? (
                 <tr>
-                  <td colSpan="7" className="py-16 text-center">
+                  <td colSpan="6" className="py-16 text-center">
                     <AdminLoader
                       text="Fetching customer inquiries..."
                       subtext="Loading verified leads, site visits, and service requests"
@@ -1014,7 +1024,7 @@ export default function EnquiriesManagement() {
                 </tr>
               ) : filteredEnquiries.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="py-16 text-center text-[var(--text-muted)]">
+                  <td colSpan="6" className="py-16 text-center text-[var(--text-muted)]">
                     <div className="flex flex-col items-center justify-center space-y-2 animate-in fade-in duration-200">
                       <div className="w-10 h-10 rounded-full bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)] border border-[var(--border)]">
                         <Inbox size={18} />
@@ -1052,61 +1062,59 @@ export default function EnquiriesManagement() {
                     <tr
                       key={enquiry.id}
                       onClick={() => setSelectedEnquiry(enquiry)}
-                      className="group hover:bg-[var(--bg-muted)]/50 transition-colors duration-150 cursor-pointer"
+                      className="group hover:bg-[var(--bg-muted)]/35 transition-colors duration-150 cursor-pointer"
                     >
-                      {/* 1. Lead Code */}
-                      <td className="py-3 px-3.5 align-middle whitespace-nowrap">
-                        <span className="font-mono text-[11px] font-semibold text-[var(--text-primary)] group-hover:text-brand transition-colors duration-150">
+                      {/* 1. Lead Code & Category */}
+                      <td className="py-1.5 px-3 align-middle overflow-hidden">
+                        <span className="font-mono text-xs font-semibold text-[var(--text-primary)] group-hover:text-brand transition-colors block leading-tight truncate">
                           {enquiry.code}
                         </span>
+                        <div className="mt-0.5">
+                          <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-semibold border ${enquiry.categoryBadgeClass}`}>
+                            {enquiry.categoryLabel}
+                          </span>
+                        </div>
                       </td>
 
                       {/* 2. Client Name & Phone */}
-                      <td className="py-3 px-3.5 align-middle">
-                        <div className="leading-tight">
-                          <p className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors duration-150">
+                      <td className="py-1.5 px-3 align-middle overflow-hidden">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate">
                             {enquiry.clientName}
                           </p>
-                          <p className="text-[11px] text-[var(--text-muted)] font-mono mt-0.5">
+                          <p className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5 truncate leading-tight">
                             {enquiry.clientPhone || enquiry.clientEmail || '—'}
                           </p>
                         </div>
                       </td>
 
                       {/* 3. Interest / Subject */}
-                      <td className="py-3 px-3.5 align-middle">
-                        <div className="max-w-[240px]">
-                          <p className="font-medium text-xs text-[var(--text-primary)] truncate" title={enquiry.title}>
+                      <td className="py-1.5 px-3 align-middle overflow-hidden">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate" title={enquiry.title}>
                             {enquiry.title}
                           </p>
-                          <p className="text-[11px] text-[var(--text-muted)] truncate mt-0.5" title={enquiry.subtitle}>
+                          <p className="text-[10px] text-[var(--text-muted)] truncate mt-0.5 leading-tight" title={enquiry.subtitle}>
                             {enquiry.subtitle || enquiry.budget || 'Direct Consultation'}
                           </p>
                         </div>
                       </td>
 
-                      {/* 4. Category Badge */}
-                      <td className="py-3 px-3.5 align-middle whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${enquiry.categoryBadgeClass}`}>
-                          {enquiry.categoryLabel}
-                        </span>
-                      </td>
-
-                      {/* 5. Date */}
-                      <td className="py-3 px-3.5 align-middle whitespace-nowrap">
-                        <span className="text-[11px] text-[var(--text-muted)] font-medium">
+                      {/* 4. Date */}
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap overflow-hidden">
+                        <span className="text-[10.5px] text-[var(--text-muted)] font-medium">
                           {formatRelativeTime(enquiry.createdAt)}
                         </span>
                       </td>
 
-                      {/* 6. Interactive Status Pill (Click-to-change directly in table) */}
-                      <td className="py-3 px-3.5 align-middle text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      {/* 5. Interactive Status Pill (Click-to-change directly in table) */}
+                      <td className="py-1.5 px-3 align-middle text-center whitespace-nowrap overflow-hidden" onClick={(e) => e.stopPropagation()}>
                         <div className="inline-flex items-center justify-center relative">
                           <select
                             value={normalizeStatus(enquiry.status)}
                             onChange={(e) => handleUpdateStatus(enquiry, e.target.value)}
                             disabled={isUpdating}
-                            className={`appearance-none inline-flex items-center pl-5 pr-5 py-0.5 rounded-full text-[10px] font-semibold border shadow-2xs cursor-pointer transition-all hover:scale-102 focus:outline-none focus:ring-1 focus:ring-brand/30 disabled:opacity-50 ${statusCfg.pill}`}
+                            className={`appearance-none inline-flex items-center pl-4.5 pr-4.5 py-0.5 rounded-full text-[9.5px] font-bold border shadow-2xs cursor-pointer transition-all hover:scale-102 focus:outline-none focus:ring-1 focus:ring-brand/30 disabled:opacity-50 ${statusCfg.pill}`}
                             title="Click to update status"
                           >
                             <option value="pending">Pending</option>
@@ -1115,14 +1123,14 @@ export default function EnquiriesManagement() {
                             <option value="resolved">Completed</option>
                             <option value="cancelled">Cancelled</option>
                           </select>
-                          <span className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full pointer-events-none ${statusCfg.dot} ${isUpdating ? 'animate-ping' : ''}`} />
-                          <ChevronDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-50 pointer-events-none" />
+                          <span className={`absolute left-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full pointer-events-none ${statusCfg.dot} ${isUpdating ? 'animate-ping' : ''}`} />
+                          <ChevronDown size={9} className="absolute right-1 top-1/2 -translate-y-1/2 opacity-50 pointer-events-none" />
                         </div>
                       </td>
 
-                      {/* 7. Actions */}
-                      <td className="py-3 px-3.5 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <div className="inline-flex items-center gap-1 justify-end">
+                      {/* 6. Actions */}
+                      <td className="py-1.5 pl-2 pr-3 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="inline-flex items-center gap-1 justify-end shrink-0">
                           {/* WhatsApp Trigger */}
                           {enquiry.clientPhone && (
                             <a
@@ -1130,9 +1138,9 @@ export default function EnquiriesManagement() {
                               target="_blank"
                               rel="noreferrer"
                               title="Chat on WhatsApp"
-                              className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90"
+                              className="w-6 h-6 rounded-md flex items-center justify-center text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 transition-all shadow-2xs active:scale-95"
                             >
-                              <MessageCircle size={13} />
+                              <MessageCircle size={11} />
                             </a>
                           )}
 
@@ -1142,9 +1150,9 @@ export default function EnquiriesManagement() {
                               type="button"
                               onClick={() => setCallTarget(enquiry)}
                               title={`Call ${enquiry.clientName}`}
-                              className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-sky-600 hover:border-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90"
+                              className="w-6 h-6 rounded-md flex items-center justify-center text-sky-600 dark:text-sky-400 bg-sky-500/10 hover:bg-sky-500 hover:text-white border border-sky-500/20 transition-all shadow-2xs active:scale-95 cursor-pointer"
                             >
-                              <Phone size={12} />
+                              <Phone size={11} />
                             </button>
                           )}
 
@@ -1153,9 +1161,9 @@ export default function EnquiriesManagement() {
                             type="button"
                             onClick={() => setSelectedEnquiry(enquiry)}
                             title="Inspect Details"
-                            className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-brand hover:border-brand/40 hover:bg-brand/10 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90"
+                            className="w-6 h-6 rounded-md flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
                           >
-                            <Eye size={13} />
+                            <Eye size={12} />
                           </button>
 
                           {/* Delete Trigger */}
@@ -1163,9 +1171,9 @@ export default function EnquiriesManagement() {
                             type="button"
                             onClick={() => setDeleteTarget(enquiry)}
                             title="Delete Enquiry"
-                            className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-rose-500 hover:border-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90"
+                            className="w-6 h-6 rounded-md flex items-center justify-center text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={11} />
                           </button>
                         </div>
                       </td>

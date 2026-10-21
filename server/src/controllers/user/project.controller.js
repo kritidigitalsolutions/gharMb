@@ -14,6 +14,12 @@ exports.getAllProjects = async (req, res, next) => {
 
     const filter = { approvalStatus: 'approved', isLive: true };
 
+    if (req.query.saleStatus) {
+      filter.saleStatus = req.query.saleStatus;
+    } else if (req.query.includeSold !== 'true' && req.query.showSold !== 'true') {
+      filter.isSold = { $ne: true };
+    }
+
     if (city) filter.city = new RegExp(city, 'i');
     if (projectType) filter.projectType = projectType;
     if (projectStatus) filter.projectStatus = projectStatus;
@@ -113,6 +119,52 @@ exports.createProject = async (req, res, next) => {
       approvalStatus: 'pending',
       isLive: false,
     };
+
+    // ── 🛡️ MEDIA EXTRACTION & SEPARATION (Photos & Short Videos) ──────────────
+    const isProjectVideo = (url) => {
+      if (!url || typeof url !== 'string') return false;
+      try {
+        const decoded = decodeURIComponent(url).toLowerCase();
+        const cleanPath = decoded.split('?')[0];
+        return (
+          /\.(mp4|webm|mov|m4v|mkv|avi|3gp)$/i.test(cleanPath) ||
+          decoded.includes('/video/') ||
+          decoded.includes('/videos/') ||
+          decoded.includes('video/mp4') ||
+          decoded.includes('format=mp4') ||
+          decoded.includes('contenttype=video')
+        );
+      } catch (_) {
+        return /\.(mp4|webm|mov|m4v|mkv|avi|3gp)/i.test(url) || url.toLowerCase().includes('video');
+      }
+    };
+
+    let rawMedia = [];
+    if (Array.isArray(req.body.projectPhotos)) rawMedia.push(...req.body.projectPhotos);
+    if (Array.isArray(req.body.photos)) rawMedia.push(...req.body.photos);
+    if (Array.isArray(req.body.images)) rawMedia.push(...req.body.images);
+    if (Array.isArray(req.body.projectVideos)) rawMedia.push(...req.body.projectVideos);
+    if (Array.isArray(req.body.videos)) rawMedia.push(...req.body.videos);
+    if (typeof req.body.video === 'string' && req.body.video) rawMedia.push(req.body.video);
+    if (typeof req.body.videoUrl === 'string' && req.body.videoUrl) rawMedia.push(req.body.videoUrl);
+
+    const extractedPhotos = [];
+    const extractedVideos = [];
+
+    for (const item of rawMedia) {
+      if (typeof item !== 'string' || !item.trim()) continue;
+      const trimmed = item.trim();
+      if (isProjectVideo(trimmed)) {
+        if (!extractedVideos.includes(trimmed)) extractedVideos.push(trimmed);
+      } else {
+        if (!extractedPhotos.includes(trimmed)) extractedPhotos.push(trimmed);
+      }
+    }
+
+    if (extractedPhotos.length > 0 || extractedVideos.length > 0) {
+      projectData.projectPhotos = extractedPhotos;
+      projectData.projectVideos = extractedVideos;
+    }
 
     // GeoJSON Location coordinates
     if (req.body.longitude && req.body.latitude) {

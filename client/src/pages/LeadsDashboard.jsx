@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
 import CallContactModal from '../components/common/CallContactModal';
 import API from '../api/api';
+import { Badge } from '../components/ui/Badge';
 import {
   PhoneCall, MessageSquare, FileSpreadsheet, CalendarDays,
   ArrowRight, TrendingUp, Percent, MapPin, ExternalLink,
@@ -848,27 +849,33 @@ const LeadsDashboard = () => {
 
         </div>
 
-        {/* ─── TAB 1: ALL INQUIRIES LIST (100% REAL DATA, FLUID LAYOUT) ─── */}
+        {/* ─── TAB 1: ALL INQUIRIES LIST (Full-Fit 100% Zero Horizontal Scroll) ─── */}
         {activeTab === 'leads' ? (
-          <div className="w-full overflow-x-auto">
-            <table className="w-full text-left border-collapse table-auto">
+          <div className="w-full overflow-hidden">
+            <table className="w-full text-left border-collapse table-fixed">
+              <colgroup>
+                <col className="w-[14%]" />
+                <col className="w-[22%]" />
+                <col className="w-[26%]" />
+                <col className="w-[14%]" />
+                <col className="w-[12%]" />
+                <col className="w-[12%]" />
+              </colgroup>
               <thead>
-                <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-wider bg-[var(--bg-muted)]/50">
-                  <th className="py-2.5 px-3 align-middle whitespace-nowrap">Lead ID</th>
-                  <th className="py-2.5 px-3 align-middle">Client Name</th>
-                  <th className="py-2.5 px-3 align-middle">Interested Property</th>
-                  <th className="py-2.5 px-3 align-middle">Location</th>
-                  <th className="py-2.5 px-3 align-middle">Channel</th>
-                  <th className="py-2.5 px-3 align-middle">Assigned Desk / Agent</th>
-                  <th className="py-2.5 px-3 align-middle text-center whitespace-nowrap">Status</th>
-                  <th className="py-2.5 px-3 align-middle text-right whitespace-nowrap">Actions</th>
+                <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-[9.5px] font-semibold uppercase tracking-wider bg-[var(--bg-muted)]/40 select-none">
+                  <th className="py-2 px-3 align-middle">Lead ID & Channel</th>
+                  <th className="py-2 px-3 align-middle">Client Contact</th>
+                  <th className="py-2 px-3 align-middle">Property & Location</th>
+                  <th className="py-2 px-3 align-middle">Assigned Desk</th>
+                  <th className="py-2 px-3 align-middle text-center">Status</th>
+                  <th className="py-2 pl-2 pr-3 align-middle text-right">Actions</th>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-[var(--border)] text-xs">
+              <tbody className="divide-y divide-[var(--border)]/60 text-xs">
                 {isLoading ? (
                   <tr>
-                    <td colSpan="8" className="py-12 text-center">
+                    <td colSpan="6" className="py-12 text-center">
                       <AdminLoader
                         text="Fetching real leads from database..."
                         subtext="Loading verified customer inquiries and visits"
@@ -878,7 +885,7 @@ const LeadsDashboard = () => {
                   </tr>
                 ) : filteredLeads.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="py-12 text-center text-[var(--text-muted)]">
+                    <td colSpan="6" className="py-12 text-center text-[var(--text-muted)]">
                       <div className="flex flex-col items-center justify-center space-y-2 animate-in fade-in duration-200">
                         <div className="w-10 h-10 rounded-full bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)]">
                           <Search size={18} />
@@ -925,100 +932,108 @@ const LeadsDashboard = () => {
                       <tr
                         key={lead._id}
                         onClick={() => setSelectedLead(lead)}
-                        className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors duration-150 cursor-pointer"
+                        className="group hover:bg-[var(--bg-muted)]/35 transition-colors duration-150 cursor-pointer"
                       >
-                        {/* 1. Lead ID */}
-                        <td className="py-2.5 px-3 align-middle whitespace-nowrap">
-                          <span className="font-mono text-[11px] font-semibold text-[var(--text-primary)] group-hover:text-brand transition-colors duration-150">
+                        {/* 1. Lead ID & Channel */}
+                        <td className="py-1.5 px-3 align-middle overflow-hidden">
+                          <span className="font-mono text-xs font-semibold text-[var(--text-primary)] group-hover:text-brand transition-colors block leading-tight truncate">
                             {lead.id}
                           </span>
+                          <div className="mt-0.5">
+                            <Badge
+                              color={
+                                lead.type?.toLowerCase().includes('whatsapp') ? 'emerald' :
+                                lead.type?.toLowerCase().includes('visit') ? 'purple' :
+                                lead.type?.toLowerCase().includes('call') ? 'sky' :
+                                lead.type?.toLowerCase().includes('developer') ? 'purple' :
+                                'brand'
+                              }
+                              variant="pastel"
+                              size="xs"
+                            >
+                              {channelCfg.label}
+                            </Badge>
+                          </div>
                         </td>
 
                         {/* 2. Client Name & Phone */}
-                        <td className="py-2.5 px-3 align-middle whitespace-nowrap">
-                          <div className="leading-tight">
-                            <p className="font-semibold text-[var(--text-primary)] group-hover:text-brand transition-colors duration-150">
+                        <td className="py-1.5 px-3 align-middle overflow-hidden">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate leading-tight">
                               {lead.client}
                             </p>
-                            <p className="text-[11px] text-[var(--text-muted)] font-mono mt-0.5">
+                            <p className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5 truncate leading-tight">
                               {lead.phone}
                             </p>
                           </div>
                         </td>
 
-                        {/* 3. Interested Property (Clickable to preview real property) */}
-                        <td className="py-2.5 px-3 align-middle">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenPropertyModal(lead.propertyId, lead.propertyName, lead);
-                            }}
-                            className="group/prop text-left inline-flex items-center gap-1.5 hover:text-brand transition-colors max-w-[210px] cursor-pointer"
-                            title="Click to view real property specs"
-                          >
-                            <span className="font-mono text-[9px] px-1 py-0.2 rounded bg-[var(--bg-muted)] text-[var(--text-muted)] group-hover/prop:bg-brand/10 group-hover/prop:text-brand shrink-0 border border-[var(--border)]">
-                              {lead.propertyId ? String(lead.propertyId).slice(-6).toUpperCase() : 'PROP'}
-                            </span>
-                            <span className="font-medium text-[var(--text-primary)] group-hover/prop:text-brand truncate">
-                              {lead.propertyName}
-                            </span>
-                          </button>
-                        </td>
-
-                        {/* 4. Location */}
-                        <td className="py-2.5 px-3 align-middle">
-                          <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
-                            <MapPin size={11} className="shrink-0 text-slate-400 group-hover:text-brand transition-colors duration-200" />
-                            <span className="truncate max-w-[130px]" title={lead.location}>
-                              {lead.location}
-                            </span>
+                        {/* 3. Interested Property & Location */}
+                        <td className="py-1.5 px-3 align-middle overflow-hidden">
+                          <div className="min-w-0">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenPropertyModal(lead.propertyId, lead.propertyName, lead);
+                              }}
+                              className="group/prop text-left flex items-center gap-1 hover:text-brand transition-colors w-full cursor-pointer"
+                              title="Click to view real property specs"
+                            >
+                              <span className="font-semibold text-xs text-[var(--text-primary)] group-hover/prop:text-brand truncate leading-tight">
+                                {lead.propertyName}
+                              </span>
+                            </button>
+                            <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] mt-0.5 leading-tight truncate">
+                              <MapPin size={10} className="shrink-0 text-brand" />
+                              <span className="truncate">{lead.location}</span>
+                            </div>
                           </div>
                         </td>
 
-                        {/* 5. Channel Badge */}
-                        <td className="py-2.5 px-3 align-middle whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${channelCfg.color}`}>
-                            {channelCfg.label}
-                          </span>
-                        </td>
-
-                        {/* 6. Assigned Agent */}
-                        <td className="py-2.5 px-3 align-middle whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        {/* 4. Assigned Desk */}
+                        <td className="py-1.5 px-3 align-middle whitespace-nowrap overflow-hidden" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
                             onClick={() => handleAssignLead(lead)}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium text-[var(--text-primary)] bg-[var(--bg-muted)] hover:bg-brand/10 hover:border-brand/30 hover:text-brand border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-95"
+                            className="inline-flex items-center gap-1 py-0.5 px-2 rounded-md text-[10.5px] font-medium text-[var(--text-primary)] bg-[var(--bg-muted)] hover:bg-brand/10 hover:border-brand/30 hover:text-brand border border-[var(--border)] transition-all cursor-pointer active:scale-95 truncate max-w-[140px]"
                             title="Click to re-route or assign specialist"
                           >
-                            <UserCheck size={11} className="text-brand shrink-0" />
-                            <span>{lead.assignedTo || 'Assign Agent'}</span>
+                            <UserCheck size={10} className="text-brand shrink-0" />
+                            <span className="truncate">{lead.assignedTo || 'Assign Agent'}</span>
                           </button>
                         </td>
 
-                        {/* 7. Status */}
-                        <td className="py-2.5 px-3 align-middle text-center whitespace-nowrap">
-                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border shadow-2xs ${statusCfg.pill}`}>
-                            <span className="relative flex h-1.5 w-1.5 shrink-0">
-                              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${statusCfg.dot}`}></span>
-                              <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${statusCfg.dot}`}></span>
-                            </span>
-                            <span>{lead.status}</span>
-                          </span>
+                        {/* 5. Status */}
+                        <td className="py-1.5 px-3 align-middle text-center whitespace-nowrap overflow-hidden">
+                          <Badge
+                            color={
+                              lead.status?.toLowerCase() === 'resolved' || lead.status?.toLowerCase() === 'completed' || lead.status?.toLowerCase() === 'accepted' ? 'emerald' :
+                              lead.status?.toLowerCase() === 'contacted' ? 'sky' :
+                              lead.status?.toLowerCase() === 'cancelled' || lead.status?.toLowerCase() === 'rejected' ? 'red' :
+                              'amber'
+                            }
+                            variant="pastel"
+                            size="xs"
+                            dot
+                            pulse={lead.status?.toLowerCase() === 'pending'}
+                          >
+                            {lead.status}
+                          </Badge>
                         </td>
 
-                        {/* 8. Actions */}
-                        <td className="py-2.5 px-3 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          <div className="inline-flex items-center gap-1">
+                        {/* 6. Actions */}
+                        <td className="py-1.5 pl-2 pr-3 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="inline-flex items-center justify-end gap-1 shrink-0">
                             {/* Call Trigger */}
                             {lead.phone && lead.phone !== 'N/A' && (
                               <button
                                 type="button"
                                 onClick={() => setCallTarget(lead)}
                                 title={`Call ${lead.client}`}
-                                className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90 shadow-2xs"
+                                className="w-6 h-6 rounded-md flex items-center justify-center text-sky-600 dark:text-sky-400 bg-sky-500/10 hover:bg-sky-500 hover:text-white border border-sky-500/20 transition-all cursor-pointer shadow-2xs active:scale-95"
                               >
-                                <Phone size={12} />
+                                <Phone size={11} />
                               </button>
                             )}
 
@@ -1029,30 +1044,20 @@ const LeadsDashboard = () => {
                                 target="_blank"
                                 rel="noreferrer"
                                 title="Chat on WhatsApp"
-                                className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90 shadow-2xs"
+                                className="w-6 h-6 rounded-md flex items-center justify-center text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 transition-all shadow-2xs active:scale-95"
                               >
-                                <MessageCircle size={12} />
+                                <MessageCircle size={11} />
                               </a>
                             )}
 
-                            {/* Inspect Lead Eye Icon */}
+                            {/* Inspect Eye */}
                             <button
                               type="button"
                               onClick={() => setSelectedLead(lead)}
                               title="Inspect Lead Details"
-                              className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-brand hover:border-brand/40 hover:bg-brand/10 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90 shadow-2xs"
+                              className="w-6 h-6 rounded-md flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
                             >
-                              <Eye size={13} />
-                            </button>
-
-                            {/* Route Agent Icon */}
-                            <button
-                              type="button"
-                              onClick={() => handleAssignLead(lead)}
-                              title="Assign Specialist"
-                              className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-brand hover:border-brand/40 hover:bg-brand/10 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90 shadow-2xs"
-                            >
-                              <UserCheck size={13} />
+                              <Eye size={12} />
                             </button>
 
                             {/* Delete Button */}
@@ -1060,9 +1065,9 @@ const LeadsDashboard = () => {
                               type="button"
                               onClick={() => setDeleteConfirmLead(lead)}
                               title="Delete Lead"
-                              className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90 shadow-2xs"
+                              className="w-6 h-6 rounded-md flex items-center justify-center text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
                             >
-                              <Trash2 size={12} />
+                              <Trash2 size={11} />
                             </button>
                           </div>
                         </td>

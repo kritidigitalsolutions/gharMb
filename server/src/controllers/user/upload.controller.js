@@ -109,6 +109,10 @@ const saveBase64File = async (base64String, fallbackName = 'upload', folder = 'u
     else if (mimeType.includes('pdf')) ext = 'pdf';
     else if (mimeType.includes('svg')) ext = 'svg';
     else if (mimeType.includes('gif')) ext = 'gif';
+    else if (mimeType.includes('mp4')) ext = 'mp4';
+    else if (mimeType.includes('webm')) ext = 'webm';
+    else if (mimeType.includes('quicktime') || mimeType.includes('mov')) ext = 'mov';
+    else if (mimeType.includes('video')) ext = 'mp4';
 
     const filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`;
     const origName = `${fallbackName}.${ext}`;
@@ -142,6 +146,30 @@ const saveBase64File = async (base64String, fallbackName = 'upload', folder = 'u
     console.error('Error saving base64 file:', err.message);
     return null;
   }
+};
+
+/**
+ * Helper to determine if a file metadata, field, or URL represents a video
+ */
+const isVideoMedia = (f) => {
+  if (!f) return false;
+  const mime = (f.mimetype || f.mimeType || '').toLowerCase();
+  let name = (f.originalname || f.filename || f.url || f.originalName || '').toLowerCase();
+  try {
+    name = decodeURIComponent(name);
+  } catch (_) {}
+  const field = (f.fieldname || '').toLowerCase();
+  return (
+    mime.startsWith('video/') ||
+    field.includes('video') ||
+    field.includes('reel') ||
+    field.includes('walkthrough') ||
+    name.includes('/video/') ||
+    name.includes('/videos/') ||
+    name.includes('video/mp4') ||
+    name.includes('format=mp4') ||
+    /\.(mp4|webm|mov|m4v|mkv|avi|3gp)(\?.*)?$/i.test(name.split('?')[0])
+  );
 };
 
 /**
@@ -249,29 +277,40 @@ exports.uploadMultipleFiles = async (req, res, next) => {
 
     const fileUrls = filesMeta.map((item) => item.url);
 
-    // 5. Optional auto-attachment to Property
+    // 5. Optional auto-attachment to Property (Separate photos and short videos)
     const propertyId = req.query.propertyId || req.body?.propertyId;
     let property = null;
     if (propertyId) {
       property = await findPropertyById(propertyId);
       if (property) {
         property.images = property.images || [];
-        fileUrls.forEach((u) => {
-          if (!property.images.includes(u)) property.images.push(u);
+        property.videos = property.videos || [];
+        filesMeta.forEach((item) => {
+          if (isVideoMedia(item)) {
+            if (!property.videos.includes(item.url)) property.videos.push(item.url);
+          } else {
+            if (!property.images.includes(item.url)) property.images.push(item.url);
+          }
         });
+        property.propertyVideos = property.videos;
         await property.save();
       }
     }
 
-    // 6. Optional auto-attachment to Project
+    // 6. Optional auto-attachment to Project (Separate photos and short videos)
     const projectId = req.query.projectId || req.body?.projectId;
     let project = null;
     if (projectId) {
       project = await findProjectById(projectId);
       if (project) {
         project.projectPhotos = project.projectPhotos || [];
-        fileUrls.forEach((u) => {
-          if (!project.projectPhotos.includes(u)) project.projectPhotos.push(u);
+        project.projectVideos = project.projectVideos || [];
+        filesMeta.forEach((item) => {
+          if (isVideoMedia(item)) {
+            if (!project.projectVideos.includes(item.url)) project.projectVideos.push(item.url);
+          } else {
+            if (!project.projectPhotos.includes(item.url)) project.projectPhotos.push(item.url);
+          }
         });
         await project.save();
       }
@@ -292,7 +331,15 @@ exports.uploadMultipleFiles = async (req, res, next) => {
         url: fileUrls[0],
         fileUrl: fileUrls[0],
         ...(property && { property }),
-        ...(project && { project }),
+        ...(project && {
+          project,
+          projectPhotos: project.projectPhotos,
+          projectVideos: project.projectVideos,
+          gallery: [
+            ...(project.projectPhotos || []).map((u) => ({ url: u, type: 'image' })),
+            ...(project.projectVideos || []).map((u) => ({ url: u, type: 'video' })),
+          ],
+        }),
       },
     });
   } catch (error) {
@@ -381,10 +428,16 @@ exports.uploadPropertyFiles = async (req, res, next) => {
     }
 
     const shouldReplaceImages = req.query.replace === 'true' || req.body?.replace === 'true';
+    const shouldReplaceVideos = req.query.replaceVideos === 'true' || req.body?.replaceVideos === 'true';
     if (shouldReplaceImages) {
       property.images = [];
     } else {
       property.images = property.images || [];
+    }
+    if (shouldReplaceVideos) {
+      property.videos = [];
+    } else {
+      property.videos = property.videos || [];
     }
 
     if (!property.propertyDocuments) {
@@ -403,12 +456,19 @@ exports.uploadPropertyFiles = async (req, res, next) => {
           file.mimetype.includes('document') ||
           file.originalname.toLowerCase().endsWith('.pdf') ||
           file.originalname.toLowerCase().endsWith('.docx');
+        const isVideo =
+          (file.mimetype && file.mimetype.startsWith('video/')) ||
+          fieldname.includes('video') ||
+          fieldname.includes('reel') ||
+          fieldname.includes('walkthrough') ||
+          /\.(mp4|webm|mov|m4v|mkv|avi|3gp)(\?.*)?$/i.test(file.originalname || fileUrl.split('?')[0]);
 
         return {
           file,
           fileUrl,
           fieldname,
           isPdfOrDoc,
+          isVideo,
           originalName: file.originalname,
           filename: file.filename || file.originalname || path.basename(fileUrl.split('?')[0]),
           mimetype: file.mimetype,
@@ -419,7 +479,7 @@ exports.uploadPropertyFiles = async (req, res, next) => {
     );
 
     for (const item of uploadedFilesMeta) {
-      const { file, fileUrl, fieldname, isPdfOrDoc } = item;
+      const { file, fileUrl, fieldname, isPdfOrDoc, isVideo } = item;
 
       if (fieldname.includes('titledeed') || fieldname === 'title_deed') {
         property.propertyDocuments.titleDeed = fileUrl;
@@ -436,6 +496,10 @@ exports.uploadPropertyFiles = async (req, res, next) => {
       } else if (fieldname.includes('otherdoc') || fieldname === 'other_doc' || fieldname === 'document' || fieldname === 'doc') {
         property.propertyDocuments.otherDoc = fileUrl;
         property.documents.push({ name: file.originalname, url: fileUrl, docType: 'otherDoc' });
+      } else if (isVideo) {
+        if (!property.videos.includes(fileUrl)) {
+          property.videos.push(fileUrl);
+        }
       } else if (isPdfOrDoc) {
         property.propertyDocuments.otherDoc = fileUrl;
         property.documents.push({ name: file.originalname, url: fileUrl, docType: file.fieldname || 'document' });
@@ -446,7 +510,13 @@ exports.uploadPropertyFiles = async (req, res, next) => {
       }
     }
 
+    property.propertyVideos = property.videos;
     await property.save();
+
+    const gallery = [
+      ...(property.images || []).map((u) => ({ url: u, type: 'image' })),
+      ...(property.videos || []).map((u) => ({ url: u, type: 'video' })),
+    ];
 
     return res.status(200).json({
       status: 'success',
@@ -457,6 +527,10 @@ exports.uploadPropertyFiles = async (req, res, next) => {
         submissionId: property.submissionId,
         uploadedCount: rawFiles.length,
         images: property.images,
+        photos: property.images,
+        videos: property.videos,
+        propertyVideos: property.videos,
+        gallery,
         propertyDocuments: property.propertyDocuments,
         documents: property.documents,
         property,
@@ -496,11 +570,19 @@ exports.uploadProjectFiles = async (req, res, next) => {
       });
     }
 
-    const shouldReplacePhotos = req.query.replace === 'true' || req.body?.replace === 'true';
+    const shouldReplacePhotos = req.query.replace === 'true' || req.body?.replace === 'true' || req.query.replacePhotos === 'true';
+    const shouldReplaceVideos = req.query.replaceVideos === 'true' || req.body?.replaceVideos === 'true';
+
     if (shouldReplacePhotos) {
       project.projectPhotos = [];
     } else {
       project.projectPhotos = project.projectPhotos || [];
+    }
+
+    if (shouldReplaceVideos) {
+      project.projectVideos = [];
+    } else {
+      project.projectVideos = project.projectVideos || [];
     }
 
     // Process and resolve all files concurrently in parallel
@@ -514,12 +596,19 @@ exports.uploadProjectFiles = async (req, res, next) => {
           file.mimetype.includes('document') ||
           file.originalname.toLowerCase().endsWith('.pdf') ||
           file.originalname.toLowerCase().endsWith('.docx');
+        const isVideo =
+          (file.mimetype && file.mimetype.startsWith('video/')) ||
+          fieldname.includes('video') ||
+          fieldname.includes('reel') ||
+          fieldname.includes('walkthrough') ||
+          /\.(mp4|webm|mov|m4v|mkv|avi|3gp)(\?.*)?$/i.test(file.originalname || fileUrl.split('?')[0]);
 
         return {
           file,
           fileUrl,
           fieldname,
           isPdfOrDoc,
+          isVideo,
           originalName: file.originalname,
           filename: file.filename,
           mimetype: file.mimetype,
@@ -530,7 +619,7 @@ exports.uploadProjectFiles = async (req, res, next) => {
     );
 
     for (const item of uploadedFilesMeta) {
-      const { fileUrl, fieldname, isPdfOrDoc } = item;
+      const { fileUrl, fieldname, isPdfOrDoc, isVideo } = item;
 
       if (fieldname.includes('masterplan') || fieldname === 'master_plan') {
         project.masterPlanUrl = fileUrl;
@@ -538,6 +627,11 @@ exports.uploadProjectFiles = async (req, res, next) => {
         project.floorPlanUrl = fileUrl;
       } else if (fieldname.includes('brochure') || fieldname === 'project_brochure') {
         project.brochureUrl = fileUrl;
+      } else if (isVideo) {
+        // Add to project short videos gallery
+        if (!project.projectVideos.includes(fileUrl)) {
+          project.projectVideos.push(fileUrl);
+        }
       } else if (isPdfOrDoc) {
         if (!project.brochureUrl) {
           project.brochureUrl = fileUrl;
@@ -555,6 +649,12 @@ exports.uploadProjectFiles = async (req, res, next) => {
 
     await project.save();
 
+    // Assemble unified gallery for seamless client consumption
+    const gallery = [
+      ...(project.projectPhotos || []).map((u) => ({ url: u, type: 'image' })),
+      ...(project.projectVideos || []).map((u) => ({ url: u, type: 'video' })),
+    ];
+
     return res.status(200).json({
       status: 'success',
       success: true,
@@ -564,6 +664,8 @@ exports.uploadProjectFiles = async (req, res, next) => {
         submissionId: project.submissionId,
         uploadedCount: rawFiles.length,
         projectPhotos: project.projectPhotos,
+        projectVideos: project.projectVideos,
+        gallery,
         masterPlanUrl: project.masterPlanUrl,
         floorPlanUrl: project.floorPlanUrl,
         brochureUrl: project.brochureUrl,

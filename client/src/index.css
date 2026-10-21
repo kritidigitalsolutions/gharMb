@@ -173,9 +173,10 @@
 /* ─── Light Theme Tokens (default) ─────────────────────────────── */
 :root,
 body.theme-light {
-  --bg-main:      #F8FAFC;
+  --bg-main:      #ffffff;
+  --bg-app:       #ffffff;
   --bg-surface:   #ffffff;
-  --bg-muted:     #F1F5F9;
+  --bg-muted:     #F8FAFC;
   --bg-hover:     rgba(241, 245, 249, 0.8);
   --border:       #E2E8F0;
   --border-muted: #E2E8F0;
@@ -189,12 +190,13 @@ body.theme-light {
 html.dark,
 body.theme-dark,
 .dark {
-  --bg-main:      #111111;
-  --bg-surface:   #111111;
-  --bg-muted:     #444444;
-  --bg-hover:     #444444;
-  --border:       #444444;
-  --border-muted: #444444;
+  --bg-main:      #141916;
+  --bg-app:       #141916;
+  --bg-surface:   #1a211c;
+  --bg-muted:     #222a24;
+  --bg-hover:     #222a24;
+  --border:       #222a24;
+  --border-muted: #222a24;
   --text-primary: #DDDDDD;
   --text-subtle:  #888888;
   --text-muted:   #888888;
@@ -205,6 +207,27 @@ body {
   background-color: var(--bg-main);
   color: var(--text-primary);
   font-family: 'Inter', sans-serif;
+}
+
+/* Frosted Glassmorphism Overlay Utility (Image 3) */
+.glass-frosted-badge {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.dark .glass-frosted-badge {
+  background: rgba(21, 29, 25, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-frosted-card {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.65) 60%, rgba(0, 0, 0, 0.85) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 /* Fallback color transition only for legacy browsers without View Transitions */
@@ -652,5 +675,191 @@ select:-webkit-autofill:focus {
 .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* ==========================================================================
+   🏷️ Badges UI Design System & Micro-Interactions (Universal & GharMB)
+   ========================================================================== */
+
+/* 1. Radar Beacon Pulse (Emerald) */
+@keyframes beaconPulseGreen {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 7px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+/* 2. Radar Beacon Pulse (Amber) */
+@keyframes beaconPulseAmber {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 7px rgba(245, 158, 11, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
+}
+
+/* 3. Subtle Metallic Shimmer Effect for Pro/Gold/Featured badges */
+@keyframes badgeShine {
+  0% { transform: translateX(-150%) skewX(-20deg); }
+  100% { transform: translateX(250%) skewX(-20deg); }
+}
+
+.badge-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.badge-shine::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: translateX(-150%) skewX(-20deg);
+  pointer-events: none;
+}
+
+.badge-shine:hover::after {
+  animation: badgeShine 0.85s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.beacon-dot-green {
+  animation: beaconPulseGreen 2s infinite ease-in-out;
+}
+
+.beacon-dot-amber {
+  animation: beaconPulseAmber 2s infinite ease-in-out;
+}
+
+/* ── Pure Vanilla CSS Badges (Compatible across plain markup & templates) ── */
+:root {
+  --badge-emerald-bg: rgba(16, 185, 129, 0.12);
+  --badge-emerald-text: #065f46;
+  --badge-emerald-border: rgba(52, 211, 153, 0.35);
+
+  --badge-amber-bg: rgba(245, 158, 11, 0.14);
+  --badge-amber-text: #92400e;
+  --badge-amber-border: rgba(251, 191, 36, 0.38);
+
+  --badge-red-bg: rgba(239, 68, 68, 0.12);
+  --badge-red-text: #991b1b;
+  --badge-red-border: rgba(248, 113, 113, 0.35);
+
+  --badge-sky-bg: rgba(6, 182, 212, 0.12);
+  --badge-sky-text: #075985;
+  --badge-sky-border: rgba(56, 189, 248, 0.35);
+
+  --badge-purple-bg: rgba(139, 92, 246, 0.14);
+  --badge-purple-text: #5b21b6;
+  --badge-purple-border: rgba(196, 181, 253, 0.35);
+
+  --badge-gold-bg: rgba(229, 169, 60, 0.16);
+  --badge-gold-text: #854d0e;
+  --badge-gold-border: rgba(229, 169, 60, 0.40);
+
+  --badge-brand-bg: rgba(255, 90, 60, 0.12);
+  --badge-brand-text: #dd543c;
+  --badge-brand-border: rgba(255, 90, 60, 0.30);
+
+  --badge-slate-bg: rgba(148, 163, 184, 0.14);
+  --badge-slate-text: #334155;
+  --badge-slate-border: rgba(148, 163, 184, 0.28);
+}
+
+.dark, body.theme-dark {
+  --badge-emerald-bg: rgba(16, 185, 129, 0.14);
+  --badge-emerald-text: #34d399;
+  --badge-emerald-border: rgba(52, 211, 153, 0.25);
+
+  --badge-amber-bg: rgba(245, 158, 11, 0.15);
+  --badge-amber-text: #fbbf24;
+  --badge-amber-border: rgba(251, 191, 36, 0.28);
+
+  --badge-red-bg: rgba(239, 68, 68, 0.15);
+  --badge-red-text: #f87171;
+  --badge-red-border: rgba(248, 113, 113, 0.28);
+
+  --badge-sky-bg: rgba(6, 182, 212, 0.14);
+  --badge-sky-text: #38bdf8;
+  --badge-sky-border: rgba(56, 189, 248, 0.25);
+
+  --badge-purple-bg: rgba(139, 92, 246, 0.16);
+  --badge-purple-text: #c4b5fd;
+  --badge-purple-border: rgba(196, 181, 253, 0.28);
+
+  --badge-gold-bg: rgba(229, 169, 60, 0.16);
+  --badge-gold-text: #f5c467;
+  --badge-gold-border: rgba(229, 169, 60, 0.35);
+
+  --badge-brand-bg: rgba(255, 90, 60, 0.15);
+  --badge-brand-text: #ff7a60;
+  --badge-brand-border: rgba(255, 90, 60, 0.30);
+
+  --badge-slate-bg: rgba(148, 163, 184, 0.10);
+  --badge-slate-text: #94a3b8;
+  --badge-slate-border: rgba(148, 163, 184, 0.20);
+}
+
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border-width: 1px;
+  border-style: solid;
+  font-family: inherit;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  vertical-align: middle;
+  transition: all 0.2s ease;
+}
+
+.ui-badge-xs { height: 20px; padding: 0 8px; font-size: 10px; gap: 4px; }
+.ui-badge-sm { height: 24px; padding: 0 10px; font-size: 11px; gap: 6px; }
+.ui-badge-md { height: 28px; padding: 0 12px; font-size: 12px; gap: 6px; }
+.ui-badge-lg { height: 32px; padding: 0 14px; font-size: 14px; gap: 8px; }
+
+.ui-badge-emerald { background-color: var(--badge-emerald-bg); color: var(--badge-emerald-text); border-color: var(--badge-emerald-border); }
+.ui-badge-amber { background-color: var(--badge-amber-bg); color: var(--badge-amber-text); border-color: var(--badge-amber-border); }
+.ui-badge-red { background-color: var(--badge-red-bg); color: var(--badge-red-text); border-color: var(--badge-red-border); }
+.ui-badge-sky { background-color: var(--badge-sky-bg); color: var(--badge-sky-text); border-color: var(--badge-sky-border); }
+.ui-badge-purple { background-color: var(--badge-purple-bg); color: var(--badge-purple-text); border-color: var(--badge-purple-border); }
+.ui-badge-gold { background-color: var(--badge-gold-bg); color: var(--badge-gold-text); border-color: var(--badge-gold-border); box-shadow: 0 0 12px rgba(229, 169, 60, 0.15); }
+.ui-badge-brand { background-color: var(--badge-brand-bg); color: var(--badge-brand-text); border-color: var(--badge-brand-border); }
+.ui-badge-slate { background-color: var(--badge-slate-bg); color: var(--badge-slate-text); border-color: var(--badge-slate-border); }
+
+/* ── Reference Pastel Badges (Active, Offline, sports, news, entertainment, plans, passes) ── */
+.ui-badge-pastel-emerald { background-color: #52c99b; color: #064e3b; border-color: transparent; }
+.ui-badge-pastel-red { background-color: #fca5a5; color: #701a2b; border-color: transparent; }
+.ui-badge-pastel-amber { background-color: #fef08a; color: #78350f; border-color: transparent; }
+.ui-badge-pastel-purple { background-color: #c4b5fd; color: #4c1d95; border-color: transparent; }
+.ui-badge-pastel-peach { background-color: #fed7aa; color: #9a3412; border-color: transparent; }
+.ui-badge-pastel-sky { background-color: #bae6fd; color: #075985; border-color: transparent; }
+.ui-badge-pastel-slate { background-color: #e2e8f0; color: #334155; border-color: transparent; }
+
+.dark .ui-badge-pastel-emerald { background-color: #1a4a38; color: #6ee7b7; border-color: transparent; }
+.dark .ui-badge-pastel-red { background-color: #521722; color: #fda4af; border-color: transparent; }
+.dark .ui-badge-pastel-amber { background-color: #4d3209; color: #fef08a; border-color: transparent; }
+.dark .ui-badge-pastel-purple { background-color: #3b1968; color: #ddd6fe; border-color: transparent; }
+.dark .ui-badge-pastel-peach { background-color: #52220d; color: #fed7aa; border-color: transparent; }
+.dark .ui-badge-pastel-sky { background-color: #113c54; color: #7dd3fc; border-color: transparent; }
+.dark .ui-badge-pastel-slate { background-color: #273244; color: #cbd5e1; border-color: transparent; }
+
+
 
 

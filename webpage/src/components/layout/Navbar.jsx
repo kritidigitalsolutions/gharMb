@@ -13,6 +13,7 @@ function AndroidIcon({ className = "w-6 h-6" }) {
 
 const navLinks = [
   { label: 'Platform', href: '#platform' },
+  { label: 'New Projects', href: '/new-projects', isRoute: true },
   { label: 'Ecosystem', href: '#ecosystem' },
   { label: 'How It Works', href: '#how-it-works' },
   { label: 'Insights', href: '/insights', isRoute: true },
@@ -113,7 +114,7 @@ export default function Navbar() {
                     key={link.href}
                     to={link.href}
                     className={`px-4 py-2 text-[14px] font-medium rounded-xl transition-all duration-200 ${
-                      isInsightsActive
+                      (link.href === '/insights' ? isInsightsActive : location.pathname.startsWith(link.href))
                         ? 'text-brand font-bold bg-brand-light'
                         : 'text-text-secondary hover:text-text-primary hover:bg-gray-100/70'
                     }`}
@@ -232,7 +233,7 @@ export default function Navbar() {
                   key={link.href}
                   to={link.href}
                   className={`flex items-center px-4 py-3 text-[15px] font-semibold rounded-xl transition-all ${
-                    isInsightsActive
+                    (link.href === '/insights' ? isInsightsActive : location.pathname.startsWith(link.href))
                       ? 'text-brand bg-brand-light font-bold'
                       : 'text-text-secondary hover:text-text-primary hover:bg-section-bg'
                   }`}

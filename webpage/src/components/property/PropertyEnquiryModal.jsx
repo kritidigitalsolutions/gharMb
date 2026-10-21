@@ -54,18 +54,30 @@ export default function PropertyEnquiryModal({ property, isOpen, onClose }) {
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
+      const isProject = Boolean(property.projectName || property.projectType || property.isProject);
+      const targetTitle = property.projectName || property.title || 'Selected Listing';
+      const payload = {
+        name: formData.name.trim(),
+        phone: formData.phone.trim(),
+        email: formData.email.trim() || undefined,
+        message: formData.message.trim() || `Inquiry regarding "${targetTitle}"`,
+        visitPreferredDate: formData.visitDate || undefined,
+        visitTimeSlot: formData.timeSlot || undefined,
+      };
+
+      if (isProject) {
+        payload.projectId = property._id || property.id;
+        payload.projectName = property.projectName || property.title;
+        payload.developerName = property.name || property.developerName;
+      } else {
+        payload.propertyId = property._id || property.id;
+        payload.propertyName = property.title;
+      }
+
       const res = await fetch(`${API_BASE_URL}/users/enquiries`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          propertyId: property._id || property.id,
-          name: formData.name.trim(),
-          phone: formData.phone.trim(),
-          email: formData.email.trim() || undefined,
-          message: formData.message.trim() || `Inquiry regarding "${property.title}"`,
-          visitPreferredDate: formData.visitDate || undefined,
-          visitTimeSlot: formData.timeSlot || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -73,7 +85,7 @@ export default function PropertyEnquiryModal({ property, isOpen, onClose }) {
       // 🛡️ Owner Blocked Response
       if (res.status === 403 || data.isOwnerBlocked === true) {
         setOwnerBlockedMessage(
-          data.message || 'Action not allowed: Property owners cannot submit enquiries on their own listings.'
+          data.message || 'Action not allowed: Property owners and developers cannot submit enquiries on their own listings.'
         );
         setShowOwnerBlockedModal(true);
         return;
@@ -100,6 +112,10 @@ export default function PropertyEnquiryModal({ property, isOpen, onClose }) {
     }
   };
 
+  const isProject = Boolean(property.projectName || property.projectType || property.isProject);
+  const targetTitle = property.projectName || property.title || 'Selected Listing';
+  const targetPrice = property.priceRange || property.priceLabel || (property.price ? `₹${Number(property.price).toLocaleString()}` : '');
+
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -116,9 +132,9 @@ export default function PropertyEnquiryModal({ property, isOpen, onClose }) {
               <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
                 <CheckCircle2 size={32} />
               </div>
-              <h3 className="text-lg font-bold text-gray-900">Enquiry Received by Admin!</h3>
+              <h3 className="text-lg font-bold text-gray-900">Inquiry Received by GharMB Admin!</h3>
               <p className="text-xs text-gray-600 leading-relaxed max-w-sm mx-auto">
-                Thank you, <strong className="text-gray-900">{formData.name}</strong>. Your enquiry for <strong className="text-gray-900">{property.title}</strong> has been logged with GharMB Admin. Our dedicated property coordinator will contact you directly.
+                Thank you, <strong className="text-gray-900">{formData.name}</strong>. Your enquiry for <strong className="text-gray-900">{targetTitle}</strong> has been logged directly with GharMB Admin. Our dedicated coordinator will contact you directly.
               </p>
               <button
                 onClick={onClose}
@@ -132,11 +148,11 @@ export default function PropertyEnquiryModal({ property, isOpen, onClose }) {
               <div>
                 <span className="inline-flex items-center gap-1 text-[11px] font-bold text-brand uppercase tracking-wider bg-brand/10 px-2 py-0.5 rounded-full mb-1">
                   <MessageSquare size={12} />
-                  Property Enquiry
+                  {isProject ? 'Project Inquiry' : 'Property Inquiry'}
                 </span>
-                <h2 className="text-base font-bold text-gray-900">Send Enquiry to Admin</h2>
+                <h2 className="text-base font-bold text-gray-900">Inquire with GharMB Admin</h2>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {property.title} • {property.priceLabel || (property.price ? `₹${Number(property.price).toLocaleString()}` : '')}
+                  {targetTitle} {targetPrice ? `• ${targetPrice}` : ''}
                 </p>
               </div>
 

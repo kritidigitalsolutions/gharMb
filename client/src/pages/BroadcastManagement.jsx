@@ -783,16 +783,24 @@ export default function BroadcastManagement() {
           ) : (
             /* COMPACT DENSE TABLE / LIST VIEW (~42-45px row height like Notifications) */
             <div className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xs overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[var(--bg-main)]/60 text-[var(--text-muted)] uppercase text-[9.5px] font-bold tracking-wider border-b border-[var(--border)]">
+              <div className="w-full overflow-hidden">
+                <table className="w-full text-left text-xs border-collapse table-fixed">
+                  <colgroup>
+                    <col className="w-[14%]" />
+                    <col className="w-[42%]" />
+                    <col className="w-[16%]" />
+                    <col className="w-[8%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[10%]" />
+                  </colgroup>
+                  <thead className="bg-[var(--bg-muted)]/60 text-[var(--text-muted)] uppercase text-[9.5px] font-bold tracking-wider border-b border-[var(--border)]">
                     <tr>
-                      <th className="py-2 px-3 font-semibold w-36">Type</th>
-                      <th className="py-2 px-3 font-semibold">Subject & Message</th>
-                      <th className="py-2 px-3 font-semibold w-40">Target Audience</th>
-                      <th className="py-2 px-3 font-semibold text-center w-24">Recipients</th>
-                      <th className="py-2 px-3 font-semibold w-28">Dispatched</th>
-                      <th className="py-2 px-3 font-semibold text-right w-28">Actions</th>
+                      <th className="py-2 px-3 font-semibold align-middle">Type</th>
+                      <th className="py-2 px-3 font-semibold align-middle">Subject & Message</th>
+                      <th className="py-2 px-3 font-semibold align-middle">Target Audience</th>
+                      <th className="py-2 px-3 font-semibold text-center align-middle">Recipients</th>
+                      <th className="py-2 px-3 font-semibold align-middle">Dispatched</th>
+                      <th className="py-2 px-3 font-semibold text-right align-middle">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)] text-[var(--text-primary)]">
@@ -806,7 +814,7 @@ export default function BroadcastManagement() {
                           className="hover:bg-[var(--bg-muted)]/50 transition-colors group"
                         >
                           {/* Type Badge - Compact */}
-                          <td className="py-2 px-3 whitespace-nowrap">
+                          <td className="py-1.5 px-3 whitespace-nowrap align-middle min-w-0">
                             <span
                               className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border ${typeConf.badgeBg}`}
                             >
@@ -815,12 +823,12 @@ export default function BroadcastManagement() {
                             </span>
                           </td>
 
-                          {/* Title & Preview with Priority - Clean Single/Double line with tight leading */}
-                          <td className="py-2 px-3 max-w-sm sm:max-w-md">
-                            <div className="flex items-center gap-1.5 min-w-0">
+                          {/* Title & Preview with Priority */}
+                          <td className="py-1.5 px-3 align-middle min-w-0">
+                            <div className="flex items-center gap-1.5 min-w-0 truncate">
                               <span
                                 onClick={() => setSelectedBroadcast(b)}
-                                className="font-bold text-xs text-[var(--text-primary)] hover:text-[var(--color-brand)] cursor-pointer truncate leading-tight"
+                                className="font-bold text-xs text-[var(--text-primary)] hover:text-brand cursor-pointer truncate leading-tight"
                               >
                                 {b.title}
                               </span>
@@ -835,79 +843,73 @@ export default function BroadcastManagement() {
                                 </span>
                               )}
                             </div>
-                            <div className="text-[11px] text-[var(--text-muted)] truncate mt-0.5 leading-tight">
+                            <div className="text-[10px] text-[var(--text-muted)] truncate mt-0.5 leading-tight">
                               {b.message}
                             </div>
-                            {b.actionUrl && (
-                              <div className="text-[10px] text-[var(--color-brand)] flex items-center gap-1 mt-0.5 font-mono truncate max-w-xs">
-                                <ExternalLink size={9} />
-                                <span>{b.actionUrl}</span>
-                              </div>
-                            )}
                           </td>
 
                           {/* Audience - Compact */}
-                          <td className="py-2 px-3 whitespace-nowrap text-[11px]">
+                          <td className="py-1.5 px-3 whitespace-nowrap text-[11px] align-middle min-w-0">
                             {b.targetAudience === 'all' && (
-                              <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium">
-                                <Users size={12} />
-                                <span>Everyone</span>
+                              <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium truncate">
+                                <Users size={11} />
+                                <span className="truncate">Everyone</span>
                               </span>
                             )}
                             {b.targetAudience === 'role' && (
-                              <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium capitalize">
-                                <Shield size={12} />
-                                <span>All {b.targetRole}s</span>
+                              <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium capitalize truncate">
+                                <Shield size={11} />
+                                <span className="truncate">All {b.targetRole}s</span>
                               </span>
                             )}
                             {b.targetAudience === 'specific' && (
-                              <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400 font-medium">
-                                <User size={12} />
-                                <span>{b.targetUser?.name || 'Direct User'}</span>
+                              <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400 font-medium truncate">
+                                <User size={11} />
+                                <span className="truncate">{b.targetUser?.name || 'Direct User'}</span>
                               </span>
                             )}
                           </td>
 
                           {/* Recipients count - Compact */}
-                          <td className="py-2 px-3 text-center whitespace-nowrap">
+                          <td className="py-1.5 px-3 text-center whitespace-nowrap align-middle">
                             <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-subtle)]">
                               {(b.recipientCount || 0).toLocaleString()}
                             </span>
                           </td>
 
                           {/* Time - Compact */}
-                          <td className="py-2 px-3 whitespace-nowrap text-[11px] text-[var(--text-muted)]">
-                            <div title={formatFullDate(b.createdAt)}>
+                          <td className="py-1.5 px-3 whitespace-nowrap text-[10px] text-[var(--text-muted)] align-middle">
+                            <div title={formatFullDate(b.createdAt)} className="truncate">
                               {formatRelativeTime(b.createdAt)}
                             </div>
                           </td>
 
-                          {/* Actions - Slim icon buttons */}
-                          <td className="py-2 px-3 text-right whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-0.5">
+                          {/* Actions - Standard w-6 h-6 */}
+                          <td className="py-1.5 px-3 text-right whitespace-nowrap align-middle">
+                            <div className="inline-flex items-center justify-end gap-1 shrink-0">
                               <button
                                 type="button"
                                 onClick={() => setSelectedBroadcast(b)}
-                                className="w-6 h-6 rounded flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+                                className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                                 title="Inspect Details"
                               >
-                                <Eye size={13} />
+                                <Eye size={12} />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDuplicateToComposer(b)}
-                                className="w-6 h-6 rounded flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+                                className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                                 title="Duplicate to Composer"
                               >
-                                <RotateCw size={13} />
+                                <RotateCw size={12} />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleCopyContent(b)}
-                                className="w-6 h-6 rounded flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+                                className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                                 title="Copy Message Text"
                               >
-                                <Copy size={13} />
+                                <Copy size={12} />
                               </button>
                               <button
                                 type="button"
@@ -919,10 +921,10 @@ export default function BroadcastManagement() {
                                     loading: false,
                                   })
                                 }
-                                className="w-6 h-6 rounded flex items-center justify-center text-rose-500/70 hover:text-rose-600 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                                className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-rose-600 hover:border-rose-300 dark:hover:border-rose-900/50 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                                 title="Delete & Retract"
                               >
-                                <Trash2 size={13} />
+                                <Trash2 size={12} />
                               </button>
                             </div>
                           </td>

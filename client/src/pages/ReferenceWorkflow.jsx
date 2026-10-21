@@ -541,18 +541,28 @@ const ReferenceWorkflow = () => {
         </div>
 
         {/* ─── DATA TABLE: 100% REAL DATA WITH BALANCED PROPORTIONS ─── */}
-        <div className="w-full overflow-x-auto min-h-[220px]">
-          <table className="w-full text-left border-collapse table-auto min-w-[850px]">
+        <div className="w-full overflow-hidden min-h-[220px]">
+          <table className="w-full text-left border-collapse table-fixed">
+            <colgroup>
+              <col className="w-[10%]" />
+              <col className="w-[16%]" />
+              <col className="w-[10%]" />
+              <col className="w-[15%]" />
+              <col className="w-[17%]" />
+              <col className="w-[10%]" />
+              <col className="w-[12%]" />
+              <col className="w-[10%]" />
+            </colgroup>
             <thead>
               <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-wider bg-[var(--bg-muted)]/40">
-                <th className="py-3 px-3.5 align-middle whitespace-nowrap w-[130px]">Ref ID</th>
-                <th className="py-3 px-3.5 align-middle w-[180px]">Referrer (Advocate)</th>
-                <th className="py-3 px-3.5 align-middle w-[150px]">Referral Code</th>
-                <th className="py-3 px-3.5 align-middle w-[180px]">Referee (Client)</th>
-                <th className="py-3 px-3.5 align-middle w-[180px]">Linked Deal</th>
-                <th className="py-3 px-3.5 align-middle w-[130px]">Reward Amount</th>
-                <th className="py-3 px-3.5 align-middle text-center whitespace-nowrap w-[140px]">Payout Status</th>
-                <th className="py-3 px-3.5 align-middle text-right whitespace-nowrap w-[120px]">Actions</th>
+                <th className="py-2 px-3 align-middle whitespace-nowrap">Ref ID</th>
+                <th className="py-2 px-3 align-middle">Referrer</th>
+                <th className="py-2 px-3 align-middle">Referral Code</th>
+                <th className="py-2 px-3 align-middle">Referee</th>
+                <th className="py-2 px-3 align-middle">Linked Deal</th>
+                <th className="py-2 px-3 align-middle">Reward</th>
+                <th className="py-2 px-3 align-middle text-center whitespace-nowrap">Payout Status</th>
+                <th className="py-2 px-3 align-middle text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
 
@@ -579,7 +589,7 @@ const ReferenceWorkflow = () => {
                       </p>
                       <p className="text-xs text-[var(--text-muted)] max-w-sm">
                         {references.length === 0
-                          ? 'Referrals submitted by community ambassadors or channel partners will securely appear here in real time.'
+                            ? 'Referrals submitted by community ambassadors or channel partners will securely appear here in real time.'
                           : 'Try changing your search query or switching the payout status filter.'}
                       </p>
                       {references.length === 0 ? (
@@ -616,77 +626,77 @@ const ReferenceWorkflow = () => {
                     <tr
                       key={r.id || r.mongoId}
                       onClick={() => setSelectedRef(r)}
-                      className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors duration-150 cursor-pointer"
+                      className="group hover:bg-[var(--bg-muted)]/40 transition-colors duration-150 cursor-pointer"
                     >
                       {/* 1. Ref ID */}
-                      <td className="py-3 px-3.5 align-middle whitespace-nowrap">
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap min-w-0">
                         <div className="leading-tight">
-                          <span className="font-mono text-[11px] font-semibold text-[var(--text-primary)] group-hover:text-brand transition-colors duration-150 block">
+                          <span className="font-mono text-[11px] font-semibold text-[var(--text-primary)] group-hover:text-brand transition-colors duration-150 block truncate">
                             {r.id}
                           </span>
-                          <span className="text-[10px] text-[var(--text-muted)] block mt-0.5">
+                          <span className="text-[10px] text-[var(--text-muted)] block mt-0.5 truncate">
                             {r.createdDate}
                           </span>
                         </div>
                       </td>
 
                       {/* 2. Referrer */}
-                      <td className="py-3 px-3.5 align-middle whitespace-nowrap">
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap min-w-0">
                         <div className="leading-tight">
-                          <p className="font-semibold text-[var(--text-primary)] group-hover:text-brand transition-colors duration-150">
+                          <p className="font-semibold text-[var(--text-primary)] group-hover:text-brand transition-colors duration-150 truncate">
                             {r.referrerName}
                           </p>
-                          <span className="text-[10px] text-[var(--text-muted)] block mt-0.5">
+                          <span className="text-[10px] text-[var(--text-muted)] block mt-0.5 truncate">
                             {r.referrerRole} {r.referrerPhone ? `• ${r.referrerPhone}` : ''}
                           </span>
                         </div>
                       </td>
 
                       {/* 3. Referral Code (Click to Copy) */}
-                      <td className="py-3 px-3.5 align-middle whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap min-w-0" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
                           onClick={() => handleCopyCode(r.referralCode)}
-                          className="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold bg-[var(--bg-muted)] hover:bg-brand/10 hover:border-brand/30 hover:text-brand px-2.5 py-1 rounded-md border border-[var(--border)] transition-all cursor-pointer active:scale-95 shadow-2xs"
+                          className="inline-flex items-center gap-1 font-mono text-[10px] font-bold bg-[var(--bg-muted)] hover:bg-brand/10 hover:border-brand/30 hover:text-brand px-2 py-0.5 rounded-md border border-[var(--border)] transition-all cursor-pointer active:scale-95 shadow-2xs max-w-full truncate"
                           title="Click to copy referral code"
                         >
                           {copiedCode === r.referralCode ? (
-                            <Check size={11} className="text-emerald-500" />
+                            <Check size={11} className="text-emerald-500 shrink-0" />
                           ) : (
-                            <Copy size={11} className="text-slate-400" />
+                            <Copy size={11} className="text-slate-400 shrink-0" />
                           )}
-                          <span>{r.referralCode}</span>
+                          <span className="truncate">{r.referralCode}</span>
                         </button>
                       </td>
 
                       {/* 4. Referee (Client) */}
-                      <td className="py-3 px-3.5 align-middle whitespace-nowrap">
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap min-w-0">
                         <div className="leading-tight">
-                          <p className="font-medium text-[var(--text-primary)]">
+                          <p className="font-medium text-[var(--text-primary)] truncate">
                             {r.refereeName}
                           </p>
-                          <p className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">
+                          <p className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5 truncate">
                             {r.refereePhone}
                           </p>
                         </div>
                       </td>
 
                       {/* 5. Linked Deal */}
-                      <td className="py-3 px-3.5 align-middle">
+                      <td className="py-1.5 px-3 align-middle min-w-0">
                         <div className="min-w-0">
-                          <p className="font-medium text-[var(--text-primary)] truncate max-w-[170px]" title={r.linkedProperty}>
+                          <p className="font-medium text-[var(--text-primary)] truncate" title={r.linkedProperty}>
                             {r.linkedProperty}
                           </p>
-                          <span className="text-[10px] font-semibold text-emerald-600 block mt-0.5">
+                          <span className="text-[10px] font-semibold text-emerald-600 block mt-0.5 truncate">
                             {r.dealValue}
                           </span>
                         </div>
                       </td>
 
                       {/* 6. Reward Amount */}
-                      <td className="py-3 px-3.5 align-middle whitespace-nowrap">
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap min-w-0">
                         <div className="leading-tight">
-                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block">
+                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block truncate">
                             ₹{(r.rewardAmount || 0).toLocaleString()}
                           </span>
                           <span className="text-[10px] text-[var(--text-muted)] block mt-0.5">
@@ -695,9 +705,9 @@ const ReferenceWorkflow = () => {
                         </div>
                       </td>
 
-                      {/* 7. Payout Status with Pulsing Beacon */}
-                      <td className="py-3 px-3.5 align-middle text-center whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border shadow-2xs ${statusCfg.pill}`}>
+                      {/* 7. Payout Status */}
+                      <td className="py-1.5 px-3 align-middle text-center whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border shadow-2xs ${statusCfg.pill}`}>
                           <span className="relative flex h-1.5 w-1.5 shrink-0">
                             <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${statusCfg.dot}`}></span>
                             <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${statusCfg.dot}`}></span>
@@ -707,16 +717,16 @@ const ReferenceWorkflow = () => {
                       </td>
 
                       {/* 8. Actions */}
-                      <td className="py-3 px-3.5 align-middle text-right whitespace-nowrap w-[120px]" onClick={(e) => e.stopPropagation()}>
-                        <div className="inline-flex items-center justify-end gap-1.5">
+                      <td className="py-1.5 px-3 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="inline-flex items-center justify-end gap-1 shrink-0">
                           {r.refereePhone && (
                             <button
                               type="button"
                               onClick={() => setCallTarget(r)}
                               title={`Call Referee (${r.refereePhone})`}
-                              className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-emerald-600 hover:bg-emerald-500/10 border border-[var(--border)] transition-all duration-150 active:scale-90 shadow-2xs shrink-0 cursor-pointer"
+                              className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-emerald-600 hover:bg-emerald-500/10 border border-[var(--border)] transition-all duration-150 active:scale-90 shadow-2xs shrink-0 cursor-pointer"
                             >
-                              <Phone size={12} />
+                              <Phone size={11} />
                             </button>
                           )}
 
@@ -724,9 +734,9 @@ const ReferenceWorkflow = () => {
                             type="button"
                             onClick={() => setSelectedRef(r)}
                             title="Inspect Referral Deal"
-                            className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-brand hover:border-brand/40 hover:bg-brand/10 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90 shadow-2xs shrink-0"
+                            className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-brand hover:border-brand/40 hover:bg-brand/10 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90 shadow-2xs shrink-0"
                           >
-                            <Eye size={13} />
+                            <Eye size={12} />
                           </button>
 
                           {r.payoutStatus === 'Eligible for Payout' && (
@@ -734,9 +744,9 @@ const ReferenceWorkflow = () => {
                               type="button"
                               onClick={() => setPayoutModal(r)}
                               title="Settle Reward Payout"
-                              className="w-7 h-7 rounded-md flex items-center justify-center text-emerald-600 hover:bg-emerald-500/10 border border-emerald-500/30 transition-all duration-150 cursor-pointer active:scale-90 shadow-2xs shrink-0"
+                              className="w-6 h-6 rounded-md flex items-center justify-center text-emerald-600 hover:bg-emerald-500/10 border border-emerald-500/30 transition-all duration-150 cursor-pointer active:scale-90 shadow-2xs shrink-0"
                             >
-                              <Gift size={13} />
+                              <Gift size={12} />
                             </button>
                           )}
 
@@ -744,9 +754,9 @@ const ReferenceWorkflow = () => {
                             type="button"
                             onClick={() => setDeleteModal(r)}
                             title="Delete Referral Record"
-                            className="w-7 h-7 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-rose-600 hover:border-rose-500/40 hover:bg-rose-500/10 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90 shadow-2xs shrink-0"
+                            className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-rose-600 hover:border-rose-500/40 hover:bg-rose-500/10 border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-90 shadow-2xs shrink-0"
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={11} />
                           </button>
                         </div>
                       </td>

@@ -191,6 +191,8 @@ exports.createProject = async (req, res, next) => {
       totalUnits: Number(totalUnits) || 0,
       possessionDate: possessionDate || 'Dec 2026',
       shortDescription: shortDescription || '',
+      projectPhotos: Array.isArray(req.body.projectPhotos) ? req.body.projectPhotos : (Array.isArray(req.body.images) ? req.body.images : []),
+      projectVideos: Array.isArray(req.body.projectVideos) ? req.body.projectVideos : (Array.isArray(req.body.videos) ? req.body.videos : []),
       approvalStatus: approvalStatus || 'approved',
       isLive: approvalStatus !== 'rejected' && approvalStatus !== 'pending',
     });
@@ -235,7 +237,11 @@ exports.updateProject = async (req, res, next) => {
       developerName,
       towers,
       floors,
-      totalUnits
+      totalUnits,
+      projectPhotos,
+      projectVideos,
+      images,
+      videos,
     } = req.body;
 
     if (projectName || title) project.projectName = projectName || title;
@@ -251,6 +257,10 @@ exports.updateProject = async (req, res, next) => {
     if (towers !== undefined) project.towers = Number(towers);
     if (floors !== undefined) project.floors = String(floors);
     if (totalUnits !== undefined) project.totalUnits = Number(totalUnits);
+    if (projectPhotos !== undefined) project.projectPhotos = Array.isArray(projectPhotos) ? projectPhotos : [];
+    else if (images !== undefined) project.projectPhotos = Array.isArray(images) ? images : [];
+    if (projectVideos !== undefined) project.projectVideos = Array.isArray(projectVideos) ? projectVideos : [];
+    else if (videos !== undefined) project.projectVideos = Array.isArray(videos) ? videos : [];
 
     await project.save();
 
@@ -404,6 +414,79 @@ exports.getInvestmentScore = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Instantly toggle Sold Out status on a developer project by Admin
+// @route   PATCH /api/admin/projects/:id/toggle-sold
+// @access  Private (Admin only)
+exports.toggleSoldStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { isSold, notes } = req.body;
+
+    const project = await Project.findById(id).populate('developer', 'name companyName email phone');
+    if (!project) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'No project found with that ID.',
+      });
+    }
+
+    const targetSold = isSold !== undefined ? (isSold === true || isSold === 'true') : !project.isSold;
+
+    project.isSold = targetSold;
+    project.saleStatus = targetSold ? 'sold' : 'available';
+    if (project.approvalStatus === 'approved') {
+      project.isLive = true;
+    }
+    if (targetSold) {
+      project.soldMarkedAt = new Date();
+      project.soldByAdmin = req.admin?._id;
+      project.saleNotes = notes || 'Project marked as Sold Out by Admin';
+    } else {
+      project.saleNotes = notes || 'Project relisted as Available by Admin';
+    }
+
+    await project.save();
+
+    // Send notification to Developer
+    try {
+      const Notification = require('../../models/notification.model');
+      if (project.developer && (project.developer._id || project.developer)) {
+        await Notification.create({
+          recipient: project.developer._id || project.developer,
+          title: targetSold ? 'Project Marked as Sold Out 🏷️' : 'Project Relisted as Available 🏗️',
+          message: targetSold
+            ? `Your project "${project.projectName}" has been marked as Sold Out by admin.`
+            : `Your project "${project.projectName}" has been relisted as available on GharMB.`,
+          type: 'verification',
+          metadata: {
+            projectId: project._id,
+            submissionId: project.submissionId,
+            action: targetSold ? 'marked_sold' : 'relisted',
+          },
+          isRead: false,
+        });
+      }
+    } catch (notifErr) {
+      console.warn('⚠️ Notification notice:', notifErr.message);
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: targetSold
+        ? `Project "${project.projectName}" marked as Sold Out.`
+        : `Project "${project.projectName}" relisted as Available.`,
+      data: {
+        project,
+        isSold: project.isSold,
+        saleStatus: project.saleStatus,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 
 

@@ -620,7 +620,7 @@ const ServicesManagement = () => {
     const isSorted = sortField === field;
     return (
       <th
-        className={`py-2.5 px-3.5 align-middle text-${align} whitespace-nowrap cursor-pointer select-none group/th hover:text-[var(--text-primary)] transition-colors`}
+        className={`py-2 px-3 align-middle text-${align} whitespace-nowrap cursor-pointer select-none group/th hover:text-[var(--text-primary)] transition-colors`}
         onClick={() => handleSort(field)}
       >
         <div className={`inline-flex items-center gap-1.5 ${align === 'center' ? 'justify-center' : align === 'right' ? 'justify-end' : ''}`}>
@@ -852,8 +852,16 @@ const ServicesManagement = () => {
         </div>
 
         {/* ─── DATA TABLE: 100% WIDTH, ZERO HORIZONTAL SCROLL ─── */}
-        <div className="w-full overflow-x-auto">
-          <table className="w-full text-left border-collapse table-auto">
+        <div className="w-full overflow-hidden">
+          <table className="w-full text-left border-collapse table-fixed">
+            <colgroup>
+              <col className="w-[26%]" />
+              <col className="w-[26%]" />
+              <col className="w-[16%]" />
+              <col className="w-[14%]" />
+              <col className="w-[10%]" />
+              <col className="w-[8%]" />
+            </colgroup>
             <thead>
               <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-[11px] font-semibold uppercase tracking-wider bg-[var(--bg-muted)]/50">
                 {renderSortHeader('Service Request', 'serviceName')}
@@ -861,7 +869,7 @@ const ServicesManagement = () => {
                 {renderSortHeader('Assigned Partner', 'assignedPartner')}
                 {renderSortHeader('Quotation', 'quotation')}
                 <th 
-                  className="py-2.5 px-3.5 align-middle text-center whitespace-nowrap cursor-pointer select-none group/th hover:text-[var(--text-primary)] transition-colors"
+                  className="py-2 px-3 align-middle text-center whitespace-nowrap cursor-pointer select-none group/th hover:text-[var(--text-primary)] transition-colors"
                   onClick={() => handleSort('status')}
                 >
                   <div className="inline-flex items-center justify-center gap-1.5">
@@ -869,7 +877,7 @@ const ServicesManagement = () => {
                     <ArrowUpDown size={11} className={`transition-colors ${sortField === 'status' ? 'text-brand' : 'text-slate-400/50 opacity-0 group-hover/th:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="py-2.5 px-3.5 align-middle text-right whitespace-nowrap">Actions</th>
+                <th className="py-2 px-3 align-middle text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
 
@@ -925,27 +933,27 @@ const ServicesManagement = () => {
                       className="group hover:bg-[var(--bg-muted)]/40 transition-colors duration-150 cursor-pointer"
                     >
                       {/* 1. Service Request (ID Pill + Title + Category) */}
-                      <td className="py-3 px-3.5 align-middle">
+                      <td className="py-1.5 px-3 align-middle min-w-0">
                         <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-mono text-[10px] font-semibold text-brand bg-brand/10 px-1.5 py-0.2 rounded border border-brand/20 select-all">
+                          <div className="flex items-center gap-1.5 flex-nowrap">
+                            <span className="font-mono text-[10px] font-semibold text-brand bg-brand/10 px-1 py-0.5 rounded border border-brand/20 select-all shrink-0">
                               {item.id}
                             </span>
-                            <span className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate max-w-[220px]" title={item.serviceName}>
+                            <span className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate" title={item.serviceName}>
                               {displayService.title}
                             </span>
                           </div>
-                          <p className="text-[10px] text-[var(--text-muted)] font-medium mt-0.5">
+                          <p className="text-[10px] text-[var(--text-muted)] font-medium mt-0.5 truncate">
                             {displayService.categoryLabel}
                           </p>
                         </div>
                       </td>
 
                       {/* 2. Client Details & Route */}
-                      <td className="py-3 px-3.5 align-middle">
+                      <td className="py-1.5 px-3 align-middle min-w-0">
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate max-w-[150px] capitalize">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate capitalize">
                               {item.clientName}
                             </span>
                             {item.clientPhone && item.clientPhone !== 'N/A' && (
@@ -972,22 +980,22 @@ const ServicesManagement = () => {
                           </div>
                           {/* Route / Location line */}
                           {isMove ? (
-                            <div className="flex items-center gap-1 text-[11px] text-[var(--text-muted)] mt-0.5" title={item.location}>
-                              <span className="truncate max-w-[75px]">{item.location.split(/->|→/)[0]?.trim()}</span>
+                            <div className="flex items-center gap-1 text-[11px] text-[var(--text-muted)] mt-0.5 truncate" title={item.location}>
+                              <span className="truncate">{item.location.split(/->|→/)[0]?.trim()}</span>
                               <ArrowRight size={10} className="text-brand shrink-0" />
-                              <span className="truncate max-w-[75px]">{item.location.split(/->|→/)[1]?.trim() || ''}</span>
+                              <span className="truncate">{item.location.split(/->|→/)[1]?.trim() || ''}</span>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-1 text-[11px] text-[var(--text-muted)] mt-0.5">
+                            <div className="flex items-center gap-1 text-[11px] text-[var(--text-muted)] mt-0.5 truncate">
                               <MapPin size={10} className="shrink-0 text-slate-400" />
-                              <span className="truncate max-w-[150px]">{item.location || 'India'}</span>
+                              <span className="truncate">{item.location || 'India'}</span>
                             </div>
                           )}
                         </div>
                       </td>
 
                       {/* 3. Assigned Partner */}
-                      <td className="py-3 px-3.5 align-middle whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap min-w-0" onClick={(e) => e.stopPropagation()}>
                         {item.assignedPartner ? (
                           <button
                             type="button"
@@ -996,7 +1004,7 @@ const ServicesManagement = () => {
                               setSelectedPartner(item.assignedPartner || (partnersCatalog[item.serviceType] && partnersCatalog[item.serviceType][0]));
                               setNewQuotationAmount(item.quotation || '');
                             }}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium text-[var(--text-primary)] bg-[var(--bg-muted)] hover:bg-[var(--bg-surface)] hover:border-brand/40 hover:text-brand border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-95 max-w-[140px]"
+                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium text-[var(--text-primary)] bg-[var(--bg-muted)] hover:bg-[var(--bg-surface)] hover:border-brand/40 hover:text-brand border border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-95 max-w-full truncate"
                             title="Click to change partner"
                           >
                             <UserCheck size={11} className="text-brand shrink-0" />
@@ -1010,7 +1018,7 @@ const ServicesManagement = () => {
                               setSelectedPartner((partnersCatalog[item.serviceType] && partnersCatalog[item.serviceType][0]) || '');
                               setNewQuotationAmount(item.quotation || '');
                             }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium text-[var(--text-muted)] hover:text-brand hover:border-brand/40 hover:bg-brand/5 border border-dashed border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-95"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium text-[var(--text-muted)] hover:text-brand hover:border-brand/40 hover:bg-brand/5 border border-dashed border-[var(--border)] transition-all duration-150 cursor-pointer active:scale-95"
                             title="Click to assign partner"
                           >
                             <Plus size={11} className="text-brand shrink-0" />
@@ -1020,13 +1028,13 @@ const ServicesManagement = () => {
                       </td>
 
                       {/* 4. Quotation / Value */}
-                      <td className="py-3 px-3.5 align-middle whitespace-nowrap">
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap min-w-0">
                         <div className="leading-tight">
                           <p className={`font-semibold text-xs ${item.quotation && !item.quotation.toLowerCase().includes('under review') ? 'text-[var(--text-primary)] font-mono' : 'text-[var(--text-muted)] italic font-normal'}`}>
                             {item.quotation || 'Under Review'}
                           </p>
                           {item.quotationSubtext && (
-                            <p className="text-[10px] text-[var(--text-muted)] mt-0.5 truncate max-w-[130px]" title={item.quotationSubtext}>
+                            <p className="text-[10px] text-[var(--text-muted)] mt-0.5 truncate" title={item.quotationSubtext}>
                               {item.quotationSubtext}
                             </p>
                           )}
@@ -1034,41 +1042,41 @@ const ServicesManagement = () => {
                       </td>
 
                       {/* 5. Status */}
-                      <td className="py-3 px-3.5 align-middle text-center whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border shadow-2xs ${statusCfg.pill} transition-all duration-200`}>
+                      <td className="py-1.5 px-3 align-middle text-center whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border shadow-2xs ${statusCfg.pill} transition-all duration-200`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`}></span>
                           <span>{item.status}</span>
                         </span>
                       </td>
 
                       {/* 6. Actions: View, Edit, Delete */}
-                      <td className="py-3 px-3.5 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <div className="inline-flex items-center gap-1 justify-end">
+                      <td className="py-1.5 px-3 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="inline-flex items-center gap-1 justify-end shrink-0">
                           <button
                             type="button"
                             onClick={() => setSelectedEnquiry(item)}
                             title="View Details"
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-brand hover:bg-brand/10 transition-colors cursor-pointer active:scale-90"
+                            className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                           >
-                            <Eye size={13} />
+                            <Eye size={12} />
                           </button>
 
                           <button
                             type="button"
                             onClick={() => setEditingEnquiry({ ...item })}
                             title="Edit Inquiry"
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-brand hover:bg-brand/10 transition-colors cursor-pointer active:scale-90"
+                            className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                           >
-                            <Edit2 size={13} />
+                            <Edit2 size={12} />
                           </button>
 
                           <button
                             type="button"
                             onClick={() => setDeleteConfirmItem(item)}
                             title="Delete Inquiry"
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer active:scale-90"
+                            className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-rose-600 hover:border-rose-300 dark:hover:border-rose-900/50 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                           >
-                            <Trash2 size={13} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </td>

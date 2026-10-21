@@ -17,82 +17,24 @@ const router = express.Router();
  *   description: Endpoints for submitting questions or purchasing interest (leads) on properties/projects
  */
 
-router.use(userAuth);
+const optionalAuth = userAuth.optionalUserAuth || userAuth;
 
-// Buyer/Tenant endpoints
-/**
- * @swagger
- * /api/users/enquiries:
- *   post:
- *     summary: Create a new enquiry/lead on a property or project (Buyer/Tenant)
- *     tags: [Enquiries & Leads]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - message
- *             properties:
- *               propertyId:
- *                 type: string
- *                 example: "60c72b2f9b1d8b23c4d5e6f7"
- *               projectId:
- *                 type: string
- *                 example: "60c72b2f9b1d8b23c4d5e6f8"
- *               message:
- *                 type: string
- *                 example: "I am interested in this property, please contact me."
- *     responses:
- *       201:
- *         description: Enquiry submitted successfully
- *       401:
- *         description: Unauthorized
- */
+// Public & Authenticated Enquiry Creation:
+// Allows both registered users and website visitors/leads to submit enquiries (sends directly to Admin Panel)
 router.post(
   '/',
-  restrictTo('buyer', 'tenant'),
+  optionalAuth,
   enquiryController.createEnquiry
 );
 
-/**
- * @swagger
- * /api/users/enquiries/developer:
- *   post:
- *     summary: Create a new enquiry/lead directed to a builder/developer (Buyer/Tenant)
- *     tags: [Enquiries & Leads]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - developerId
- *               - message
- *             properties:
- *               developerId:
- *                 type: string
- *                 example: "60c72b2f9b1d8b23c4d5e6f7"
- *               message:
- *                 type: string
- *                 example: "I am interested in buying one of your developer projects."
- *     responses:
- *       201:
- *         description: Enquiry submitted successfully to developer
- *       401:
- *         description: Unauthorized
- */
 router.post(
   '/developer',
-  restrictTo('buyer', 'tenant'),
+  optionalAuth,
   enquiryController.createDeveloperEnquiry
 );
+
+// All personal enquiry list & management routes require authenticated user
+router.use(userAuth);
 
 /**
  * @swagger

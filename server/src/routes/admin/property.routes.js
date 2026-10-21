@@ -38,6 +38,9 @@ router.use(restrictTo('admin'));
 router.route('/')
   .get(propertyController.getAllProperties);
 
+// Check and trigger 3-day sale confirmation notifications
+router.get('/check-sale-confirmations', propertyController.checkSaleConfirmations);
+
 /**
  * @swagger
  * /api/admin/properties/{id}:
@@ -102,6 +105,11 @@ router.route('/:id')
  */
 router.patch('/:id/status', propertyController.updatePropertyStatus);
 router.patch('/:id/commission-discount', propertyController.updateCommissionDiscount);
+
+// Admin Property Sale Management endpoints
+router.patch('/:id/mark-sold', propertyController.markPropertyAsSold);
+router.patch('/:id/confirm-sale', propertyController.confirmPropertySale);
+router.patch('/:id/toggle-sold', propertyController.toggleSoldStatus);
 
 /**
  * @swagger

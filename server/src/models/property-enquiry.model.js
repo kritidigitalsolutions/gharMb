@@ -13,7 +13,21 @@ const propertyEnquirySchema = new mongoose.Schema(
       required: false,
       index: true,
     },
+    project: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
+      required: false,
+      index: true,
+    },
     propertyName: {
+      type: String,
+      trim: true,
+    },
+    projectName: {
+      type: String,
+      trim: true,
+    },
+    developerName: {
       type: String,
       trim: true,
     },

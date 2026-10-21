@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import AdminLoader from '../components/common/AdminLoader';
+import SmoothImage from '../components/common/SmoothImage';
 import API, { getMediaUrl } from '../api/api';
+import Badge from '../components/ui/Badge';
 import {
   HardHat,
   Award,
@@ -20,59 +22,106 @@ import {
   Check,
   Copy,
   ExternalLink,
-  ChevronRight,
   Phone,
   Mail,
   AlertCircle,
   FileText,
   Eye,
-  Download,
   ZoomIn,
   ZoomOut,
   RotateCw,
   Building2,
+  Building,
   Clock,
   Sparkles,
+  Tag,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  Play,
+  Film,
+  List,
+  LayoutGrid,
+  ChevronRight,
+  SlidersHorizontal,
+  Home,
+  CheckCheck
 } from 'lucide-react';
 
-const BuilderManagement = () => {
-  const [builders, setBuilders] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [isLoadingBuilders, setIsLoadingBuilders] = useState(true);
-  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+const PRESET_REJECT_REASONS = [
+  'RERA License documents verification incomplete, expired, or mismatch with state authority',
+  'Company PAN card name does not match registered commercial entity name',
+  'GSTIN validation failed or invalid corporate registration proof',
+  'Uploaded documents are illegible or blurry — please re-upload clear color scans',
+  'Corporate office verification and director authorization pending',
+  'Blueprint structural plans or environmental clearance not attached'
+];
 
+export default function BuilderManagement() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
+  // ── 01. Module Pipeline State ('builders' | 'projects') ───────────────────
   const [activeTab, setActiveTab] = useState(() => {
     if (location.pathname.includes('/projects') || searchParams.get('tab') === 'projects') {
       return 'projects';
     }
     return 'builders';
   });
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All'); // 'All', 'Pending', 'Approved', 'Suspended'
 
-  // Drawer & Modal states
+  // ── 02. Data States ───────────────────────────────────────────────────────
+  const [builders, setBuilders] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [isLoadingBuilders, setIsLoadingBuilders] = useState(true);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState('Just now');
+  const lastSyncTimestampRef = useRef(Date.now());
+
+  // ── 03. Filter & View States ──────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'Pending' | 'Approved' | 'Suspended'
+  const [secondaryFilter, setSecondaryFilter] = useState('ALL'); // Builders: 'ALL'|'RERA_DOC'|'ISO'|'HIGH_TRUST' ; Projects: 'ALL'|'RESIDENTIAL'|'COMMERCIAL'|'READY'|'UNDER_CONST'
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      return localStorage.getItem('builders_projects_view') || 'table';
+    } catch {
+      return 'table';
+    }
+  });
+
+  const handleSetViewMode = (mode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('builders_projects_view', mode);
+    } catch {
+      // ignore
+    }
+  };
+
+  // ── 04. Sliding Switch Refs & Geometries ──────────────────────────────────
+  const moduleTabRefs = useRef({});
+  const [moduleIndicatorStyle, setModuleIndicatorStyle] = useState({ left: 4, width: 0, opacity: 0 });
+
+  const statusTabRefs = useRef({});
+  const [statusIndicatorStyle, setStatusIndicatorStyle] = useState({ left: 4, width: 0, opacity: 0 });
+
+  const viewModeRefs = useRef({});
+  const [viewModeIndicatorStyle, setViewModeIndicatorStyle] = useState({ left: 4, width: 0, opacity: 0 });
+
+  // ── 05. Drawer & Selection States ─────────────────────────────────────────
   const [selectedBuilder, setSelectedBuilder] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [builderDrawerTab, setBuilderDrawerTab] = useState('overview'); // 'overview' | 'docs' | 'credentials'
+  const [projectDrawerTab, setProjectDrawerTab] = useState('overview'); // 'overview' | 'gallery' | 'investment'
 
-  // Document Lightbox Preview
-  const [lightboxDoc, setLightboxDoc] = useState(null); // { url, title, type }
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [rotation, setRotation] = useState(0);
-
-  // Rejection modal
+  // ── 06. Modal States ──────────────────────────────────────────────────────
   const [rejectPrompt, setRejectPrompt] = useState(null); // { item, type: 'builder' | 'project' }
-  const [rejectReason, setRejectReason] = useState('RERA License documents verification incomplete or mismatch');
-  const [customReasonActive, setCustomReasonActive] = useState(false);
-
-  // Delete confirmation
+  const [selectedRejectReason, setSelectedRejectReason] = useState(PRESET_REJECT_REASONS[0]);
+  const [customRejectNote, setCustomRejectNote] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null); // { item, type: 'builder' | 'project' }
+  const [isSubmittingAction, setIsSubmittingAction] = useState(false);
 
-  // Investment Score Modal state
+  // Investment Score Modal
   const [editingScoreProject, setEditingScoreProject] = useState(null);
   const [scoreForm, setScoreForm] = useState({
     connectivity: 9.0,
@@ -83,67 +132,10 @@ const BuilderManagement = () => {
   });
   const [isSavingScore, setIsSavingScore] = useState(false);
 
-  const openScoreModal = (project) => {
-    const cur = project.investmentScore?.metrics || {};
-    setScoreForm({
-      connectivity: cur.connectivity ?? 9.0,
-      rentalPotential: cur.rentalPotential ?? 8.5,
-      growthPotential: cur.growthPotential ?? 9.0,
-      familyLiving: cur.familyLiving ?? 8.8,
-      futureDemand: cur.futureDemand ?? 9.0,
-    });
-    setEditingScoreProject(project);
-  };
-
-  const computedOverall = useMemo(() => {
-    const vals = [
-      Number(scoreForm.connectivity) || 0,
-      Number(scoreForm.rentalPotential) || 0,
-      Number(scoreForm.growthPotential) || 0,
-      Number(scoreForm.familyLiving) || 0,
-      Number(scoreForm.futureDemand) || 0,
-    ];
-    const sum = vals.reduce((a, b) => a + b, 0);
-    return Math.round((sum / vals.length) * 10) / 10;
-  }, [scoreForm]);
-
-  const computedGrade = useMemo(() => {
-    if (computedOverall >= 8.0) return 'Excellent';
-    if (computedOverall >= 6.5) return 'Good';
-    if (computedOverall >= 5.0) return 'Average';
-    return 'Below Average';
-  }, [computedOverall]);
-
-  const handleSaveScore = async () => {
-    if (!editingScoreProject) return;
-    setIsSavingScore(true);
-    try {
-      const payload = {
-        connectivity: Number(scoreForm.connectivity),
-        rentalPotential: Number(scoreForm.rentalPotential),
-        growthPotential: Number(scoreForm.growthPotential),
-        familyLiving: Number(scoreForm.familyLiving),
-        futureDemand: Number(scoreForm.futureDemand),
-      };
-      const res = await API.put(`/admin/projects/${editingScoreProject._id}/investment-score`, payload);
-      if (res.data?.status === 'success') {
-        showToast('Project investment score updated successfully!', 'success');
-        fetchProjects();
-        if (selectedProject && selectedProject._id === editingScoreProject._id) {
-          setSelectedProject((prev) => ({
-            ...prev,
-            investmentScore: res.data.data.investmentScore,
-            score: res.data.data.investmentScore.overall,
-          }));
-        }
-        setEditingScoreProject(null);
-      }
-    } catch (err) {
-      showToast(err?.response?.data?.message || 'Failed to update investment score.', 'error');
-    } finally {
-      setIsSavingScore(false);
-    }
-  };
+  // Document & Video Lightbox
+  const [lightboxDoc, setLightboxDoc] = useState(null); // { url, title, type }
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [rotation, setRotation] = useState(0);
 
   // Toast feedback
   const [toast, setToast] = useState(null);
@@ -158,20 +150,17 @@ const BuilderManagement = () => {
   };
 
   const copyToClipboard = (text, label = 'Text') => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
+    if (!text || text === 'N/A') return;
+    navigator.clipboard?.writeText(text);
     showToast(`${label} copied to clipboard!`, 'info');
   };
 
-  const getDocumentUrl = (url) => {
-    return getMediaUrl(url);
-  };
+  const getDocumentUrl = (url) => getMediaUrl(url);
 
-  // Relative time helper
   const getRelativeTime = (dateString) => {
     if (!dateString) return 'Recent';
     try {
-      const diffMs = new Date() - new Date(dateString);
+      const diffMs = Date.now() - new Date(dateString).getTime();
       const diffMins = Math.floor(diffMs / 60000);
       if (diffMins < 1) return 'Just now';
       if (diffMins < 60) return `${diffMins}m ago`;
@@ -190,7 +179,8 @@ const BuilderManagement = () => {
     }
   };
 
-  const fetchBuilders = async () => {
+  // ── 07. Data Fetching ─────────────────────────────────────────────────────
+  const fetchBuilders = useCallback(async () => {
     setIsLoadingBuilders(true);
     try {
       const response = await API.get('/admin/users?role=builder');
@@ -214,10 +204,12 @@ const BuilderManagement = () => {
             companyName: u.companyName || u.name,
             applicantName: u.name,
             rera: u.reraNumber || 'Pending Check',
-            exp: parseInt(u.yearsInBusiness) || 0,
-            yearsInBusinessText: u.yearsInBusiness ? `${u.yearsInBusiness}` : 'Not specified',
-            delivered: parseInt(u.unitsDelivered) || 0,
-            trust: u.builderVerificationStatus === 'approved' ? (u.rating ? Math.round(u.rating * 20) : 100) : u.builderVerificationStatus === 'pending' ? 50 : 0,
+            exp: parseInt(u.yearsInBusiness, 10) || 0,
+            yearsInBusinessText: u.yearsInBusiness
+              ? (String(u.yearsInBusiness).toLowerCase().includes('yr') ? String(u.yearsInBusiness) : `${u.yearsInBusiness} yrs`)
+              : 'Not specified',
+            delivered: parseInt(u.unitsDelivered, 10) || 0,
+            trust: u.builderVerificationStatus === 'approved' ? (u.rating ? Math.round(u.rating * 20) : 100) : u.builderVerificationStatus === 'pending' ? 55 : 30,
             status,
             builderVerificationStatus: u.builderVerificationStatus || 'pending',
             user: u.email || u.phone || 'N/A',
@@ -251,9 +243,9 @@ const BuilderManagement = () => {
     } finally {
       setIsLoadingBuilders(false);
     }
-  };
+  }, []);
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     setIsLoadingProjects(true);
     try {
       const response = await API.get('/admin/projects');
@@ -261,7 +253,8 @@ const BuilderManagement = () => {
       if (data?.status === 'success' && data.data?.projects) {
         const mapped = data.data.projects.map((p) => {
           let status = 'Draft';
-          if (p.approvalStatus === 'approved') status = 'Published';
+          if (p.isSold) status = 'Sold';
+          else if (p.approvalStatus === 'approved') status = 'Published';
           else if (p.approvalStatus === 'rejected') status = 'Archived';
 
           const invScore = p.investmentScore || {
@@ -276,20 +269,61 @@ const BuilderManagement = () => {
             },
           };
 
+          const rawPhotos = Array.isArray(p.projectPhotos) ? p.projectPhotos : [];
+          const rawVideos = Array.isArray(p.projectVideos) ? p.projectVideos : [];
+          const isVideoUrl = (url) => {
+            if (!url || typeof url !== 'string') return false;
+            try {
+              const decoded = decodeURIComponent(url).toLowerCase();
+              const clean = decoded.split('?')[0];
+              return (
+                /\.(mp4|webm|mov|m4v|mkv|avi|3gp)$/i.test(clean) ||
+                decoded.includes('/video/') ||
+                decoded.includes('/videos/') ||
+                decoded.includes('video/mp4') ||
+                decoded.includes('format=mp4') ||
+                decoded.includes('contenttype=video')
+              );
+            } catch (_) {
+              return /\.(mp4|webm|mov|m4v|mkv|avi|3gp)/i.test(url) || url.toLowerCase().includes('video');
+            }
+          };
+          const photos = rawPhotos.filter(u => !isVideoUrl(u));
+          const videos = [...rawVideos, ...rawPhotos.filter(u => isVideoUrl(u))];
+          const gallery = Array.isArray(p.gallery) && p.gallery.length > 0
+            ? p.gallery
+            : [
+                ...photos.map(url => ({ url: getDocumentUrl(url), type: 'image' })),
+                ...videos.map(url => ({ url: getDocumentUrl(url), type: 'video' })),
+              ];
+
           return {
             id: p.submissionId || `PRJ-${p._id.slice(-4).toUpperCase()}`,
             _id: p._id,
-            title: p.projectName,
-            builder: p.developerName || p.developer?.companyName || p.developer?.name || 'Developer',
-            location: `${p.locality ? p.locality + ', ' : ''}${p.city}`,
+            title: p.projectName || 'Untitled Project',
+            builder: p.developerName || p.developer?.companyName || p.developer?.name || 'Developer Entity',
+            developerEmail: p.developer?.email || '',
+            location: `${p.locality ? p.locality + ', ' : ''}${p.city || 'India'}`,
+            city: p.city || 'India',
             score: invScore.overall || (p.approvalStatus === 'approved' ? 9.2 : 7.0),
             investmentScore: invScore,
             status,
+            approvalStatus: p.approvalStatus || 'pending',
             units: `${p.totalUnits || 0} Units`,
+            totalUnits: p.totalUnits || 0,
             stage: p.projectStatus || 'Under construction',
+            category: p.projectType || 'Residential',
             reraNumber: p.reraProjectNumber || 'Pending',
             possessionDate: p.possessionDate || 'Dec 2026',
-            description: p.shortDescription || 'Residential/Commercial developer project.'
+            description: p.shortDescription || p.description || 'Residential/Commercial developer project development.',
+            photos: photos.map(getDocumentUrl),
+            videos: videos.map(getDocumentUrl),
+            gallery,
+            createdAt: p.createdAt,
+            updatedAt: p.updatedAt,
+            rejectionReason: p.rejectionReason || '',
+            isSold: Boolean(p.isSold),
+            saleStatus: p.saleStatus || (p.isSold ? 'sold' : 'available'),
           };
         });
         setProjects(mapped);
@@ -299,114 +333,197 @@ const BuilderManagement = () => {
     } finally {
       setIsLoadingProjects(false);
     }
-  };
+  }, []);
+
+  const refreshAllData = useCallback(async () => {
+    setIsRefreshing(true);
+    await Promise.all([fetchBuilders(), fetchProjects()]);
+    lastSyncTimestampRef.current = Date.now();
+    setLastSyncTime('Just now');
+    setIsRefreshing(false);
+    showToast('Inventory & builder records synchronized!', 'info');
+  }, [fetchBuilders, fetchProjects]);
 
   useEffect(() => {
     fetchBuilders();
     fetchProjects();
-  }, []);
 
-  // Builder actions
-  const updateBuilderStatus = async (builder, newStatus, reason = '') => {
-    try {
-      let bodyStatus = newStatus === 'Approved' ? 'approved' : 'rejected';
-      const response = await API.patch(`/admin/users/${builder._id}/verify-developer`, {
-        builderVerificationStatus: bodyStatus,
-        rejectReason: reason || (newStatus === 'Approved' ? 'Verified by Admin' : 'Application rejected by Admin')
-      });
-      const data = response.data;
-      if (data?.status === 'success') {
-        await fetchBuilders();
-        if (selectedBuilder && selectedBuilder._id === builder._id) {
-          setSelectedBuilder((prev) => ({
-            ...prev,
-            status: newStatus,
-            builderVerificationStatus: bodyStatus,
-            trust: newStatus === 'Approved' ? 95 : 45
-          }));
+    const interval = setInterval(() => {
+      const diffSecs = Math.floor((Date.now() - lastSyncTimestampRef.current) / 1000);
+      if (diffSecs < 60) setLastSyncTime('Just now');
+      else setLastSyncTime(`${Math.floor(diffSecs / 60)}m ago`);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [fetchBuilders, fetchProjects]);
+
+  // ── 08. Counts & Computed Metrics ─────────────────────────────────────────
+  const builderCounts = useMemo(() => {
+    const total = builders.length;
+    const pending = builders.filter(b => b.status === 'Pending').length;
+    const approved = builders.filter(b => b.status === 'Approved').length;
+    const suspended = builders.filter(b => b.status === 'Suspended' || b.status === 'Rejected').length;
+    return { total, pending, approved, suspended };
+  }, [builders]);
+
+  const projectCounts = useMemo(() => {
+    const total = projects.length;
+    const pending = projects.filter(p => p.status === 'Draft' || p.status === 'Pending').length;
+    const approved = projects.filter(p => p.status === 'Published' || p.status === 'Approved').length;
+    const suspended = projects.filter(p => p.status === 'Archived' || p.status === 'Suspended' || p.status === 'Rejected').length;
+    return { total, pending, approved, suspended };
+  }, [projects]);
+
+  const currentCounts = activeTab === 'builders' ? builderCounts : projectCounts;
+
+  // ── 09. Sliding Status Tabs Specification (BADGES_UI_DESIGN_SYSTEM.md Tokens) ─
+  const statusTabs = useMemo(() => {
+    if (activeTab === 'builders') {
+      return [
+        {
+          key: 'All',
+          label: 'All Builders',
+          count: builderCounts.total,
+          icon: Building2,
+          activeBg: 'bg-[#ffc5bb] dark:bg-[#4f160e]',
+          activeText: 'text-[#992211] dark:text-[#ff9b8a]',
+          activeCountBg: 'bg-[#992211]/15 text-[#992211] dark:bg-[#ff9b8a]/25 dark:text-[#ff9b8a]'
+        },
+        {
+          key: 'Pending',
+          label: 'Needs Audit',
+          count: builderCounts.pending,
+          icon: Clock,
+          activeBg: 'bg-[#fef08a] dark:bg-[#4d3209]',
+          activeText: 'text-[#78350f] dark:text-[#fef08a]',
+          activeCountBg: 'bg-[#78350f]/15 text-[#78350f] dark:bg-[#fef08a]/25 dark:text-[#fef08a]'
+        },
+        {
+          key: 'Approved',
+          label: 'RERA Verified & Live',
+          count: builderCounts.approved,
+          icon: CheckCircle2,
+          activeBg: 'bg-[#52c99b] dark:bg-[#1a4a38]',
+          activeText: 'text-[#064e3b] dark:text-[#6ee7b7]',
+          activeCountBg: 'bg-[#064e3b]/15 text-[#064e3b] dark:bg-[#6ee7b7]/25 dark:text-[#6ee7b7]'
+        },
+        {
+          key: 'Suspended',
+          label: 'Suspended / Rejected',
+          count: builderCounts.suspended,
+          icon: XCircle,
+          activeBg: 'bg-[#fca5a5] dark:bg-[#521722]',
+          activeText: 'text-[#701a2b] dark:text-[#fda4af]',
+          activeCountBg: 'bg-[#701a2b]/15 text-[#701a2b] dark:bg-[#fda4af]/25 dark:text-[#fda4af]'
         }
-        setRejectPrompt(null);
-        showToast(
-          newStatus === 'Approved'
-            ? `🎉 Builder "${builder.companyName}" verified & authorized successfully!`
-            : `Builder application status updated to ${newStatus}.`,
-          'success'
-        );
-      } else {
-        showToast(data?.message || 'Failed to update builder status.', 'error');
+      ];
+    }
+    return [
+      {
+        key: 'All',
+        label: 'All Projects',
+        count: projectCounts.total,
+        icon: Layers,
+        activeBg: 'bg-[#ffc5bb] dark:bg-[#4f160e]',
+        activeText: 'text-[#992211] dark:text-[#ff9b8a]',
+        activeCountBg: 'bg-[#992211]/15 text-[#992211] dark:bg-[#ff9b8a]/25 dark:text-[#ff9b8a]'
+      },
+      {
+        key: 'Pending',
+        label: 'Draft / In Audit',
+        count: projectCounts.pending,
+        icon: Clock,
+        activeBg: 'bg-[#fef08a] dark:bg-[#4d3209]',
+        activeText: 'text-[#78350f] dark:text-[#fef08a]',
+        activeCountBg: 'bg-[#78350f]/15 text-[#78350f] dark:bg-[#fef08a]/25 dark:text-[#fef08a]'
+      },
+      {
+        key: 'Approved',
+        label: 'Published Live',
+        count: projectCounts.approved,
+        icon: CheckCircle2,
+        activeBg: 'bg-[#52c99b] dark:bg-[#1a4a38]',
+        activeText: 'text-[#064e3b] dark:text-[#6ee7b7]',
+        activeCountBg: 'bg-[#064e3b]/15 text-[#064e3b] dark:bg-[#6ee7b7]/25 dark:text-[#6ee7b7]'
+      },
+      {
+        key: 'Suspended',
+        label: 'Archived',
+        count: projectCounts.suspended,
+        icon: XCircle,
+        activeBg: 'bg-[#fca5a5] dark:bg-[#521722]',
+        activeText: 'text-[#701a2b] dark:text-[#fda4af]',
+        activeCountBg: 'bg-[#701a2b]/15 text-[#701a2b] dark:bg-[#fda4af]/25 dark:text-[#fda4af]'
       }
-    } catch (err) {
-      console.error(err);
-      showToast(err?.response?.data?.message || 'Connection error updating builder status.', 'error');
-    }
-  };
+    ];
+  }, [activeTab, builderCounts, projectCounts]);
 
-  const deleteBuilder = async (builder) => {
-    try {
-      await API.delete(`/admin/users/${builder._id}`);
-      fetchBuilders();
-      setSelectedBuilder(null);
-      setDeleteConfirm(null);
-      showToast('Builder deactivated successfully.', 'info');
-    } catch (err) {
-      console.error(err);
-      showToast(err?.response?.data?.message || 'Error connecting to server.', 'error');
-    }
-  };
+  const activeStatusTab = useMemo(() => {
+    return statusTabs.find(t => t.key === statusFilter) || statusTabs[0];
+  }, [statusTabs, statusFilter]);
 
-  // Project actions
-  const updateProjectStatus = async (project, newStatus, reason = '') => {
-    try {
-      let apiStatus = 'pending';
-      if (newStatus === 'Published') apiStatus = 'approved';
-      else if (newStatus === 'Archived') apiStatus = 'rejected';
-
-      const response = await API.patch(`/admin/projects/${project._id}/status`, {
-        approvalStatus: apiStatus,
-        rejectionReason: reason
-      });
-      const data = response.data;
-      if (data?.status === 'success') {
-        fetchProjects();
-        if (selectedProject && selectedProject._id === project._id) {
-          setSelectedProject((prev) => ({ ...prev, status: newStatus }));
-        }
-        setRejectPrompt(null);
-        showToast(`Project status updated to ${newStatus}.`, 'success');
-      } else {
-        showToast(data?.message || 'Failed to update project status.', 'error');
+  // ── 10. Geometry Calculators for Sliding Switch Indicators ─────────────────
+  useEffect(() => {
+    const updateModuleIndicator = () => {
+      const el = moduleTabRefs.current[activeTab];
+      if (el) {
+        setModuleIndicatorStyle({
+          left: el.offsetLeft,
+          width: el.offsetWidth,
+          opacity: 1
+        });
       }
-    } catch (err) {
-      console.error(err);
-      showToast(err?.response?.data?.message || 'Connection error updating project status.', 'error');
-    }
-  };
+    };
+    updateModuleIndicator();
+    window.addEventListener('resize', updateModuleIndicator);
+    const t = setTimeout(updateModuleIndicator, 50);
+    return () => {
+      window.removeEventListener('resize', updateModuleIndicator);
+      clearTimeout(t);
+    };
+  }, [activeTab, builders.length, projects.length]);
 
-  const deleteProject = async (project) => {
-    try {
-      await API.delete(`/admin/projects/${project._id}`);
-      fetchProjects();
-      setSelectedProject(null);
-      setDeleteConfirm(null);
-      showToast('Project deleted successfully.', 'info');
-    } catch (err) {
-      console.error(err);
-      showToast(err?.response?.data?.message || 'Error connecting to server.', 'error');
-    }
-  };
+  useEffect(() => {
+    const updateStatusIndicator = () => {
+      const el = statusTabRefs.current[statusFilter];
+      if (el) {
+        setStatusIndicatorStyle({
+          left: el.offsetLeft,
+          width: el.offsetWidth,
+          opacity: 1
+        });
+      }
+    };
+    updateStatusIndicator();
+    window.addEventListener('resize', updateStatusIndicator);
+    const t = setTimeout(updateStatusIndicator, 50);
+    return () => {
+      window.removeEventListener('resize', updateStatusIndicator);
+      clearTimeout(t);
+    };
+  }, [statusFilter, statusTabs, activeTab]);
 
-  const getTrustBadgeClass = (score) => {
-    if (score >= 90) return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25';
-    if (score >= 70) return 'bg-amber-500/10 text-amber-500 border-amber-500/25';
-    return 'bg-rose-500/10 text-rose-500 border-rose-500/25';
-  };
+  useEffect(() => {
+    const updateViewIndicator = () => {
+      const el = viewModeRefs.current[viewMode];
+      if (el) {
+        setViewModeIndicatorStyle({
+          left: el.offsetLeft,
+          width: el.offsetWidth,
+          opacity: 1
+        });
+      }
+    };
+    updateViewIndicator();
+    window.addEventListener('resize', updateViewIndicator);
+    const t = setTimeout(updateViewIndicator, 50);
+    return () => {
+      window.removeEventListener('resize', updateViewIndicator);
+      clearTimeout(t);
+    };
+  }, [viewMode]);
 
-  // Computed counters
-  const pendingBuilders = useMemo(() => builders.filter((b) => b.status === 'Pending'), [builders]);
-  const approvedBuilders = useMemo(() => builders.filter((b) => b.status === 'Approved'), [builders]);
-  const suspendedBuilders = useMemo(() => builders.filter((b) => b.status === 'Suspended' || b.status === 'Rejected'), [builders]);
-
-  // Filter logic
+  // ── 11. Filtering Logic ───────────────────────────────────────────────────
   const filteredBuilders = useMemo(() => {
     return builders.filter((b) => {
       if (statusFilter !== 'All') {
@@ -416,20 +533,28 @@ const BuilderManagement = () => {
           return false;
         }
       }
+
+      if (secondaryFilter !== 'ALL') {
+        if (secondaryFilter === 'RERA_DOC' && !b.hasReraDoc) return false;
+        if (secondaryFilter === 'ISO' && !b.isIsoCertified) return false;
+        if (secondaryFilter === 'HIGH_TRUST' && b.trust < 80) return false;
+      }
+
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+        const q = searchQuery.toLowerCase().trim();
         return (
           b.name?.toLowerCase().includes(q) ||
           b.rera?.toLowerCase().includes(q) ||
           b.user?.toLowerCase().includes(q) ||
           b.id?.toLowerCase().includes(q) ||
           b.cityOfOperation?.toLowerCase().includes(q) ||
-          b.gstin?.toLowerCase().includes(q)
+          b.gstin?.toLowerCase().includes(q) ||
+          b.applicantName?.toLowerCase().includes(q)
         );
       }
       return true;
     });
-  }, [builders, statusFilter, searchQuery]);
+  }, [builders, statusFilter, secondaryFilter, searchQuery]);
 
   const filteredProjects = useMemo(() => {
     return projects.filter((p) => {
@@ -438,42 +563,297 @@ const BuilderManagement = () => {
         if (statusFilter === 'Approved' && p.status !== 'Published' && p.status !== 'Approved') return false;
         if (statusFilter === 'Suspended' && p.status !== 'Archived' && p.status !== 'Suspended') return false;
       }
+
+      if (secondaryFilter !== 'ALL') {
+        if (secondaryFilter === 'RESIDENTIAL' && !p.category?.toLowerCase().includes('res')) return false;
+        if (secondaryFilter === 'COMMERCIAL' && !p.category?.toLowerCase().includes('comm')) return false;
+        if (secondaryFilter === 'READY' && !p.stage?.toLowerCase().includes('ready')) return false;
+        if (secondaryFilter === 'UNDER_CONST' && !p.stage?.toLowerCase().includes('under')) return false;
+      }
+
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+        const q = searchQuery.toLowerCase().trim();
         return (
           p.title?.toLowerCase().includes(q) ||
           p.builder?.toLowerCase().includes(q) ||
           p.location?.toLowerCase().includes(q) ||
-          p.id?.toLowerCase().includes(q)
+          p.id?.toLowerCase().includes(q) ||
+          p.reraNumber?.toLowerCase().includes(q)
         );
       }
       return true;
     });
-  }, [projects, statusFilter, searchQuery]);
+  }, [projects, statusFilter, secondaryFilter, searchQuery]);
 
-  const openDocumentPreview = (url, title = 'Document Preview') => {
+  // ── 12. Actions (Builder & Project Statuses) ───────────────────────────────
+  const updateBuilderStatus = async (builder, newStatus, reason = '') => {
+    if (!builder) return;
+    setIsSubmittingAction(true);
+    try {
+      const bodyStatus = newStatus === 'Approved' ? 'approved' : 'rejected';
+      const response = await API.patch(`/admin/users/${builder._id}/verify-developer`, {
+        builderVerificationStatus: bodyStatus,
+        rejectReason: reason || (newStatus === 'Approved' ? 'Verified and Approved by Admin' : selectedRejectReason)
+      });
+      const data = response.data;
+      if (data?.status === 'success') {
+        setBuilders(prev =>
+          prev.map(b => b._id === builder._id ? {
+            ...b,
+            status: newStatus,
+            builderVerificationStatus: bodyStatus,
+            trust: newStatus === 'Approved' ? 95 : 35
+          } : b)
+        );
+
+        if (selectedBuilder?._id === builder._id) {
+          setSelectedBuilder(prev => ({
+            ...prev,
+            status: newStatus,
+            builderVerificationStatus: bodyStatus,
+            trust: newStatus === 'Approved' ? 95 : 35
+          }));
+        }
+
+        setRejectPrompt(null);
+        setCustomRejectNote('');
+        showToast(
+          newStatus === 'Approved'
+            ? `🎉 Builder "${builder.companyName}" verified & authorized successfully!`
+            : `Builder application updated to ${newStatus}.`,
+          newStatus === 'Approved' ? 'success' : 'info'
+        );
+      } else {
+        showToast(data?.message || 'Failed to update builder verification.', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(err?.response?.data?.message || 'Connection error updating builder status.', 'error');
+    } finally {
+      setIsSubmittingAction(false);
+    }
+  };
+
+  const deleteBuilder = async (builder) => {
+    if (!builder) return;
+    setIsSubmittingAction(true);
+    try {
+      await API.delete(`/admin/users/${builder._id}`);
+      setBuilders(prev => prev.filter(b => b._id !== builder._id));
+      setSelectedBuilder(null);
+      setDeleteConfirm(null);
+      showToast('Builder account deactivated successfully.', 'info');
+    } catch (err) {
+      console.error(err);
+      showToast(err?.response?.data?.message || 'Error deleting builder account.', 'error');
+    } finally {
+      setIsSubmittingAction(false);
+    }
+  };
+
+  const updateProjectStatus = async (project, newStatus, reason = '') => {
+    if (!project) return;
+    setIsSubmittingAction(true);
+    try {
+      let apiStatus = 'pending';
+      if (newStatus === 'Published' || newStatus === 'Approved') apiStatus = 'approved';
+      else if (newStatus === 'Archived' || newStatus === 'Rejected') apiStatus = 'rejected';
+
+      const response = await API.patch(`/admin/projects/${project._id}/status`, {
+        approvalStatus: apiStatus,
+        rejectionReason: reason || (newStatus === 'Published' ? 'Approved & Published by Admin' : selectedRejectReason)
+      });
+      const data = response.data;
+      if (data?.status === 'success') {
+        setProjects(prev =>
+          prev.map(p => p._id === project._id ? { ...p, status: newStatus, approvalStatus: apiStatus } : p)
+        );
+
+        if (selectedProject?._id === project._id) {
+          setSelectedProject(prev => ({ ...prev, status: newStatus, approvalStatus: apiStatus }));
+        }
+
+        setRejectPrompt(null);
+        setCustomRejectNote('');
+        showToast(`Project status updated to ${newStatus}.`, 'success');
+      } else {
+        showToast(data?.message || 'Failed to update project status.', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(err?.response?.data?.message || 'Connection error updating project status.', 'error');
+    } finally {
+      setIsSubmittingAction(false);
+    }
+  };
+
+  const toggleProjectSoldStatus = async (project, targetSold) => {
+    if (!project) return;
+    setIsSubmittingAction(true);
+    try {
+      const response = await API.patch(`/admin/projects/${project._id}/toggle-sold`, {
+        isSold: targetSold,
+        notes: targetSold ? 'Project marked as Sold Out by Admin' : 'Project relisted as Available by Admin'
+      });
+      if (response.data?.status === 'success') {
+        const newStatus = targetSold ? 'Sold' : 'Published';
+        setProjects(prev =>
+          prev.map(p => p._id === project._id ? { ...p, status: newStatus, isSold: targetSold, saleStatus: targetSold ? 'sold' : 'available' } : p)
+        );
+        if (selectedProject?._id === project._id) {
+          setSelectedProject(prev => ({ ...prev, status: newStatus, isSold: targetSold, saleStatus: targetSold ? 'sold' : 'available' }));
+        }
+        showToast(targetSold ? `Project "${project.projectName || project.name || project.title}" marked as Sold Out!` : `Project relisted as Available!`, 'success');
+      } else {
+        showToast(response.data?.message || 'Failed to update sold status.', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(err?.response?.data?.message || 'Error updating project sale status.', 'error');
+    } finally {
+      setIsSubmittingAction(false);
+    }
+  };
+
+  const deleteProject = async (project) => {
+    if (!project) return;
+    setIsSubmittingAction(true);
+    try {
+      await API.delete(`/admin/projects/${project._id}`);
+      setProjects(prev => prev.filter(p => p._id !== project._id));
+      setSelectedProject(null);
+      setDeleteConfirm(null);
+      showToast('Project deleted successfully.', 'info');
+    } catch (err) {
+      console.error(err);
+      showToast(err?.response?.data?.message || 'Error connecting to server.', 'error');
+    } finally {
+      setIsSubmittingAction(false);
+    }
+  };
+
+  // ── 13. Investment Score Form Handlers ────────────────────────────────────
+  const openScoreModal = (project) => {
+    const cur = project.investmentScore?.metrics || {};
+    setScoreForm({
+      connectivity: cur.connectivity ?? 9.0,
+      rentalPotential: cur.rentalPotential ?? 8.5,
+      growthPotential: cur.growthPotential ?? 9.0,
+      familyLiving: cur.familyLiving ?? 8.8,
+      futureDemand: cur.futureDemand ?? 9.0,
+    });
+    setEditingScoreProject(project);
+  };
+
+  const computedOverall = useMemo(() => {
+    const vals = [
+      Number(scoreForm.connectivity) || 0,
+      Number(scoreForm.rentalPotential) || 0,
+      Number(scoreForm.growthPotential) || 0,
+      Number(scoreForm.familyLiving) || 0,
+      Number(scoreForm.futureDemand) || 0,
+    ];
+    const sum = vals.reduce((a, b) => a + b, 0);
+    return Math.round((sum / vals.length) * 10) / 10;
+  }, [scoreForm]);
+
+  const computedGrade = useMemo(() => {
+    if (computedOverall >= 8.5) return 'Excellent';
+    if (computedOverall >= 7.0) return 'Very Good';
+    if (computedOverall >= 5.5) return 'Good';
+    return 'Average';
+  }, [computedOverall]);
+
+  const handleSaveScore = async () => {
+    if (!editingScoreProject) return;
+    setIsSavingScore(true);
+    try {
+      const payload = {
+        connectivity: Number(scoreForm.connectivity),
+        rentalPotential: Number(scoreForm.rentalPotential),
+        growthPotential: Number(scoreForm.growthPotential),
+        familyLiving: Number(scoreForm.familyLiving),
+        futureDemand: Number(scoreForm.futureDemand),
+      };
+      const res = await API.put(`/admin/projects/${editingScoreProject._id}/investment-score`, payload);
+      if (res.data?.status === 'success') {
+        showToast('Project investment score updated successfully!', 'success');
+        fetchProjects();
+        if (selectedProject?._id === editingScoreProject._id) {
+          setSelectedProject(prev => ({
+            ...prev,
+            investmentScore: res.data.data.investmentScore,
+            score: res.data.data.investmentScore.overall,
+          }));
+        }
+        setEditingScoreProject(null);
+      }
+    } catch (err) {
+      showToast(err?.response?.data?.message || 'Failed to update investment score.', 'error');
+    } finally {
+      setIsSavingScore(false);
+    }
+  };
+
+  // ── 14. Document & Lightbox Trigger ───────────────────────────────────────
+  const openDocumentPreview = (url, title = 'Document Preview', type = 'image') => {
     if (!url) {
       showToast('Document not uploaded by builder.', 'error');
       return;
     }
     setZoomLevel(1);
     setRotation(0);
-    setLightboxDoc({ url, title });
+    setLightboxDoc({ url, title, type });
   };
 
-  const presetRejectReasons = [
-    'RERA License documents verification incomplete, expired, or mismatch with state authority',
-    'Company PAN card name does not match registered commercial entity name',
-    'GSTIN validation failed or invalid corporate registration proof',
-    'Uploaded documents are illegible or blurry — please re-upload clear color scans',
-    'Corporate office verification and director authorization pending'
-  ];
+  // ── 15. Semantic Badge Helpers (BADGES_UI_DESIGN_SYSTEM.md Spec) ───────────
+  const getBuilderStatusBadge = (status, size = 'xs') => {
+    switch (status) {
+      case 'Approved':
+        return <Badge.Active size={size}>Approved</Badge.Active>;
+      case 'Pending':
+        return <Badge.Pending size={size} pulse>Needs Audit</Badge.Pending>;
+      case 'Suspended':
+      case 'Rejected':
+        return <Badge.Offline size={size}>Suspended</Badge.Offline>;
+      default:
+        return <Badge color="slate" variant="pastel" size={size}>{status || 'Unknown'}</Badge>;
+    }
+  };
+
+  const getProjectStatusBadge = (status, size = 'xs') => {
+    switch (status) {
+      case 'Sold':
+        return <Badge.Sold size={size}>Sold Out</Badge.Sold>;
+      case 'Published':
+      case 'Approved':
+        return <Badge.Approved size={size}>Published</Badge.Approved>;
+      case 'Draft':
+      case 'Pending':
+        return <Badge.Pending size={size} pulse>Draft</Badge.Pending>;
+      case 'Archived':
+      case 'Rejected':
+        return <Badge.Rejected size={size}>Archived</Badge.Rejected>;
+      default:
+        return <Badge color="slate" variant="pastel" size={size}>{status || 'Unknown'}</Badge>;
+    }
+  };
+
+  const getTrustBadge = (score, size = 'xs') => {
+    if (score >= 90) {
+      return <Badge color="emerald" variant="pastel" size={size} icon={<ShieldCheck size={10} className="shrink-0" />}>{score}% A+</Badge>;
+    }
+    if (score >= 70) {
+      return <Badge color="amber" variant="pastel" size={size} icon={<ShieldAlert size={10} className="shrink-0" />}>{score}% Tier-2</Badge>;
+    }
+    return <Badge color="red" variant="pastel" size={size} icon={<AlertTriangle size={10} className="shrink-0" />}>{score}% Watch</Badge>;
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Toast Notification */}
+    <div className="space-y-5 pb-12">
+      {/* ── 01. TOAST NOTIFICATION ── */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-2xl backdrop-blur-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)] animate-slide-down">
+        <div className="fixed bottom-6 right-6 z-[80] flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)] animate-slide-down">
           {toast.type === 'success' && <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />}
           {toast.type === 'error' && <XCircle size={16} className="text-rose-500 shrink-0" />}
           {toast.type === 'info' && <Check size={16} className="text-brand shrink-0" />}
@@ -488,73 +868,152 @@ const BuilderManagement = () => {
         </div>
       )}
 
-      {/* 4 Overview Stats Cards (Standardized Top-Accent KPI Cards) */}
+      {/* ── 02. TOP HEADER & PIPELINE SLIDING SWITCH ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-2 border-b border-[var(--border)]">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+              Builders & Projects
+            </h1>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#52c99b]/15 text-[#064e3b] dark:bg-[#1a4a38]/40 dark:text-[#6ee7b7] border border-[#52c99b]/25">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Live Sync • {lastSyncTime}
+            </span>
+          </div>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">
+            Audit builder credentials, RERA licenses, and moderate real estate developments on GharMB
+          </p>
+        </div>
+
+        {/* Pipeline Toggle (Builders vs Builder Projects Sliding Switch) */}
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          <div className="relative inline-flex items-center p-1 bg-[var(--bg-muted)]/80 rounded-full border border-[var(--border)] text-xs font-semibold select-none shadow-inner-xs">
+            {/* Sliding Pill Indicator */}
+            <span
+              className={`absolute top-1 bottom-1 rounded-full shadow-xs transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none ${
+                activeTab === 'builders' ? 'bg-[#52c99b] dark:bg-[#1a4a38]' : 'bg-[#c4b5fd] dark:bg-[#3b1968]'
+              }`}
+              style={{
+                left: `${moduleIndicatorStyle.left}px`,
+                width: `${moduleIndicatorStyle.width}px`,
+                opacity: moduleIndicatorStyle.opacity
+              }}
+            />
+
+            <button
+              ref={(el) => { moduleTabRefs.current['builders'] = el; }}
+              type="button"
+              onClick={() => {
+                setActiveTab('builders');
+                setStatusFilter('All');
+                setSecondaryFilter('ALL');
+                setSelectedBuilder(null);
+                setSelectedProject(null);
+              }}
+              className={`relative z-10 px-3.5 py-1.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                activeTab === 'builders'
+                  ? 'text-[#064e3b] dark:text-[#6ee7b7] font-bold'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] font-medium'
+              }`}
+            >
+              <HardHat size={13} className="shrink-0" />
+              <span>Builders</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold transition-colors ${
+                activeTab === 'builders'
+                  ? 'bg-[#064e3b]/15 text-[#064e3b] dark:bg-[#6ee7b7]/25 dark:text-[#6ee7b7]'
+                  : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]'
+              }`}>
+                {builders.length}
+              </span>
+            </button>
+
+            <button
+              ref={(el) => { moduleTabRefs.current['projects'] = el; }}
+              type="button"
+              onClick={() => {
+                setActiveTab('projects');
+                setStatusFilter('All');
+                setSecondaryFilter('ALL');
+                setSelectedBuilder(null);
+                setSelectedProject(null);
+              }}
+              className={`relative z-10 px-3.5 py-1.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                activeTab === 'projects'
+                  ? 'text-[#4c1d95] dark:text-[#ddd6fe] font-bold'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] font-medium'
+              }`}
+            >
+              <Layers size={13} className="shrink-0" />
+              <span>Builder Projects</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold transition-colors ${
+                activeTab === 'projects'
+                  ? 'bg-[#4c1d95]/15 text-[#4c1d95] dark:bg-[#ddd6fe]/25 dark:text-[#ddd6fe]'
+                  : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]'
+              }`}>
+                {projects.length}
+              </span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={refreshAllData}
+            disabled={isRefreshing || isLoadingBuilders || isLoadingProjects}
+            className="p-2 border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-xl transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+            title="Refresh listings & builders"
+          >
+            <RefreshCw size={14} className={isRefreshing ? 'animate-spin text-brand' : ''} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── 03. 4 STANDARDIZED TOP-ACCENT KPI METRICS CARDS ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           {
-            key: 'builders_all',
-            title: 'Total Builders',
-            value: builders.length,
-            subtitle: 'Registered developers',
+            key: 'kpi_total',
+            title: activeTab === 'builders' ? 'Total Builders' : 'Total Projects',
+            value: currentCounts.total,
+            subtitle: activeTab === 'builders' ? 'Registered entities' : 'Active developments',
             tag: 'Entities',
-            icon: HardHat,
-            accent: 'border-brand/40 hover:border-brand',
-            iconColor: 'text-brand bg-brand/10',
-            isActive: activeTab === 'builders' && statusFilter === 'All',
-            activeAccent: 'border-brand ring-2 ring-brand/20 shadow-xs border-t-2 border-t-brand',
-            onClick: () => {
-              setActiveTab('builders');
-              setStatusFilter('All');
-            }
+            icon: activeTab === 'builders' ? Building2 : Layers,
+            isActive: statusFilter === 'All',
+            activeAccent: 'border-t-2 border-t-brand ring-1 ring-brand/30',
+            onClick: () => setStatusFilter('All')
           },
           {
-            key: 'builders_pending',
-            title: 'Pending Audit',
-            value: pendingBuilders.length,
-            subtitle: 'Awaiting verification',
-            tag: pendingBuilders.length > 0 ? `${pendingBuilders.length} Awaiting` : 'All Clear',
-            icon: ShieldAlert,
-            accent: 'border-brand/40 hover:border-brand',
-            iconColor: 'text-brand bg-brand/10',
-            pulse: pendingBuilders.length > 0,
-            isActive: activeTab === 'builders' && statusFilter === 'Pending',
-            activeAccent: 'border-brand ring-2 ring-brand/20 shadow-xs border-t-2 border-t-brand',
-            onClick: () => {
-              setActiveTab('builders');
-              setStatusFilter('Pending');
-            }
+            key: 'kpi_pending',
+            title: 'Needs Audit',
+            value: currentCounts.pending,
+            subtitle: activeTab === 'builders' ? 'Awaiting verification' : 'Draft / Moderation',
+            tag: currentCounts.pending > 0 ? `${currentCounts.pending} Pending` : 'All Clear',
+            icon: Clock,
+            pulse: currentCounts.pending > 0,
+            isActive: statusFilter === 'Pending',
+            activeAccent: 'border-t-2 border-t-amber-500 ring-1 ring-amber-500/30',
+            onClick: () => setStatusFilter('Pending')
           },
           {
-            key: 'builders_approved',
-            title: 'RERA Verified',
-            value: builders.filter(b => b.isReraVerified || b.status === 'Approved').length,
-            subtitle: 'Statutory compliance',
-            tag: 'Compliant',
-            icon: Award,
-            accent: 'border-brand/40 hover:border-brand',
-            iconColor: 'text-brand bg-brand/10',
-            isActive: activeTab === 'builders' && statusFilter === 'Approved',
-            activeAccent: 'border-brand ring-2 ring-brand/20 shadow-xs border-t-2 border-t-brand',
-            onClick: () => {
-              setActiveTab('builders');
-              setStatusFilter('Approved');
-            }
+            key: 'kpi_approved',
+            title: activeTab === 'builders' ? 'RERA Verified' : 'Published Live',
+            value: currentCounts.approved,
+            subtitle: activeTab === 'builders' ? 'Compliant & active' : 'Live on platform',
+            tag: 'Live',
+            icon: CheckCircle2,
+            isActive: statusFilter === 'Approved',
+            activeAccent: 'border-t-2 border-t-emerald-500 ring-1 ring-emerald-500/30',
+            onClick: () => setStatusFilter('Approved')
           },
           {
-            key: 'projects_all',
-            title: 'Active Projects',
-            value: projects.length,
-            subtitle: 'Builder developments',
-            tag: 'Developments',
-            icon: Layers,
-            accent: 'border-brand/40 hover:border-brand',
-            iconColor: 'text-brand bg-brand/10',
-            isActive: activeTab === 'projects',
-            activeAccent: 'border-brand ring-2 ring-brand/20 shadow-xs border-t-2 border-t-brand',
-            onClick: () => {
-              setActiveTab('projects');
-              setStatusFilter('All');
-            }
+            key: 'kpi_suspended',
+            title: activeTab === 'builders' ? 'Suspended / Rejected' : 'Archived',
+            value: currentCounts.suspended,
+            subtitle: 'Offline / Restricted',
+            tag: 'Off-Market',
+            icon: XCircle,
+            isActive: statusFilter === 'Suspended',
+            activeAccent: 'border-t-2 border-t-rose-500 ring-1 ring-rose-500/30',
+            onClick: () => setStatusFilter('Suspended')
           }
         ].map((card) => {
           const Icon = card.icon;
@@ -562,11 +1021,13 @@ const BuilderManagement = () => {
             <div
               key={card.key}
               onClick={card.onClick}
-              className="group bg-[var(--bg-surface)] rounded-xl p-3.5 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden flex flex-col justify-between border border-[var(--border)] border-t-2 border-t-brand/40 hover:border-t-brand text-left cursor-pointer"
+              className={`group bg-[var(--bg-surface)] rounded-xl p-3.5 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden flex flex-col justify-between border border-[var(--border)] text-left cursor-pointer ${
+                card.isActive ? card.activeAccent : 'border-t-2 border-t-[var(--border)] hover:border-t-brand'
+              }`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="space-y-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block flex items-center gap-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1.5">
                     {card.title}
                     {card.pulse && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />}
                   </span>
@@ -593,1189 +1054,1445 @@ const BuilderManagement = () => {
         })}
       </div>
 
-      {/* High-Visibility Pending Approvals Banner */}
-      {pendingBuilders.length > 0 && (
-        <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+      {/* ── 04. HIGH-VISIBILITY PENDING AUDIT PRIORITY BANNER ── */}
+      {currentCounts.pending > 0 && (
+        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
               <ShieldAlert size={16} />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="text-xs font-bold text-[var(--text-primary)]">
-                  {pendingBuilders.length} Builder Authorization Request{pendingBuilders.length > 1 ? 's' : ''} Awaiting Review
+                  {currentCounts.pending} {activeTab === 'builders' ? 'Builder Authorization' : 'Project Moderation'} Request{currentCounts.pending > 1 ? 's' : ''} Awaiting Review
                 </h4>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300">
-                  Priority Action
-                </span>
+                <Badge.Pending size="xs" pulse>Priority Action</Badge.Pending>
               </div>
-              <p className="text-xs text-[var(--text-muted)] mt-1 max-w-2xl leading-relaxed">
-                New builders have submitted company registration documents (RERA license & PAN card). Verification is required before they can publish live projects and commercial listings.
+              <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">
+                {activeTab === 'builders'
+                  ? 'Verify state RERA license certificates, corporate PAN numbers, and company registration before granting live publishing credentials.'
+                  : 'Examine blueprint approvals, investment score parameters, and RERA registration proofs before publishing project inventory.'}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2.5 shrink-0">
+
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => {
-                setActiveTab('builders');
-                setStatusFilter('Pending');
-              }}
-              className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-md shadow-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
+              onClick={() => setStatusFilter('Pending')}
+              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <ShieldAlert size={14} /> Filter Pending ({pendingBuilders.length})
+              <Clock size={13} /> Filter Pending ({currentCounts.pending})
             </button>
-            {pendingBuilders[0] && (
+            {activeTab === 'builders' && builders.find(b => b.status === 'Pending') && (
               <button
                 type="button"
-                onClick={() => setSelectedBuilder(pendingBuilders[0])}
-                className="px-3.5 py-2 bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] border border-[var(--border)] text-[var(--text-primary)] rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                onClick={() => setSelectedBuilder(builders.find(b => b.status === 'Pending'))}
+                className="px-3 py-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] border border-[var(--border)] text-[var(--text-primary)] rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
               >
-                Review Latest <ChevronRight size={14} />
+                Review First <ChevronRight size={13} />
               </button>
             )}
           </div>
         </div>
       )}
 
-      {/* Main Tabs, Quick Status Pills & Search Bar */}
-      <div className="space-y-3">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[var(--border)] pb-3">
-          {/* Main Module Tabs */}
-          <div className="flex gap-6">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('builders');
-                setStatusFilter('All');
-                setSearchQuery('');
-              }}
-              className={`pb-2 text-xs font-bold transition-all relative cursor-pointer flex items-center gap-2 ${
-                activeTab === 'builders' ? 'text-brand font-black' : 'text-[var(--text-subtle)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              <HardHat size={15} />
-              <span>Builders Management</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] ${
-                activeTab === 'builders' ? 'bg-brand/10 text-brand font-extrabold' : 'bg-[var(--bg-muted)] text-[var(--text-muted)]'
-              }`}>
-                {builders.length}
-              </span>
-              {activeTab === 'builders' && (
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-brand rounded-t-full"></span>
-              )}
-            </button>
+      {/* ── 05. SLIDING STATUS TOGGLE SWITCH (BADGES DESIGN SYSTEM TOKENS) ── */}
+      <div className="flex items-center overflow-x-auto scrollbar-none py-1 border-b border-[var(--border)]/60">
+        <div className="relative inline-flex items-center p-1 bg-[var(--bg-muted)]/80 rounded-full border border-[var(--border)] text-xs font-semibold select-none shadow-inner-xs">
+          {/* Sliding Pill Indicator */}
+          <span
+            className={`absolute top-1 bottom-1 rounded-full shadow-xs transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none ${activeStatusTab.activeBg}`}
+            style={{
+              left: `${statusIndicatorStyle.left}px`,
+              width: `${statusIndicatorStyle.width}px`,
+              opacity: statusIndicatorStyle.opacity
+            }}
+          />
 
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('projects');
-                setStatusFilter('All');
-                setSearchQuery('');
-              }}
-              className={`pb-2 text-xs font-bold transition-all relative cursor-pointer flex items-center gap-2 ${
-                activeTab === 'projects' ? 'text-brand font-black' : 'text-[var(--text-subtle)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              <Layers size={15} />
-              <span>Builder Projects</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] ${
-                activeTab === 'projects' ? 'bg-brand/10 text-brand font-extrabold' : 'bg-[var(--bg-muted)] text-[var(--text-muted)]'
-              }`}>
-                {projects.length}
-              </span>
-              {activeTab === 'projects' && (
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-brand rounded-t-full"></span>
-              )}
-            </button>
-          </div>
+          {statusTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = statusFilter === tab.key;
 
-          {/* Search, Refresh and Dropdown Controls */}
-          <div className="flex items-center gap-2 w-full lg:w-auto">
-            {/* Search Box */}
-            <div className="relative flex-1 sm:w-72">
-              <Search className="absolute left-3 top-2.5 text-[var(--text-muted)]" size={14} />
-              <input
-                type="text"
-                placeholder={`Search ${activeTab === 'builders' ? 'by company, RERA, email, city...' : 'projects by name, location...'}`}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-7 py-2 border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-xl text-xs placeholder:text-[var(--text-muted)] focus:outline-none focus:border-brand/40 shadow-xs"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-2.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
-                >
-                  <X size={13} />
-                </button>
-              )}
-            </div>
-
-            {/* Quick Refresh Button */}
-            <button
-              type="button"
-              onClick={() => {
-                fetchBuilders();
-                fetchProjects();
-                showToast('Refreshed data from server.', 'info');
-              }}
-              className="p-2 border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-subtle)] hover:text-[var(--text-primary)] rounded-xl transition-all cursor-pointer shrink-0"
-              title="Refresh"
-            >
-              <RefreshCw size={14} className={isLoadingBuilders || isLoadingProjects ? 'animate-spin text-brand' : ''} />
-            </button>
-          </div>
-        </div>
-
-        {/* Quick Filter Pills (1-Click Filtering) */}
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mr-1">
-            Status:
-          </span>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('All')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              statusFilter === 'All'
-                ? 'bg-brand text-white shadow-xs'
-                : 'bg-[var(--bg-surface)] text-[var(--text-subtle)] border border-[var(--border)] hover:bg-[var(--bg-muted)]'
-            }`}
-          >
-            All {activeTab === 'builders' ? `Builders (${builders.length})` : `Projects (${projects.length})`}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setStatusFilter('Pending')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              statusFilter === 'Pending'
-                ? 'bg-amber-500 text-white shadow-xs shadow-amber-500/25'
-                : pendingBuilders.length > 0 && activeTab === 'builders'
-                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'
-                : 'bg-[var(--bg-surface)] text-[var(--text-subtle)] border border-[var(--border)] hover:bg-[var(--bg-muted)]'
-            }`}
-          >
-            <ShieldAlert size={12} />
-            <span>{activeTab === 'builders' ? 'Pending Approval' : 'Draft'}</span>
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-              statusFilter === 'Pending' ? 'bg-white/20 text-white' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
-            }`}>
-              {activeTab === 'builders' ? pendingBuilders.length : projects.filter((p) => p.status === 'Draft').length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setStatusFilter('Approved')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              statusFilter === 'Approved'
-                ? 'bg-emerald-500 text-white shadow-xs'
-                : 'bg-[var(--bg-surface)] text-[var(--text-subtle)] border border-[var(--border)] hover:bg-[var(--bg-muted)]'
-            }`}
-          >
-            <ShieldCheck size={12} />
-            <span>{activeTab === 'builders' ? 'Approved & Live' : 'Published'}</span>
-            <span className="text-[10px] opacity-75">
-              ({activeTab === 'builders' ? approvedBuilders.length : projects.filter((p) => p.status === 'Published').length})
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setStatusFilter('Suspended')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              statusFilter === 'Suspended'
-                ? 'bg-rose-500 text-white shadow-xs'
-                : 'bg-[var(--bg-surface)] text-[var(--text-subtle)] border border-[var(--border)] hover:bg-[var(--bg-muted)]'
-            }`}
-          >
-            <Ban size={12} />
-            <span>{activeTab === 'builders' ? 'Suspended / Rejected' : 'Archived'}</span>
-            <span className="text-[10px] opacity-75">
-              ({activeTab === 'builders' ? suspendedBuilders.length : projects.filter((p) => p.status === 'Archived').length})
-            </span>
-          </button>
+            return (
+              <button
+                key={tab.key}
+                ref={(el) => { statusTabRefs.current[tab.key] = el; }}
+                type="button"
+                onClick={() => setStatusFilter(tab.key)}
+                className={`relative z-10 px-3.5 py-1.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center gap-2 whitespace-nowrap text-xs ${
+                  isActive
+                    ? `${tab.activeText} font-bold`
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] font-medium'
+                }`}
+              >
+                <Icon size={13} className="shrink-0" />
+                <span>{tab.label}</span>
+                <span className={`min-w-[18px] h-4 px-1.5 rounded-full text-[10px] font-bold inline-flex items-center justify-center transition-colors ${
+                  isActive
+                    ? tab.activeCountBg
+                    : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]'
+                }`}>
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Tab Contents: Builders Management vs Builder Projects */}
+      {/* ── 06. TOOLBAR: SEARCH, CATEGORY PILLS & VIEW SWITCHER ── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[var(--bg-surface)] p-3 rounded-2xl border border-[var(--border)] shadow-2xs">
+        {/* Search Input */}
+        <div className="relative flex-1 max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={activeTab === 'builders' ? 'Search by company, RERA, applicant, city...' : 'Search by project name, developer, locality...'}
+            className="w-full pl-9 pr-8 py-2 bg-[var(--bg-muted)]/60 hover:bg-[var(--bg-muted)] focus:bg-[var(--bg-surface)] border border-transparent focus:border-brand/40 text-xs font-medium rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        {/* Secondary Category Filters & View Switcher */}
+        <div className="flex items-center gap-2 overflow-x-auto">
+          {activeTab === 'builders' ? (
+            [
+              { key: 'ALL', label: 'All Builders' },
+              { key: 'RERA_DOC', label: 'With RERA Doc' },
+              { key: 'ISO', label: 'ISO Certified' },
+              { key: 'HIGH_TRUST', label: 'Top Trust (80%+)' },
+            ].map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setSecondaryFilter(f.key)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  secondaryFilter === f.key
+                    ? 'bg-[var(--text-primary)] text-[var(--bg-surface)] shadow-2xs'
+                    : 'bg-[var(--bg-muted)]/70 text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))
+          ) : (
+            [
+              { key: 'ALL', label: 'All Types' },
+              { key: 'RESIDENTIAL', label: 'Residential' },
+              { key: 'COMMERCIAL', label: 'Commercial' },
+              { key: 'UNDER_CONST', label: 'Under Construction' },
+              { key: 'READY', label: 'Ready to Move' },
+            ].map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setSecondaryFilter(f.key)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  secondaryFilter === f.key
+                    ? 'bg-[var(--text-primary)] text-[var(--bg-surface)] shadow-2xs'
+                    : 'bg-[var(--bg-muted)]/70 text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))
+          )}
+
+          <div className="h-5 w-[1px] bg-[var(--border)] mx-1" />
+
+          {/* View Switcher: List vs Grid Sliding Switch */}
+          <div className="relative inline-flex items-center p-1 bg-[var(--bg-muted)]/80 rounded-full border border-[var(--border)] text-xs font-semibold select-none shadow-inner-xs">
+            <span
+              className="absolute top-1 bottom-1 rounded-full shadow-xs transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none bg-[#bae6fd] dark:bg-[#113c54]"
+              style={{
+                left: `${viewModeIndicatorStyle.left}px`,
+                width: `${viewModeIndicatorStyle.width}px`,
+                opacity: viewModeIndicatorStyle.opacity
+              }}
+            />
+            <button
+              ref={(el) => { viewModeRefs.current['table'] = el; }}
+              type="button"
+              onClick={() => handleSetViewMode('table')}
+              className={`relative z-10 px-3 py-1 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs ${
+                viewMode === 'table'
+                  ? 'text-[#075985] dark:text-[#7dd3fc] font-bold'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] font-medium'
+              }`}
+              title="Table view"
+            >
+              <List size={13} />
+              <span>List</span>
+            </button>
+            <button
+              ref={(el) => { viewModeRefs.current['grid'] = el; }}
+              type="button"
+              onClick={() => handleSetViewMode('grid')}
+              className={`relative z-10 px-3 py-1 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs ${
+                viewMode === 'grid'
+                  ? 'text-[#075985] dark:text-[#7dd3fc] font-bold'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] font-medium'
+              }`}
+              title="Grid view"
+            >
+              <LayoutGrid size={13} />
+              <span>Grid</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 07. MAIN INVENTORY DISPLAY (TABLE OR GRID) ── */}
       {activeTab === 'builders' ? (
-        <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-[9px] font-bold uppercase tracking-wider bg-[var(--bg-muted)]">
-                  <th className="py-3 px-5">Company / Legal Entity</th>
-                  <th className="py-3 px-5">RERA License</th>
-                  <th className="py-3 px-5">Documents</th>
-                  <th className="py-3 px-5">Experience</th>
-                  <th className="py-3 px-5 text-center">Delivered</th>
-                  <th className="py-3 px-5 text-center">Trust Rating</th>
-                  <th className="py-3 px-5">Account Admin</th>
-                  <th className="py-3 px-5">Status</th>
-                  <th className="py-3 px-5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border-muted)] text-xs">
-                {isLoadingBuilders ? (
+        /* ======================== BUILDERS VIEW ======================== */
+        isLoadingBuilders ? (
+          <div className="py-20 flex flex-col items-center justify-center text-center">
+            <AdminLoader text="Loading registered builder credentials..." />
+          </div>
+        ) : filteredBuilders.length === 0 ? (
+          <div className="p-16 text-center bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)]">
+              <CheckCircle2 size={24} className="text-emerald-500" />
+            </div>
+            <h3 className="text-base font-bold text-[var(--text-primary)]">
+              {statusFilter === 'Pending' ? 'All Builder Applications Reviewed!' : 'No Matching Builders Found'}
+            </h3>
+            <p className="text-xs text-[var(--text-muted)] mt-1 max-w-sm mx-auto">
+              {statusFilter === 'Pending'
+                ? 'There are currently no builder applications awaiting verification.'
+                : 'Try adjusting your search criteria or resetting filters.'}
+            </p>
+            {(searchQuery || statusFilter !== 'All' || secondaryFilter !== 'ALL') && (
+              <button
+                type="button"
+                onClick={() => { setSearchQuery(''); setStatusFilter('All'); setSecondaryFilter('ALL'); }}
+                className="mt-4 px-4 py-2 bg-brand/10 text-brand hover:bg-brand/15 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+              >
+                Clear All Filters
+              </button>
+            )}
+          </div>
+        ) : viewMode === 'table' ? (
+          /* Table View: Full-Fit 100% Zero Horizontal Scroll */
+          <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-2xs">
+            <div className="w-full overflow-hidden">
+              <table className="w-full text-left border-collapse table-fixed">
+                <colgroup>
+                  <col className="w-[28%]" />
+                  <col className="w-[17%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[8%]" />
+                </colgroup>
+                <thead className="bg-[var(--bg-muted)]/40 text-[var(--text-muted)] uppercase text-[9.5px] font-semibold tracking-wider border-b border-[var(--border)] select-none">
                   <tr>
-                    <td colSpan="9" className="py-14 text-center">
-                      <AdminLoader
-                        text="Loading builder profiles..."
-                        subtext="Fetching registered developers and RERA certifications"
-                        minHeight="min-h-[180px]"
-                      />
-                    </td>
+                    <th className="py-2 px-3">Company / Legal Entity</th>
+                    <th className="py-2 px-3">RERA License</th>
+                    <th className="py-2 px-3">Verification Proofs</th>
+                    <th className="py-2 px-3">Experience</th>
+                    <th className="py-2 px-3 text-center">Trust Rating</th>
+                    <th className="py-2 px-3">Status</th>
+                    <th className="py-2 pl-2 pr-3.5 text-right">Actions</th>
                   </tr>
-                ) : filteredBuilders.length === 0 ? (
-                  <tr>
-                    <td colSpan="9" className="py-16 text-center">
-                      <div className="max-w-xs mx-auto space-y-2">
-                        <div className="w-12 h-12 rounded-2xl bg-[var(--bg-muted)] flex items-center justify-center mx-auto text-[var(--text-muted)]">
-                          <HardHat size={24} />
-                        </div>
-                        <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                          {searchQuery ? 'No matching builders found' : 'No builders in this view'}
-                        </h4>
-                        <p className="text-xs text-[var(--text-muted)]">
-                          {searchQuery
-                            ? `Try clearing your search query "${searchQuery}"`
-                            : statusFilter !== 'All'
-                            ? `There are currently no builders with status "${statusFilter}".`
-                            : 'Registered builders will appear here.'}
-                        </p>
-                        {statusFilter !== 'All' && (
-                          <button
-                            type="button"
-                            onClick={() => setStatusFilter('All')}
-                            className="mt-2 px-3 py-1.5 bg-brand text-white rounded-xl text-xs font-semibold cursor-pointer"
-                          >
-                            View All Builders
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredBuilders.map((b) => (
+                </thead>
+                <tbody className="divide-y divide-[var(--border)]/60 text-xs">
+                  {filteredBuilders.map((b) => (
                     <tr
-                      key={b.id}
-                      className={`hover:bg-[var(--bg-muted)]/60 transition-colors ${
-                        b.status === 'Pending' ? 'bg-amber-500/5' : ''
-                      }`}
+                      key={b._id}
+                      onClick={() => { setSelectedBuilder(b); setBuilderDrawerTab('overview'); }}
+                      className="hover:bg-[var(--bg-muted)]/35 transition-colors cursor-pointer group"
                     >
-                      {/* Column 1: Company / Legal Entity */}
-                      <td className="py-3.5 px-5">
-                        <div className="flex items-center gap-3">
-                          {b.builderDocs?.companyLogo ? (
-                            <img
-                              src={b.builderDocs.companyLogo}
-                              alt={b.name}
-                              className="w-10 h-10 rounded-xl object-cover border border-[var(--border)] shrink-0 bg-[var(--bg-muted)] shadow-xs"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                                if (e.currentTarget.nextSibling) {
-                                  e.currentTarget.nextSibling.style.display = 'flex';
-                                }
-                              }}
-                            />
-                          ) : null}
-                          <div
-                            className={`w-10 h-10 rounded-xl bg-gradient-to-br from-brand/20 to-orange-500/20 text-brand font-black text-sm flex items-center justify-center shrink-0 border border-brand/30 shadow-xs ${
-                              b.builderDocs?.companyLogo ? 'hidden' : 'flex'
-                            }`}
-                          >
-                            {b.name.slice(0, 2).toUpperCase()}
+                      {/* Column 1: Company Logo / Name */}
+                      <td className="py-1.5 px-3 align-middle overflow-hidden">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="relative w-8 h-8 rounded-lg overflow-hidden bg-[var(--bg-muted)] shrink-0 border border-[var(--border)] flex items-center justify-center">
+                            {b.builderDocs?.companyLogo ? (
+                              <SmoothImage src={b.builderDocs.companyLogo} alt={b.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-br from-brand/20 to-orange-500/20 text-brand font-black text-xs flex items-center justify-center">
+                                {b.name.slice(0, 2).toUpperCase()}
+                              </div>
+                            )}
                           </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <p className="font-extrabold text-[var(--text-primary)] truncate max-w-[170px]" title={b.name}>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate" title={b.name}>
                                 {b.name}
-                              </p>
+                              </span>
                               {b.isIsoCertified && (
-                                <span className="text-[8px] font-black px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20 shrink-0">
+                                <span className="text-[8px] font-bold px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20 shrink-0">
                                   ISO
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-[var(--text-muted)]">
-                              <span className="font-mono font-bold text-brand bg-brand/10 px-1.5 py-0.2 rounded">
-                                {b.id}
-                              </span>
-                              <span className="truncate max-w-[120px] flex items-center gap-0.5">
-                                <MapPin size={10} className="shrink-0" /> {b.cityOfOperation}
+                            <div className="flex items-center gap-1.5 text-[10.5px] text-[var(--text-muted)] truncate font-mono mt-0.5 leading-tight">
+                              <span className="text-brand font-semibold">{b.id}</span>
+                              <span className="text-[var(--border)] font-sans">•</span>
+                              <span className="font-sans truncate flex items-center gap-0.5">
+                                <MapPin size={10} className="shrink-0 text-[var(--text-muted)]" /> {b.cityOfOperation}
                               </span>
                             </div>
                           </div>
                         </div>
                       </td>
 
-                      {/* Column 2: RERA Certification */}
-                      <td className="py-3.5 px-5">
-                        <div>
-                          <div className="flex items-center gap-1.5 font-bold font-mono text-[var(--text-primary)] text-xs">
-                            <span className="truncate max-w-[130px]">{b.rera}</span>
+                      {/* Column 2: RERA License */}
+                      <td className="py-1.5 px-3 align-middle overflow-hidden">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1 font-mono font-semibold text-xs text-[var(--text-primary)] truncate">
+                            <span className="truncate">{b.rera}</span>
                             {b.rera && b.rera !== 'Pending Check' && (
                               <button
                                 type="button"
-                                onClick={() => copyToClipboard(b.rera, 'RERA Number')}
-                                className="text-[var(--text-muted)] hover:text-brand cursor-pointer p-0.5"
-                                title="Copy RERA ID"
+                                onClick={(e) => { e.stopPropagation(); copyToClipboard(b.rera, 'RERA Number'); }}
+                                className="text-[var(--text-muted)] hover:text-brand p-0.5 cursor-pointer shrink-0"
+                                title="Copy RERA"
                               >
-                                <Copy size={11} />
+                                <Copy size={10} />
                               </button>
                             )}
                           </div>
-                          <div className="mt-1">
+                          <div className="mt-0.5">
                             {b.hasReraDoc ? (
                               <button
                                 type="button"
-                                onClick={() => openDocumentPreview(b.builderDocs.reraCertificate, `RERA Certificate - ${b.name}`)}
-                                className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded-lg border border-emerald-500/25 transition-all cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openDocumentPreview(b.builderDocs.reraCertificate, `RERA Certificate - ${b.name}`);
+                                }}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-[#52c99b]/20 hover:bg-[#52c99b]/35 px-1.5 py-0.2 rounded transition-all cursor-pointer"
                               >
-                                <FileCheck size={11} /> View Cert
+                                <FileCheck size={10} /> View Cert
                               </button>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded">
-                                <AlertTriangle size={9} /> No Cert
+                              <span className="text-[9.5px] font-medium text-amber-700 dark:text-amber-400">
+                                No Cert File
                               </span>
                             )}
                           </div>
                         </div>
                       </td>
 
-                      {/* Column 3: Verification Documents */}
-                      <td className="py-3.5 px-5">
-                        <div className="flex flex-col gap-1">
+                      {/* Column 3: Verification Proofs */}
+                      <td className="py-1.5 px-3 align-middle overflow-hidden">
+                        <div className="min-w-0 flex flex-col gap-0.5">
                           {b.hasPanDoc ? (
                             <button
                               type="button"
-                              onClick={() => openDocumentPreview(b.builderDocs.panCard, `PAN Card - ${b.name}`)}
-                              className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-0.5 rounded-lg border border-blue-500/25 transition-all cursor-pointer w-fit"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDocumentPreview(b.builderDocs.panCard, `PAN Card - ${b.name}`);
+                              }}
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-[#075985] dark:text-[#7dd3fc] bg-[#bae6fd]/30 hover:bg-[#bae6fd]/50 px-1.5 py-0.2 rounded transition-all cursor-pointer w-fit"
                             >
                               <FileText size={10} /> PAN Card
                             </button>
                           ) : (
-                            <span className="text-[9px] text-[var(--text-muted)] italic">No PAN uploaded</span>
+                            <span className="text-[9.5px] text-[var(--text-muted)] italic">No PAN Upload</span>
                           )}
-                          <span className="text-[9px] text-[var(--text-muted)] font-mono">
+                          <span className="text-[9.5px] text-[var(--text-muted)] font-mono truncate">
                             GST: {b.gstin !== 'Pending Submission' ? b.gstin : 'None'}
                           </span>
                         </div>
                       </td>
 
                       {/* Column 4: Experience */}
-                      <td className="py-3.5 px-5 text-[var(--text-subtle)] font-semibold">
-                        {b.yearsInBusinessText}
-                      </td>
-
-                      {/* Column 5: Delivered Projects */}
-                      <td className="py-3.5 px-5 text-center font-bold text-[var(--text-primary)]">
-                        {b.delivered} <span className="text-[10px] font-normal text-[var(--text-muted)]">Units</span>
-                      </td>
-
-                      {/* Column 6: Trust Rating */}
-                      <td className="py-3.5 px-5 text-center">
-                        <span className={`inline-flex px-2 py-0.5 border rounded-full text-[10px] font-black ${getTrustBadgeClass(b.trust)}`}>
-                          {b.trust}%
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap overflow-hidden">
+                        <span className="font-semibold text-xs text-[var(--text-primary)] block leading-tight">
+                          {b.yearsInBusinessText}
                         </span>
-                        <span className="block text-[8px] font-bold text-[var(--text-muted)] mt-0.5">
-                          {b.status === 'Approved' ? 'Verified' : 'Audit Tier'}
+                        <span className="text-[10px] text-[var(--text-muted)] block mt-0.5">
+                          {b.delivered} units built
                         </span>
                       </td>
 
-                      {/* Column 7: Account Admin */}
-                      <td className="py-3.5 px-5">
-                        <div className="min-w-0 max-w-[150px]">
-                          <p className="font-semibold text-[var(--text-primary)] truncate text-[11px]">
-                            {b.applicantName}
-                          </p>
-                          <p className="text-[10px] text-[var(--text-muted)] font-mono truncate" title={b.email}>
-                            {b.email}
-                          </p>
-                          {b.phone !== 'N/A' && (
-                            <p className="text-[10px] text-[var(--text-muted)] font-mono truncate">
-                              {b.phone}
-                            </p>
-                          )}
-                        </div>
+                      {/* Column 5: Trust Rating */}
+                      <td className="py-1.5 px-3 align-middle text-center whitespace-nowrap">
+                        {getTrustBadge(b.trust, 'xs')}
                       </td>
 
-                      {/* Column 8: Status Badge */}
-                      <td className="py-3.5 px-5">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
-                            b.status === 'Approved'
-                              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                              : b.status === 'Pending'
-                              ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 shadow-xs'
-                              : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'
-                          }`}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              b.status === 'Approved'
-                                ? 'bg-emerald-500'
-                                : b.status === 'Pending'
-                                ? 'bg-amber-500 animate-pulse'
-                                : 'bg-rose-500'
-                            }`}
-                          ></span>
-                          {b.status === 'Pending' ? 'Awaiting Approval' : b.status}
-                        </span>
-                        <span className="block text-[9px] text-[var(--text-muted)] mt-1">
-                          {getRelativeTime(b.createdAt)}
-                        </span>
+                      {/* Column 6: Status */}
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap">
+                        {getBuilderStatusBadge(b.status, 'xs')}
                       </td>
 
-                      {/* Column 9: Action Buttons */}
-                      <td className="py-3.5 px-5 text-right">
-                        {b.status === 'Pending' ? (
-                          <div className="flex items-center justify-end gap-1.5">
-                            {/* Primary Review Action */}
-                            <button
-                              type="button"
-                              onClick={() => setSelectedBuilder(b)}
-                              className="px-3 py-1.5 bg-brand hover:bg-brand-dark text-white rounded-xl text-[11px] font-bold shadow-xs shadow-brand/20 transition-all flex items-center gap-1 cursor-pointer"
-                            >
-                              <ShieldCheck size={13} />
-                              <span>Review Application</span>
-                            </button>
+                      {/* Column 7: Actions */}
+                      <td className="py-1.5 pl-2 pr-3.5 align-middle text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => { setSelectedBuilder(b); setBuilderDrawerTab('overview'); }}
+                            className="w-6 h-6 rounded-md flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                            title="Inspect & Review Details"
+                          >
+                            <Eye size={12} />
+                          </button>
 
-                            {/* Quick Direct Approve */}
+                          {b.status !== 'Approved' && (
                             <button
                               type="button"
                               onClick={() => updateBuilderStatus(b, 'Approved')}
-                              className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500 hover:text-white text-emerald-600 dark:text-emerald-400 rounded-xl transition-all cursor-pointer border border-emerald-500/20"
-                              title="Quick Approve Builder"
+                              disabled={isSubmittingAction}
+                              className="w-6 h-6 rounded-md flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                              title="Approve & Authorize License"
                             >
-                              <Check size={14} />
+                              <Check size={11} strokeWidth={2.5} />
                             </button>
+                          )}
 
-                            {/* Quick Direct Reject */}
+                          {b.status !== 'Suspended' && b.status !== 'Rejected' && (
                             <button
                               type="button"
                               onClick={() => setRejectPrompt({ item: b, type: 'builder' })}
-                              className="p-1.5 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-600 dark:text-rose-400 rounded-xl transition-all cursor-pointer border border-rose-500/20"
-                              title="Reject Application"
+                              disabled={isSubmittingAction}
+                              className="w-6 h-6 rounded-md flex items-center justify-center bg-rose-500/10 hover:bg-rose-500 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                              title="Reject or Suspend Builder"
                             >
-                              <Ban size={14} />
+                              <Ban size={11} strokeWidth={2.5} />
                             </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedBuilder(b)}
-                              className="px-3 py-1.5 border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] rounded-xl text-[11px] font-bold transition-all cursor-pointer"
-                            >
-                              Details & Audit
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : (
-        /* Builder Projects Tab View */
-        <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-[9px] font-bold uppercase tracking-wider bg-[var(--bg-muted)]">
-                  <th className="py-3 px-6">Project Title / ID</th>
-                  <th className="py-3 px-6">Developer</th>
-                  <th className="py-3 px-6">Location</th>
-                  <th className="py-3 px-6">Total Units</th>
-                  <th className="py-3 px-6">Stage</th>
-                  <th className="py-3 px-6">Status</th>
-                  <th className="py-3 px-6 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border-muted)] text-xs">
-                {isLoadingProjects ? (
-                  <tr>
-                    <td colSpan="7" className="py-14 text-center">
-                      <AdminLoader
-                        text="Loading developer projects..."
-                        subtext="Fetching project inventories, units, and construction stages"
-                        minHeight="min-h-[180px]"
-                      />
-                    </td>
-                  </tr>
-                ) : filteredProjects.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="py-12 text-center text-[var(--text-muted)] font-semibold">
-                      {searchQuery ? 'No matching projects found for your search.' : 'No builder projects found.'}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredProjects.map((p) => (
-                    <tr key={p.id} className="hover:bg-[var(--bg-muted)] transition-colors">
-                      <td className="py-3.5 px-6">
-                        <div>
-                          <p className="font-extrabold text-[var(--text-primary)]">{p.title}</p>
-                          <p className="text-[9px] text-[var(--text-muted)] font-mono">{p.id}</p>
+                          )}
                         </div>
                       </td>
-                      <td className="py-3.5 px-6 font-bold text-[var(--text-subtle)]">{p.builder}</td>
-                      <td className="py-3.5 px-6 font-semibold text-[var(--text-subtle)] flex items-center gap-1 mt-1">
-                        <MapPin size={12} className="text-[var(--text-muted)] shrink-0" /> {p.location}
-                      </td>
-                      <td className="py-3.5 px-6 text-[var(--text-subtle)] font-medium">{p.units}</td>
-                      <td className="py-3.5 px-6">
-                        <span className="px-2 py-0.5 rounded bg-[var(--bg-muted)] text-[var(--text-subtle)] font-semibold text-[9px]">
-                          {p.stage}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-6">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                            p.status === 'Published'
-                              ? 'bg-emerald-500/10 text-emerald-500'
-                              : p.status === 'Draft'
-                              ? 'bg-amber-500/10 text-amber-500'
-                              : 'bg-rose-500/10 text-rose-500'
-                          }`}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              p.status === 'Published'
-                                ? 'bg-emerald-500'
-                                : p.status === 'Draft'
-                                ? 'bg-amber-500'
-                                : 'bg-rose-500'
-                            }`}
-                          ></span>
-                          {p.status}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-6 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => openScoreModal(p)}
-                          className="px-2.5 py-1.5 border border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-[10px] font-bold transition-all cursor-pointer inline-flex items-center gap-1 mr-1.5"
-                          title="Set Investment Score"
-                        >
-                          <Sparkles size={11} /> Score ({p.score || 0})
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedProject(p)}
-                          className="px-2.5 py-1.5 border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-subtle)] rounded-lg text-[10px] font-bold transition-all cursor-pointer"
-                        >
-                          Moderate
-                        </button>
-                      </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-3.5 py-2 border-t border-[var(--border)] bg-[var(--bg-muted)]/20 flex items-center justify-between text-[11px] text-[var(--text-muted)] select-none">
+              <span>Showing <span className="font-semibold text-[var(--text-primary)]">{filteredBuilders.length}</span> of {builders.length} registered builders</span>
+              <span>Developer verification queue</span>
+            </div>
           </div>
-        </div>
-      )}
+        ) : (
+          /* Grid View: Clean, Interactive Cards */
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3.5">
+            {filteredBuilders.map((b) => (
+              <div
+                key={b._id}
+                onClick={() => { setSelectedBuilder(b); setBuilderDrawerTab('overview'); }}
+                className="bg-[var(--bg-surface)] border border-[var(--border)] hover:border-brand/40 rounded-2xl p-4 shadow-2xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
+              >
+                <div>
+                  {/* Card Header */}
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-[var(--bg-muted)] shrink-0 border border-[var(--border)] flex items-center justify-center">
+                      {b.builderDocs?.companyLogo ? (
+                        <SmoothImage src={b.builderDocs.companyLogo} alt={b.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-brand/20 to-orange-500/20 text-brand font-black text-sm flex items-center justify-center">
+                          {b.name.slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    {getBuilderStatusBadge(b.status, 'xs')}
+                  </div>
 
-      {/* Builder Details & Verification Drawer Slider */}
-      {selectedBuilder && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-end">
-          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] h-full max-w-xl w-full shadow-2xl border-l border-[var(--border)] p-6 overflow-y-auto flex flex-col justify-between animate-slide-left">
-            <div className="space-y-6 text-left">
-              {/* Drawer Header */}
-              <div className="flex justify-between items-start border-b border-[var(--border)] pb-4">
-                <div className="flex items-start gap-3.5">
-                  {selectedBuilder.builderDocs?.companyLogo ? (
-                    <img
-                      src={selectedBuilder.builderDocs.companyLogo}
-                      alt={selectedBuilder.companyName}
-                      className="w-12 h-12 rounded-2xl object-cover border border-[var(--border)] shrink-0 bg-[var(--bg-muted)] shadow-xs"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand/20 to-orange-500/20 text-brand font-black text-base flex items-center justify-center shrink-0 border border-brand/30 shadow-xs">
-                      {selectedBuilder.companyName.slice(0, 2).toUpperCase()}
-                    </div>
-                  )}
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-extrabold text-brand bg-brand/10 px-2 py-0.5 rounded font-mono">
-                        {selectedBuilder.id}
-                      </span>
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
-                          selectedBuilder.status === 'Approved'
-                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/25'
-                            : selectedBuilder.status === 'Pending'
-                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30'
-                            : 'bg-rose-500/10 text-rose-500 border border-rose-500/25'
-                        }`}
-                      >
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            selectedBuilder.status === 'Approved'
-                              ? 'bg-emerald-500'
-                              : selectedBuilder.status === 'Pending'
-                              ? 'bg-amber-500 animate-pulse'
-                              : 'bg-rose-500'
-                          }`}
-                        ></span>
-                        {selectedBuilder.status === 'Pending' ? 'Application Awaiting Approval' : selectedBuilder.status}
-                      </span>
-                    </div>
-                    <h3 className="text-lg font-black text-[var(--text-primary)] mt-1">
-                      {selectedBuilder.companyName}
+                  {/* Company Info */}
+                  <div className="mt-3">
+                    <h3 className="font-bold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate" title={b.name}>
+                      {b.name}
                     </h3>
-                    <p className="text-[11px] text-[var(--text-muted)] flex items-center gap-1.5 mt-0.5">
-                      <MapPin size={12} /> {selectedBuilder.cityOfOperation} • Applied {getRelativeTime(selectedBuilder.createdAt)}
+                    <p className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">{b.id}</p>
+                    <p className="text-[11px] text-[var(--text-muted)] flex items-center gap-1 mt-1 truncate">
+                      <MapPin size={11} className="shrink-0 text-brand" /> {b.cityOfOperation}
                     </p>
+                  </div>
+
+                  {/* Key Metrics Matrix */}
+                  <div className="grid grid-cols-2 gap-1.5 mt-3 pt-3 border-t border-[var(--border)]/60 text-[10px]">
+                    <div className="p-2 rounded-xl bg-[var(--bg-muted)]/50">
+                      <span className="text-[var(--text-muted)] block text-[9px] uppercase">Experience</span>
+                      <strong className="text-[var(--text-primary)]">{b.yearsInBusinessText}</strong>
+                    </div>
+                    <div className="p-2 rounded-xl bg-[var(--bg-muted)]/50">
+                      <span className="text-[var(--text-muted)] block text-[9px] uppercase">Delivered</span>
+                      <strong className="text-[var(--text-primary)]">{b.delivered} units</strong>
+                    </div>
+                  </div>
+
+                  {/* Proofs & Trust */}
+                  <div className="flex items-center justify-between gap-1 mt-2.5">
+                    {b.hasReraDoc ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-[#52c99b]/20 px-2 py-0.5 rounded-full">
+                        <FileCheck size={10} /> RERA Cert
+                      </span>
+                    ) : (
+                      <span className="text-[9.5px] text-amber-700 dark:text-amber-400">No RERA File</span>
+                    )}
+                    {getTrustBadge(b.trust, 'xs')}
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setSelectedBuilder(null)}
-                  className="p-2 bg-[var(--bg-muted)] hover:bg-[var(--border)] rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
-                  title="Close"
+                {/* Card Footer Actions */}
+                <div className="mt-4 pt-3 border-t border-[var(--border)] flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedBuilder(b); setBuilderDrawerTab('overview'); }}
+                    className="flex-1 py-1.5 px-2 bg-[var(--bg-muted)] hover:bg-[var(--bg-muted)]/80 text-[var(--text-primary)] rounded-xl text-[11px] font-semibold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <Eye size={12} /> Inspect
+                  </button>
+                  {b.status === 'Pending' && (
+                    <button
+                      type="button"
+                      onClick={() => updateBuilderStatus(b, 'Approved')}
+                      disabled={isSubmittingAction}
+                      className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer shadow-xs disabled:opacity-50"
+                    >
+                      <Check size={12} strokeWidth={2.5} /> Approve
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : (
+        /* ======================== PROJECTS VIEW ======================== */
+        isLoadingProjects ? (
+          <div className="py-20 flex flex-col items-center justify-center text-center">
+            <AdminLoader text="Loading real estate developer projects..." />
+          </div>
+        ) : filteredProjects.length === 0 ? (
+          <div className="p-16 text-center bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)]">
+              <Layers size={24} className="text-brand" />
+            </div>
+            <h3 className="text-base font-bold text-[var(--text-primary)]">
+              {statusFilter === 'Pending' ? 'No Draft Projects Pending Moderation' : 'No Projects Found'}
+            </h3>
+            <p className="text-xs text-[var(--text-muted)] mt-1 max-w-sm mx-auto">
+              {statusFilter === 'Pending'
+                ? 'All submitted developer projects have been moderated and published.'
+                : 'Try clearing your search query or switching filters.'}
+            </p>
+            {(searchQuery || statusFilter !== 'All' || secondaryFilter !== 'ALL') && (
+              <button
+                type="button"
+                onClick={() => { setSearchQuery(''); setStatusFilter('All'); setSecondaryFilter('ALL'); }}
+                className="mt-4 px-4 py-2 bg-brand/10 text-brand hover:bg-brand/15 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+              >
+                Clear All Filters
+              </button>
+            )}
+          </div>
+        ) : viewMode === 'table' ? (
+          /* Projects Table View: Full-Fit 100% Zero Horizontal Scroll */
+          <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-2xs">
+            <div className="w-full overflow-hidden">
+              <table className="w-full text-left border-collapse table-fixed">
+                <colgroup>
+                  <col className="w-[28%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[10%]" />
+                </colgroup>
+                <thead className="bg-[var(--bg-muted)]/40 text-[var(--text-muted)] uppercase text-[9.5px] font-semibold tracking-wider border-b border-[var(--border)] select-none">
+                  <tr>
+                    <th className="py-2 px-3">Project Title / ID</th>
+                    <th className="py-2 px-3">Location</th>
+                    <th className="py-2 px-3">Inventory & Stage</th>
+                    <th className="py-2 px-3">Investment Score</th>
+                    <th className="py-2 px-3">Status</th>
+                    <th className="py-2 pl-2 pr-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)]/60 text-xs">
+                  {filteredProjects.map((p) => {
+                    const heroImage = p.photos?.[0] || p.gallery?.[0]?.url;
+
+                    return (
+                      <tr
+                        key={p._id}
+                        onClick={() => { setSelectedProject(p); setProjectDrawerTab('overview'); }}
+                        className="hover:bg-[var(--bg-muted)]/35 transition-colors cursor-pointer group"
+                      >
+                        {/* Column 1: Thumbnail & Project Info */}
+                        <td className="py-1.5 px-3 align-middle overflow-hidden">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="relative w-8 h-8 rounded-lg overflow-hidden bg-[var(--bg-muted)] shrink-0 border border-[var(--border)]">
+                              {heroImage ? (
+                                <SmoothImage src={heroImage} alt={p.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)]">
+                                  <Building size={14} />
+                                </div>
+                              )}
+                              {p.videos?.length > 0 && (
+                                <span className="absolute top-0.5 left-0.5 bg-purple-600/90 text-white text-[7px] font-bold px-1 py-0.2 rounded-xs flex items-center gap-0.5 shadow-2xs leading-none">
+                                  <Play size={5} className="fill-white" />
+                                </span>
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate" title={p.title}>
+                                  {p.title}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-[10.5px] text-[var(--text-muted)] truncate font-mono mt-0.5 leading-tight">
+                                <span className="text-brand font-semibold">{p.id}</span>
+                                <span className="text-[var(--border)] font-sans">•</span>
+                                <span className="font-sans truncate text-[var(--text-muted)]">{p.builder}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Column 2: Location */}
+                        <td className="py-1.5 px-3 align-middle overflow-hidden">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1 text-xs font-medium text-[var(--text-primary)] truncate">
+                              <MapPin size={11} className="text-brand shrink-0 opacity-80" />
+                              <span className="truncate">{p.location}</span>
+                            </div>
+                            <span className="text-[10px] text-[var(--text-muted)] block pl-3.5 truncate leading-tight mt-0.5 font-mono">
+                              RERA: {p.reraNumber}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Column 3: Inventory & Stage */}
+                        <td className="py-1.5 px-3 align-middle whitespace-nowrap overflow-hidden">
+                          <span className="font-semibold text-xs text-[var(--text-primary)] block leading-tight">
+                            {p.units}
+                          </span>
+                          <span className="text-[9.5px] font-medium text-[var(--text-muted)] block mt-0.5">
+                            {p.stage}
+                          </span>
+                        </td>
+
+                        {/* Column 4: Investment Score */}
+                        <td className="py-1.5 px-3 align-middle whitespace-nowrap overflow-hidden">
+                          <div
+                            onClick={(e) => { e.stopPropagation(); openScoreModal(p); }}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#52c99b]/20 text-[#064e3b] dark:bg-[#1a4a38] dark:text-[#6ee7b7] border border-[#52c99b]/30 hover:scale-105 transition-transform cursor-pointer"
+                            title="Click to adjust investment score metrics"
+                          >
+                            <Sparkles size={10} className="shrink-0" />
+                            <span>{p.score || 0} / 10</span>
+                            <span className="text-[9px] opacity-75 font-normal ml-0.5">({p.investmentScore?.grade || 'Good'})</span>
+                          </div>
+                        </td>
+
+                        {/* Column 5: Status */}
+                        <td className="py-1.5 px-3 align-middle whitespace-nowrap">
+                          {getProjectStatusBadge(p.status, 'xs')}
+                        </td>
+
+                        {/* Column 6: Actions */}
+                        <td className="py-1.5 pl-2 pr-3.5 align-middle text-right whitespace-nowrap">
+                          <div className="inline-flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={() => { setSelectedProject(p); setProjectDrawerTab('overview'); }}
+                              className="w-6 h-6 rounded-md flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                              title="Inspect Project"
+                            >
+                              <Eye size={12} />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => openScoreModal(p)}
+                              className="w-6 h-6 rounded-md flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                              title="Edit Investment Score"
+                            >
+                              <Sparkles size={11} />
+                            </button>
+
+                            {/* Sold Out / Relist Actions */}
+                            {p.status === 'Published' && !p.isSold && (
+                              <button
+                                type="button"
+                                onClick={() => toggleProjectSoldStatus(p, true)}
+                                disabled={isSubmittingAction}
+                                className="w-6 h-6 rounded-md flex items-center justify-center bg-amber-500/10 hover:bg-amber-500 text-amber-700 dark:text-amber-400 hover:text-white border border-amber-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                                title="Mark Project as Sold Out"
+                              >
+                                <Tag size={11} strokeWidth={2.2} />
+                              </button>
+                            )}
+
+                            {(p.status === 'Sold' || p.isSold) && (
+                              <button
+                                type="button"
+                                onClick={() => toggleProjectSoldStatus(p, false)}
+                                disabled={isSubmittingAction}
+                                className="w-6 h-6 rounded-md flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                                title="Relist Project as Available"
+                              >
+                                <RotateCcw size={11} />
+                              </button>
+                            )}
+
+                            {p.status !== 'Published' && p.status !== 'Sold' && (
+                              <button
+                                type="button"
+                                onClick={() => updateProjectStatus(p, 'Published')}
+                                disabled={isSubmittingAction}
+                                className="w-6 h-6 rounded-md flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                                title="Publish Project Live"
+                              >
+                                <Check size={11} strokeWidth={2.5} />
+                              </button>
+                            )}
+
+                            {p.status !== 'Archived' && (
+                              <button
+                                type="button"
+                                onClick={() => setRejectPrompt({ item: p, type: 'project' })}
+                                disabled={isSubmittingAction}
+                                className="w-6 h-6 rounded-md flex items-center justify-center bg-rose-500/10 hover:bg-rose-500 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                                title="Suspend or Archive Project"
+                              >
+                                <Ban size={11} strokeWidth={2.5} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-3.5 py-2 border-t border-[var(--border)] bg-[var(--bg-muted)]/20 flex items-center justify-between text-[11px] text-[var(--text-muted)] select-none">
+              <span>Showing <span className="font-semibold text-[var(--text-primary)]">{filteredProjects.length}</span> of {projects.length} developer projects</span>
+              <span>Project moderation inventory</span>
+            </div>
+          </div>
+        ) : (
+          /* Projects Grid View: Modern Responsive Cards */
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3.5">
+            {filteredProjects.map((p) => {
+              const heroImage = p.photos?.[0] || p.gallery?.[0]?.url;
+
+              return (
+                <div
+                  key={p._id}
+                  onClick={() => { setSelectedProject(p); setProjectDrawerTab('overview'); }}
+                  className="bg-[var(--bg-surface)] border border-[var(--border)] hover:border-brand/40 rounded-2xl overflow-hidden shadow-2xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
                 >
-                  <X size={16} />
-                </button>
+                  <div>
+                    {/* Media Thumbnail */}
+                    <div className="relative h-32 w-full bg-[var(--bg-muted)] overflow-hidden">
+                      {heroImage ? (
+                        <SmoothImage src={heroImage} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)]">
+                          <Building size={24} />
+                        </div>
+                      )}
+
+                      {/* Status Badge Overlay */}
+                      <div className="absolute top-2 right-2">
+                        {getProjectStatusBadge(p.status, 'xs')}
+                      </div>
+
+                      {/* Video Count Overlay */}
+                      {p.videos?.length > 0 && (
+                        <span className="absolute bottom-2 left-2 bg-purple-600/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md">
+                          <Play size={8} className="fill-white" /> {p.videos.length} Videos
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-3.5">
+                      <h3 className="font-bold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate" title={p.title}>
+                        {p.title}
+                      </h3>
+                      <p className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">{p.id} • {p.builder}</p>
+
+                      <p className="text-[11px] text-[var(--text-muted)] flex items-center gap-1 mt-1.5 truncate">
+                        <MapPin size={11} className="shrink-0 text-brand" /> {p.location}
+                      </p>
+
+                      <div className="flex items-center justify-between gap-1 mt-3 pt-2.5 border-t border-[var(--border)]/60 text-[10px]">
+                        <span className="font-semibold text-[var(--text-primary)]">{p.units}</span>
+                        <span className="text-[var(--text-muted)]">{p.stage}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card Footer */}
+                  <div className="p-3 bg-[var(--bg-muted)]/30 border-t border-[var(--border)] flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => openScoreModal(p)}
+                      className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 transition-colors cursor-pointer"
+                    >
+                      <Sparkles size={11} /> Score ({p.score})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedProject(p); setProjectDrawerTab('overview'); }}
+                      className="px-2.5 py-1 bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] border border-[var(--border)] text-[var(--text-primary)] rounded-lg text-[10.5px] font-semibold transition-all cursor-pointer"
+                    >
+                      Moderate
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
+      )}
+
+      {/* ── 08. BUILDER REVIEW & AUDIT DRAWER (Slide-Over Panel) ── */}
+      {selectedBuilder && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-end">
+          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] h-full max-w-xl w-full shadow-2xl border-l border-[var(--border)] flex flex-col justify-between animate-slide-left">
+            {/* Drawer Top Header */}
+            <div className="p-5 border-b border-[var(--border)] flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-[var(--bg-muted)] shrink-0 border border-[var(--border)] flex items-center justify-center">
+                  {selectedBuilder.builderDocs?.companyLogo ? (
+                    <img src={selectedBuilder.builderDocs.companyLogo} alt={selectedBuilder.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-brand/20 to-orange-500/20 text-brand font-black text-sm flex items-center justify-center">
+                      {selectedBuilder.name.slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-brand">{selectedBuilder.id}</span>
+                    {getBuilderStatusBadge(selectedBuilder.status, 'xs')}
+                  </div>
+                  <h2 className="text-base font-bold text-[var(--text-primary)] mt-0.5">
+                    {selectedBuilder.companyName}
+                  </h2>
+                  <p className="text-[11px] text-[var(--text-muted)] flex items-center gap-1 mt-0.5">
+                    <MapPin size={11} className="text-brand" /> {selectedBuilder.cityOfOperation} • Applied {getRelativeTime(selectedBuilder.createdAt)}
+                  </p>
+                </div>
               </div>
 
-              {/* Status Alert for Pending Applications */}
+              <button
+                type="button"
+                onClick={() => setSelectedBuilder(null)}
+                className="p-1.5 rounded-xl bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
+                title="Close Drawer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Drawer Tabs */}
+            <div className="flex items-center gap-6 px-5 border-b border-[var(--border)] text-xs font-bold select-none">
+              {[
+                { key: 'overview', label: 'Company Overview' },
+                { key: 'docs', label: 'RERA & Verification Proofs' },
+                { key: 'credentials', label: 'Contact & Account Admin' }
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setBuilderDrawerTab(tab.key)}
+                  className={`py-2.5 border-b-2 transition-all cursor-pointer ${
+                    builderDrawerTab === tab.key
+                      ? 'border-brand text-brand'
+                      : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Drawer Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {/* Pending Action Banner in Drawer */}
               {selectedBuilder.status === 'Pending' && (
-                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
-                  <ShieldAlert size={18} className="text-amber-500 shrink-0 mt-0.5" />
-                  <div className="text-xs">
-                    <p className="font-extrabold text-amber-700 dark:text-amber-300">
-                      Builder Verification Application Pending
-                    </p>
-                    <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">
-                      Please examine the uploaded RERA Certificate and PAN card below. Confirm the legal entity name and license validity before authorizing builder privileges.
+                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-300">
+                  <ShieldAlert size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="font-bold block">Developer Application Under Audit</strong>
+                    <p className="text-[11px] opacity-90 mt-0.5 leading-relaxed">
+                      Cross check the uploaded RERA certificate and company PAN card against the legal entity name before authorizing developer privileges.
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* SECTION 1: CRITICAL DOCUMENTS AUDIT (RERA & PAN) */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1.5">
-                    <FileCheck size={14} className="text-brand" /> Uploaded Government Documents
-                  </span>
-                  <span className="text-[9px] font-bold text-[var(--text-muted)]">
-                    Audit Verification Proofs
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Document 1: RERA Certificate */}
-                  <div className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg-muted)]/50 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-extrabold uppercase text-[var(--text-primary)] flex items-center gap-1.5">
-                        <FileCheck size={13} className="text-emerald-500" /> RERA License
-                      </span>
-                      {selectedBuilder.hasReraDoc ? (
-                        <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded">
-                          Uploaded
-                        </span>
-                      ) : (
-                        <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded">
-                          Not Provided
-                        </span>
-                      )}
+              {builderDrawerTab === 'overview' && (
+                <div className="space-y-4">
+                  {/* Credentials Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                    <div className="p-2.5 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)]">
+                      <span className="text-[9px] text-[var(--text-muted)] uppercase block">Experience</span>
+                      <strong className="text-xs text-[var(--text-primary)] mt-0.5 block">{selectedBuilder.yearsInBusinessText}</strong>
                     </div>
-
-                    <div className="p-2 bg-[var(--bg-surface)] rounded-lg border border-[var(--border)]">
-                      <span className="text-[9px] text-[var(--text-muted)] uppercase block font-semibold">
-                        RERA Number
-                      </span>
-                      <div className="flex items-center justify-between mt-0.5">
-                        <span className="font-mono font-bold text-xs text-[var(--text-primary)] truncate">
-                          {selectedBuilder.rera}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(selectedBuilder.rera, 'RERA Number')}
-                          className="text-[var(--text-muted)] hover:text-brand cursor-pointer p-0.5"
-                          title="Copy"
-                        >
-                          <Copy size={11} />
-                        </button>
-                      </div>
+                    <div className="p-2.5 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)]">
+                      <span className="text-[9px] text-[var(--text-muted)] uppercase block">Delivered</span>
+                      <strong className="text-xs text-[var(--text-primary)] mt-0.5 block">{selectedBuilder.delivered} Projects</strong>
                     </div>
-
-                    {selectedBuilder.hasReraDoc ? (
-                      <div className="space-y-2">
-                        {/* Thumbnail image if available */}
-                        <div
-                          onClick={() => openDocumentPreview(selectedBuilder.builderDocs.reraCertificate, `RERA Certificate - ${selectedBuilder.companyName}`)}
-                          className="relative h-24 rounded-lg overflow-hidden border border-[var(--border)] bg-black/5 dark:bg-black/30 group cursor-pointer"
-                        >
-                          <img
-                            src={selectedBuilder.builderDocs.reraCertificate}
-                            alt="RERA Certificate"
-                            className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              if (e.currentTarget.nextSibling) {
-                                e.currentTarget.nextSibling.style.display = 'flex';
-                              }
-                            }}
-                          />
-                          <div className="w-full h-full hidden items-center justify-center text-[var(--text-muted)] text-[10px] font-semibold">
-                            <FileText size={20} className="text-brand mr-1" /> PDF / Document Preview
-                          </div>
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold gap-1">
-                            <Eye size={14} /> Click to Inspect
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => openDocumentPreview(selectedBuilder.builderDocs.reraCertificate, `RERA Certificate - ${selectedBuilder.companyName}`)}
-                            className="flex-1 py-1.5 px-2 bg-brand/10 hover:bg-brand/20 text-brand rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
-                          >
-                            <Eye size={12} /> Inspect
-                          </button>
-                          <a
-                            href={selectedBuilder.builderDocs.reraCertificate}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="py-1.5 px-2 border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-subtle)] rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1"
-                            title="Open original in new tab"
-                          >
-                            <ExternalLink size={12} />
-                          </a>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">
-                        No RERA certificate file uploaded by builder.
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Document 2: Company PAN Card */}
-                  <div className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg-muted)]/50 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-extrabold uppercase text-[var(--text-primary)] flex items-center gap-1.5">
-                        <FileText size={13} className="text-blue-500" /> PAN Card
-                      </span>
-                      {selectedBuilder.hasPanDoc ? (
-                        <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1.5 py-0.2 rounded">
-                          Uploaded
-                        </span>
-                      ) : (
-                        <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded">
-                          Not Provided
-                        </span>
-                      )}
+                    <div className="p-2.5 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)]">
+                      <span className="text-[9px] text-[var(--text-muted)] uppercase block">ISO Certified</span>
+                      <strong className={`text-xs mt-0.5 block ${selectedBuilder.isIsoCertified ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--text-muted)]'}`}>
+                        {selectedBuilder.isIsoCertified ? '✓ Certified' : 'No'}
+                      </strong>
                     </div>
-
-                    <div className="p-2 bg-[var(--bg-surface)] rounded-lg border border-[var(--border)]">
-                      <span className="text-[9px] text-[var(--text-muted)] uppercase block font-semibold">
-                        GSTIN Registration
-                      </span>
-                      <div className="flex items-center justify-between mt-0.5">
-                        <span className="font-mono font-bold text-xs text-[var(--text-primary)] truncate">
-                          {selectedBuilder.gstin}
-                        </span>
-                        {selectedBuilder.gstin && selectedBuilder.gstin !== 'Pending Submission' && (
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(selectedBuilder.gstin, 'GSTIN')}
-                            className="text-[var(--text-muted)] hover:text-brand cursor-pointer p-0.5"
-                            title="Copy"
-                          >
-                            <Copy size={11} />
-                          </button>
-                        )}
-                      </div>
+                    <div className="p-2.5 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)]">
+                      <span className="text-[9px] text-[var(--text-muted)] uppercase block">Risk Rating</span>
+                      <strong className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5 block">{selectedBuilder.internalRiskRating}</strong>
                     </div>
-
-                    {selectedBuilder.hasPanDoc ? (
-                      <div className="space-y-2">
-                        {/* Thumbnail image if available */}
-                        <div
-                          onClick={() => openDocumentPreview(selectedBuilder.builderDocs.panCard, `PAN Card - ${selectedBuilder.companyName}`)}
-                          className="relative h-24 rounded-lg overflow-hidden border border-[var(--border)] bg-black/5 dark:bg-black/30 group cursor-pointer"
-                        >
-                          <img
-                            src={selectedBuilder.builderDocs.panCard}
-                            alt="PAN Card"
-                            className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              if (e.currentTarget.nextSibling) {
-                                e.currentTarget.nextSibling.style.display = 'flex';
-                              }
-                            }}
-                          />
-                          <div className="w-full h-full hidden items-center justify-center text-[var(--text-muted)] text-[10px] font-semibold">
-                            <FileText size={20} className="text-blue-500 mr-1" /> PDF / Document Preview
-                          </div>
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold gap-1">
-                            <Eye size={14} /> Click to Inspect
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => openDocumentPreview(selectedBuilder.builderDocs.panCard, `PAN Card - ${selectedBuilder.companyName}`)}
-                            className="flex-1 py-1.5 px-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
-                          >
-                            <Eye size={12} /> Inspect
-                          </button>
-                          <a
-                            href={selectedBuilder.builderDocs.panCard}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="py-1.5 px-2 border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-subtle)] rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1"
-                            title="Open original in new tab"
-                          >
-                            <ExternalLink size={12} />
-                          </a>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">
-                        No PAN card uploaded by builder.
-                      </p>
-                    )}
                   </div>
-                </div>
-              </div>
 
-              {/* SECTION 2: LEGAL & CORPORATE PROFILE */}
-              <div className="p-4 bg-[var(--bg-muted)]/50 rounded-2xl border border-[var(--border)] space-y-3">
-                <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider block">
-                  Corporate & Business Credentials
-                </span>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                  <div className="p-2.5 bg-[var(--bg-surface)] rounded-xl border border-[var(--border)]">
-                    <span className="text-[8px] font-bold text-[var(--text-muted)] uppercase block">Years Active</span>
-                    <span className="text-xs font-bold text-[var(--text-primary)] mt-0.5 block">
-                      {selectedBuilder.yearsInBusinessText}
-                    </span>
-                  </div>
-                  <div className="p-2.5 bg-[var(--bg-surface)] rounded-xl border border-[var(--border)]">
-                    <span className="text-[8px] font-bold text-[var(--text-muted)] uppercase block">Units Delivered</span>
-                    <span className="text-xs font-bold text-[var(--text-primary)] mt-0.5 block">
-                      {selectedBuilder.delivered} Projects
-                    </span>
-                  </div>
-                  <div className="p-2.5 bg-[var(--bg-surface)] rounded-xl border border-[var(--border)]">
-                    <span className="text-[8px] font-bold text-[var(--text-muted)] uppercase block">ISO Certified</span>
-                    <span className={`text-xs font-bold mt-0.5 block ${selectedBuilder.isIsoCertified ? 'text-emerald-500' : 'text-[var(--text-muted)]'}`}>
-                      {selectedBuilder.isIsoCertified ? '✓ Certified' : 'No'}
-                    </span>
-                  </div>
-                  <div className="p-2.5 bg-[var(--bg-surface)] rounded-xl border border-[var(--border)]">
-                    <span className="text-[8px] font-bold text-[var(--text-muted)] uppercase block">Risk Rating</span>
-                    <span className="text-xs font-bold text-emerald-500 mt-0.5 block">
-                      {selectedBuilder.internalRiskRating}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Corporate Address */}
-                <div>
-                  <label className="text-[9px] font-bold text-[var(--text-muted)] uppercase block">
-                    Corporate Office Address
-                  </label>
-                  <p className="text-[11px] font-medium text-[var(--text-primary)] mt-0.5 bg-[var(--bg-surface)] p-2.5 rounded-xl border border-[var(--border)]">
-                    {selectedBuilder.corporateAddress}
-                  </p>
-                </div>
-
-                {/* Company Bio */}
-                {selectedBuilder.bio && (
-                  <div>
-                    <label className="text-[9px] font-bold text-[var(--text-muted)] uppercase block">
-                      Company Overview / Bio
-                    </label>
-                    <p className="text-[11px] text-[var(--text-subtle)] mt-0.5 bg-[var(--bg-surface)] p-2.5 rounded-xl border border-[var(--border)] leading-relaxed">
-                      {selectedBuilder.bio}
+                  {/* Corporate Address */}
+                  <div className="p-3.5 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)] text-xs space-y-1">
+                    <span className="text-[10px] font-bold uppercase text-[var(--text-muted)] block">Registered Corporate Office</span>
+                    <p className="text-xs font-medium text-[var(--text-primary)] leading-relaxed">
+                      {selectedBuilder.corporateAddress}
                     </p>
                   </div>
-                )}
-              </div>
 
-              {/* SECTION 3: KEY EXECUTIVE & CONTACT DETAILS */}
-              <div className="p-4 bg-[var(--bg-muted)]/50 rounded-2xl border border-[var(--border)] space-y-3">
-                <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider block">
-                  Legal Representative / Account Contact
-                </span>
+                  {/* Bio */}
+                  {selectedBuilder.bio && (
+                    <div className="p-3.5 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)] text-xs space-y-1">
+                      <span className="text-[10px] font-bold uppercase text-[var(--text-muted)] block">Company Overview</span>
+                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                        {selectedBuilder.bio}
+                      </p>
+                    </div>
+                  )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="p-2.5 bg-[var(--bg-surface)] rounded-xl border border-[var(--border)]">
-                    <span className="text-[8px] font-bold text-[var(--text-muted)] uppercase block">Applicant Name</span>
-                    <span className="font-bold text-[var(--text-primary)] mt-0.5 block">
-                      {selectedBuilder.applicantName}
-                    </span>
+                  {/* Trust Rating Bar */}
+                  <div className="p-3.5 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)] text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase text-[var(--text-muted)]">Trust Score Assessment</span>
+                      <span className="font-bold text-xs text-[var(--text-primary)]">{selectedBuilder.trust}%</span>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-[var(--border)] overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                        style={{ width: `${selectedBuilder.trust}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="p-2.5 bg-[var(--bg-surface)] rounded-xl border border-[var(--border)]">
-                    <span className="text-[8px] font-bold text-[var(--text-muted)] uppercase block">Email Address</span>
-                    <div className="flex items-center justify-between mt-0.5">
-                      <a
-                        href={`mailto:${selectedBuilder.email}`}
-                        className="font-mono text-brand hover:underline truncate text-[11px]"
+                </div>
+              )}
+
+              {builderDrawerTab === 'docs' && (
+                <div className="space-y-4">
+                  {/* RERA License Audit Box */}
+                  <div className="p-4 rounded-2xl bg-[var(--bg-muted)]/40 border border-[var(--border)] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileCheck size={16} className="text-emerald-500" />
+                        <span className="text-xs font-bold text-[var(--text-primary)]">RERA License Registration</span>
+                      </div>
+                      {selectedBuilder.hasReraDoc ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#52c99b]/20 text-[#064e3b] dark:text-[#6ee7b7]">
+                          Proof Attached
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                          Missing Document
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] flex items-center justify-between">
+                      <div>
+                        <span className="text-[9px] uppercase font-bold text-[var(--text-muted)] block">RERA Number</span>
+                        <span className="font-mono font-bold text-xs text-[var(--text-primary)]">{selectedBuilder.rera}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(selectedBuilder.rera, 'RERA Number')}
+                        className="p-1 text-[var(--text-muted)] hover:text-brand cursor-pointer"
+                        title="Copy"
                       >
-                        {selectedBuilder.email}
-                      </a>
+                        <Copy size={12} />
+                      </button>
+                    </div>
+
+                    {selectedBuilder.hasReraDoc && (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openDocumentPreview(selectedBuilder.builderDocs.reraCertificate, `RERA Certificate - ${selectedBuilder.companyName}`)}
+                          className="flex-1 py-2 px-3 bg-brand/10 hover:bg-brand/20 text-brand rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Eye size={13} /> Full Screen Preview
+                        </button>
+                        <a
+                          href={selectedBuilder.builderDocs.reraCertificate}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-2 px-3 border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-xl text-xs font-bold transition-all flex items-center justify-center cursor-pointer"
+                          title="Open Original"
+                        >
+                          <ExternalLink size={13} />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* PAN Card Audit Box */}
+                  <div className="p-4 rounded-2xl bg-[var(--bg-muted)]/40 border border-[var(--border)] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileText size={16} className="text-blue-500" />
+                        <span className="text-xs font-bold text-[var(--text-primary)]">Company PAN Card & GSTIN</span>
+                      </div>
+                      {selectedBuilder.hasPanDoc ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-700 dark:text-blue-300">
+                          Proof Attached
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                          Missing Document
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] flex items-center justify-between">
+                      <div>
+                        <span className="text-[9px] uppercase font-bold text-[var(--text-muted)] block">GSTIN Registration</span>
+                        <span className="font-mono font-bold text-xs text-[var(--text-primary)]">{selectedBuilder.gstin}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(selectedBuilder.gstin, 'GSTIN')}
+                        className="p-1 text-[var(--text-muted)] hover:text-brand cursor-pointer"
+                        title="Copy"
+                      >
+                        <Copy size={12} />
+                      </button>
+                    </div>
+
+                    {selectedBuilder.hasPanDoc && (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openDocumentPreview(selectedBuilder.builderDocs.panCard, `PAN Card - ${selectedBuilder.companyName}`)}
+                          className="flex-1 py-2 px-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Eye size={13} /> Full Screen Preview
+                        </button>
+                        <a
+                          href={selectedBuilder.builderDocs.panCard}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-2 px-3 border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-xl text-xs font-bold transition-all flex items-center justify-center cursor-pointer"
+                          title="Open Original"
+                        >
+                          <ExternalLink size={13} />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {builderDrawerTab === 'credentials' && (
+                <div className="space-y-4 text-xs">
+                  <div className="p-3.5 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)] space-y-2.5">
+                    <span className="text-[10px] font-bold uppercase text-[var(--text-muted)] block">Authorized Applicant</span>
+                    <div className="flex items-center justify-between">
+                      <strong className="text-sm text-[var(--text-primary)]">{selectedBuilder.applicantName}</strong>
+                      <span className="text-[10px] text-[var(--text-muted)]">Primary Director</span>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]">
+                      <span className="text-[var(--text-muted)] flex items-center gap-1.5">
+                        <Mail size={12} /> {selectedBuilder.email}
+                      </span>
                       <button
                         type="button"
                         onClick={() => copyToClipboard(selectedBuilder.email, 'Email')}
-                        className="text-[var(--text-muted)] hover:text-brand cursor-pointer p-0.5"
+                        className="p-1 text-[var(--text-muted)] hover:text-brand"
                       >
-                        <Copy size={11} />
+                        <Copy size={12} />
                       </button>
                     </div>
-                  </div>
-                  {selectedBuilder.phone !== 'N/A' && (
-                    <div className="p-2.5 bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] sm:col-span-2">
-                      <span className="text-[8px] font-bold text-[var(--text-muted)] uppercase block">Contact Phone</span>
-                      <div className="flex items-center justify-between mt-0.5">
-                        <a
-                          href={`tel:${selectedBuilder.phone}`}
-                          className="font-mono font-bold text-[var(--text-primary)] hover:text-brand"
-                        >
-                          {selectedBuilder.phone}
-                        </a>
+
+                    {selectedBuilder.phone !== 'N/A' && (
+                      <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]">
+                        <span className="text-[var(--text-muted)] flex items-center gap-1.5">
+                          <Phone size={12} /> {selectedBuilder.phone}
+                        </span>
                         <button
                           type="button"
                           onClick={() => copyToClipboard(selectedBuilder.phone, 'Phone')}
-                          className="text-[var(--text-muted)] hover:text-brand cursor-pointer p-0.5"
+                          className="p-1 text-[var(--text-muted)] hover:text-brand"
                         >
-                          <Copy size={11} />
+                          <Copy size={12} />
                         </button>
                       </div>
+                    )}
+                  </div>
+
+                  {selectedBuilder.internalNotes && (
+                    <div className="p-3.5 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)]">
+                      <span className="text-[10px] font-bold uppercase text-[var(--text-muted)] block">Internal Audit Note</span>
+                      <p className="text-xs text-[var(--text-secondary)] italic mt-1 leading-relaxed">
+                        {selectedBuilder.internalNotes}
+                      </p>
                     </div>
                   )}
                 </div>
-              </div>
-
-              {/* Audit History / Past Notes if any */}
-              {selectedBuilder.internalNotes && (
-                <div className="p-3 bg-[var(--bg-muted)] rounded-xl border border-[var(--border)] text-xs">
-                  <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase block">
-                    Audit Log / Previous Remarks
-                  </span>
-                  <p className="text-[11px] text-[var(--text-subtle)] mt-0.5 italic">
-                    {selectedBuilder.internalNotes}
-                  </p>
-                </div>
               )}
             </div>
 
-            {/* Actions Footer */}
-            <div className="pt-5 border-t border-[var(--border)] space-y-2.5 mt-6">
-              {selectedBuilder.status === 'Pending' ? (
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => updateBuilderStatus(selectedBuilder, 'Approved')}
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <CheckCircle2 size={16} /> Approve & Authorize Builder License
-                  </button>
-
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setRejectPrompt({ item: selectedBuilder, type: 'builder' })}
-                      className="flex-1 py-2.5 border border-rose-500/30 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <Ban size={14} /> Reject Application
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedBuilder(null)}
-                      className="py-2.5 px-4 border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-subtle)] rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-              ) : selectedBuilder.status === 'Approved' ? (
-                <div className="space-y-2">
-                  <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center justify-center gap-2">
-                    <CheckCircle size={15} /> Builder is Authorized & Verified Live
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setRejectPrompt({ item: selectedBuilder, type: 'builder' })}
-                    className="w-full py-2.5 border border-rose-500/25 hover:bg-rose-500/10 text-rose-500 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    <Ban size={14} /> Suspend Builder License
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => updateBuilderStatus(selectedBuilder, 'Approved')}
-                  className="w-full py-2.5 bg-brand hover:bg-brand-dark text-white rounded-xl text-xs font-bold shadow-md shadow-brand/20 transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                >
-                  <ShieldCheck size={14} /> Re-verify & Reactivate Credentials
-                </button>
-              )}
-
+            {/* Drawer Bottom Actions */}
+            <div className="p-4 border-t border-[var(--border)] bg-[var(--bg-muted)]/20 flex items-center justify-between gap-2.5">
               <button
                 type="button"
                 onClick={() => setDeleteConfirm({ item: selectedBuilder, type: 'builder' })}
-                className="w-full py-2 text-[var(--text-muted)] hover:text-rose-500 text-[11px] font-semibold transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                className="h-8 px-3 rounded-full text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/25 transition-all cursor-pointer flex items-center gap-1.5"
               >
-                <Trash2 size={12} /> Deactivate Builder Account
+                <Trash2 size={13} /> Deactivate
               </button>
+
+              <div className="flex items-center gap-2">
+                {selectedBuilder.status === 'Pending' ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setRejectPrompt({ item: selectedBuilder, type: 'builder' })}
+                      disabled={isSubmittingAction}
+                      className="h-8 px-3.5 rounded-full text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border border-rose-500/25 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Ban size={13} /> Reject
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateBuilderStatus(selectedBuilder, 'Approved')}
+                      disabled={isSubmittingAction}
+                      className="h-8 px-4 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all disabled:opacity-50"
+                    >
+                      <Check size={13} strokeWidth={2.5} /> Authorize & Approve
+                    </button>
+                  </>
+                ) : selectedBuilder.status === 'Approved' ? (
+                  <button
+                    type="button"
+                    onClick={() => setRejectPrompt({ item: selectedBuilder, type: 'builder' })}
+                    disabled={isSubmittingAction}
+                    className="h-8 px-3.5 rounded-full text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border border-rose-500/25 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Ban size={13} /> Suspend License
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => updateBuilderStatus(selectedBuilder, 'Approved')}
+                    disabled={isSubmittingAction}
+                    className="h-8 px-4 rounded-full text-xs font-semibold bg-brand hover:bg-brand-dark text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all disabled:opacity-50"
+                  >
+                    <CheckCircle2 size={13} /> Re-verify Builder
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Project Moderation Drawer Slider */}
+      {/* ── 09. PROJECT REVIEW & MODERATION DRAWER (Slide-Over Panel) ── */}
       {selectedProject && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-end">
-          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] h-full max-w-md w-full shadow-2xl border-l border-[var(--border)] p-6 overflow-y-auto flex flex-col justify-between">
-            <div className="space-y-6 text-left">
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="text-[9px] font-extrabold text-brand bg-brand/10 px-2 py-0.5 rounded font-mono">
-                    PROJECT DETAILS
-                  </span>
-                  <h3 className="text-sm font-extrabold text-[var(--text-primary)] mt-1.5">
-                    {selectedProject.title}
-                  </h3>
-                  <p className="text-[10px] text-[var(--text-muted)] font-mono">{selectedProject.id}</p>
+          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] h-full max-w-xl w-full shadow-2xl border-l border-[var(--border)] flex flex-col justify-between animate-slide-left">
+            {/* Drawer Top Header */}
+            <div className="p-5 border-b border-[var(--border)] flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs font-bold text-brand">{selectedProject.id}</span>
+                  {getProjectStatusBadge(selectedProject.status, 'xs')}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedProject(null)}
-                  className="p-1 bg-[var(--bg-muted)] rounded-lg text-[var(--text-muted)] cursor-pointer"
-                >
-                  <X size={16} />
-                </button>
+                <h2 className="text-base font-bold text-[var(--text-primary)] mt-0.5">
+                  {selectedProject.title}
+                </h2>
+                <p className="text-[11px] text-[var(--text-muted)] flex items-center gap-1 mt-0.5">
+                  <Building2 size={11} className="text-brand" /> {selectedProject.builder} • {selectedProject.location}
+                </p>
               </div>
-
-              <div className="space-y-4 text-xs font-semibold">
-                <div className="p-3.5 bg-[var(--bg-muted)] rounded-xl flex flex-col gap-2">
-                  <div className="flex justify-between">
-                    <span className="text-[var(--text-muted)]">Builder</span>
-                    <span className="text-[var(--text-primary)]">{selectedProject.builder}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[var(--text-muted)]">Location</span>
-                    <span className="text-[var(--text-primary)]">{selectedProject.location}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[var(--text-muted)]">Inventory</span>
-                    <span className="text-[var(--text-primary)]">{selectedProject.units}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[var(--text-muted)]">Project Stage</span>
-                    <span className="text-[var(--text-primary)]">{selectedProject.stage}</span>
-                  </div>
-                </div>
-
-                {/* Investment Score Card */}
-                <div className="p-3.5 border border-emerald-500/30 bg-emerald-500/5 rounded-xl space-y-2">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-1.5">
-                      <Sparkles size={14} className="text-emerald-500" />
-                      <span className="text-xs font-black text-[var(--text-primary)]">GharMB Investment Score</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                        {selectedProject.investmentScore?.overall || selectedProject.score || 0} / 10
-                      </span>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                        {selectedProject.investmentScore?.grade || 'Good'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-1.5 text-[10px] text-[var(--text-subtle)] pt-1">
-                    <div>Connectivity: <strong className="text-[var(--text-primary)]">{selectedProject.investmentScore?.metrics?.connectivity ?? 0}/10</strong></div>
-                    <div>Rental Potential: <strong className="text-[var(--text-primary)]">{selectedProject.investmentScore?.metrics?.rentalPotential ?? 0}/10</strong></div>
-                    <div>Growth Potential: <strong className="text-[var(--text-primary)]">{selectedProject.investmentScore?.metrics?.growthPotential ?? 0}/10</strong></div>
-                    <div>Family Living: <strong className="text-[var(--text-primary)]">{selectedProject.investmentScore?.metrics?.familyLiving ?? 0}/10</strong></div>
-                    <div className="col-span-2">Future Demand: <strong className="text-[var(--text-primary)]">{selectedProject.investmentScore?.metrics?.futureDemand ?? 0}/10</strong></div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => openScoreModal(selectedProject)}
-                    className="w-full mt-2 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 shadow-xs"
-                  >
-                    <Sparkles size={11} /> Edit Investment Score
-                  </button>
-                </div>
-
-                <div className="p-3 border border-[var(--border)] rounded-xl space-y-1.5 bg-[var(--bg-surface)]">
-                  <div className="flex justify-between items-center text-[10px] font-bold text-[var(--text-muted)] uppercase">
-                    <span>Audit Checklist</span>
-                    <span className="text-emerald-500">Passed</span>
-                  </div>
-                  <div className="text-[11px] text-[var(--text-subtle)] space-y-1">
-                    <p className="flex items-center gap-1.5">
-                      <Check size={12} className="text-emerald-500" /> RERA ID cross checked in Government register
-                    </p>
-                    <p className="flex items-center gap-1.5">
-                      <Check size={12} className="text-emerald-500" /> Site map blueprints validation
-                    </p>
-                    <p className="flex items-center gap-1.5">
-                      <Check size={12} className="text-emerald-500" /> Elevation structural plan approvals verified
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-[var(--border)] space-y-2">
-              {selectedProject.status !== 'Published' ? (
-                <button
-                  type="button"
-                  onClick={() => updateProjectStatus(selectedProject, 'Published')}
-                  className="w-full py-2.5 bg-brand hover:bg-brand-dark text-white rounded-xl text-xs font-bold shadow-md shadow-brand/20 transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                >
-                  <CheckCircle size={14} /> Publish Project Live
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setRejectPrompt({ item: selectedProject, type: 'project' })}
-                  className="w-full py-2.5 border border-rose-500/25 hover:bg-rose-500/10 text-rose-500 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <Ban size={14} /> Suspend/Archive Listing
-                </button>
-              )}
 
               <button
                 type="button"
-                onClick={() => setDeleteConfirm({ item: selectedProject, type: 'project' })}
-                className="w-full py-2.5 border border-[var(--border)] hover:bg-[var(--bg-muted)] text-rose-500 hover:text-rose-600 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                onClick={() => setSelectedProject(null)}
+                className="p-1.5 rounded-xl bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
+                title="Close Drawer"
               >
-                <Trash2 size={13} /> Permanently Delete Project
+                <X size={16} />
               </button>
+            </div>
+
+            {/* Drawer Tabs */}
+            <div className="flex items-center gap-6 px-5 border-b border-[var(--border)] text-xs font-bold select-none">
+              {[
+                { key: 'overview', label: 'Project Overview' },
+                { key: 'gallery', label: `Gallery (${selectedProject.gallery?.length || 0})` },
+                { key: 'investment', label: 'Investment Score' }
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setProjectDrawerTab(tab.key)}
+                  className={`py-2.5 border-b-2 transition-all cursor-pointer ${
+                    projectDrawerTab === tab.key
+                      ? 'border-brand text-brand'
+                      : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Drawer Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {projectDrawerTab === 'overview' && (
+                <div className="space-y-4">
+                  {/* Key Metrics */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+                    <div className="p-2.5 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)]">
+                      <span className="text-[9px] text-[var(--text-muted)] uppercase block">Total Units</span>
+                      <strong className="text-xs text-[var(--text-primary)] mt-0.5 block">{selectedProject.units}</strong>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)]">
+                      <span className="text-[9px] text-[var(--text-muted)] uppercase block">Stage</span>
+                      <strong className="text-xs text-[var(--text-primary)] mt-0.5 block">{selectedProject.stage}</strong>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)]">
+                      <span className="text-[9px] text-[var(--text-muted)] uppercase block">Possession</span>
+                      <strong className="text-xs text-[var(--text-primary)] mt-0.5 block">{selectedProject.possessionDate}</strong>
+                    </div>
+                  </div>
+
+                  {/* Location & RERA */}
+                  <div className="p-3.5 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)] text-xs space-y-2">
+                    <div className="flex items-start gap-2">
+                      <MapPin size={14} className="text-brand shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-[var(--text-primary)] block">{selectedProject.location}</strong>
+                        <span className="text-[10px] text-[var(--text-muted)] font-mono">City: {selectedProject.city}</span>
+                      </div>
+                    </div>
+                    <div className="pt-2 border-t border-[var(--border)] flex items-center justify-between">
+                      <span className="text-[10px] uppercase font-bold text-[var(--text-muted)]">RERA Project Number</span>
+                      <span className="font-mono font-bold text-xs text-[var(--text-primary)]">{selectedProject.reraNumber}</span>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {selectedProject.description && (
+                    <div className="p-3.5 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)] text-xs space-y-1">
+                      <span className="text-[10px] font-bold uppercase text-[var(--text-muted)] block">Project Description</span>
+                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed whitespace-pre-line">
+                        {selectedProject.description}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Audit Checklist */}
+                  <div className="p-3.5 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)] text-xs space-y-2">
+                    <span className="text-[10px] font-bold uppercase text-[var(--text-muted)] block">Moderation Checklist</span>
+                    <div className="space-y-1.5 text-[11px] text-[var(--text-secondary)]">
+                      <p className="flex items-center gap-2">
+                        <Check size={13} className="text-emerald-500" /> RERA registration number validated
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <Check size={13} className="text-emerald-500" /> Blueprint and master structural layout checked
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <Check size={13} className="text-emerald-500" /> High-definition photo and video tours inspected
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {projectDrawerTab === 'gallery' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-[var(--text-primary)]">
+                      Media Gallery ({selectedProject.gallery?.length || 0})
+                    </span>
+                    <span className="text-[10px] text-[var(--text-muted)]">Click on item to preview</span>
+                  </div>
+
+                  {selectedProject.gallery?.length === 0 ? (
+                    <div className="p-8 text-center bg-[var(--bg-muted)]/30 rounded-xl text-xs text-[var(--text-muted)]">
+                      No media files uploaded for this project yet.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                      {selectedProject.gallery.map((media, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => setLightboxDoc({
+                            url: media.url,
+                            title: `${selectedProject.title} - ${media.type === 'video' ? 'Video Tour' : 'Photo'}`,
+                            type: media.type
+                          })}
+                          className="relative aspect-video rounded-xl overflow-hidden border border-[var(--border)] bg-black/10 hover:border-brand cursor-pointer group shadow-2xs"
+                        >
+                          {media.type === 'video' ? (
+                            <div className="w-full h-full bg-slate-900 flex items-center justify-center">
+                              <video src={media.url} className="w-full h-full object-cover opacity-70" preload="metadata" muted />
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/10">
+                                <div className="w-7 h-7 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-xs">
+                                  <Play size={11} className="fill-white ml-0.5" />
+                                </div>
+                              </div>
+                              <span className="absolute bottom-1 left-1 bg-purple-600 text-white text-[8px] font-bold px-1.5 py-0.2 rounded">
+                                VIDEO
+                              </span>
+                            </div>
+                          ) : (
+                            <img src={media.url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {projectDrawerTab === 'investment' && (
+                <div className="space-y-4">
+                  {/* Score Ribbon */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 to-transparent border border-emerald-500/25 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
+                        GharMB Investment Rating
+                      </span>
+                      <div className="flex items-baseline gap-2 mt-0.5">
+                        <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                          {selectedProject.investmentScore?.overall || selectedProject.score || 0}
+                        </span>
+                        <span className="text-xs text-[var(--text-muted)] font-bold">/ 10</span>
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                      {selectedProject.investmentScore?.grade || 'Good'}
+                    </span>
+                  </div>
+
+                  {/* Metric Breakdown */}
+                  <div className="p-3.5 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)] text-xs space-y-2">
+                    <span className="text-[10px] font-bold uppercase text-[var(--text-muted)] block">Parameter Breakdown</span>
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div className="flex justify-between">
+                        <span className="text-[var(--text-muted)]">Connectivity:</span>
+                        <strong className="text-[var(--text-primary)]">{selectedProject.investmentScore?.metrics?.connectivity ?? 0} / 10</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[var(--text-muted)]">Rental Potential:</span>
+                        <strong className="text-[var(--text-primary)]">{selectedProject.investmentScore?.metrics?.rentalPotential ?? 0} / 10</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[var(--text-muted)]">Growth Potential:</span>
+                        <strong className="text-[var(--text-primary)]">{selectedProject.investmentScore?.metrics?.growthPotential ?? 0} / 10</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[var(--text-muted)]">Family Living:</span>
+                        <strong className="text-[var(--text-primary)]">{selectedProject.investmentScore?.metrics?.familyLiving ?? 0} / 10</strong>
+                      </div>
+                      <div className="flex justify-between col-span-2">
+                        <span className="text-[var(--text-muted)]">Future Demand:</span>
+                        <strong className="text-[var(--text-primary)]">{selectedProject.investmentScore?.metrics?.futureDemand ?? 0} / 10</strong>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => openScoreModal(selectedProject)}
+                      className="w-full mt-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                    >
+                      <Sparkles size={12} /> Edit Investment Score Parameters
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Drawer Bottom Actions */}
+            <div className="p-4 border-t border-[var(--border)] bg-[var(--bg-muted)]/20 flex items-center justify-between gap-2.5">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm({ item: selectedProject, type: 'project' })}
+                className="h-8 px-3 rounded-full text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/25 transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Trash2 size={13} /> Delete
+              </button>
+
+              <div className="flex items-center gap-2">
+                {selectedProject.status === 'Published' && !selectedProject.isSold && (
+                  <button
+                    type="button"
+                    onClick={() => toggleProjectSoldStatus(selectedProject, true)}
+                    disabled={isSubmittingAction}
+                    className="h-8 px-3.5 rounded-full text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all disabled:opacity-50"
+                    title="Mark this project as Sold Out"
+                  >
+                    <Tag size={13} strokeWidth={2.2} /> Mark as Sold Out
+                  </button>
+                )}
+
+                {(selectedProject.status === 'Sold' || selectedProject.isSold) && (
+                  <button
+                    type="button"
+                    onClick={() => toggleProjectSoldStatus(selectedProject, false)}
+                    disabled={isSubmittingAction}
+                    className="h-8 px-3.5 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all disabled:opacity-50"
+                    title="Relist this project as Available"
+                  >
+                    <RotateCcw size={13} /> Relist as Available
+                  </button>
+                )}
+
+                {selectedProject.status !== 'Published' && selectedProject.status !== 'Sold' && (
+                  <button
+                    type="button"
+                    onClick={() => updateProjectStatus(selectedProject, 'Published')}
+                    disabled={isSubmittingAction}
+                    className="h-8 px-4 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all disabled:opacity-50"
+                  >
+                    <Check size={13} strokeWidth={2.5} /> Publish Project Live
+                  </button>
+                )}
+
+                {selectedProject.status === 'Published' && !selectedProject.isSold && (
+                  <button
+                    type="button"
+                    onClick={() => setRejectPrompt({ item: selectedProject, type: 'project' })}
+                    disabled={isSubmittingAction}
+                    className="h-8 px-3.5 rounded-full text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border border-rose-500/25 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Ban size={13} /> Suspend / Archive
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Reject Reason Modal (With Common Presets) */}
+      {/* ── 10. REJECTION / SUSPENSION MODAL ── */}
       {rejectPrompt && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[70] flex items-center justify-center p-4">
           <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4 animate-scale-up">
             <div className="flex items-center gap-2.5 text-rose-500">
               <div className="w-8 h-8 rounded-xl bg-rose-500/10 flex items-center justify-center">
@@ -1784,9 +2501,7 @@ const BuilderManagement = () => {
               <div>
                 <h4 className="text-sm font-bold text-[var(--text-primary)]">
                   {rejectPrompt.type === 'builder'
-                    ? rejectPrompt.item.status === 'Pending'
-                      ? 'Decline Builder Application'
-                      : 'Suspend Builder Account'
+                    ? rejectPrompt.item.status === 'Pending' ? 'Decline Builder Application' : 'Suspend Builder License'
                     : 'Suspend Project Listing'}
                 </h4>
                 <p className="text-[11px] text-[var(--text-muted)]">
@@ -1795,44 +2510,36 @@ const BuilderManagement = () => {
               </div>
             </div>
 
-            {rejectPrompt.type === 'builder' && (
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase block">
-                  Select Pre-Configured Reason
-                </label>
-                <div className="space-y-1 max-h-36 overflow-y-auto">
-                  {presetRejectReasons.map((preset, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setRejectReason(preset);
-                        setCustomReasonActive(false);
-                      }}
-                      className={`w-full text-left p-2 rounded-xl text-[11px] font-medium transition-all border ${
-                        rejectReason === preset && !customReasonActive
-                          ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 font-bold'
-                          : 'bg-[var(--bg-muted)] text-[var(--text-subtle)] border-transparent hover:border-[var(--border)]'
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase block">
+                Select Standard Reason
+              </label>
+              <div className="space-y-1 max-h-36 overflow-y-auto">
+                {PRESET_REJECT_REASONS.map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => { setSelectedRejectReason(preset); setCustomRejectNote(preset); }}
+                    className={`w-full text-left p-2 rounded-xl text-[11px] font-medium transition-all border ${
+                      selectedRejectReason === preset
+                        ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 font-bold'
+                        : 'bg-[var(--bg-muted)] text-[var(--text-subtle)] border-transparent hover:border-[var(--border)]'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
 
             <div className="space-y-1.5 text-xs">
               <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase block">
-                Official Feedback / Reason Sent to Applicant
+                Official Feedback Sent to Applicant
               </label>
               <textarea
                 rows={3}
-                value={rejectReason}
-                onChange={(e) => {
-                  setRejectReason(e.target.value);
-                  setCustomReasonActive(true);
-                }}
+                value={customRejectNote || selectedRejectReason}
+                onChange={(e) => setCustomRejectNote(e.target.value)}
                 placeholder="Enter audit/rejection feedback explaining what needs to be corrected..."
                 className="w-full p-2.5 border border-[var(--border)] bg-[var(--bg-muted)] rounded-xl text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand"
               />
@@ -1849,10 +2556,11 @@ const BuilderManagement = () => {
               <button
                 type="button"
                 onClick={() => {
+                  const finalReason = customRejectNote || selectedRejectReason;
                   if (rejectPrompt.type === 'builder') {
-                    updateBuilderStatus(rejectPrompt.item, 'Rejected', rejectReason);
+                    updateBuilderStatus(rejectPrompt.item, 'Rejected', finalReason);
                   } else {
-                    updateProjectStatus(rejectPrompt.item, 'Archived', rejectReason);
+                    updateProjectStatus(rejectPrompt.item, 'Archived', finalReason);
                   }
                 }}
                 className="flex-1 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
@@ -1864,9 +2572,9 @@ const BuilderManagement = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* ── 11. DELETION CONFIRMATION MODAL ── */}
       {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[70] flex items-center justify-center p-4">
           <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4 text-center">
             <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
               <Trash2 size={20} />
@@ -1880,7 +2588,7 @@ const BuilderManagement = () => {
                 <strong className="text-[var(--text-primary)]">
                   {deleteConfirm.item.name || deleteConfirm.item.companyName || deleteConfirm.item.title}
                 </strong>
-                ? This action removes their access.
+                ? This action removes their access from GharMB.
               </p>
             </div>
             <div className="flex gap-2 pt-1">
@@ -1909,109 +2617,9 @@ const BuilderManagement = () => {
         </div>
       )}
 
-      {/* IN-APP DOCUMENT LIGHTBOX / PREVIEW MODAL */}
-      {lightboxDoc && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[60] flex flex-col items-center justify-between p-4 sm:p-6 animate-fade-in">
-          {/* Lightbox Topbar */}
-          <div className="w-full max-w-5xl flex items-center justify-between text-white pb-3 border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <FileCheck size={18} className="text-brand" />
-              <div>
-                <h4 className="text-sm font-bold truncate max-w-md">{lightboxDoc.title}</h4>
-                <span className="text-[10px] text-white/60">Government Verification Document</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setZoomLevel((z) => Math.max(0.75, z - 0.25))}
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
-                title="Zoom Out"
-              >
-                <ZoomOut size={16} />
-              </button>
-              <span className="text-xs font-mono font-bold px-1.5">{Math.round(zoomLevel * 100)}%</span>
-              <button
-                type="button"
-                onClick={() => setZoomLevel((z) => Math.min(3, z + 0.25))}
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
-                title="Zoom In"
-              >
-                <ZoomIn size={16} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setRotation((r) => (r + 90) % 360)}
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer ml-1"
-                title="Rotate 90deg"
-              >
-                <RotateCw size={16} />
-              </button>
-              <a
-                href={lightboxDoc.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer ml-1"
-                title="Open in New Tab"
-              >
-                <ExternalLink size={16} />
-              </a>
-              <button
-                type="button"
-                onClick={() => setLightboxDoc(null)}
-                className="p-1.5 rounded-lg bg-white/20 hover:bg-rose-500 text-white transition-all cursor-pointer ml-2"
-                title="Close Lightbox"
-              >
-                <X size={18} />
-              </button>
-            </div>
-          </div>
-
-          {/* Lightbox Center Document View */}
-          <div className="flex-1 w-full max-w-5xl flex items-center justify-center overflow-auto p-4">
-            <div
-              className="transition-transform duration-200 ease-out origin-center max-w-full max-h-[75vh]"
-              style={{
-                transform: `scale(${zoomLevel}) rotate(${rotation}deg)`
-              }}
-            >
-              <img
-                src={lightboxDoc.url}
-                alt={lightboxDoc.title}
-                className="max-h-[75vh] w-auto max-w-full rounded-lg shadow-2xl object-contain border border-white/20 bg-white"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  if (e.currentTarget.nextSibling) {
-                    e.currentTarget.nextSibling.style.display = 'flex';
-                  }
-                }}
-              />
-              <div className="hidden flex-col items-center justify-center p-8 bg-zinc-900 border border-white/20 rounded-2xl text-center space-y-3">
-                <FileText size={48} className="text-brand" />
-                <p className="text-white text-sm font-semibold">PDF or External Document</p>
-                <a
-                  href={lightboxDoc.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 bg-brand text-white rounded-xl text-xs font-bold flex items-center gap-1.5"
-                >
-                  <ExternalLink size={14} /> Open in Dedicated Document Viewer
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* Lightbox Footer */}
-          <div className="w-full max-w-5xl text-center text-[11px] text-white/50 pt-2 border-t border-white/10 flex items-center justify-between">
-            <span>Use Zoom & Rotate to audit license registration numbers, seals, and dates</span>
-            <span className="font-mono">URL: {lightboxDoc.url}</span>
-          </div>
-        </div>
-      )}
-      {/* Investment Score Modal */}
+      {/* ── 12. INVESTMENT SCORE METRICS MODAL ── */}
       {editingScoreProject && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[70] flex items-center justify-center p-4">
           <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] max-w-lg w-full rounded-2xl shadow-2xl border border-[var(--border)] p-6 space-y-5 animate-scale-up">
             <div className="flex justify-between items-start border-b border-[var(--border)] pb-3.5">
               <div className="flex items-center gap-2.5">
@@ -2036,7 +2644,7 @@ const BuilderManagement = () => {
               </button>
             </div>
 
-            {/* Live Overall Preview */}
+            {/* Calculated Overall Preview */}
             <div className="p-3.5 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/25 rounded-xl flex items-center justify-between">
               <div>
                 <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
@@ -2054,8 +2662,8 @@ const BuilderManagement = () => {
               </span>
             </div>
 
-            {/* 5 Metrics Sliders & Numeric Inputs */}
-            <div className="space-y-3.5 text-xs">
+            {/* 5 Parameters Sliders */}
+            <div className="space-y-3 text-xs">
               {[
                 { key: 'connectivity', label: 'Connectivity', desc: 'Metro, highway, railway proximity' },
                 { key: 'rentalPotential', label: 'Rental Potential', desc: 'Expected rental yield & tenant demand' },
@@ -2113,10 +2721,10 @@ const BuilderManagement = () => {
                 type="button"
                 onClick={handleSaveScore}
                 disabled={isSavingScore}
-                className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20"
+                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20"
               >
                 {isSavingScore ? (
-                  <>Saving...</>
+                  <span>Saving...</span>
                 ) : (
                   <>
                     <Check size={14} /> Save Investment Score
@@ -2127,8 +2735,117 @@ const BuilderManagement = () => {
           </div>
         </div>
       )}
+
+      {/* ── 13. IN-APP DOCUMENT & VIDEO LIGHTBOX PREVIEW MODAL ── */}
+      {lightboxDoc && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[90] flex flex-col items-center justify-between p-4 sm:p-6 animate-fade-in">
+          {/* Lightbox Topbar */}
+          <div className="w-full max-w-5xl flex items-center justify-between text-white pb-3 border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <FileCheck size={18} className="text-brand" />
+              <div>
+                <h4 className="text-sm font-bold truncate max-w-md">{lightboxDoc.title}</h4>
+                <span className="text-[10px] text-white/60">Government Verification Document & Media</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setZoomLevel((z) => Math.max(0.75, z - 0.25))}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
+                title="Zoom Out"
+              >
+                <ZoomOut size={16} />
+              </button>
+              <span className="text-xs font-mono font-bold px-1.5">{Math.round(zoomLevel * 100)}%</span>
+              <button
+                type="button"
+                onClick={() => setZoomLevel((z) => Math.min(3, z + 0.25))}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
+                title="Zoom In"
+              >
+                <ZoomIn size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setRotation((r) => (r + 90) % 360)}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer ml-1"
+                title="Rotate 90deg"
+              >
+                <RotateCw size={16} />
+              </button>
+              <a
+                href={lightboxDoc.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer ml-1"
+                title="Open in New Tab"
+              >
+                <ExternalLink size={16} />
+              </a>
+              <button
+                type="button"
+                onClick={() => setLightboxDoc(null)}
+                className="p-1.5 rounded-lg bg-white/20 hover:bg-rose-500 text-white transition-all cursor-pointer ml-2"
+                title="Close Lightbox"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* Lightbox Center Document View */}
+          <div className="flex-1 w-full max-w-5xl flex items-center justify-center overflow-auto p-4">
+            <div
+              className="transition-transform duration-200 ease-out origin-center max-w-full max-h-[75vh]"
+              style={{
+                transform: `scale(${zoomLevel}) rotate(${rotation}deg)`
+              }}
+            >
+              {(lightboxDoc.type === 'video' || (typeof lightboxDoc.url === 'string' && /\.(mp4|webm|mov|m4v|mkv|avi|3gp)$/i.test(lightboxDoc.url.split('?')[0]))) ? (
+                <video
+                  src={lightboxDoc.url}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="max-h-[75vh] w-auto max-w-full rounded-lg shadow-2xl object-contain border border-white/20 bg-black"
+                />
+              ) : (
+                <img
+                  src={lightboxDoc.url}
+                  alt={lightboxDoc.title}
+                  className="max-h-[75vh] w-auto max-w-full rounded-lg shadow-2xl object-contain border border-white/20 bg-white"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    if (e.currentTarget.nextSibling) {
+                      e.currentTarget.nextSibling.style.display = 'flex';
+                    }
+                  }}
+                />
+              )}
+              <div className="hidden flex-col items-center justify-center p-8 bg-zinc-900 border border-white/20 rounded-2xl text-center space-y-3">
+                <FileText size={48} className="text-brand" />
+                <p className="text-white text-sm font-semibold">PDF or External Document</p>
+                <a
+                  href={lightboxDoc.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-brand text-white rounded-xl text-xs font-bold flex items-center gap-1.5"
+                >
+                  <ExternalLink size={14} /> Open in Dedicated Document Viewer
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Lightbox Footer */}
+          <div className="w-full max-w-5xl text-center text-[11px] text-white/50 pt-2 border-t border-white/10 flex items-center justify-between">
+            <span>Use Zoom & Rotate to audit license numbers, registration dates, and statutory seals</span>
+            <span className="font-mono truncate max-w-xs">{lightboxDoc.title}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
-};
-
-export default BuilderManagement;
+}

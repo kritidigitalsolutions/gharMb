@@ -261,6 +261,46 @@ const enrichPropertyWithSellerRole = (propertyDoc, fallbackOwner = null) => {
   obj.averageRating = Number(obj.rating) || 0;
   obj.totalRatings = Number(obj.reviewsCount) || 0;
 
+  // Multiple BHK configurations metadata: ONLY BHK and its Price
+  obj.bhkConfigurations = Array.isArray(obj.bhkConfigurations)
+    ? obj.bhkConfigurations.map(b => ({
+        bhk: b.bhk || b.bhkType || '',
+        price: Number(b.price) || 0
+      }))
+    : [];
+  obj.hasMultipleBhk = obj.bhkConfigurations.length > 0;
+  if (obj.hasMultipleBhk) {
+    const types = obj.bhkConfigurations
+      .map((b) => b.bhk)
+      .filter(Boolean);
+    obj.bhkSummary = [...new Set(types)].join(', ');
+
+    const prices = obj.bhkConfigurations
+      .map((b) => Number(b.price || 0))
+      .filter((p) => p > 0);
+    if (prices.length > 1) {
+      const minP = Math.min(...prices);
+      const maxP = Math.max(...prices);
+      obj.priceRangeText = `${formatIndianPrice(minP, obj.listingFor)} - ${formatIndianPrice(maxP, obj.listingFor)}`;
+    } else if (prices.length === 1) {
+      obj.priceRangeText = `${formatIndianPrice(prices[0], obj.listingFor)} onwards`;
+    }
+  } else {
+    obj.bhkSummary = obj.bedrooms ? `${obj.bedrooms} BHK` : '';
+    obj.priceRangeText = formatIndianPrice(obj.price, obj.listingFor);
+  }
+
+  // Sale status attributes
+  obj.isSold = Boolean(obj.isSold);
+  obj.saleStatus = obj.saleStatus || 'available';
+  obj.isPendingSaleConfirmation = obj.saleStatus === 'marked_as_sold';
+
+  // Security deposit for sale properties is null/omitted
+  if (String(obj.listingFor || '').trim().toLowerCase() === 'sale') {
+    obj.securityDeposit = null;
+    obj.securityDepositDuration = null;
+  }
+
   // Enrich with Admin Commission & Commission-Absorbed Discount fields for Mobile App / Frontend
   const pricingMeta = getDiscountAndPricingMetadata(obj);
   Object.assign(obj, pricingMeta);
@@ -279,12 +319,112 @@ const enrichPropertyWithSellerRole = (propertyDoc, fallbackOwner = null) => {
     ? (ownership.message || 'You are the registered owner of this property listing. Owners cannot buy, rent, book tokens, send enquiries, or post reviews on their own properties.')
     : null;
 
+  // ── 🛡️ MEDIA NORMALIZATION (Photos, Videos & Gallery) ─────────────────────
+  const isVideoCheck = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    try {
+      const decoded = decodeURIComponent(url).toLowerCase();
+      const cleanPath = decoded.split('?')[0];
+      return (
+        /\.(mp4|webm|mov|m4v|mkv|avi|3gp)$/i.test(cleanPath) ||
+        decoded.includes('/video/') ||
+        decoded.includes('/videos/') ||
+        decoded.includes('video/mp4') ||
+        decoded.includes('format=mp4') ||
+        decoded.includes('contenttype=video') ||
+        decoded.includes('uploads%2fvideo') ||
+        decoded.includes('uploads/video')
+      );
+    } catch (_) {
+      return /\.(mp4|webm|mov|m4v|mkv|avi|3gp)/i.test(url) || url.toLowerCase().includes('video');
+    }
+  };
+
+  const rawImages = Array.isArray(obj.images) ? obj.images : (Array.isArray(obj.photos) ? obj.photos : []);
+  const rawVideos = Array.isArray(obj.videos) ? obj.videos : (Array.isArray(obj.propertyVideos) ? obj.propertyVideos : []);
+
+  const pureImages = [];
+  const pureVideos = [];
+
+  for (const item of [...rawImages, ...rawVideos]) {
+    if (typeof item !== 'string' || !item.trim()) continue;
+    const trimmed = item.trim();
+    if (isVideoCheck(trimmed)) {
+      if (!pureVideos.includes(trimmed)) pureVideos.push(trimmed);
+    } else {
+      if (!pureImages.includes(trimmed)) pureImages.push(trimmed);
+    }
+  }
+
+  obj.images = pureImages;
+  obj.photos = pureImages;
+  obj.videos = pureVideos;
+  obj.propertyVideos = pureVideos;
+  obj.video = pureVideos[0] || null;
+  obj.videoUrl = pureVideos[0] || null;
+  obj.hasVideo = pureVideos.length > 0;
+  obj.videoCount = pureVideos.length;
+  obj.thumbnail = pureImages[0] || '';
+  obj.gallery = [
+    ...pureImages.map((u) => ({ url: u, type: 'image' })),
+    ...pureVideos.map((u) => ({ url: u, type: 'video' })),
+  ];
+
   return obj;
 };
 
 // Helper to compute discount on admin commission and effective pricing breakdown
 const getDiscountAndPricingMetadata = (obj = {}) => {
   const price = Number(obj.price) || 0;
+
+  // DEVELOPER RULE: Commission will NOT be included in property listings created by developers/builders
+  const isDeveloperOrBuilder =
+    obj.role === 'builder' ||
+    obj.userRole === 'builder' ||
+    obj.postedByRole === 'Builder' ||
+    (obj.listingAs || '').toLowerCase().includes('builder') ||
+    (obj.listingAs || '').toLowerCase().includes('developer');
+
+  if (isDeveloperOrBuilder) {
+    return {
+      hasDiscount: false,
+      discountAmount: 0,
+      formattedDiscount: null,
+      discountedPrice: price,
+      formattedDiscountedPrice: formatIndianPrice(price, obj.listingFor),
+      discountPercentage: 0,
+      discountPercentageOnCommission: 0,
+      discountLabel: null,
+      discountNote: 'Developer / Builder listings carry 0% platform commission.',
+      discountOnCommissionOnly: true,
+      effectiveBuyerPrice: price,
+      pricingSummary: {
+        originalPrice: price,
+        discountAmount: 0,
+        effectivePrice: price,
+        grossAdminCommission: 0,
+        netAdminCommission: 0,
+        sellerPayoutAmount: price,
+        discountBorneBy: 'None',
+        discountOnCommissionOnly: true,
+      },
+      adminCommission: {
+        type: 'percentage',
+        rate: 0,
+        amount: 0,
+      },
+      commissionDiscount: {
+        enabled: false,
+        discountType: 'percentage',
+        discountValue: 0,
+        discountAmount: 0,
+        netCommission: 0,
+        discountOnCommissionOnly: true,
+        notes: 'Developer listings carry 0% platform commission.',
+      },
+    };
+  }
+
   const adminComm = obj.adminCommission || {};
   const commDisc = obj.commissionDiscount || {};
 
@@ -411,6 +551,41 @@ const formatPropertyCard = (p, fallbackUser = null) => {
     profilePicture: ownerObj.profilePicture || '',
   };
 
+  const isVideoCheck = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    try {
+      const decoded = decodeURIComponent(url).toLowerCase();
+      const cleanPath = decoded.split('?')[0];
+      return (
+        /\.(mp4|webm|mov|m4v|mkv|avi|3gp)$/i.test(cleanPath) ||
+        decoded.includes('/video/') ||
+        decoded.includes('/videos/') ||
+        decoded.includes('video/mp4') ||
+        decoded.includes('format=mp4') ||
+        decoded.includes('contenttype=video') ||
+        decoded.includes('uploads%2fvideo') ||
+        decoded.includes('uploads/video')
+      );
+    } catch (_) {
+      return /\.(mp4|webm|mov|m4v|mkv|avi|3gp)/i.test(url) || url.toLowerCase().includes('video');
+    }
+  };
+
+  const rawImages = Array.isArray(obj.images) ? obj.images : (Array.isArray(obj.photos) ? obj.photos : []);
+  const rawVideos = Array.isArray(obj.videos) ? obj.videos : (Array.isArray(obj.propertyVideos) ? obj.propertyVideos : []);
+
+  const cardImages = [];
+  const cardVideos = [];
+  for (const item of [...rawImages, ...rawVideos]) {
+    if (typeof item !== 'string' || !item.trim()) continue;
+    const trimmed = item.trim();
+    if (isVideoCheck(trimmed)) {
+      if (!cardVideos.includes(trimmed)) cardVideos.push(trimmed);
+    } else {
+      if (!cardImages.includes(trimmed)) cardImages.push(trimmed);
+    }
+  }
+
   return {
     _id: obj._id,
     id: obj._id,
@@ -428,8 +603,19 @@ const formatPropertyCard = (p, fallbackUser = null) => {
     bedrooms: obj.bedrooms,
     bathrooms: obj.bathrooms,
     carpetArea: obj.carpetArea,
-    photos: obj.photos || [],
-    thumbnail: obj.photos && obj.photos.length > 0 ? obj.photos[0] : '',
+    images: cardImages,
+    photos: cardImages,
+    videos: cardVideos,
+    propertyVideos: cardVideos,
+    video: cardVideos[0] || null,
+    videoUrl: cardVideos[0] || null,
+    hasVideo: cardVideos.length > 0,
+    videoCount: cardVideos.length,
+    thumbnail: cardImages[0] || '',
+    gallery: [
+      ...cardImages.map((u) => ({ url: u, type: 'image' })),
+      ...cardVideos.map((u) => ({ url: u, type: 'video' })),
+    ],
     approvalStatus: obj.approvalStatus,
     isLive: obj.isLive,
     rejectionReason: obj.rejectionReason || '',
@@ -501,7 +687,24 @@ exports.getAllProperties = async (req, res, next) => {
       loanAssistanceNeeded,
     } = req.query;
 
-    const query = { approvalStatus: 'approved', isLive: true };
+    const query = {
+      approvalStatus: 'approved',
+      isLive: true,
+    };
+
+    // Filter available vs sold properties:
+    // By default, clients see only available sites!
+    // If includeSold=true or showSold=true, include sold properties.
+    // If saleStatus is explicitly specified, filter by it.
+    if (req.query.saleStatus) {
+      query.saleStatus = req.query.saleStatus;
+      if (req.query.saleStatus === 'sold') {
+        query.isSold = true;
+      }
+    } else if (req.query.includeSold !== 'true' && req.query.showSold !== 'true') {
+      query.isSold = { $ne: true };
+      query.saleStatus = { $ne: 'sold' };
+    }
 
     // Exclude properties listed by current user in discovery feed
     const currentUserId = req.user?._id || req.query.userId || req.query.excludeOwner || req.query.currentUserId;
@@ -541,6 +744,73 @@ exports.getAllProperties = async (req, res, next) => {
       query.price = {};
       if (minPrice) query.price.$gte = Number(minPrice);
       if (maxPrice) query.price.$lte = Number(maxPrice);
+    }
+
+    // 🛡️ NEW PROJECTS PAGE RULE: Display ONLY Developer/Builder properties
+    const roleParam = (req.query.role || req.query.userRole || req.query.postedByRole || '').trim().toLowerCase();
+    const listingAsParam = (req.query.listingAs || '').trim().toLowerCase();
+    const isNewProjects =
+      req.path?.includes('new-projects') ||
+      req.originalUrl?.includes('new-projects') ||
+      req.query.isNewProjects === 'true' ||
+      req.query.newProjects === 'true' ||
+      req.query.isProject === 'true' ||
+      req.query.project === 'true' ||
+      req.query.isDeveloper === 'true' ||
+      req.query.developer === 'true' ||
+      req.query.isBuilder === 'true' ||
+      req.query.builder === 'true' ||
+      roleParam === 'builder' ||
+      roleParam === 'developer' ||
+      listingAsParam.includes('builder') ||
+      listingAsParam.includes('developer');
+
+    if (isNewProjects) {
+      // Fetch all users with role 'builder'
+      const builderUsers = await User.find({ role: 'builder' }).select('_id');
+      const builderUserIds = builderUsers.map((u) => u._id);
+
+      const builderConditions = [
+        { postedByRole: { $regex: /builder|developer/i } },
+        { userRole: { $regex: /builder|developer/i } },
+        { listingAs: { $regex: /builder|developer/i } },
+      ];
+      if (builderUserIds.length > 0) {
+        builderConditions.push({ owner: { $in: builderUserIds } });
+      }
+
+      if (!query.$and) query.$and = [];
+      query.$and.push({ $or: builderConditions });
+    } else if (roleParam === 'agent' || listingAsParam.includes('agent') || listingAsParam.includes('broker')) {
+      const agentUsers = await User.find({ role: 'agent' }).select('_id');
+      const agentUserIds = agentUsers.map((u) => u._id);
+
+      const agentConditions = [
+        { postedByRole: { $regex: /agent|broker/i } },
+        { userRole: { $regex: /agent|broker/i } },
+        { listingAs: { $regex: /agent|broker/i } },
+      ];
+      if (agentUserIds.length > 0) {
+        agentConditions.push({ owner: { $in: agentUserIds } });
+      }
+
+      if (!query.$and) query.$and = [];
+      query.$and.push({ $or: agentConditions });
+    } else if (roleParam === 'owner') {
+      const nonOwnerUsers = await User.find({ role: { $in: ['builder', 'agent'] } }).select('_id');
+      const nonOwnerUserIds = nonOwnerUsers.map((u) => u._id);
+
+      const ownerConditions = [
+        { postedByRole: { $nin: ['Builder', 'Agent'] } },
+        { userRole: { $nin: ['builder', 'agent'] } },
+        { listingAs: { $not: /builder|developer|agent|broker/i } },
+      ];
+      if (nonOwnerUserIds.length > 0) {
+        ownerConditions.push({ owner: { $nin: nonOwnerUserIds } });
+      }
+
+      if (!query.$and) query.$and = [];
+      query.$and.push({ $and: ownerConditions });
     }
 
     // Geospatial proximity lookup (supports distanceInKm, radius, distance, maxDistance)
@@ -605,21 +875,38 @@ exports.getPropertyDetails = async (req, res, next) => {
       });
     }
 
+    // Only block if property is offline and NOT sold out
+    const isOwner = Boolean(checkPropertyOwnership(property, req.user, req.query).isOwner);
+    const isPublicUser = !isOwner && !['admin', 'superadmin', 'super_admin'].includes((req.user?.role || '').toLowerCase());
+    const isSoldOut = Boolean(property.isSold || property.saleStatus === 'sold');
+
+    if (isPublicUser && !property.isLive && !isSoldOut) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'This property is not currently active.',
+      });
+    }
+
     // Increment views only for approved live properties
     if (property.approvalStatus === 'approved' && property.isLive) {
       await Property.findByIdAndUpdate(req.params.id, { $inc: { viewsCount: 1 } });
     }
 
     const ownership = checkPropertyOwnership(property, req.user, req.query);
-    const isOwner = ownership.isOwner;
 
     const enrichedProperty = enrichPropertyWithSellerRole(property);
     enrichedProperty.isOwner = isOwner;
-    enrichedProperty.canBuyOrRent = !isOwner;
-    enrichedProperty.canSubmitToken = !isOwner;
-    enrichedProperty.canSubmitEnquiry = !isOwner;
+    enrichedProperty.isSold = isSoldOut;
+    enrichedProperty.isSoldOut = isSoldOut;
+    enrichedProperty.saleStatus = property.saleStatus || (isSoldOut ? 'sold' : 'available');
+    enrichedProperty.canBuyOrRent = !isOwner && !isSoldOut;
+    enrichedProperty.canSubmitToken = !isOwner && !isSoldOut;
+    enrichedProperty.canSubmitEnquiry = !isOwner && !isSoldOut;
     enrichedProperty.canSubmitReview = !isOwner;
-    enrichedProperty.canScheduleVisit = !isOwner;
+    enrichedProperty.canScheduleVisit = !isOwner && !isSoldOut;
+    enrichedProperty.soldOutMessage = isSoldOut
+      ? 'This property has been marked as Sold Out and is no longer available for booking or inquiries.'
+      : null;
     enrichedProperty.ownerRestrictionMessage = isOwner
       ? 'You are the registered owner of this property listing. Owners cannot buy, rent, book tokens, send enquiries, or post reviews on their own properties.'
       : null;
@@ -708,30 +995,71 @@ exports.getPropertyDetails = async (req, res, next) => {
 exports.createProperty = async (req, res, next) => {
   try {
     const user = req.user;
-    const userRole = (user.role || '').toLowerCase();
-    const rawListingAs = (req.body.listingAs || '').toLowerCase();
+    const userRole = (user.role || '').toLowerCase().trim();
+    const rawListingAs = (req.body.listingAs || req.body.role || '').toLowerCase().trim();
 
-    // Determine normalized role and listingAs (Builder, Agent, Owner)
-    let normalizedListingAs = 'Owner';
-    let normalizedUserRole = userRole || 'owner';
-    let normalizedPostedByRole = 'Owner';
+    // ── 🛡️ ROLE-BASED PROPERTY LISTING ENFORCEMENT ────────────────────────────
+    // Initially, users have three options: Property Owner, Agent, and Developer.
+    // If a user selects Property Owner, they can list properties ONLY as an owner.
+    // The same restriction applies to Agent and Developer roles.
+    // Users cannot list properties under other roles through the selected option.
+    const isListingAsDeveloper = rawListingAs.includes('builder') || rawListingAs.includes('developer');
+    const isListingAsAgent = rawListingAs.includes('agent') || rawListingAs.includes('broker');
+    const isListingAsOwner = rawListingAs === 'owner' || rawListingAs === 'property owner' || (!isListingAsDeveloper && !isListingAsAgent);
 
-    if (rawListingAs.includes('builder') || rawListingAs.includes('developer') || userRole === 'builder') {
-      normalizedListingAs = 'Developer / Builder';
-      normalizedUserRole = 'builder';
-      normalizedPostedByRole = 'Builder';
-    } else if (rawListingAs.includes('agent') || rawListingAs.includes('broker') || userRole === 'agent') {
-      normalizedListingAs = 'Agent / Broker';
-      normalizedUserRole = 'agent';
-      normalizedPostedByRole = 'Agent';
+    if (userRole === 'owner') {
+      if (isListingAsAgent || isListingAsDeveloper) {
+        return res.status(403).json({
+          status: 'fail',
+          message: 'Role Restriction: You are registered as a Property Owner and can only list properties under the Owner role. Listing as an Agent or Developer is not permitted.',
+        });
+      }
+    } else if (userRole === 'agent') {
+      if (isListingAsOwner || isListingAsDeveloper) {
+        return res.status(403).json({
+          status: 'fail',
+          message: 'Role Restriction: You are registered as an Agent and can only list properties under the Agent role. Listing as a Property Owner or Developer is not permitted.',
+        });
+      }
+    } else if (userRole === 'builder' || userRole === 'developer') {
+      if (isListingAsOwner || isListingAsAgent) {
+        return res.status(403).json({
+          status: 'fail',
+          message: 'Role Restriction: You are registered as a Developer and can only list properties under the Developer role. Listing as a Property Owner or Agent is not permitted.',
+        });
+      }
     } else {
-      normalizedListingAs = 'Owner';
-      normalizedUserRole = 'owner';
-      normalizedPostedByRole = 'Owner';
+      // First-time role selection: Bind user account to the selected role
+      if (isListingAsDeveloper) {
+        user.role = 'builder';
+        await user.save();
+      } else if (isListingAsAgent) {
+        user.role = 'agent';
+        await user.save();
+      } else {
+        user.role = 'owner';
+        await user.save();
+      }
     }
 
+    // Determine normalized role and listingAs
+    const effectiveRole =
+      (user.role || '').toLowerCase() === 'builder' || (user.role || '').toLowerCase() === 'developer'
+        ? 'builder'
+        : (user.role || '').toLowerCase() === 'agent'
+        ? 'agent'
+        : 'owner';
+
+    const normalizedListingAs =
+      effectiveRole === 'builder' ? 'Developer / Builder' :
+      effectiveRole === 'agent' ? 'Agent / Broker' : 'Owner';
+    const normalizedUserRole = effectiveRole;
+    const normalizedPostedByRole =
+      effectiveRole === 'builder' ? 'Builder' :
+      effectiveRole === 'agent' ? 'Agent' : 'Owner';
+
     // 1. Agent Verification Guard: Agent must be verified & approved by Admin before uploading
-    if (normalizedUserRole === 'agent' || normalizedListingAs === 'Agent / Broker') {
+    if (normalizedUserRole === 'agent') {
       if (user.agentVerificationStatus !== 'approved') {
         if (user.agentVerificationStatus === 'rejected') {
           return res.status(403).json({
@@ -747,7 +1075,7 @@ exports.createProperty = async (req, res, next) => {
     }
 
     // 2. Developer / Builder Verification Guard: Developer must be verified & approved by Admin before uploading
-    if (normalizedUserRole === 'builder' || normalizedListingAs === 'Developer / Builder') {
+    if (normalizedUserRole === 'builder') {
       if (user.builderVerificationStatus !== 'approved') {
         if (user.builderVerificationStatus === 'rejected') {
           return res.status(403).json({
@@ -762,7 +1090,7 @@ exports.createProperty = async (req, res, next) => {
       }
     }
 
-    // 3. Prepare property data (Owner can upload directly, but property itself will require Admin verification)
+    // 3. Prepare property data
     const installmentData = normalizeInstallmentData(req.body, req.body.price);
 
     const propertyData = {
@@ -774,7 +1102,117 @@ exports.createProperty = async (req, res, next) => {
       owner: user._id,
       approvalStatus: 'pending',
       isLive: false,
+      isSold: false,
+      saleStatus: 'available',
     };
+
+    // ── 🛡️ MEDIA EXTRACTION & SEPARATION (Images & Videos) ─────────────────────
+    const isMediaVideo = (url) => {
+      if (!url || typeof url !== 'string') return false;
+      try {
+        const decoded = decodeURIComponent(url).toLowerCase();
+        const cleanPath = decoded.split('?')[0];
+        return (
+          /\.(mp4|webm|mov|m4v|mkv|avi|3gp)$/i.test(cleanPath) ||
+          decoded.includes('/video/') ||
+          decoded.includes('/videos/') ||
+          decoded.includes('video/mp4') ||
+          decoded.includes('format=mp4') ||
+          decoded.includes('contenttype=video') ||
+          decoded.includes('uploads%2fvideo') ||
+          decoded.includes('uploads/video')
+        );
+      } catch (_) {
+        return /\.(mp4|webm|mov|m4v|mkv|avi|3gp)/i.test(url) || url.toLowerCase().includes('video');
+      }
+    };
+
+    let rawMedia = [];
+    if (Array.isArray(req.body.images)) rawMedia.push(...req.body.images);
+    if (Array.isArray(req.body.photos)) rawMedia.push(...req.body.photos);
+    if (Array.isArray(req.body.videos)) rawMedia.push(...req.body.videos);
+    if (Array.isArray(req.body.propertyVideos)) rawMedia.push(...req.body.propertyVideos);
+    if (typeof req.body.video === 'string' && req.body.video) rawMedia.push(req.body.video);
+    if (typeof req.body.videoUrl === 'string' && req.body.videoUrl) rawMedia.push(req.body.videoUrl);
+
+    const extractedImages = [];
+    const extractedVideos = [];
+
+    for (const item of rawMedia) {
+      if (typeof item !== 'string' || !item.trim()) continue;
+      const trimmed = item.trim();
+      if (isMediaVideo(trimmed)) {
+        if (!extractedVideos.includes(trimmed)) extractedVideos.push(trimmed);
+      } else {
+        if (!extractedImages.includes(trimmed)) extractedImages.push(trimmed);
+      }
+    }
+
+    if (extractedImages.length > 0 || extractedVideos.length > 0) {
+      propertyData.images = extractedImages;
+      propertyData.videos = extractedVideos;
+      propertyData.propertyVideos = extractedVideos;
+    }
+
+    // ── 🛡️ SECURITY DEPOSIT & DURATION RULE ──────────────────────────────────
+    // Remove Security Deposit and Security Duration fields for properties available for Sale
+    const isForSale = String(propertyData.listingFor || '').trim().toLowerCase() === 'sale';
+    if (isForSale) {
+      delete propertyData.securityDeposit;
+      delete propertyData.securityDepositDuration;
+      propertyData.securityDeposit = undefined;
+      propertyData.securityDepositDuration = undefined;
+    }
+
+    // ── 🛡️ MULTIPLE BHK OPTIONS FOR DEVELOPERS / BUILDERS ─────────────────────
+    // Parse and handle multiple BHK configurations: ONLY BHK and its custom Price
+    let bhkConfigs = req.body.bhkConfigurations;
+    if (typeof bhkConfigs === 'string') {
+      try {
+        bhkConfigs = JSON.parse(bhkConfigs);
+      } catch {
+        bhkConfigs = [];
+      }
+    }
+    if (Array.isArray(bhkConfigs) && bhkConfigs.length > 0) {
+      propertyData.bhkConfigurations = bhkConfigs
+        .map((item) => ({
+          bhk: item.bhk || item.bhkType || '',
+          bhkType: item.bhk || item.bhkType || '',
+          price: Number(item.price) || 0,
+        }))
+        .filter((b) => b.bhk && b.price > 0);
+
+      const validPrices = propertyData.bhkConfigurations
+        .map((b) => Number(b.price || 0))
+        .filter((p) => p > 0);
+      if (validPrices.length > 0 && (!propertyData.price || Number(propertyData.price) === 0)) {
+        propertyData.price = Math.min(...validPrices);
+      }
+      const firstBhk = propertyData.bhkConfigurations[0];
+      if (!propertyData.bedrooms && firstBhk?.bhk) {
+        propertyData.bedrooms = firstBhk.bhk;
+      }
+    }
+
+    // ── 🛡️ DEVELOPER COMMISSION RULE ─────────────────────────────────────────
+    // Commission will not be included in property listings created by developers/builders
+    if (normalizedUserRole === 'builder') {
+      propertyData.adminCommission = {
+        type: 'percentage',
+        rate: 0,
+        amount: 0,
+      };
+      propertyData.commissionDiscount = {
+        enabled: false,
+        discountType: 'percentage',
+        discountValue: 0,
+        discountAmount: 0,
+        netCommission: 0,
+        discountOnCommissionOnly: true,
+        notes: 'Developer / Builder listings carry 0% platform commission.',
+      };
+    }
 
     // Robust location coordinates handling (never allow null coordinates)
     const resolvedCoords = resolveCoordinates(req.body);
@@ -1156,6 +1594,67 @@ exports.updateProperty = async (req, res, next) => {
 
     const updateFields = { ...req.body };
 
+    // 🛡️ Role-Based Update Guard: Users cannot change to another role outside their locked role
+    if (!isAdmin) {
+      const userRole = (req.user.role || '').toLowerCase().trim();
+      const rawListingAs = (updateFields.listingAs || updateFields.role || '').toLowerCase().trim();
+
+      if (rawListingAs) {
+        const isTargetingDeveloper = rawListingAs.includes('builder') || rawListingAs.includes('developer');
+        const isTargetingAgent = rawListingAs.includes('agent') || rawListingAs.includes('broker');
+        const isTargetingOwner = rawListingAs.includes('owner');
+
+        if (userRole === 'owner' && (isTargetingAgent || isTargetingDeveloper)) {
+          return res.status(403).json({
+            status: 'fail',
+            message: 'Role Restriction: As a Property Owner, you cannot alter your listing to Agent or Developer role.',
+          });
+        }
+        if (userRole === 'agent' && (isTargetingOwner || isTargetingDeveloper)) {
+          return res.status(403).json({
+            status: 'fail',
+            message: 'Role Restriction: As an Agent, you cannot alter your listing to Owner or Developer role.',
+          });
+        }
+        if ((userRole === 'builder' || userRole === 'developer') && (isTargetingOwner || isTargetingAgent)) {
+          return res.status(403).json({
+            status: 'fail',
+            message: 'Role Restriction: As a Developer, you cannot alter your listing to Owner or Agent role.',
+          });
+        }
+      }
+    }
+
+    // 🛡️ Security Deposit & Duration rule: Remove / clear for properties available for Sale
+    const targetListingFor = updateFields.listingFor || property.listingFor;
+    if (String(targetListingFor || '').trim().toLowerCase() === 'sale') {
+      updateFields.securityDeposit = undefined;
+      updateFields.securityDepositDuration = undefined;
+    }
+
+    // Handle multiple BHK configurations update: ONLY BHK and its Price
+    if (updateFields.bhkConfigurations !== undefined) {
+      let configs = updateFields.bhkConfigurations;
+      if (typeof configs === 'string') {
+        try {
+          configs = JSON.parse(configs);
+        } catch {
+          configs = [];
+        }
+      }
+      if (Array.isArray(configs)) {
+        updateFields.bhkConfigurations = configs
+          .map((item) => ({
+            bhk: item.bhk || item.bhkType || '',
+            bhkType: item.bhk || item.bhkType || '',
+            price: Number(item.price) || 0,
+          }))
+          .filter((b) => b.bhk && b.price > 0);
+      } else {
+        updateFields.bhkConfigurations = [];
+      }
+    }
+
     // Normalize listingAs if provided in update
     if (updateFields.listingAs) {
       const lower = updateFields.listingAs.toLowerCase();
@@ -1204,6 +1703,61 @@ exports.updateProperty = async (req, res, next) => {
       const installmentData = normalizeInstallmentData(mergedBody, targetPrice);
       updateFields.allowInstallments = installmentData.allowInstallments;
       updateFields.installmentDetails = installmentData.installmentDetails;
+    }
+
+    // ── 🛡️ MEDIA UPDATE & SEPARATION (Images & Videos) ───────────────────────
+    if (
+      updateFields.images !== undefined ||
+      updateFields.photos !== undefined ||
+      updateFields.videos !== undefined ||
+      updateFields.propertyVideos !== undefined ||
+      updateFields.video !== undefined ||
+      updateFields.videoUrl !== undefined
+    ) {
+      const isMediaVideo = (url) => {
+        if (!url || typeof url !== 'string') return false;
+        try {
+          const decoded = decodeURIComponent(url).toLowerCase();
+          const cleanPath = decoded.split('?')[0];
+          return (
+            /\.(mp4|webm|mov|m4v|mkv|avi|3gp)$/i.test(cleanPath) ||
+            decoded.includes('/video/') ||
+            decoded.includes('/videos/') ||
+            decoded.includes('video/mp4') ||
+            decoded.includes('format=mp4') ||
+            decoded.includes('contenttype=video') ||
+            decoded.includes('uploads%2fvideo') ||
+            decoded.includes('uploads/video')
+          );
+        } catch (_) {
+          return /\.(mp4|webm|mov|m4v|mkv|avi|3gp)/i.test(url) || url.toLowerCase().includes('video');
+        }
+      };
+
+      let rawUpdateMedia = [];
+      if (Array.isArray(updateFields.images)) rawUpdateMedia.push(...updateFields.images);
+      if (Array.isArray(updateFields.photos)) rawUpdateMedia.push(...updateFields.photos);
+      if (Array.isArray(updateFields.videos)) rawUpdateMedia.push(...updateFields.videos);
+      if (Array.isArray(updateFields.propertyVideos)) rawUpdateMedia.push(...updateFields.propertyVideos);
+      if (typeof updateFields.video === 'string' && updateFields.video) rawUpdateMedia.push(updateFields.video);
+      if (typeof updateFields.videoUrl === 'string' && updateFields.videoUrl) rawUpdateMedia.push(updateFields.videoUrl);
+
+      const updateImages = [];
+      const updateVideos = [];
+
+      for (const item of rawUpdateMedia) {
+        if (typeof item !== 'string' || !item.trim()) continue;
+        const trimmed = item.trim();
+        if (isMediaVideo(trimmed)) {
+          if (!updateVideos.includes(trimmed)) updateVideos.push(trimmed);
+        } else {
+          if (!updateImages.includes(trimmed)) updateImages.push(trimmed);
+        }
+      }
+
+      updateFields.images = updateImages;
+      updateFields.videos = updateVideos;
+      updateFields.propertyVideos = updateVideos;
     }
 
     // Only reset status to pending when regular user updates
@@ -1334,6 +1888,8 @@ exports.getNearMeProperties = async (req, res, next) => {
     const query = {
       approvalStatus: 'approved',
       isLive: true,
+      isSold: { $ne: true },
+      saleStatus: { $ne: 'sold' },
     };
 
     // Exclude properties listed by current user in discovery feed
@@ -1488,6 +2044,8 @@ exports.getVerifiedProperties = async (req, res, next) => {
     const query = {
       approvalStatus: 'approved',
       isLive: true,
+      isSold: { $ne: true },
+      saleStatus: { $ne: 'sold' },
     };
 
     // Exclude properties listed by current user in discovery feed
@@ -1576,6 +2134,8 @@ exports.getLatestProperties = async (req, res, next) => {
     const query = {
       approvalStatus: 'approved',
       isLive: true,
+      isSold: { $ne: true },
+      saleStatus: { $ne: 'sold' },
     };
 
     // Exclude properties listed by current user in discovery feed
@@ -1642,5 +2202,15 @@ exports.getLatestProperties = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Retrieve approved live developer/builder properties for New Projects page
+// @route   GET /api/user/properties/new-projects
+// @route   GET /api/properties/new-projects
+// @access  Public
+exports.getNewProjectsProperties = async (req, res, next) => {
+  req.query.newProjects = 'true';
+  return exports.getAllProperties(req, res, next);
+};
+
 
 

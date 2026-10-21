@@ -28,9 +28,11 @@ import {
   Layers,
   RotateCcw,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  Eye
 } from 'lucide-react';
 import API from '../api/api';
+import { Badge } from '../components/ui/Badge';
 
 export default function WebInquiries() {
   const [inquiries, setInquiries] = useState([]);
@@ -282,68 +284,60 @@ export default function WebInquiries() {
     triggerToast('CSV Export downloaded successfully!');
   };
 
-  // Type Badges (Subtle, sleek, modern SaaS style)
+  // Type Badges (Unified Design System)
   const getTypeBadge = (type) => {
     if (type === 'deletion_request') {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
-          <Trash2 size={11} className="shrink-0" />
-          <span>Account Deletion</span>
-        </span>
+        <Badge color="red" variant="soft" size="xs" icon={<Trash2 size={11} className="shrink-0" />}>
+          Account Deletion
+        </Badge>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
-        <MessageSquare size={11} className="shrink-0" />
-        <span>Contact Form</span>
-      </span>
+      <Badge color="sky" variant="soft" size="xs" icon={<MessageSquare size={11} className="shrink-0" />}>
+        Contact Form
+      </Badge>
     );
   };
 
-  // Status Badges (Modern dot indicator style)
+  // Status Badges (Unified Design System with Pulse)
   const getStatusBadge = (status) => {
     switch (status) {
       case 'new':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-            <span>New</span>
-          </span>
+          <Badge color="amber" variant="soft" size="xs" dot pulse>
+            New
+          </Badge>
         );
       case 'in_progress':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
-            <span>In Progress</span>
-          </span>
+          <Badge color="sky" variant="soft" size="xs" dot>
+            In Progress
+          </Badge>
         );
       case 'contacted':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-            <span>Contacted</span>
-          </span>
+          <Badge color="purple" variant="soft" size="xs" dot>
+            Contacted
+          </Badge>
         );
       case 'resolved':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span>Resolved</span>
-          </span>
+          <Badge color="emerald" variant="soft" size="xs" dot>
+            Resolved
+          </Badge>
         );
       case 'rejected':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
-            <span>Rejected</span>
-          </span>
+          <Badge color="red" variant="soft" size="xs" dot>
+            Rejected
+          </Badge>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
-            <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
-            <span className="capitalize">{status}</span>
-          </span>
+          <Badge color="slate" variant="soft" size="xs" dot>
+            {status}
+          </Badge>
         );
     }
   };
@@ -625,11 +619,20 @@ export default function WebInquiries() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="w-full overflow-hidden">
+            <table className="w-full text-left border-collapse table-fixed">
+              <colgroup>
+                <col className="w-[4%]" />
+                <col className="w-[18%]" />
+                <col className="w-[24%]" />
+                <col className="w-[26%]" />
+                <col className="w-[10%]" />
+                <col className="w-[10%]" />
+                <col className="w-[8%]" />
+              </colgroup>
               <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--bg-muted)]/40 text-[11px] font-semibold text-[var(--text-muted)] tracking-wider uppercase">
-                  <th className="py-3 px-4 w-10 text-center">
+                <tr className="border-b border-[var(--border)] bg-[var(--bg-muted)]/40 text-[9.5px] font-semibold text-[var(--text-muted)] tracking-wider uppercase select-none">
+                  <th className="py-2 px-2 text-center align-middle">
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -640,12 +643,12 @@ export default function WebInquiries() {
                       className="w-3.5 h-3.5 rounded border-[var(--border)] text-brand focus:ring-brand cursor-pointer accent-brand"
                     />
                   </th>
-                  <th className="py-3 px-4 font-semibold">Reference & Type</th>
-                  <th className="py-3 px-4 font-semibold">User Contact</th>
-                  <th className="py-3 px-4 font-semibold">Role / Subject</th>
-                  <th className="py-3 px-4 font-semibold">Date</th>
-                  <th className="py-3 px-4 font-semibold">Status</th>
-                  <th className="py-3 px-4 font-semibold text-right">Actions</th>
+                  <th className="py-2 px-3 align-middle">Reference & Type</th>
+                  <th className="py-2 px-3 align-middle">User Contact</th>
+                  <th className="py-2 px-3 align-middle">Role & Subject</th>
+                  <th className="py-2 px-3 align-middle">Date</th>
+                  <th className="py-2 px-3 align-middle">Status</th>
+                  <th className="py-2 pl-2 pr-3 align-middle text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]/60 text-xs">
@@ -666,13 +669,13 @@ export default function WebInquiries() {
                     <tr
                       key={item._id}
                       onClick={() => openDetails(item)}
-                      className={`hover:bg-[var(--bg-muted)]/40 transition-colors cursor-pointer ${
+                      className={`hover:bg-[var(--bg-muted)]/35 transition-colors cursor-pointer ${
                         isSelected ? 'bg-brand/5' : ''
                       }`}
                     >
                       {/* Checkbox */}
                       <td
-                        className="py-3 px-4 text-center"
+                        className="py-1.5 px-2 text-center align-middle"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <input
@@ -684,127 +687,132 @@ export default function WebInquiries() {
                       </td>
 
                       {/* Reference & Type */}
-                      <td className="py-3 px-4 space-y-1">
-                        <div className="flex items-center gap-1.5">
+                      <td className="py-1.5 px-3 align-middle overflow-hidden">
+                        <div className="flex items-center gap-1">
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               copyToClipboard(item.refId || item._id, 'Ref ID');
                             }}
-                            className="font-mono text-xs font-semibold text-[var(--text-primary)] hover:text-brand flex items-center gap-1 group cursor-pointer"
+                            className="font-mono text-xs font-semibold text-[var(--text-primary)] hover:text-brand flex items-center gap-1 group cursor-pointer leading-tight truncate"
                             title="Click to copy ID"
                           >
                             <span>{item.refId || item._id.slice(-8).toUpperCase()}</span>
                             {isCopied ? (
-                              <Check size={11} className="text-emerald-500" />
+                              <Check size={10} className="text-emerald-500" />
                             ) : (
-                              <Copy size={11} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] transition-opacity" />
+                              <Copy size={10} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] transition-opacity" />
                             )}
                           </button>
                         </div>
-                        <div>{getTypeBadge(item.type)}</div>
+                        <div className="mt-0.5">{getTypeBadge(item.type)}</div>
                       </td>
 
                       {/* User Contact */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-brand/10 text-brand font-semibold text-[11px] flex items-center justify-center shrink-0">
+                      <td className="py-1.5 px-3 align-middle overflow-hidden">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-7 h-7 rounded-full bg-brand/10 text-brand font-bold text-[10.5px] flex items-center justify-center shrink-0 border border-brand/20">
                             {getInitials(item.fullName)}
                           </div>
-                          <div className="space-y-0.5 min-w-0">
-                            <span className="font-semibold text-[var(--text-primary)] text-xs block truncate">
+                          <div className="min-w-0 flex-1">
+                            <span className="font-semibold text-[var(--text-primary)] text-xs block truncate leading-tight">
                               {item.fullName}
                             </span>
-                            <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-[var(--text-muted)]">
+                            <div className="flex items-center gap-2 text-[10.5px] text-[var(--text-muted)] mt-0.5 leading-tight truncate">
                               <a
                                 href={`mailto:${item.email}`}
                                 onClick={(e) => e.stopPropagation()}
-                                className="hover:text-brand hover:underline flex items-center gap-1 truncate max-w-[170px]"
+                                className="hover:text-brand truncate max-w-[130px]"
                                 title={item.email}
                               >
-                                <Mail size={10} className="shrink-0" />
-                                <span className="truncate">{item.email}</span>
+                                {item.email}
                               </a>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setCallTarget({
-                                    clientName: item.name,
-                                    clientPhone: item.phone,
-                                    clientEmail: item.email,
-                                    title: item.subject || item.message,
-                                    code: item.code || item._id,
-                                    category: 'Web Inquiry',
-                                    id: item._id,
-                                    status: item.status
-                                  });
-                                }}
-                                className="hover:text-brand flex items-center gap-1 font-mono text-[10.5px] cursor-pointer"
-                                title={item.phone}
-                              >
-                                <Phone size={10} className="shrink-0" />
-                                <span>{item.phone}</span>
-                              </button>
+                              {item.phone && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCallTarget({
+                                      clientName: item.name || item.fullName,
+                                      clientPhone: item.phone,
+                                      clientEmail: item.email,
+                                      title: item.subject || item.message,
+                                      code: item.code || item.refId || item._id,
+                                      category: 'Web Inquiry',
+                                      id: item._id,
+                                      status: item.status
+                                    });
+                                  }}
+                                  className="hover:text-brand font-mono text-[10px] shrink-0 cursor-pointer"
+                                  title={`Call ${item.phone}`}
+                                >
+                                  {item.phone}
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
                       </td>
 
                       {/* Role & Context */}
-                      <td className="py-3 px-4">
-                        <span className="font-medium text-[var(--text-primary)] capitalize block text-xs">
-                          {item.role || 'General Inquiry'}
-                        </span>
-                        <p
-                          className="text-[11px] text-[var(--text-muted)] truncate max-w-[200px]"
-                          title={item.subject || item.message || item.reason}
-                        >
-                          {item.subject || item.message || item.reason || '—'}
-                        </p>
+                      <td className="py-1.5 px-3 align-middle overflow-hidden">
+                        <div className="min-w-0">
+                          <span className="font-semibold text-[var(--text-primary)] capitalize block text-xs truncate leading-tight">
+                            {item.role || 'General Inquiry'}
+                          </span>
+                          <p
+                            className="text-[10px] text-[var(--text-muted)] truncate mt-0.5 leading-tight"
+                            title={item.subject || item.message || item.reason}
+                          >
+                            {item.subject || item.message || item.reason || '—'}
+                          </p>
+                        </div>
                       </td>
 
                       {/* Date */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="font-medium text-[var(--text-primary)] text-xs">{formattedDate}</div>
-                        <div className="text-[10px] text-[var(--text-muted)]">{formattedTime}</div>
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap overflow-hidden">
+                        <div className="font-medium text-[var(--text-primary)] text-xs leading-tight">{formattedDate}</div>
+                        <div className="text-[10px] text-[var(--text-muted)] mt-0.5 leading-tight">{formattedTime}</div>
                       </td>
 
                       {/* Status */}
-                      <td className="py-3 px-4">
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap overflow-hidden">
                         {getStatusBadge(item.status)}
                       </td>
 
                       {/* Action Buttons */}
                       <td
-                        className="py-3 px-4 text-right space-x-1 whitespace-nowrap"
+                        className="py-1.5 pl-2 pr-3 align-middle text-right whitespace-nowrap"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <button
-                          type="button"
-                          onClick={() => openDetails(item)}
-                          className="px-2.5 py-1 rounded-lg text-xs font-medium text-[var(--text-primary)] bg-[var(--bg-muted)] hover:bg-brand hover:text-white transition-all cursor-pointer"
-                        >
-                          View
-                        </button>
+                        <div className="inline-flex items-center justify-end gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => openDetails(item)}
+                            className="w-6 h-6 rounded-md flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                            title="Inspect Details"
+                          >
+                            <Eye size={12} />
+                          </button>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setDeleteModal({
-                              open: true,
-                              id: item._id,
-                              refId: item.refId,
-                              name: item.fullName,
-                              isDeleting: false,
-                            })
-                          }
-                          className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-rose-600 hover:bg-rose-500/10 transition-colors cursor-pointer"
-                          title="Delete Inquiry"
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDeleteModal({
+                                open: true,
+                                id: item._id,
+                                refId: item.refId,
+                                name: item.fullName,
+                                isDeleting: false,
+                              })
+                            }
+                            className="w-6 h-6 rounded-md flex items-center justify-center text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                            title="Delete Inquiry"
+                          >
+                            <Trash2 size={11} strokeWidth={2.2} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -992,10 +1000,18 @@ export default function WebInquiries() {
                       type="button"
                       disabled={isUpdatingStatus}
                       onClick={() => handleUpdateInquiry(selectedInquiry._id, st, adminNotesInput)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium capitalize transition-all cursor-pointer ${
+                      className={`h-7 px-3 rounded-full text-xs font-semibold capitalize transition-all cursor-pointer active:scale-95 ${
                         selectedInquiry.status === st
-                          ? 'bg-brand text-white shadow-xs'
-                          : 'bg-[var(--bg-muted)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--border)]'
+                          ? st === 'new'
+                            ? 'bg-amber-500 text-amber-950 font-bold shadow-xs'
+                            : st === 'resolved'
+                            ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                            : st === 'rejected'
+                            ? 'bg-red-600 text-white font-bold shadow-xs'
+                            : st === 'contacted'
+                            ? 'bg-purple-600 text-white font-bold shadow-xs'
+                            : 'bg-sky-600 text-white font-bold shadow-xs'
+                          : 'bg-[var(--bg-muted)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--border)] border border-[var(--border)]'
                       }`}
                     >
                       {st.replace('_', ' ')}
@@ -1032,7 +1048,7 @@ export default function WebInquiries() {
                     isDeleting: false,
                   });
                 }}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                className="h-8 px-3.5 rounded-full text-xs font-semibold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500 hover:text-white border border-red-500/25 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
               >
                 <Trash2 size={13} />
                 <span>Delete</span>
@@ -1042,7 +1058,7 @@ export default function WebInquiries() {
                 <button
                   type="button"
                   onClick={() => setSelectedInquiry(null)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-primary)] transition-all cursor-pointer"
+                  className="h-8 px-4 rounded-full text-xs font-semibold bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-primary)] border border-[var(--border)] transition-all cursor-pointer"
                 >
                   Close
                 </button>
@@ -1050,7 +1066,7 @@ export default function WebInquiries() {
                   type="button"
                   disabled={isUpdatingStatus}
                   onClick={() => handleUpdateInquiry(selectedInquiry._id, selectedInquiry.status, adminNotesInput)}
-                  className="px-4 py-1.5 rounded-lg text-xs font-medium bg-brand text-white hover:bg-brand/90 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                  className="h-8 px-4 rounded-full text-xs font-semibold bg-brand text-white hover:bg-brand/90 transition-all shadow-xs cursor-pointer disabled:opacity-50 active:scale-95"
                 >
                   {isUpdatingStatus ? 'Saving...' : 'Save Notes'}
                 </button>

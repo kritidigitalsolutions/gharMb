@@ -16,6 +16,7 @@ import {
   AlignLeft, AlignCenter, AlignRight, Maximize2, ShieldCheck, Share2
 } from 'lucide-react';
 import API from '../api/api';
+import Badge from '../components/ui/Badge';
 import { compressImage } from '../utils/imageCompressor';
 
 const WEBPAGE_URL = 'http://localhost:5174';
@@ -699,26 +700,23 @@ const InsightsEditor = () => {
               </h1>
 
               {/* Status Badge */}
-              <span
-                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide ${
-                  formData.status === 'published'
-                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40'
-                    : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40'
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${formData.status === 'published' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                {formData.status === 'published' ? 'Published' : 'Draft'}
-              </span>
+              {formData.status === 'published' ? (
+                <Badge.Active size="sm">Published</Badge.Active>
+              ) : (
+                <Badge color="amber" variant="pastel" size="sm" dot pulse icon={<Clock size={11} className="shrink-0" />}>
+                  Draft
+                </Badge>
+              )}
 
               {/* Unsaved Changes vs Saved Just Now Indicator */}
               {isDirty ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 text-[11px] font-semibold border border-amber-500/20 animate-pulse">
-                  ● Unsaved changes
-                </span>
+                <Badge color="amber" variant="pastel" size="xs" dot pulse>
+                  Unsaved changes
+                </Badge>
               ) : lastSavedTime ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[11px] font-semibold border border-emerald-200">
-                  <Check size={11} /> Saved just now
-                </span>
+                <Badge color="emerald" variant="pastel" size="xs" icon={<Check size={10} strokeWidth={2.8} />}>
+                  Saved just now
+                </Badge>
               ) : null}
             </div>
           </div>
@@ -1177,20 +1175,16 @@ const InsightsEditor = () => {
 
               <div className="min-h-[50px] p-2.5 rounded-xl border border-[#E5E9EF] bg-white focus-within:border-[#FF5A3C] focus-within:ring-2 focus-within:ring-[#FF5A3C]/20 transition-all flex flex-wrap items-center gap-2">
                 {formData.tags.map((tag, idx) => (
-                  <span
+                  <Badge
                     key={idx}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#F6F8FA] border border-[#E5E9EF] text-xs font-bold text-[#17212B] shadow-2xs group hover:border-[#FF5A3C]/40 transition-colors"
+                    color="slate"
+                    variant="pastel"
+                    size="sm"
+                    onRemove={() => handleRemoveTag(idx)}
+                    className="shadow-2xs"
                   >
                     #{tag}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTag(idx)}
-                      className="p-0.5 rounded text-[#718096] hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
-                      title={`Remove tag ${tag}`}
-                    >
-                      <X size={12} />
-                    </button>
-                  </span>
+                  </Badge>
                 ))}
 
                 <input

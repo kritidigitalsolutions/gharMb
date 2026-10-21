@@ -42,6 +42,7 @@ import {
   Star
 } from 'lucide-react';
 import API from '../api/api';
+import Badge from '../components/ui/Badge';
 
 const UserManagement = () => {
   // Core Directory State
@@ -826,36 +827,35 @@ const UserManagement = () => {
           </div>
         ) : (
           <>
-            {/* Desktop Table: Clean, Minimal, Strictly Aligned (No multi-select checkboxes) */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[900px]">
+            {/* Desktop Table: Clean, Minimal, Strictly Aligned (Full-Fit 100% Zero Horizontal Scroll) */}
+            <div className="hidden md:block w-full overflow-hidden">
+              <table className="w-full text-left border-collapse table-fixed">
+                <colgroup>
+                  <col className="w-[24%]" />
+                  <col className="w-[22%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[10%]" />
+                </colgroup>
                 <thead>
                   <tr className="bg-[var(--bg-muted)]/40 border-b border-[var(--border)] text-[var(--text-muted)] text-[9.5px] font-semibold uppercase tracking-wider select-none">
-                    <th className="py-2 px-3.5 cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => handleSort('name')}>
+                    <th className="py-2 px-3 cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => handleSort('name')}>
                       User Profile
                     </th>
-                    <th className="py-2 px-3.5 cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => handleSort('email')}>
-                      Email
+                    <th className="py-2 px-3 cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => handleSort('email')}>
+                      Contact Details
                     </th>
-                    <th className="py-2 px-3.5 cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => handleSort('phone')}>
-                      Phone No.
+                    <th className="py-2 px-3 cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => handleSort('role')}>
+                      Role & KYC
                     </th>
-                    <th className="py-2 px-3.5 cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => handleSort('role')}>
-                      Role
+                    <th className="py-2 px-3 text-center cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => handleSort('listings')}>
+                      Listings & Rating
                     </th>
-                    <th className="py-2 px-3.5">
-                      KYC Status
-                    </th>
-                    <th className="py-2 px-3.5 text-center cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => handleSort('listings')}>
-                      Listings
-                    </th>
-                    <th className="py-2 px-3.5 text-center cursor-pointer hover:text-[var(--text-primary)] transition-colors" onClick={() => handleSort('rating')}>
-                      Rating
-                    </th>
-                    <th className="py-2 px-3.5">
+                    <th className="py-2 px-3">
                       Status
                     </th>
-                    <th className="py-2 px-3.5 text-right">
+                    <th className="py-2 pl-2 pr-3 text-right">
                       Actions
                     </th>
                   </tr>
@@ -869,179 +869,180 @@ const UserManagement = () => {
                         key={u.id} 
                         className="transition-colors duration-150 align-middle hover:bg-[var(--bg-muted)]/30"
                       >
-                        {/* User Profile (Avatar + Name) */}
-                        <td className="py-1.5 px-3.5">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-6.5 h-6.5 rounded-full bg-brand/10 text-brand font-bold text-[10.5px] flex items-center justify-center shrink-0 border border-brand/20">
+                        {/* 1. User Profile (Avatar + Name & Company) */}
+                        <td className="py-1.5 px-3 align-middle overflow-hidden">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-7 h-7 rounded-full bg-brand/10 text-brand font-bold text-[10.5px] flex items-center justify-center shrink-0 border border-brand/20">
                               {(u.name || 'U').charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
                               <span className="font-semibold text-xs text-[var(--text-primary)] truncate block leading-tight">
                                 {u.name}
                               </span>
-                              {u.companyName && (
-                                <span className="text-[9.5px] text-[var(--text-muted)] font-normal truncate block leading-tight">
+                              {u.companyName ? (
+                                <span className="text-[9.5px] text-[var(--text-muted)] font-normal truncate block leading-tight mt-0.5">
                                   {u.companyName}
+                                </span>
+                              ) : (
+                                <span className="text-[9.5px] text-[var(--text-muted)] font-normal truncate block leading-tight mt-0.5">
+                                  ID: {u.id?.slice(-6) || '—'}
                                 </span>
                               )}
                             </div>
                           </div>
                         </td>
 
-                        {/* Email Column */}
-                        <td className="py-1.5 px-3.5">
-                          <div className="flex items-center gap-1.5 text-[var(--text-primary)] text-xs">
-                            <Mail size={11} className="text-[var(--text-muted)] shrink-0" />
-                            <span 
-                              onClick={() => copyToClipboard(u.email, 'Email')}
-                              className="truncate max-w-[200px] hover:text-brand cursor-pointer transition-colors"
-                              title="Click to copy email"
-                            >
-                              {u.email}
-                            </span>
+                        {/* 2. Contact Details (Email + Phone Stacked) */}
+                        <td className="py-1.5 px-3 align-middle overflow-hidden">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 text-[var(--text-primary)] text-xs truncate">
+                              <Mail size={11} className="text-[var(--text-muted)] shrink-0" />
+                              <span 
+                                onClick={() => copyToClipboard(u.email, 'Email')}
+                                className="truncate hover:text-brand cursor-pointer transition-colors"
+                                title="Click to copy email"
+                              >
+                                {u.email}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[var(--text-secondary)] font-mono text-[10.5px] mt-0.5 truncate">
+                              <Phone size={10} className="text-[var(--text-muted)] shrink-0" />
+                              <span 
+                                onClick={() => copyToClipboard(u.phone, 'Phone')}
+                                className="hover:text-brand cursor-pointer transition-colors whitespace-nowrap"
+                                title="Click to copy phone"
+                              >
+                                {u.phone}
+                              </span>
+                            </div>
                           </div>
                         </td>
 
-                        {/* Phone Number Column */}
-                        <td className="py-1.5 px-3.5">
-                          <div className="flex items-center gap-1.5 text-[var(--text-secondary)] font-mono text-[11px]">
-                            <Phone size={10.5} className="text-[var(--text-muted)] shrink-0" />
-                            <span 
-                              onClick={() => copyToClipboard(u.phone, 'Phone')}
-                              className="hover:text-brand cursor-pointer transition-colors whitespace-nowrap"
-                              title="Click to copy phone"
-                            >
-                              {u.phone}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Role Pill */}
-                        <td className="py-1.5 px-3.5">
-                          <span className={`inline-flex px-1.5 py-0.5 rounded text-[9.5px] font-semibold uppercase tracking-wide border ${
-                            u.role === 'Builder' ? 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20' :
-                            u.role === 'Agent' ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20' :
-                            u.role === 'Seller' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' : 
-                            'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20'
-                          }`}>
-                            {u.role}
-                          </span>
-                        </td>
-
-                        {/* KYC / Verification Status & Toggle */}
-                        <td className="py-1.5 px-3.5">
+                        {/* 3. Role & KYC Status (Role Badge + KYC Badge & Toggle Stacked) */}
+                        <td className="py-1.5 px-3 align-middle overflow-hidden">
                           <div className="flex items-center gap-2">
+                            <Badge
+                              color={
+                                u.role === 'Builder' ? 'purple' :
+                                u.role === 'Agent' ? 'sky' :
+                                u.role === 'Seller' ? 'emerald' :
+                                'slate'
+                              }
+                              variant="pastel"
+                              size="xs"
+                            >
+                              {u.role}
+                            </Badge>
+
                             {vState.isApproved ? (
-                              <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
-                                <ShieldCheck size={10.5} />
-                                <span>Verified</span>
-                              </span>
+                              <Badge color="emerald" variant="pastel" size="xs" icon={<Check size={10} strokeWidth={2.8} className="shrink-0" />}>
+                                Verified
+                              </Badge>
                             ) : vState.isPending ? (
-                              <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded animate-pulse">
-                                <Clock size={10.5} />
-                                <span>Pending</span>
-                              </span>
+                              <Badge color="amber" variant="pastel" size="xs" dot pulse icon={<Clock size={10} className="shrink-0" />}>
+                                Pending
+                              </Badge>
                             ) : vState.isRejected ? (
-                              <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded">
-                                <XCircle size={10.5} />
-                                <span>Rejected</span>
-                              </span>
+                              <Badge color="red" variant="pastel" size="xs" icon={<X size={10} strokeWidth={2.8} className="shrink-0" />}>
+                                Rejected
+                              </Badge>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-[9.5px] font-medium text-[var(--text-muted)] bg-[var(--bg-muted)] border border-[var(--border)] px-1.5 py-0.5 rounded">
-                                <ShieldAlert size={10.5} />
-                                <span>Unverified</span>
-                              </span>
+                              <Badge color="slate" variant="pastel" size="xs">
+                                Unverified
+                              </Badge>
                             )}
 
-                            {/* Minimal Toggle Switch */}
+                            {/* Sliding KYC Toggle */}
                             <button
                               type="button"
                               onClick={() => toggleKycVerification(u)}
-                              className={`relative inline-flex h-3.5 w-6 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                                vState.isApproved ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                              className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 ease-in-out shadow-xs select-none ${
+                                vState.isApproved 
+                                  ? 'bg-[#52c99b] dark:bg-[#1a4a38]' 
+                                  : 'bg-[#fca5a5] dark:bg-[#521722]'
                               }`}
-                              title={vState.isApproved ? 'Click to mark unverified' : 'Click to verify profile'}
+                              title={vState.isApproved ? 'Verified: Click to mark unverified' : 'Unverified: Click to verify profile'}
                             >
                               <span
-                                className={`pointer-events-none inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                                  vState.isApproved ? 'translate-x-2.5' : 'translate-x-0'
+                                className={`pointer-events-none flex items-center justify-center h-3 w-3 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
+                                  vState.isApproved ? 'translate-x-3 text-[#064e3b]' : 'translate-x-0 text-[#701a2b]'
                                 }`}
-                              />
+                              >
+                                {vState.isApproved ? (
+                                  <Check size={7} strokeWidth={3} />
+                                ) : (
+                                  <X size={7} strokeWidth={3} />
+                                )}
+                              </span>
                             </button>
                           </div>
                         </td>
 
-                        {/* Listings */}
-                        <td className="py-1.5 px-3.5 text-center font-semibold text-[var(--text-primary)]">
-                          {u.listings ? (
-                            <span className="px-1.5 py-0.5 bg-[var(--bg-muted)] rounded text-[10.5px]">
-                              {u.listings}
-                            </span>
+                        {/* 4. Listings & Rating Stacked */}
+                        <td className="py-1.5 px-3 text-center align-middle whitespace-nowrap overflow-hidden">
+                          <div className="flex items-center justify-center gap-2">
+                            {u.listings ? (
+                              <span className="px-1.5 py-0.2 bg-[var(--bg-muted)] rounded text-[10px] font-semibold text-[var(--text-primary)]">
+                                {u.listings} listings
+                              </span>
+                            ) : (
+                              <span className="text-[var(--text-muted)] text-[10px]">0 listings</span>
+                            )}
+                            {u.rating > 0 && (
+                              <span className="inline-flex items-center gap-0.5 text-[9.5px] font-bold text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1 py-0.2 rounded">
+                                <Star size={9} className="fill-amber-400 text-amber-400" />
+                                <span>{Number(u.rating).toFixed(1)}</span>
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* 5. Account Status */}
+                        <td className="py-1.5 px-3 align-middle whitespace-nowrap overflow-hidden">
+                          {u.status === 'Active' ? (
+                            <Badge.Active size="xs" />
                           ) : (
-                            <span className="text-[var(--text-muted)] text-[11px]">—</span>
+                            <Badge.Offline size="xs">
+                              {u.status || 'Offline'}
+                            </Badge.Offline>
                           )}
                         </td>
 
-                        {/* Owner / User Rating */}
-                        <td className="py-1.5 px-3.5 text-center">
-                          {u.rating > 0 ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded whitespace-nowrap">
-                              <Star size={10} className="fill-amber-400 text-amber-400" />
-                              <span>{Number(u.rating).toFixed(1)}</span>
-                              <span className="text-[9px] font-normal text-[var(--text-muted)]">({u.reviewsCount || u.reviewCount || 0})</span>
-                            </span>
-                          ) : (
-                            <span className="text-[var(--text-muted)] text-[11px]">—</span>
-                          )}
-                        </td>
-
-                        {/* Status (Active / Suspended) */}
-                        <td className="py-1.5 px-3.5">
-                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9.5px] font-semibold ${
-                            u.status === 'Active' 
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
-                              : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                          }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${u.status === 'Active' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                            <span>{u.status}</span>
-                          </span>
-                        </td>
-
-                        {/* Actions Group (Aligned & Minimal) */}
-                        <td className="py-1.5 px-3.5 text-right">
-                          <div className="flex items-center justify-end gap-0.5">
+                        {/* 6. Actions Group (Icon-Only Minimalist Buttons) */}
+                        <td className="py-1.5 pl-2 pr-3 text-right align-middle whitespace-nowrap">
+                          <div className="inline-flex items-center justify-end gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               onClick={() => {
                                 setSelectedUser(u);
                                 setUserDrawerTab(u.role === 'Agent' || u.role === 'Builder' ? 'Documents' : 'Overview');
                               }}
-                              className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] rounded-md transition-colors cursor-pointer"
+                              className="w-6 h-6 rounded-md flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
                               title="Inspect profile"
                             >
-                              <Eye size={12.5} />
+                              <Eye size={12} />
                             </button>
 
                             <button
                               type="button"
                               onClick={() => openEditUserModal(u)}
-                              className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] rounded-md transition-colors cursor-pointer"
+                              className="w-6 h-6 rounded-md flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
                               title="Edit user details"
                             >
-                              <Edit3 size={12.5} />
+                              <Edit3 size={11} />
                             </button>
 
                             <button
                               type="button"
                               onClick={() => toggleUserStatus(u.id)}
-                              className={`p-1 rounded-md transition-colors cursor-pointer ${
+                              className={`w-6 h-6 rounded-md flex items-center justify-center border transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 ${
                                 u.status === 'Active'
-                                  ? 'text-[var(--text-muted)] hover:text-rose-600 hover:bg-rose-500/10'
-                                  : 'text-emerald-600 hover:bg-emerald-500/10'
+                                  ? 'text-[var(--text-muted)] hover:text-rose-600 hover:bg-rose-500/10 border-[var(--border)]'
+                                  : 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500 hover:text-white'
                               }`}
                               title={u.status === 'Active' ? 'Suspend account' : 'Activate account'}
                             >
-                              {u.status === 'Active' ? <Lock size={12.5} /> : <Unlock size={12.5} />}
+                              {u.status === 'Active' ? <Lock size={11} /> : <Unlock size={11} />}
                             </button>
 
                             <button
@@ -1050,10 +1051,10 @@ const UserManagement = () => {
                                 setUserToDelete(u);
                                 setShowDeleteModal(true);
                               }}
-                              className="p-1 text-[var(--text-muted)] hover:text-rose-600 hover:bg-rose-500/10 rounded-md transition-colors cursor-pointer"
+                              className="w-6 h-6 rounded-md flex items-center justify-center text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
                               title="Delete user"
                             >
-                              <Trash2 size={12.5} />
+                              <Trash2 size={11} />
                             </button>
                           </div>
                         </td>
@@ -1108,9 +1109,14 @@ const UserManagement = () => {
                     </div>
 
                     <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]/50">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`w-1.5 h-1.5 rounded-full ${u.status === 'Active' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                        <span className="text-[10px] font-semibold text-[var(--text-secondary)]">{u.status}</span>
+                      <div>
+                        {u.status === 'Active' ? (
+                          <Badge.Active size="xs" />
+                        ) : (
+                          <Badge.Offline size="xs">
+                            {u.status || 'Offline'}
+                          </Badge.Offline>
+                        )}
                       </div>
                       <div className="flex items-center gap-1">
                         <button
@@ -1280,14 +1286,22 @@ const UserManagement = () => {
                   <button
                     type="button"
                     onClick={() => toggleKycVerification(selectedUser)}
-                    className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
-                      vState.isApproved ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 ease-in-out shadow-xs select-none ${
+                      vState.isApproved 
+                        ? 'bg-[#52c99b] dark:bg-[#1a4a38]' 
+                        : 'bg-[#fca5a5] dark:bg-[#521722]'
                     }`}
-                    title="Toggle KYC"
+                    title={vState.isApproved ? 'Verified: Click to mark unverified' : 'Unverified: Click to verify profile'}
                   >
-                    <span className={`inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                      vState.isApproved ? 'translate-x-3' : 'translate-x-0'
-                    }`} />
+                    <span className={`pointer-events-none flex items-center justify-center h-4 w-4 rounded-full bg-white shadow-xs transition-transform duration-200 ease-in-out ${
+                      vState.isApproved ? 'translate-x-4 text-[#064e3b]' : 'translate-x-0 text-[#701a2b]'
+                    }`}>
+                      {vState.isApproved ? (
+                        <Check size={9} strokeWidth={3} />
+                      ) : (
+                        <X size={9} strokeWidth={3} />
+                      )}
+                    </span>
                   </button>
                 </div>
               </div>

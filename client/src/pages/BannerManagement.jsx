@@ -521,11 +521,20 @@ const BannerManagement = () => {
       ) : (
         /* Minimal Table View */
         <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="w-full overflow-hidden">
+            <table className="w-full text-left text-xs border-collapse table-fixed">
+              <colgroup>
+                <col className="w-[4%]" />
+                <col className="w-[12%]" />
+                <col className="w-[34%]" />
+                <col className="w-[18%]" />
+                <col className="w-[12%]" />
+                <col className="w-[10%]" />
+                <col className="w-[10%]" />
+              </colgroup>
               <thead className="bg-[var(--bg-muted)]/50 border-b border-[var(--border)] text-[var(--text-muted)] font-semibold text-[11px]">
                 <tr>
-                  <th className="py-2.5 px-3 w-8">
+                  <th className="py-2 px-3 align-middle">
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -533,12 +542,12 @@ const BannerManagement = () => {
                       className="w-3.5 h-3.5 rounded text-brand focus:ring-brand cursor-pointer"
                     />
                   </th>
-                  <th className="py-2.5 px-3">Banner</th>
-                  <th className="py-2.5 px-3">Title & Target</th>
-                  <th className="py-2.5 px-3">Placement</th>
-                  <th className="py-2.5 px-3">Views / Clicks</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3 text-right">Actions</th>
+                  <th className="py-2 px-3 align-middle">Banner</th>
+                  <th className="py-2 px-3 align-middle">Title & Target</th>
+                  <th className="py-2 px-3 align-middle">Placement</th>
+                  <th className="py-2 px-3 align-middle">Views / Clicks</th>
+                  <th className="py-2 px-3 align-middle text-center">Status</th>
+                  <th className="py-2 px-3 align-middle text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -547,7 +556,7 @@ const BannerManagement = () => {
 
                   return (
                     <tr key={banner._id} className={`hover:bg-[var(--bg-muted)]/30 ${isSelected ? 'bg-brand/5' : ''}`}>
-                      <td className="py-2.5 px-3">
+                      <td className="py-1.5 px-3 align-middle">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -555,8 +564,8 @@ const BannerManagement = () => {
                           className="w-3.5 h-3.5 rounded text-brand focus:ring-brand cursor-pointer"
                         />
                       </td>
-                      <td className="py-2.5 px-3">
-                        <div className="w-16 h-9 rounded-md bg-zinc-900 overflow-hidden border border-[var(--border)]">
+                      <td className="py-1.5 px-3 align-middle">
+                        <div className="w-16 h-8 rounded-md bg-zinc-900 overflow-hidden border border-[var(--border)]">
                           <SmoothImage
                             src={banner.image}
                             alt={banner.title}
@@ -565,50 +574,51 @@ const BannerManagement = () => {
                           />
                         </div>
                       </td>
-                      <td className="py-2.5 px-3 max-w-xs">
+                      <td className="py-1.5 px-3 align-middle min-w-0">
                         <div className="font-semibold text-[var(--text-primary)] truncate">{banner.title}</div>
-                        <div className="text-[11px] text-[var(--text-muted)] truncate">{banner.linkValue || 'No link'}</div>
+                        <div className="text-[10px] text-[var(--text-muted)] truncate">{banner.linkValue || 'No link'}</div>
                       </td>
-                      <td className="py-2.5 px-3">
-                        <span className="text-[11px] text-[var(--text-muted)]">
+                      <td className="py-1.5 px-3 align-middle min-w-0">
+                        <span className="text-[11px] text-[var(--text-muted)] truncate block">
                           {getPlacementLabel(banner.position)}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3">
-                        <span className="text-[11px] text-[var(--text-muted)]">
+                      <td className="py-1.5 px-3 align-middle min-w-0">
+                        <span className="text-[11px] text-[var(--text-muted)] truncate block font-mono">
                           {banner.viewsCount || 0} / {banner.clicksCount || 0}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3">
+                      <td className="py-1.5 px-3 align-middle text-center whitespace-nowrap">
                         <button
                           type="button"
                           onClick={(e) => handleToggleStatus(banner, e)}
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer ${
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border shadow-2xs transition-all cursor-pointer ${
                             banner.isActive
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : 'bg-zinc-100 text-zinc-600 border border-zinc-200'
+                              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
+                              : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20'
                           }`}
                         >
-                          {banner.isActive ? 'Active' : 'Inactive'}
+                          <span className={`w-1.5 h-1.5 rounded-full ${banner.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                          <span>{banner.isActive ? 'Active' : 'Inactive'}</span>
                         </button>
                       </td>
-                      <td className="py-2.5 px-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="py-1.5 px-3 align-middle text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-1 shrink-0">
                           <button
                             type="button"
                             onClick={() => openEditModal(banner)}
-                            className="p-1 rounded text-sky-600 hover:bg-sky-50 cursor-pointer"
+                            className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                             title="Edit"
                           >
-                            <Edit size={13} />
+                            <Edit size={12} />
                           </button>
                           <button
                             type="button"
                             onClick={() => setDeleteModal({ open: true, id: banner._id, title: banner.title, isDeleting: false })}
-                            className="p-1 rounded text-rose-600 hover:bg-rose-50 cursor-pointer"
+                            className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-rose-600 hover:border-rose-300 dark:hover:border-rose-900/50 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                             title="Delete"
                           >
-                            <Trash2 size={13} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </td>

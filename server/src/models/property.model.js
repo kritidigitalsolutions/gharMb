@@ -105,11 +105,25 @@ const propertySchema = new mongoose.Schema(
     },
     carpetArea: {
       type: Number,
-      required: [true, 'Carpet area in sqft is required.'],
+      required: [
+        function () {
+          return !this.bhkConfigurations || this.bhkConfigurations.length === 0;
+        },
+        'Carpet area in sqft is required.',
+      ],
     },
     builtUpArea: {
       type: Number,
     },
+    // Multiple BHK Configurations: ONLY BHK and its Price
+    bhkConfigurations: [
+      {
+        _id: false,
+        bhk: { type: String, trim: true }, // e.g. '1 BHK', '2 BHK', '3 BHK', '4 BHK'
+        price: { type: Number, required: true }, // Custom price for this BHK configuration
+        bhkType: { type: String, trim: true }, // alias for backward compatibility
+      },
+    ],
     floorNo: {
       type: String,
       trim: true,
@@ -185,8 +199,18 @@ const propertySchema = new mongoose.Schema(
       type: String, // 'Immediate', 'Within 1 Month', 'Within 3 Months', 'Custom Date'
     },
 
-    // Step 3: Photos Upload
+    // Step 3: Photos & Short Videos Upload (Walkthroughs, reels, tours)
     images: [
+      {
+        type: String,
+      },
+    ],
+    videos: [
+      {
+        type: String,
+      },
+    ],
+    propertyVideos: [
       {
         type: String,
       },
@@ -195,7 +219,12 @@ const propertySchema = new mongoose.Schema(
     // Step 4: Pricing & Preferences
     price: {
       type: Number,
-      required: [true, 'Property price or monthly rent is required.'],
+      required: [
+        function () {
+          return !this.bhkConfigurations || this.bhkConfigurations.length === 0;
+        },
+        'Property price or monthly rent is required.',
+      ],
     },
     securityDeposit: {
       type: Number,
@@ -444,6 +473,45 @@ const propertySchema = new mongoose.Schema(
       default: 0,
     },
 
+    // Admin Property Sale Management
+    isSold: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    saleStatus: {
+      type: String,
+      enum: ['available', 'marked_as_sold', 'sold', 'sale_cancelled'],
+      default: 'available',
+      index: true,
+    },
+    soldMarkedAt: {
+      type: Date,
+    },
+    saleConfirmationDueDate: {
+      type: Date,
+    },
+    saleNotificationSent: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    saleConfirmedAt: {
+      type: Date,
+    },
+    saleCancelledAt: {
+      type: Date,
+    },
+    soldByAdmin: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Admin',
+    },
+    saleNotes: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+
     // Rating & Reviews Summary
     rating: {
       type: Number,
@@ -486,6 +554,41 @@ const propertySchema = new mongoose.Schema(
   }
 );
 
+// Pre-validate hook to calculate defaults from multiple BHK configurations and omit security deposit for sale
+propertySchema.pre('validate', function () {
+  // If listing is for Sale, remove / clear Security Deposit and Duration
+  const isForSale = String(this.listingFor || '').trim().toLowerCase() === 'sale';
+  if (isForSale) {
+    this.securityDeposit = undefined;
+    this.securityDepositDuration = undefined;
+  }
+
+  // If multiple BHK configurations are provided, normalize and populate baseline price
+  if (Array.isArray(this.bhkConfigurations) && this.bhkConfigurations.length > 0) {
+    this.bhkConfigurations = this.bhkConfigurations.map(item => {
+      const bhkVal = item.bhk || item.bhkType || '';
+      return {
+        bhk: bhkVal,
+        bhkType: bhkVal,
+        price: Number(item.price) || 0
+      };
+    });
+
+    const validPrices = this.bhkConfigurations
+      .map((b) => Number(b.price || 0))
+      .filter((p) => p > 0);
+
+    if (validPrices.length > 0 && (!this.price || Number(this.price) === 0)) {
+      this.price = Math.min(...validPrices);
+    }
+
+    const firstBhk = this.bhkConfigurations[0];
+    if (!this.bedrooms && (firstBhk.bhk || firstBhk.bhkType)) {
+      this.bedrooms = firstBhk.bhk || firstBhk.bhkType;
+    }
+  }
+});
+
 // Auto-generate Submission ID & normalize seller role before saving
 propertySchema.pre('save', function () {
   if (!this.submissionId) {
@@ -494,14 +597,24 @@ propertySchema.pre('save', function () {
     this.submissionId = `#GBM-${dateStr}-${randomNum}`;
   }
 
+  // Ensure security deposit & duration are undefined for sale listings
+  const isForSale = String(this.listingFor || '').trim().toLowerCase() === 'sale';
+  if (isForSale) {
+    this.securityDeposit = undefined;
+    this.securityDepositDuration = undefined;
+  }
+
   // Normalize listingAs, userRole, and postedByRole (Builder, Agent, Owner)
   const raw = (this.listingAs || '').toLowerCase();
   const role = (this.userRole || '').toLowerCase();
-  if (raw.includes('builder') || raw.includes('developer') || role === 'builder') {
+  const isBuilder = raw.includes('builder') || raw.includes('developer') || role === 'builder';
+  const isAgent = raw.includes('agent') || raw.includes('broker') || role === 'agent';
+
+  if (isBuilder) {
     this.listingAs = 'Developer / Builder';
     this.userRole = 'builder';
     this.postedByRole = 'Builder';
-  } else if (raw.includes('agent') || raw.includes('broker') || role === 'agent') {
+  } else if (isAgent) {
     this.listingAs = 'Agent / Broker';
     this.userRole = 'agent';
     this.postedByRole = 'Agent';
@@ -511,50 +624,138 @@ propertySchema.pre('save', function () {
     this.postedByRole = 'Owner';
   }
 
-  // Calculate & normalize Admin Commission and Commission Discount
-  const propPrice = Number(this.price) || 0;
-  if (!this.adminCommission) {
-    this.adminCommission = { type: 'percentage', rate: 2, amount: Math.round((propPrice * 2) / 100) };
-  } else {
-    const cType = this.adminCommission.type === 'fixed' ? 'fixed' : 'percentage';
-    const cRate = cType === 'percentage' ? (Number(this.adminCommission.rate) >= 0 ? Number(this.adminCommission.rate) : 2) : 0;
-    const cAmount = cType === 'percentage' ? Math.round((propPrice * cRate) / 100) : Math.round(Number(this.adminCommission.amount || 0));
-    this.adminCommission.type = cType;
-    this.adminCommission.rate = cRate;
-    this.adminCommission.amount = cAmount;
+  // ── 🛡️ MEDIA CLEANUP & SEPARATION (Images & Videos) ─────────────────────
+  // Automatically separate photos from short videos (walkthroughs, reels, tours)
+  const isVideoCheck = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    try {
+      const decoded = decodeURIComponent(url).toLowerCase();
+      const cleanPath = decoded.split('?')[0];
+      return (
+        /\.(mp4|webm|mov|m4v|mkv|avi|3gp)$/i.test(cleanPath) ||
+        decoded.includes('/video/') ||
+        decoded.includes('/videos/') ||
+        decoded.includes('video/mp4') ||
+        decoded.includes('format=mp4') ||
+        decoded.includes('contenttype=video') ||
+        decoded.includes('uploads%2fvideo') ||
+        decoded.includes('uploads/video')
+      );
+    } catch (_) {
+      return /\.(mp4|webm|mov|m4v|mkv|avi|3gp)/i.test(url) || url.toLowerCase().includes('video');
+    }
+  };
+
+  const rawImages = Array.isArray(this.images) ? this.images : [];
+  const rawVideos = Array.isArray(this.videos) && this.videos.length > 0
+    ? this.videos
+    : (Array.isArray(this.propertyVideos) ? this.propertyVideos : []);
+
+  const combinedMedia = [...rawImages, ...rawVideos].filter(Boolean);
+  const cleanImages = [];
+  const cleanVideos = [];
+
+  for (const m of combinedMedia) {
+    if (typeof m !== 'string' || !m.trim()) continue;
+    const trimmed = m.trim();
+    if (isVideoCheck(trimmed)) {
+      if (!cleanVideos.includes(trimmed)) cleanVideos.push(trimmed);
+    } else {
+      if (!cleanImages.includes(trimmed)) cleanImages.push(trimmed);
+    }
   }
 
-  const grossCommission = Number(this.adminCommission.amount) || 0;
-  if (!this.commissionDiscount) {
+  this.images = cleanImages;
+  this.videos = cleanVideos;
+  this.propertyVideos = cleanVideos;
+
+  // Ensure Multiple BHK configurations baseline pricing & auto-computed summary
+  if (Array.isArray(this.bhkConfigurations) && this.bhkConfigurations.length > 0) {
+    const validPrices = this.bhkConfigurations
+      .map((b) => Number(b.price || b.minPrice || 0))
+      .filter((p) => p > 0);
+
+    if (validPrices.length > 0 && (!this.price || Number(this.price) === 0)) {
+      this.price = Math.min(...validPrices);
+    }
+  }
+
+  // Admin Sale Confirmation logic:
+  // If property sale is confirmed, property is unlisted / no longer displayed in app
+  if (this.saleStatus === 'sold') {
+    this.isSold = true;
+    this.isLive = false;
+    if (!this.saleConfirmedAt) this.saleConfirmedAt = new Date();
+  } else if (this.saleStatus === 'available' || this.saleStatus === 'sale_cancelled') {
+    this.isSold = false;
+    // Remains available in app
+    if (this.approvalStatus === 'approved') {
+      this.isLive = true;
+    }
+  }
+
+  // Calculate & normalize Admin Commission and Commission Discount
+  // DEVELOPER RULE: Commission will NOT be included in property listings created by developers/builders
+  const propPrice = Number(this.price) || 0;
+  if (isBuilder) {
+    this.adminCommission = {
+      type: 'percentage',
+      rate: 0,
+      amount: 0,
+    };
     this.commissionDiscount = {
       enabled: false,
       discountType: 'percentage',
       discountValue: 0,
       discountAmount: 0,
-      netCommission: grossCommission,
+      netCommission: 0,
       discountOnCommissionOnly: true,
-      notes: '',
+      notes: 'Developer / Builder listings carry 0% platform commission.',
     };
   } else {
-    const isEnabled = Boolean(this.commissionDiscount.enabled);
-    const dType = this.commissionDiscount.discountType === 'fixed' ? 'fixed' : 'percentage';
-    const dVal = Number(this.commissionDiscount.discountValue) || 0;
-    let dAmount = 0;
-
-    if (isEnabled && dVal > 0) {
-      if (dType === 'percentage') {
-        dAmount = Math.round((grossCommission * Math.min(100, Math.max(0, dVal))) / 100);
-      } else {
-        dAmount = Math.round(Math.min(grossCommission, Math.max(0, dVal)));
-      }
+    if (!this.adminCommission) {
+      this.adminCommission = { type: 'percentage', rate: 2, amount: Math.round((propPrice * 2) / 100) };
+    } else {
+      const cType = this.adminCommission.type === 'fixed' ? 'fixed' : 'percentage';
+      const cRate = cType === 'percentage' ? (Number(this.adminCommission.rate) >= 0 ? Number(this.adminCommission.rate) : 2) : 0;
+      const cAmount = cType === 'percentage' ? Math.round((propPrice * cRate) / 100) : Math.round(Number(this.adminCommission.amount || 0));
+      this.adminCommission.type = cType;
+      this.adminCommission.rate = cRate;
+      this.adminCommission.amount = cAmount;
     }
 
-    this.commissionDiscount.enabled = isEnabled;
-    this.commissionDiscount.discountType = dType;
-    this.commissionDiscount.discountValue = dVal;
-    this.commissionDiscount.discountAmount = dAmount;
-    this.commissionDiscount.netCommission = Math.max(0, grossCommission - dAmount);
-    this.commissionDiscount.discountOnCommissionOnly = true;
+    const grossCommission = Number(this.adminCommission.amount) || 0;
+    if (!this.commissionDiscount) {
+      this.commissionDiscount = {
+        enabled: false,
+        discountType: 'percentage',
+        discountValue: 0,
+        discountAmount: 0,
+        netCommission: grossCommission,
+        discountOnCommissionOnly: true,
+        notes: '',
+      };
+    } else {
+      const isEnabled = Boolean(this.commissionDiscount.enabled);
+      const dType = this.commissionDiscount.discountType === 'fixed' ? 'fixed' : 'percentage';
+      const dVal = Number(this.commissionDiscount.discountValue) || 0;
+      let dAmount = 0;
+
+      if (isEnabled && dVal > 0) {
+        if (dType === 'percentage') {
+          dAmount = Math.round((grossCommission * Math.min(100, Math.max(0, dVal))) / 100);
+        } else {
+          dAmount = Math.round(Math.min(grossCommission, Math.max(0, dVal)));
+        }
+      }
+
+      this.commissionDiscount.enabled = isEnabled;
+      this.commissionDiscount.discountType = dType;
+      this.commissionDiscount.discountValue = dVal;
+      this.commissionDiscount.discountAmount = dAmount;
+      this.commissionDiscount.netCommission = Math.max(0, grossCommission - dAmount);
+      this.commissionDiscount.discountOnCommissionOnly = true;
+    }
   }
 });
 
@@ -609,6 +810,81 @@ propertySchema.virtual('averageRating').get(function () {
 
 propertySchema.virtual('totalRatings').get(function () {
   return Number(this.reviewsCount) || 0;
+});
+
+// Virtuals for multiple BHK configurations
+propertySchema.virtual('hasMultipleBhk').get(function () {
+  return Array.isArray(this.bhkConfigurations) && this.bhkConfigurations.length > 0;
+});
+
+propertySchema.virtual('bhkSummary').get(function () {
+  if (Array.isArray(this.bhkConfigurations) && this.bhkConfigurations.length > 0) {
+    const types = this.bhkConfigurations
+      .map((b) => b.bhk || b.bhkType)
+      .filter(Boolean);
+    return [...new Set(types)].join(', ');
+  }
+  return this.bedrooms ? `${this.bedrooms} BHK` : '';
+});
+
+// Virtual for Admin Sale Confirmation status
+propertySchema.virtual('isPendingSaleConfirmation').get(function () {
+  return this.saleStatus === 'marked_as_sold';
+});
+
+// Virtual for unified Property Gallery (photos and short videos with type tags)
+propertySchema.virtual('gallery').get(function () {
+  const isVideoCheck = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    try {
+      const decoded = decodeURIComponent(url).toLowerCase();
+      const cleanPath = decoded.split('?')[0];
+      return (
+        /\.(mp4|webm|mov|m4v|mkv|avi|3gp)$/i.test(cleanPath) ||
+        decoded.includes('/video/') ||
+        decoded.includes('/videos/') ||
+        decoded.includes('video/mp4') ||
+        decoded.includes('format=mp4') ||
+        decoded.includes('contenttype=video') ||
+        decoded.includes('uploads%2fvideo') ||
+        decoded.includes('uploads/video')
+      );
+    } catch (_) {
+      return /\.(mp4|webm|mov|m4v|mkv|avi|3gp)/i.test(url) || url.toLowerCase().includes('video');
+    }
+  };
+
+  const photos = (this.images || []).map((url) => ({
+    url,
+    type: isVideoCheck(url) ? 'video' : 'image',
+  }));
+  const vids = (this.videos || this.propertyVideos || []).map((url) => ({
+    url,
+    type: 'video',
+  }));
+
+  const seen = new Set();
+  const result = [];
+  for (const item of [...photos, ...vids]) {
+    if (item.url && !seen.has(item.url)) {
+      seen.add(item.url);
+      result.push(item);
+    }
+  }
+  return result;
+});
+
+// Virtual aliases for photos and primary video
+propertySchema.virtual('photos').get(function () {
+  return this.images || [];
+});
+
+propertySchema.virtual('video').get(function () {
+  return (this.videos && this.videos[0]) || (this.propertyVideos && this.propertyVideos[0]) || null;
+});
+
+propertySchema.virtual('videoUrl').get(function () {
+  return (this.videos && this.videos[0]) || (this.propertyVideos && this.propertyVideos[0]) || null;
 });
 
 // Indexes for fast searching & filtering

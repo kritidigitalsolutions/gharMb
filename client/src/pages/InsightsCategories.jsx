@@ -7,6 +7,7 @@ import {
   X, Check, Search, Eye, EyeOff
 } from 'lucide-react';
 import API from '../api/api';
+import Badge from '../components/ui/Badge';
 
 const InsightsCategories = () => {
   const [categories, setCategories] = useState([]);
@@ -315,9 +316,9 @@ const InsightsCategories = () => {
               <h1 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
                 Editorial Categories
               </h1>
-              <span className="px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-md">
+              <Badge color="slate" variant="pastel" size="xs">
                 {categories.length} total
-              </span>
+              </Badge>
             </div>
             <p className="text-xs text-[var(--text-muted)] mt-1">
               Organize real estate insights into topic taxonomies for discovery on the public portal.
@@ -502,11 +503,20 @@ const InsightsCategories = () => {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="w-full overflow-hidden">
+            <table className="w-full text-left border-collapse table-fixed">
+              <colgroup>
+                <col className="w-[5%]" />
+                <col className="w-[30%]" />
+                <col className="w-[20%]" />
+                <col className="w-[15%]" />
+                <col className="w-[12%]" />
+                <col className="w-[10%]" />
+                <col className="w-[8%]" />
+              </colgroup>
               <thead>
-                <tr className="border-b border-[var(--border)] bg-slate-50/70 dark:bg-slate-800/40 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                  <th className="py-3 px-3.5 w-10">
+                <tr className="border-b border-[var(--border)] bg-[var(--bg-muted)]/50 text-[11px] font-semibold text-[var(--text-muted)]">
+                  <th className="py-2 px-2 text-center align-middle">
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -518,12 +528,12 @@ const InsightsCategories = () => {
                       title="Select all"
                     />
                   </th>
-                  <th className="py-3 px-4 min-w-[200px]">Category</th>
-                  <th className="py-3 px-4 min-w-[160px]">Slug Key</th>
-                  <th className="py-3 px-4 min-w-[120px]">Articles Count</th>
-                  <th className="py-3 px-4 min-w-[100px]">Status</th>
-                  <th className="py-3 px-4 min-w-[110px]">Created</th>
-                  <th className="py-3 px-4 text-right min-w-[90px]">Actions</th>
+                  <th className="py-2 px-3 align-middle">Category</th>
+                  <th className="py-2 px-3 align-middle">Slug Key</th>
+                  <th className="py-2 px-3 align-middle">Articles Count</th>
+                  <th className="py-2 px-3 align-middle text-center">Status</th>
+                  <th className="py-2 px-3 align-middle">Created</th>
+                  <th className="py-2 px-3 text-right align-middle">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)] text-xs">
@@ -542,11 +552,11 @@ const InsightsCategories = () => {
                       key={cat._id}
                       className={`transition-colors duration-100 ${
                         isSelected
-                          ? 'bg-orange-50/40 dark:bg-orange-950/20'
-                          : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/30'
+                          ? 'bg-brand/5 dark:bg-brand/10'
+                          : 'hover:bg-[var(--bg-muted)]/40'
                       }`}
                     >
-                      <td className="py-3 px-3.5">
+                      <td className="py-1.5 px-2 text-center align-middle">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -555,65 +565,60 @@ const InsightsCategories = () => {
                         />
                       </td>
 
-                      <td className="py-3 px-4 font-medium text-[var(--text-primary)]">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 shrink-0">
-                            <Folder size={13} />
+                      <td className="py-1.5 px-3 font-medium text-[var(--text-primary)] align-middle min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-6 h-6 rounded-md bg-[var(--bg-muted)] flex items-center justify-center text-slate-500 shrink-0">
+                            <Folder size={12} />
                           </div>
-                          <span className="font-semibold text-[13px]">{cat.name}</span>
+                          <span className="font-semibold text-xs truncate">{cat.name}</span>
                         </div>
                       </td>
 
-                      <td className="py-3 px-4 font-mono text-[11px] text-slate-400">
+                      <td className="py-1.5 px-3 font-mono text-[10px] text-[var(--text-muted)] align-middle min-w-0 truncate">
                         /{cat.slug}
                       </td>
 
-                      <td className="py-3 px-4">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 text-slate-700 dark:text-slate-300 text-[11px] font-medium">
-                          <FileText size={11} className="text-slate-400" />
-                          <span>{cat.articleCount || 0} article{cat.articleCount === 1 ? '' : 's'}</span>
-                        </span>
+                      <td className="py-1.5 px-3 align-middle min-w-0">
+                        <Badge color="sky" variant="pastel" size="xs" icon={<FileText size={10} className="shrink-0" />}>
+                          {cat.articleCount || 0} article{cat.articleCount === 1 ? '' : 's'}
+                        </Badge>
                       </td>
 
-                      <td className="py-3 px-4 whitespace-nowrap">
+                      <td className="py-1.5 px-3 text-center align-middle whitespace-nowrap">
                         <button
+                          type="button"
                           onClick={() => handleToggleActive(cat)}
                           title="Click to toggle visibility"
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer ${
-                            cat.isActive
-                              ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
-                          }`}
+                          className="inline-flex cursor-pointer transition-transform active:scale-95"
                         >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              cat.isActive ? 'bg-emerald-500' : 'bg-slate-400'
-                            }`}
-                          />
-                          <span>{cat.isActive ? 'Active on Site' : 'Hidden'}</span>
+                          {cat.isActive ? (
+                            <Badge.Active size="xs">Active</Badge.Active>
+                          ) : (
+                            <Badge.Offline size="xs">Hidden</Badge.Offline>
+                          )}
                         </button>
                       </td>
 
-                      <td className="py-3 px-4 text-[11px] text-slate-500 whitespace-nowrap">
+                      <td className="py-1.5 px-3 text-[10px] text-[var(--text-muted)] whitespace-nowrap align-middle">
                         {createdDate}
                       </td>
 
-                      <td className="py-3 px-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="py-1.5 px-3 text-right whitespace-nowrap align-middle">
+                        <div className="inline-flex items-center justify-end gap-1 shrink-0">
                           <button
                             onClick={() => handleOpenEdit(cat)}
-                            className="p-1 rounded-md text-slate-400 hover:text-[var(--text-primary)] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                            className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                             title="Edit Category"
                           >
-                            <Edit size={14} />
+                            <Edit size={12} />
                           </button>
 
                           <button
                             onClick={() => handleOpenDelete(cat)}
-                            className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                            className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-rose-600 hover:border-rose-300 dark:hover:border-rose-900/50 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                             title="Delete Category"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </td>

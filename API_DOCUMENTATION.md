@@ -86,7 +86,8 @@ This documentation provides an exhaustive, role-based technical blueprint of all
 ### Public Feeds (No Login Required)
 | Method | Endpoint | What it Does | For What (Use Case & Role) | From What (Required Inputs) | What it Returns |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/api/properties` | Queries and filters active live property listings | Home search bar, explore feeds, price filters | **Query Params:** `page`, `limit`, `listingFor` (sale/rent), `propertyType`, `city`, `minPrice`, `maxPrice`, `bedrooms`, `readyToMove`, `keyHandover` | Paginated array of property cards with media and pricing |
+| `GET` | `/api/properties` | Queries and filters active live property listings | Home search bar, explore feeds, price filters | **Query Params:** `page`, `limit`, `listingFor` (sale/rent), `propertyType`, `city`, `minPrice`, `maxPrice`, `bedrooms`, `readyToMove`, `keyHandover`, `role` (`builder`\|`agent`\|`owner`), `newProjects` (`true`) | Paginated array of property cards with media and pricing |
+| `GET` | `/api/properties/new-projects` | Returns **strictly and only properties created by verified Developers/Builders** | "New Projects" mobile screen and public directory | **Query Params:** `city`, `propertyType`, `minPrice`, `maxPrice`, `bedrooms`, `page`, `limit` | Paginated array of developer/builder properties (0% platform commission, RERA verified) |
 | `GET` | `/api/properties/latest` | Fetches recently listed residential & commercial properties | "New on GharMB" home carousel | **Query Params:** `page=1`, `limit=10` | Array of the 10 newest live properties |
 | `GET` | `/api/properties/verified` | Returns listings physically or legally verified by GharMB | "Verified Properties" trust section | **Query Params:** `page=1`, `limit=20` | Properties with `isVerified: true` flag |
 | `GET` | `/api/properties/near-me` | Performs geospatial GPS search based on radius | "Properties Near You" mobile location map | **Query Params:** `lat`, `lng`, `radius` (e.g. 50), `radiusUnit` (km/miles) | Properties sorted by geographical distance |
@@ -206,15 +207,50 @@ On all property endpoints (`/api/properties`, `/api/properties/:id`, `/api/prope
 
 ---
 
-## 8. Leads, Inquiries & Contact Forms
+## 8. Leads, Inquiries & Contact Forms ("Inquiry Now" Pipeline)
+
+> 💡 **Unified Admin Dispatch Architecture**:
+> Just like **Schedule Visit** (`visit_booking`) and **Token Requests** (`token_request`), every **"Inquiry Now"** submission is dispatched directly into the **GharMB Admin Panel** (`/admin/enquiries` and `/admin/notifications` with `type: 'enquiry'`).
+> - **Zero Login Friction**: Supports both authenticated users (via `Bearer <token>`) and public/guest visitors (providing `name`, `phone`, `email`).
+> - **Instant Admin Notification**: Generates an admin alert with real-time push/audio notifications, client contact chips, and 1-click links to the Enquiries Desk.
+> - **Counters**: Automatically increments `inquiriesCount` on the corresponding Property Listing or Developer Project.
 
 | Method | Endpoint | What it Does | For What (Use Case & Role) | From What (Required Inputs) | What it Returns |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/api/users/enquiries` | Submits general lead / enquiry on a property | Buyer clicking "Contact Owner / Send Enquiry" | **Header:** `Bearer <userToken>`<br>**Body:** `{ "propertyId": "...", "name": "...", "phone": "...", "message": "...", "moveInDate": "..." }` | Saved inquiry document + SMS/Email dispatch |
-| `POST` | `/api/users/enquiries/developer` | Submits developer sales lead on a project | Buyer requesting callback from developer sales desk | **Header:** `Bearer <userToken>`<br>**Body:** `{ "developerId": "...", "projectId": "...", "unitType": "3BHK", "budget": "1.2 Cr" }` | Lead assigned to developer CRM |
-| `GET` | `/api/users/enquiries/my-enquiries` | Retrieves inquiries sent by the buyer | Buyer tracking contact requests | **Header:** `Bearer <userToken>` | List of user's submitted inquiries |
-| `GET` | `/api/users/enquiries/received` | Retrieves inquiries received by owner/builder | Owner / Broker lead management desk | **Header:** `Bearer <userToken>` | Incoming inquiries with caller phone numbers |
-| `POST` | `/api/web-inquiries` | Submits public contact / enterprise inquiry form | Website footer "Contact Us" form | **Body:** `{ "name": "...", "email": "...", "phone": "...", "subject": "...", "message": "..." }` | Stored in admin web inquiry inbox |
+| `POST` | `/api/users/enquiries`<br>*(Aliases: `/api/enquiries`, `/api/inquiries`)* | **"Inquiry Now"** for Property Listings OR Developer Projects | Buyer/Guest clicking **"Inquiry Now"** on any property card, PDP, or developer card | **Header:** `Bearer <userToken>` *(optional)*<br>**Body (JSON):**<br>• `propertyId` *(String, optional)*: Target property ID<br>• `projectId` *(String, optional)*: Target project ID<br>• `developerId` *(String, optional)*: Target developer ID<br>• `name` *(String, required for guests)*: Client's full name<br>• `phone` *(String, required for guests)*: Contact mobile<br>• `email` *(String, optional)*: Contact email<br>• `message` *(String, optional)*: Question or enquiry notes<br>• `visitPreferredDate` *(ISO Date, optional)*: Preferred visit date<br>• `visitTimeSlot` *(String, optional)*: e.g. `"11:00 AM - 01:00 PM"`<br>• `budget` *(String, optional)*: e.g. `"₹50 Lac"`<br>• `channel` *(String, optional)*: e.g. `"Webpage Inquiry Now"`, `"Mobile App"` | `{ status: "success", message: "Inquiry received by GharMB Admin. Our project coordinator will contact you shortly.", data: { enquiry, type: "property" \| "project" } }` |
+| `POST` | `/api/users/enquiries/developer` | Dedicated Developer Project Enquiry | Buyer submitting specific builder enquiry with unit type & budget | **Header:** `Bearer <userToken>` *(optional)*<br>**Body:** `{ "projectId": "...", "developerId": "...", "name": "...", "phone": "...", "unitType": "3BHK", "budget": "1.2 Cr", "message": "..." }` | Stored in Developer Enquiries desk + Admin notification dispatched |
+| `GET` | `/api/users/enquiries/my-enquiries` | Retrieves inquiries sent by the logged-in user | Buyer tracking their inquiries in "My Enquiries" screen | **Header:** `Bearer <userToken>` | List of user's submitted inquiries with status (`pending`, `contacted`, `resolved`) |
+| `GET` | `/api/users/enquiries/received` | Retrieves inquiries received by property owner / broker | Owner viewing buyer leads for their listings | **Header:** `Bearer <userToken>` | Incoming inquiries with caller contact details |
+| `POST` | `/api/web-inquiries` | Submits general contact / enterprise inquiry form | Website footer / Contact Us page | **Body:** `{ "name": "...", "email": "...", "phone": "...", "subject": "...", "message": "..." }` | Stored in admin web inquiry inbox + Admin alert |
+
+#### 📋 Example: "Inquiry Now" Front-End Code Snippet (React / Mobile App)
+```javascript
+// Works for both logged-in users (reads auth token from localStorage) and guest visitors
+export const submitInquiryNow = async ({ propertyId, projectId, developerId, name, phone, email, message, visitPreferredDate, visitTimeSlot }) => {
+  const token = localStorage.getItem('token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const response = await fetch('http://localhost:5001/api/users/enquiries', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      propertyId,         // pass if inquiring about a property
+      projectId,          // pass if inquiring about a project
+      developerId,        // optional developer ID
+      name,               // required if guest
+      phone,              // required if guest
+      email,
+      message: message || 'I am interested in this listing. Please provide more details.',
+      visitPreferredDate, // optional: e.g. "2026-10-25"
+      visitTimeSlot,      // optional: e.g. "11:00 AM - 01:00 PM"
+      channel: 'Webpage Inquiry Now'
+    }),
+  });
+
+  return await response.json();
+};
+```
 
 ---
 
@@ -247,10 +283,10 @@ On all property endpoints (`/api/properties`, `/api/properties/:id`, `/api/prope
 
 | Method | Endpoint | What it Does | For What (Use Case & Role) | From What (Required Inputs) | What it Returns |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/api/upload/single` | Uploads a single image, document, or PDF | Profile avatar, single KYC document | **Header:** `Bearer <token>`<br>**Body (Multipart):** `file: (Binary)` | `{ url: "/uploads/image-123.jpg", originalName: "...", size: 1024 }` |
-| `POST` | `/api/upload/multiple` | Uploads batch of images or files | Property photos, floor plans, gallery | **Header:** `Bearer <token>`<br>**Body (Multipart):** `files: [(Binary), (Binary)]` | Array of `{ url, originalName, size }` |
-| `POST` | `/api/upload/property/:id` | Uploads and directly links files to a property | Post-creation document upload | **Path:** `:id`<br>**Body:** Multipart `files` | Property object updated with new image URLs |
-| `POST` | `/api/upload/project/:id` | Uploads project brochures, master plans, 3D renders | Builder uploading project media | **Path:** `:id`<br>**Body:** Multipart `files` | Project object updated |
+| `POST` | `/api/upload/single` | Uploads a single image, short video clip, document, or PDF (up to 100MB) | Profile avatar, single KYC document, promo video clip | **Header:** `Bearer <token>`<br>**Body (Multipart):** `file: (Binary)` | `{ url: "/uploads/file-123.mp4", originalName: "...", size: 1024 }` |
+| `POST` | `/api/upload/multiple` | Uploads batch of images, short videos, or files (up to 100MB each) with auto project/property linking | Property photos, project gallery videos, floor plans | **Header:** `Bearer <token>`<br>**Query / Body:** `projectId`, `propertyId`<br>**Body (Multipart):** `files: [(Binary), (Binary)]` | Array of `{ url, originalName, size, mimeType }` and updated project/property with `projectVideos` |
+| `POST` | `/api/upload/property/:id` | Uploads and directly links files to a property | Post-creation document and image upload | **Path:** `:id`<br>**Body:** Multipart `files` | Property object updated with new image URLs |
+| `POST` | `/api/upload/project/:id` | Uploads project gallery short videos, photos, brochures, master plans | Builder / Admin uploading project media & video walkthroughs | **Path:** `:id`<br>**Body:** Multipart `files` (keys: `projectVideos`, `projectPhotos`, `masterPlan`, `floorPlan`, `brochure`) | Project object updated with `projectVideos`, `projectPhotos`, and unified `gallery` |
 
 ---
 
@@ -287,9 +323,12 @@ On all property endpoints (`/api/properties`, `/api/properties/:id`, `/api/prope
 
 | Method | Endpoint | What it Does | For What (Use Case & Role) | From What (Required Inputs) | What it Returns |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/api/admin/properties` | Lists all platform properties with admin filters | Property Moderation Table | **Header:** `Bearer <adminToken>`<br>**Query:** `status=all \| pending \| approved`, `page`, `limit` | Paginated properties with seller details |
-| `PATCH` | `/api/admin/properties/:id/status` | Approves or rejects a property listing (supports optional commission & discount payload at verification) | Admin reviewing and publishing listings | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "approvalStatus": "approved", "adminCommission": { "type": "percentage", "rate": 2 }, "commissionDiscount": { "enabled": true, "discountType": "percentage", "discountValue": 25 } }` | Listing goes live with commission & discount |
-| `PATCH` | `/api/admin/properties/:id/commission-discount` | Configures / edits Admin Commission and Buyer Discount on commission anytime | Admin configuring or editing discount later | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "adminCommission": { "type": "percentage" \| "fixed", "rate": 2 }, "commissionDiscount": { "enabled": true, "discountType": "percentage" \| "fixed", "discountValue": 25, "notes": "Diwali Offer" } }` | Updated commission, discount, and buyer pricing |
+| `GET` | `/api/admin/properties` | Lists all platform properties with admin filters (supports `saleStatus` and `isSold`) | Property Moderation Table | **Header:** `Bearer <adminToken>`<br>**Query:** `status=all \| pending \| approved`, `saleStatus`, `isSold`, `page`, `limit` | Paginated properties with seller details, BHK configurations, and sale status |
+| `PATCH` | `/api/admin/properties/:id/status` | Approves or rejects a property listing (supports optional commission & discount payload at verification; enforces 0% commission for Developer/Builder listings) | Admin reviewing and publishing listings | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "approvalStatus": "approved", "adminCommission": { "type": "percentage", "rate": 2 }, "commissionDiscount": { "enabled": true, "discountType": "percentage", "discountValue": 25 } }` | Listing goes live with commission & discount (0% if developer) |
+| `PATCH` | `/api/admin/properties/:id/commission-discount` | Configures / edits Admin Commission and Buyer Discount on commission anytime (developer listings are locked at 0%) | Admin configuring or editing discount later | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "adminCommission": { "type": "percentage" \| "fixed", "rate": 2 }, "commissionDiscount": { "enabled": true, "discountType": "percentage" \| "fixed", "discountValue": 25, "notes": "Diwali Offer" } }` | Updated commission, discount, and buyer pricing |
+| `PATCH` | `/api/admin/properties/:id/mark-sold` | Marks a property as sold and schedules a sale confirmation notification after 3 days. **Property remains active and displayed in the app** until confirmed. | Admin Property Sale Management workflow | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "notes": "Token received", "triggerDays": 3 }` | Property updated with `saleStatus: "marked_as_sold"`, `soldMarkedAt`, `saleConfirmationDueDate` |
+| `PATCH` | `/api/admin/properties/:id/confirm-sale` | Confirms or rejects a property sale status.<br>• If `confirmed: true`: sets `isSold: true`, `isLive: false`, `saleStatus: "sold"`. **Property is permanently hidden from app displays**.<br>• If `confirmed: false`: sets `isSold: false`, `isLive: true`, `saleStatus: "available"`. **Property remains active in app**. | Sale confirmation decision after 3 days | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "confirmed": true \| false, "notes": "Sale deed executed" }` | Updated property record |
+| `GET` | `/api/admin/properties/check-sale-confirmations` | Manually triggers the sale confirmation scheduler to dispatch due 3-day notifications to Admins & Owners | Background scheduler / manual sync | **Header:** `Bearer <adminToken>` | `{ status: "success", triggeredCount: N }` |
 | `PATCH` | `/api/admin/properties/:id/featured` | Marks property as "Featured" on homepage | Admin highlighting premium listings | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "isFeatured": true }` | Featured status updated |
 | `DELETE` | `/api/admin/properties/:id` | Permanently deletes a property listing | Removing spam or violating listings | **Header:** `Bearer <adminToken>`<br>**Path:** `:id` | Deleted confirmation |
 | `GET` | `/api/admin/users` | Lists all registered buyers, sellers, agents, developers | User Management CRM | **Header:** `Bearer <adminToken>`<br>**Query:** `role`, `status`, `search` | User list with verification flags |
@@ -301,6 +340,61 @@ On all property endpoints (`/api/properties`, `/api/properties/:id`, `/api/prope
 | `POST` | `/api/admin/tokens` | Manually records a token reservation request | Admin entering offline booking on behalf of client | **Header:** `Bearer <adminToken>`<br>**Body:** `{ buyerName, buyerPhone, propertyId, tokenAmount, notes, ... }` | New token record created |
 | `PATCH` | `/api/admin/tokens/:id/status` | Moderates token booking status (Accept / Reject / Cancel) | Admin resolving or assisting buyer-owner token disputes | **Header:** `Bearer <adminToken>`<br>**Body:** `{ "status": "accepted" \| "rejected" \| "cancelled", "notes": "..." }` | Updated token record |
 | `DELETE` | `/api/admin/tokens/:id` | Deletes a token request record | Database cleanup | **Header:** `Bearer <adminToken>`<br>**Path:** `:id` | Deleted confirmation |
+
+---
+
+### 🛡️ Core Business Rules Reference
+
+#### 1. Developer Property Commission (0% Policy)
+- Property listings created by **Developers / Builders** (`listingAs === 'Builder'` or `role === 'builder'`) carry **0% Platform Commission**.
+- Whenever a developer listing is created or approved, `adminCommission` is forced to `{ type: 'percentage', rate: 0, amount: 0 }`.
+- Platform fees and commissions are never added to developer inventory.
+
+#### 2. Multiple BHK Options & Custom Pricing
+- Developers / Builders can attach an array of `bhkConfigurations` to a single property listing. Each configuration contains **strictly and only** the BHK option and its custom price (no extra fields):
+  ```json
+  "bhkConfigurations": [
+    {
+      "bhk": "1 BHK",
+      "price": 6500000
+    },
+    {
+      "bhk": "2 BHK",
+      "price": 12500000
+    },
+    {
+      "bhk": "3 BHK",
+      "price": 18500000
+    }
+  ]
+  ```
+- If a listing includes `bhkConfigurations`, the root `price` is automatically derived from the lowest BHK option for baseline sorting and search display.
+- Each BHK configuration specifies strictly its own BHK label (e.g., `'1 BHK'`, `'2 BHK'`, `'3 BHK'`) and **custom price**. Extra fields are excluded.
+
+#### 3. Role-Based Property Listing Restrictions
+- Initially, users select their role: **Property Owner**, **Agent**, or **Developer**.
+- **Owner Role:** May list properties strictly as `Owner`. Attempting to list as Agent or Builder returns HTTP `403 Forbidden`.
+- **Agent Role:** May list properties strictly as `Agent`. Attempting to list as Owner or Builder returns HTTP `403 Forbidden`.
+- **Developer Role:** May list properties strictly as `Builder`. Attempting to list as Owner or Agent returns HTTP `403 Forbidden`.
+- Cross-role listings under a selected option are strictly blocked.
+
+#### 4. Security Deposit and Duration Removal for Sale Listings
+- For any property where `listingFor === 'Sale'`, the `securityDeposit` and `securityDepositDuration` fields are **completely removed** from the form and data model (automatically cleared to `undefined`).
+- Security deposits only apply to rental properties (`listingFor === 'Rent'`).
+
+#### 5. 15. Admin Property Sale Management Workflow
+1. **Mark as Sold Button:** Admin clicks "Mark as Sold" in Admin Panel (`PATCH /api/admin/properties/:id/mark-sold`).
+2. **3-Day Notification Trigger:** Property enters `saleStatus: 'marked_as_sold'`. A background scheduler triggers a confirmation notification 3 days after marking (`saleConfirmationDueDate`).
+3. **App Display Rule Before Confirmation:** While pending confirmation, the property **remains live and available in the app**.
+4. **Sale Confirmation Decision (`PATCH /api/admin/properties/:id/confirm-sale`):**
+   - **If Sale Confirmed (`confirmed: true`):** `isSold = true`, `isLive = false`, `saleStatus = 'sold'`. The property is **permanently hidden from all app search, feeds, and listings**.
+   - **If Sale Not Confirmed (`confirmed: false`):** `isSold = false`, `isLive = true`, `saleStatus = 'available'`. The property **remains visible and available in the app**.
+
+#### 6. New Projects Page: Display Only Developer / Builder Properties
+- The **New Projects** directory (`GET /api/properties/new-projects` or `GET /api/properties?newProjects=true`) strictly and exclusively returns inventory posted by verified **Developers & Builders** (`userRole: 'builder'`, `role: 'builder'`, `postedByRole: 'Builder'`, or `listingAs: 'Developer / Builder'`).
+- Listings posted by regular **Property Owners** and **Agents** are strictly excluded from the New Projects directory.
+- All listings returned on the New Projects page feature direct builder pricing, 0% platform commission, and verified RERA credentials.
+- Client applications can query `GET /api/properties/new-projects` or pass `?newProjects=true`, `?isNewProjects=true`, `?isProject=true`, or `?role=builder` on `GET /api/properties` to isolate developer inventory.
 
 ### Market Insights & Editorial Knowledge Hub CMS
 | Method | Endpoint | What it Does | For What (Use Case & Role) | From What (Required Inputs) | What it Returns |
