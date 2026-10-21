@@ -17,6 +17,23 @@ const developerEnquirySchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    project: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
+      required: false,
+      index: true,
+    },
+    projectName: {
+      type: String,
+      trim: true,
+    },
+    visitPreferredDate: {
+      type: Date,
+    },
+    visitTimeSlot: {
+      type: String,
+      trim: true,
+    },
     client: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

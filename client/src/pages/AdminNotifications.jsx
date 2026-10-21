@@ -385,6 +385,7 @@ const AdminNotifications = () => {
         }
 
         if (activeTab === 'unread' && notif.isRead) return false;
+        if (activeTab === 'enquiry' && notif.type !== 'enquiry') return false;
         if (activeTab === 'verification' && notif.type !== 'verification') return false;
         if (activeTab === 'visit_booking' && notif.type !== 'visit_booking') return false;
         if (activeTab === 'token_request' && notif.type !== 'token_request') return false;
@@ -393,7 +394,7 @@ const AdminNotifications = () => {
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase().trim();
           const client = getClientInfo(notif);
-          const propTitle = notif.metadata?.propertyId?.title || '';
+          const propTitle = notif.metadata?.propertyId?.title || notif.metadata?.projectId?.projectName || '';
           const matches =
             (notif.title || '').toLowerCase().includes(q) ||
             (notif.message || '').toLowerCase().includes(q) ||
@@ -564,9 +565,10 @@ const AdminNotifications = () => {
           {[
             { id: 'all', label: 'All', count: counts.total },
             { id: 'unread', label: 'Unread', count: counts.unread },
-            { id: 'verification', label: 'KYC', count: counts.verifications || 0 },
+            { id: 'enquiry', label: 'Inquiries', count: counts.enquiries || 0 },
             { id: 'visit_booking', label: 'Visits', count: counts.visits || 0 },
             { id: 'token_request', label: 'Tokens', count: counts.tokens || 0 },
+            { id: 'verification', label: 'KYC', count: counts.verifications || 0 },
             { id: 'system', label: 'System', count: counts.system || 0 },
           ].map((tab) => {
             const isActive = activeTab === tab.id;

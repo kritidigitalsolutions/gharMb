@@ -31,6 +31,7 @@ import {
   ChevronRight,
   Info
 } from 'lucide-react';
+import Badge from '../components/ui/Badge';
 
 const AgentManagement = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -396,48 +397,57 @@ const AgentManagement = () => {
           )}
         </div>
       ) : (
-        /* CLEAN TABLE VIEW */
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+        /* CLEAN TABLE VIEW (Full-Fit 100% Zero Horizontal Scroll) */
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] overflow-hidden shadow-2xs">
+          <div className="w-full overflow-hidden">
+            <table className="w-full text-left border-collapse table-fixed">
+              <colgroup>
+                <col className="w-[26%]" />
+                <col className="w-[20%]" />
+                <col className="w-[18%]" />
+                <col className="w-[16%]" />
+                <col className="w-[10%]" />
+                <col className="w-[10%]" />
+              </colgroup>
               <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--bg-muted)]/50 text-[var(--text-muted)] font-medium text-[11px]">
-                  <th className="py-2.5 px-3.5">Agent</th>
-                  <th className="py-2.5 px-3.5">RERA Number</th>
-                  <th className="py-2.5 px-3.5">City / Experience</th>
-                  <th className="py-2.5 px-3.5">Submitted Docs</th>
-                  <th className="py-2.5 px-3.5">Status</th>
-                  <th className="py-2.5 px-3.5 text-right">Actions</th>
+                <tr className="border-b border-[var(--border)] bg-[var(--bg-muted)]/40 text-[var(--text-muted)] text-[9.5px] font-semibold uppercase tracking-wider select-none">
+                  <th className="py-2 px-3">Agent Profile</th>
+                  <th className="py-2 px-3">RERA Number</th>
+                  <th className="py-2 px-3">City & Experience</th>
+                  <th className="py-2 px-3">Submitted Docs</th>
+                  <th className="py-2 px-3">Status</th>
+                  <th className="py-2 pl-2 pr-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border)]">
+              <tbody className="divide-y divide-[var(--border)]/60 text-xs">
                 {filteredAgents.map((agent) => (
                   <tr
                     key={agent._id}
                     onClick={() => setSelectedAgent(agent)}
-                    className="hover:bg-[var(--bg-muted)]/40 transition-colors cursor-pointer group"
+                    className="hover:bg-[var(--bg-muted)]/35 transition-colors cursor-pointer group"
                   >
-                    <td className="py-2.5 px-3.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] flex items-center justify-center font-bold text-xs text-[var(--text-primary)] shrink-0 overflow-hidden">
+                    {/* 1. Agent Profile */}
+                    <td className="py-1.5 px-3 align-middle overflow-hidden">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] flex items-center justify-center font-bold text-xs text-[var(--text-primary)] shrink-0 overflow-hidden">
                           {agent.avatar ? (
                             <img src={agent.avatar} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <span>{agent.name.slice(0, 2).toUpperCase()}</span>
                           )}
                         </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-xs text-[var(--text-primary)] truncate group-hover:text-brand transition-colors">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-xs text-[var(--text-primary)] truncate group-hover:text-brand transition-colors leading-tight">
                             {agent.name}
                           </p>
-                          <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] font-mono">
+                          <div className="flex items-center gap-1.5 text-[10.5px] text-[var(--text-muted)] font-mono mt-0.5 leading-tight truncate">
                             <span>{agent.phone}</span>
                             {agent.phone && agent.phone !== 'N/A' && (
-                              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                                 <button
                                   type="button"
                                   onClick={() => setCallTarget(agent)}
-                                  className="hover:text-emerald-500 cursor-pointer"
+                                  className="text-[var(--text-muted)] hover:text-sky-500 cursor-pointer p-0.5"
                                   title="Call"
                                 >
                                   <Phone size={10} />
@@ -446,7 +456,7 @@ const AgentManagement = () => {
                                   href={`https://wa.me/${agent.phone.replace(/[^0-9]/g, '')}`}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="hover:text-emerald-500"
+                                  className="text-[var(--text-muted)] hover:text-emerald-500 p-0.5"
                                   title="WhatsApp"
                                 >
                                   <MessageCircle size={10} />
@@ -458,36 +468,47 @@ const AgentManagement = () => {
                       </div>
                     </td>
 
-                    <td className="py-2.5 px-3.5">
-                      <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[var(--bg-muted)]/60 border border-[var(--border)] font-mono text-xs text-[var(--text-primary)]">
-                        <span>{agent.reraNumber}</span>
-                        {agent.reraNumber && agent.reraNumber !== 'Not provided' && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyToClipboard(agent.reraNumber, 'RERA Number');
-                            }}
-                            className="text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
-                            title="Copy RERA number"
-                          >
-                            <Copy size={11} />
-                          </button>
-                        )}
+                    {/* 2. RERA License */}
+                    <td className="py-1.5 px-3 align-middle overflow-hidden">
+                      <div className="min-w-0">
+                        <div className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-[var(--text-primary)] truncate">
+                          <span className="truncate">{agent.reraNumber}</span>
+                          {agent.reraNumber && agent.reraNumber !== 'Not provided' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(agent.reraNumber, 'RERA Number');
+                              }}
+                              className="text-[var(--text-muted)] hover:text-brand cursor-pointer shrink-0 p-0.5"
+                              title="Copy RERA number"
+                            >
+                              <Copy size={10} />
+                            </button>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-[var(--text-muted)] block truncate mt-0.5 leading-tight">
+                          {agent.id}
+                        </span>
                       </div>
                     </td>
 
-                    <td className="py-2.5 px-3.5 text-[var(--text-muted)]">
-                      <div className="flex items-center gap-1 text-xs">
-                        <MapPin size={11} className="text-zinc-400" />
-                        <span className="text-[var(--text-primary)] font-medium">{agent.cityOfOperation}</span>
-                        <span>•</span>
-                        <span>{agent.experience}</span>
+                    {/* 3. City & Experience */}
+                    <td className="py-1.5 px-3 align-middle overflow-hidden">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1 text-xs font-medium text-[var(--text-primary)] truncate">
+                          <MapPin size={11} className="text-brand shrink-0 opacity-80" />
+                          <span className="truncate">{agent.cityOfOperation}</span>
+                        </div>
+                        <span className="text-[10px] text-[var(--text-muted)] block pl-3.5 truncate leading-tight mt-0.5">
+                          {agent.experience}
+                        </span>
                       </div>
                     </td>
 
-                    <td className="py-2.5 px-3.5" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-1.5 text-[10px]">
+                    {/* 4. Submitted Docs */}
+                    <td className="py-1.5 px-3 align-middle whitespace-nowrap overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-1 text-[9.5px]">
                         <span
                           onClick={() => {
                             if (agent.hasReraDoc) {
@@ -498,15 +519,14 @@ const AgentManagement = () => {
                               });
                             }
                           }}
-                          className={`px-1.5 py-0.5 rounded border inline-flex items-center gap-0.5 ${
+                          className={`px-1.5 py-0.2 rounded font-semibold inline-flex items-center gap-0.5 ${
                             agent.hasReraDoc
-                              ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 cursor-pointer hover:bg-purple-500/20'
-                              : 'bg-zinc-500/5 text-zinc-400 border-zinc-500/10'
+                              ? 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20 cursor-pointer hover:bg-purple-500/20'
+                              : 'bg-[var(--bg-muted)] text-[var(--text-muted)] border border-[var(--border)] opacity-60'
                           }`}
                         >
                           <FileText size={9} />
                           <span>RERA</span>
-                          <span>{agent.hasReraDoc ? '✓' : '—'}</span>
                         </span>
 
                         <span
@@ -519,15 +539,14 @@ const AgentManagement = () => {
                               });
                             }
                           }}
-                          className={`px-1.5 py-0.5 rounded border inline-flex items-center gap-0.5 ${
+                          className={`px-1.5 py-0.2 rounded font-semibold inline-flex items-center gap-0.5 ${
                             agent.hasAadhaarDoc
-                              ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20 cursor-pointer hover:bg-sky-500/20'
-                              : 'bg-zinc-500/5 text-zinc-400 border-zinc-500/10'
+                              ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20 cursor-pointer hover:bg-sky-500/20'
+                              : 'bg-[var(--bg-muted)] text-[var(--text-muted)] border border-[var(--border)] opacity-60'
                           }`}
                         >
                           <FileText size={9} />
                           <span>Aadhaar</span>
-                          <span>{agent.hasAadhaarDoc ? '✓' : '—'}</span>
                         </span>
 
                         <span
@@ -540,69 +559,66 @@ const AgentManagement = () => {
                               });
                             }
                           }}
-                          className={`px-1.5 py-0.5 rounded border inline-flex items-center gap-0.5 ${
+                          className={`px-1.5 py-0.2 rounded font-semibold inline-flex items-center gap-0.5 ${
                             agent.hasPhotoDoc
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20'
-                              : 'bg-zinc-500/5 text-zinc-400 border-zinc-500/10'
+                              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20'
+                              : 'bg-[var(--bg-muted)] text-[var(--text-muted)] border border-[var(--border)] opacity-60'
                           }`}
                         >
                           <Eye size={9} />
                           <span>Photo</span>
-                          <span>{agent.hasPhotoDoc ? '✓' : '—'}</span>
                         </span>
                       </div>
                     </td>
 
-                    <td className="py-2.5 px-3.5">
-                      <span
-                        className={`text-[10px] font-medium px-2 py-0.5 rounded border inline-block ${
-                          agent.verificationStatus === 'approved' || agent.isVerified
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                            : agent.verificationStatus === 'pending'
-                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
-                            : agent.verificationStatus === 'rejected'
-                            ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
-                            : 'bg-zinc-500/10 text-zinc-500 border-zinc-500/20'
-                        }`}
-                      >
-                        {agent.verificationStatus === 'approved' || agent.isVerified
-                          ? 'Verified'
-                          : agent.verificationStatus === 'pending'
-                          ? 'Pending'
-                          : agent.verificationStatus === 'rejected'
-                          ? 'Declined'
-                          : 'Unverified'}
-                      </span>
+                    {/* 5. Status */}
+                    <td className="py-1.5 px-3 align-middle whitespace-nowrap overflow-hidden">
+                      {agent.verificationStatus === 'approved' || agent.isVerified ? (
+                        <Badge.Active size="xs">Verified</Badge.Active>
+                      ) : agent.verificationStatus === 'pending' ? (
+                        <Badge color="amber" variant="pastel" size="xs" dot pulse icon={<Clock size={10} className="shrink-0" />}>
+                          Pending
+                        </Badge>
+                      ) : agent.verificationStatus === 'rejected' ? (
+                        <Badge.Offline size="xs">Declined</Badge.Offline>
+                      ) : (
+                        <Badge color="slate" variant="pastel" size="xs">
+                          Unverified
+                        </Badge>
+                      )}
                     </td>
 
-                    <td className="py-2.5 px-3.5 text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-1.5">
-                        {agent.verificationStatus === 'pending' ? (
+                    {/* 6. Actions (Standard Icon-Only Action Buttons) */}
+                    <td className="py-1.5 pl-2 pr-3 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <div className="inline-flex items-center justify-end gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedAgent(agent)}
+                          className="w-6 h-6 rounded-md flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                          title="Inspect Details"
+                        >
+                          <Eye size={12} />
+                        </button>
+
+                        {agent.verificationStatus === 'pending' && (
                           <>
                             <button
                               type="button"
                               onClick={() => handleUpdateStatus(agent, 'approved')}
-                              className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-medium cursor-pointer"
+                              className="w-6 h-6 rounded-md flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                              title="Approve Agent"
                             >
-                              Approve
+                              <Check size={11} strokeWidth={2.5} />
                             </button>
                             <button
                               type="button"
                               onClick={() => setRejectPrompt(agent)}
-                              className="px-2 py-1 rounded border border-[var(--border)] text-rose-500 hover:bg-rose-500/10 text-[11px] font-medium cursor-pointer"
+                              className="w-6 h-6 rounded-md flex items-center justify-center bg-rose-500/10 hover:bg-rose-500 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                              title="Decline Agent"
                             >
-                              Decline
+                              <X size={11} strokeWidth={2.5} />
                             </button>
                           </>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setSelectedAgent(agent)}
-                            className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
-                            title="View Details"
-                          >
-                            <ChevronRight size={14} />
-                          </button>
                         )}
                       </div>
                     </td>

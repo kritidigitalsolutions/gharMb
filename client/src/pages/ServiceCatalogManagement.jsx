@@ -288,7 +288,7 @@ const ServiceCatalogManagement = () => {
     const isSorted = sortField === field;
     return (
       <th
-        className={`py-2.5 px-3.5 align-middle text-${align} whitespace-nowrap cursor-pointer select-none group/th hover:text-[var(--text-primary)] transition-colors`}
+        className={`py-2 px-3 align-middle text-${align} whitespace-nowrap cursor-pointer select-none group/th hover:text-[var(--text-primary)] transition-colors`}
         onClick={() => handleSort(field)}
       >
         <div className={`inline-flex items-center gap-1.5 ${align === 'center' ? 'justify-center' : align === 'right' ? 'justify-end' : ''}`}>
@@ -525,15 +525,22 @@ const ServiceCatalogManagement = () => {
         </div>
 
         {/* ─── DATA TABLE: 100% WIDTH, ZERO HORIZONTAL SCROLL ─── */}
-        <div className="w-full overflow-x-auto">
-          <table className="w-full text-left border-collapse table-auto">
+        <div className="w-full overflow-hidden">
+          <table className="w-full text-left border-collapse table-fixed">
+            <colgroup>
+              <col className="w-[40%]" />
+              <col className="w-[20%]" />
+              <col className="w-[18%]" />
+              <col className="w-[12%]" />
+              <col className="w-[10%]" />
+            </colgroup>
             <thead>
               <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-[11px] font-semibold uppercase tracking-wider bg-[var(--bg-muted)]/50">
                 {renderSortHeader('Service Offering', 'title')}
                 {renderSortHeader('Category', 'category')}
                 {renderSortHeader('Price / Rate', 'price')}
                 <th 
-                  className="py-2.5 px-3.5 align-middle text-center whitespace-nowrap cursor-pointer select-none group/th hover:text-[var(--text-primary)] transition-colors"
+                  className="py-2 px-3 align-middle text-center whitespace-nowrap cursor-pointer select-none group/th hover:text-[var(--text-primary)] transition-colors"
                   onClick={() => handleSort('isActive')}
                 >
                   <div className="inline-flex items-center justify-center gap-1.5">
@@ -541,7 +548,7 @@ const ServiceCatalogManagement = () => {
                     <ArrowUpDown size={11} className={`transition-colors ${sortField === 'isActive' ? 'text-brand' : 'text-slate-400/50 opacity-0 group-hover/th:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="py-2.5 px-3.5 align-middle text-right whitespace-nowrap">Actions</th>
+                <th className="py-2 px-3 align-middle text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
 
@@ -602,20 +609,20 @@ const ServiceCatalogManagement = () => {
                       className="group hover:bg-[var(--bg-muted)]/40 transition-colors duration-150"
                     >
                       {/* 1. Title & Subtitle */}
-                      <td className="py-3 px-3.5 align-middle">
+                      <td className="py-1.5 px-3 align-middle min-w-0">
                         <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors">
+                          <div className="flex items-center gap-1.5 flex-nowrap">
+                            <span className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate">
                               {item.title}
                             </span>
                             {item.badge && (
-                              <span className="text-[9px] font-bold text-brand bg-brand/10 px-1.5 py-0.2 rounded border border-brand/20">
+                              <span className="text-[9px] font-bold text-brand bg-brand/10 px-1 py-0.2 rounded border border-brand/20 shrink-0">
                                 {item.badge}
                               </span>
                             )}
                           </div>
                           {item.subtitle && (
-                            <p className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate max-w-[260px]" title={item.subtitle}>
+                            <p className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate" title={item.subtitle}>
                               {item.subtitle}
                             </p>
                           )}
@@ -623,21 +630,21 @@ const ServiceCatalogManagement = () => {
                       </td>
 
                       {/* 2. Category */}
-                      <td className="py-3 px-3.5 align-middle whitespace-nowrap">
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap min-w-0">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border ${catCfg.color}`}>
                           <span>{catCfg.label}</span>
                         </span>
                       </td>
 
                       {/* 3. Price / Display */}
-                      <td className="py-3 px-3.5 align-middle whitespace-nowrap">
-                        <span className="font-semibold text-xs text-[var(--text-primary)] font-mono">
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap min-w-0">
+                        <span className="font-semibold text-xs text-[var(--text-primary)] font-mono truncate">
                           {item.priceDisplay}
                         </span>
                       </td>
 
                       {/* 4. Active Toggle */}
-                      <td className="py-3 px-3.5 align-middle text-center whitespace-nowrap">
+                      <td className="py-1.5 px-3 align-middle text-center whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => handleToggleActive(item)}
@@ -654,24 +661,24 @@ const ServiceCatalogManagement = () => {
                       </td>
 
                       {/* 7. Actions: Edit, Delete */}
-                      <td className="py-3 px-3.5 align-middle text-right whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1 justify-end">
+                      <td className="py-1.5 px-3 align-middle text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1 justify-end shrink-0">
                           <button
                             type="button"
                             onClick={() => openEditModal(item)}
                             title="Edit Service Offering"
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-brand hover:bg-brand/10 transition-colors cursor-pointer active:scale-90"
+                            className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                           >
-                            <Edit2 size={13} />
+                            <Edit2 size={12} />
                           </button>
 
                           <button
                             type="button"
                             onClick={() => setDeleteConfirmItem(item)}
                             title="Delete Offering"
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer active:scale-90"
+                            className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-rose-600 hover:border-rose-300 dark:hover:border-rose-900/50 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                           >
-                            <Trash2 size={13} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </td>

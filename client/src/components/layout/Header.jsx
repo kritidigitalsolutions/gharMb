@@ -43,22 +43,23 @@ import {
   Coins,
   Calendar,
   MessageSquare,
-  ArrowRight
+  ArrowRight,
+  ChevronDown
 } from 'lucide-react';
 import { logOutOfFirebase } from '../../config/firebase';
 
 // ── Helper: read admin user from localStorage ──────────────────────────────
 const getAdminUser = () => {
   const raw = localStorage.getItem('adminUser') || localStorage.getItem('admin');
-  let user = { name: 'Admin', role: 'Admin', avatar: null, email: 'admin@gharmb.com' };
+  let user = { name: 'Admin', role: 'Super Admin', email: 'admin@gharmb.com' };
   if (raw && raw !== 'undefined' && raw !== 'null') {
     try {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object') {
+        const cleanName = (parsed.name && parsed.name.toLowerCase() !== 'angel') ? parsed.name : 'Admin';
         user = {
-          name: parsed.name || (parsed.email ? parsed.email.split('@')[0] : 'Admin'),
-          role: parsed.role || 'Admin',
-          avatar: parsed.avatar || parsed.photoUrl || parsed.profilePicture || null,
+          name: cleanName,
+          role: parsed.role || 'Super Admin',
           email: parsed.email || 'admin@gharmb.com',
         };
       }
@@ -716,42 +717,83 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
     }
   };
 
+  const displayName = (adminUser.name && adminUser.name.toLowerCase() !== 'angel')
+    ? adminUser.name.split(' ')[0]
+    : 'Admin';
+
   return (
     <>
-      <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-6 bg-[var(--bg-surface)]/90 backdrop-blur-md border-b border-[var(--border)] shrink-0 relative">
-        <div className="flex items-center gap-2 md:gap-3 min-w-0">
+      <header className="sticky top-0 z-30 flex items-center justify-between h-[68px] px-4 md:px-6 bg-white/90 dark:bg-[#141916]/90 backdrop-blur-md border-b border-slate-200/80 dark:border-white/5 shrink-0 relative transition-colors duration-200">
+        <div className="flex items-center gap-3 shrink-0">
           {/* Mobile menu trigger */}
           <button
             type="button"
             onClick={toggleSidebar}
-            className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] md:hidden transition-all duration-200 active:scale-90 shrink-0 cursor-pointer"
+            className="w-10 h-10 rounded-full bg-white dark:bg-[#1a211c] border border-slate-200/80 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white md:hidden transition-all duration-200 active:scale-95 shrink-0 cursor-pointer flex items-center justify-center shadow-[0_2px_6px_rgba(0,0,0,0.02)]"
             title="Open navigation"
           >
             <Menu size={18} />
           </button>
 
           {/* Page Name */}
-          <div className="flex items-center min-w-0">
-            <h1 className="text-sm sm:text-base font-bold text-[var(--text-primary)] tracking-tight truncate whitespace-nowrap">
+          <div className="flex items-center shrink-0">
+            <h1 className="text-base sm:text-lg font-black text-[#133527] dark:text-white tracking-tight whitespace-nowrap">
               {pageTitle}
             </h1>
+          </div>
+
+          {/* Quick Navigation Hub Pills */}
+          <div className="hidden 2xl:flex items-center gap-1 p-1 bg-white dark:bg-[#1a211c] rounded-full border border-slate-200/80 dark:border-white/10 shadow-[0_2px_6px_rgba(0,0,0,0.02)] ml-2">
+            <button
+              type="button"
+              onClick={() => navigate('/admin')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                location.pathname === '/admin'
+                  ? 'bg-[#133527] text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
+              }`}
+            >
+              Dashboard
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/enquiries')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                location.pathname.startsWith('/admin/enquiries')
+                  ? 'bg-[#133527] text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
+              }`}
+            >
+              Enquiries
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/verification')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                location.pathname.startsWith('/admin/verification')
+                  ? 'bg-[#133527] text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
+              }`}
+            >
+              Properties
+            </button>
           </div>
         </div>
 
         {/* Action triggers */}
-        <div className="flex items-center gap-2 md:gap-3 shrink-0">
-          {/* Desktop Search Bar with Directly Attached Dropdown */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          {/* Desktop Pill Search Bar with Attached Dropdown */}
           <div ref={searchContainerRef} className="relative hidden md:block">
             <div
-              className={`flex items-center h-9 w-48 lg:w-64 xl:w-72 bg-[var(--bg-muted)]/60 hover:bg-[var(--bg-muted)] border rounded-xl px-2.5 text-xs transition-all duration-200 ${
+              className={`flex items-center h-10 w-44 lg:w-56 xl:w-68 bg-white dark:bg-[#1a211c] border rounded-full px-3.5 text-xs transition-all duration-200 shadow-[0_2px_6px_rgba(0,0,0,0.02)] ${
                 showSearchResults
-                  ? 'border-[var(--border)] bg-[var(--bg-surface)] shadow-xs'
-                  : 'border-transparent hover:border-[var(--border)]'
+                  ? 'border-[#133527] dark:border-emerald-500 ring-2 ring-[#133527]/15 dark:ring-emerald-500/20'
+                  : 'border-slate-200/80 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20'
               }`}
             >
               <Search
                 size={14}
-                className="shrink-0 text-[var(--text-muted)]"
+                className="shrink-0 text-slate-400 dark:text-slate-500"
               />
               <input
                 ref={searchInputRef}
@@ -763,7 +805,7 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
                 }}
                 onFocus={() => setShowSearchResults(true)}
                 placeholder="Search anything..."
-                className="w-full bg-transparent px-2 py-1 text-xs font-medium text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
+                className="w-full bg-transparent px-2.5 py-1 text-xs font-medium text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none"
               />
               {searchQuery && (
                 <button
@@ -772,17 +814,17 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
                     setSearchQuery('');
                     searchInputRef.current?.focus();
                   }}
-                  className="p-0.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors cursor-pointer shrink-0"
+                  className="p-1 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer shrink-0"
                   title="Clear search"
                 >
-                  <X size={13} />
+                  <X size={12} />
                 </button>
               )}
             </div>
 
             {/* Dropdown directly under the search bar */}
             {showSearchResults && (
-              <div className="absolute top-[calc(100%+8px)] left-0 w-[340px] sm:w-[380px] md:w-[400px] max-w-[calc(100vw-48px)] bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xl z-50 overflow-hidden animate-slide-down origin-top">
+              <div className="absolute top-[calc(100%+8px)] left-0 w-[360px] sm:w-[420px] max-w-[calc(100vw-48px)] bg-white dark:bg-[#1a211c] border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden animate-slide-down origin-top">
                 {renderSearchResults()}
               </div>
             )}
@@ -796,26 +838,26 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
               setShowSearchResults(true);
               setTimeout(() => mobileInputRef.current?.focus(), 50);
             }}
-            className="flex md:hidden p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] rounded-xl transition-all duration-150 cursor-pointer"
+            className="flex md:hidden w-10 h-10 rounded-full bg-white dark:bg-[#1a211c] border border-slate-200/80 dark:border-white/10 items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white shadow-[0_2px_6px_rgba(0,0,0,0.02)] transition-all cursor-pointer"
             title="Search"
           >
-            <Search size={17} />
+            <Search size={16} />
           </button>
 
           {/* Mobile In-Header Search Bar Overlay with Attached Dropdown */}
           {showMobileSearch && (
             <div
               ref={mobileSearchContainerRef}
-              className="absolute inset-x-3 top-2.5 bottom-2.5 z-40 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl flex items-center px-3 gap-2 md:hidden shadow-lg animate-in fade-in duration-150"
+              className="absolute inset-x-3 top-3 bottom-3 z-40 bg-white dark:bg-[#1a211c] border border-slate-200 dark:border-white/10 rounded-full flex items-center px-4 gap-2 md:hidden shadow-lg animate-in fade-in duration-150"
             >
-              <Search size={15} className="text-[var(--text-muted)] shrink-0" />
+              <Search size={15} className="text-slate-400 shrink-0" />
               <input
                 ref={mobileInputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search anything..."
-                className="w-full bg-transparent text-xs font-medium text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
+                className="w-full bg-transparent text-xs font-medium text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none"
                 autoFocus
               />
               <button
@@ -825,254 +867,247 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
                   setShowSearchResults(false);
                   setSearchQuery('');
                 }}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg cursor-pointer shrink-0"
+                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-full cursor-pointer shrink-0"
                 title="Close search"
               >
                 <X size={15} />
               </button>
 
               {/* Dropdown directly under mobile search bar */}
-              <div className="absolute top-[calc(100%+8px)] left-0 right-0 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xl z-50 overflow-hidden animate-slide-down origin-top">
+              <div className="absolute top-[calc(100%+8px)] left-0 right-0 bg-white dark:bg-[#1a211c] border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden animate-slide-down origin-top">
                 {renderSearchResults()}
               </div>
             </div>
           )}
 
-        {/* Notifications */}
-        <div className="relative">
+          {/* ── Notification Bell Button with Dark Round Badge (Matching Image 1) ── */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowNotifications(!showNotifications);
+                setShowProfileMenu(false);
+              }}
+              className={`w-10 h-10 rounded-full bg-white dark:bg-[#1a211c] border border-slate-200/80 dark:border-white/10 shadow-[0_2px_6px_rgba(0,0,0,0.02)] flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[#133527] dark:hover:text-emerald-400 hover:shadow-md transition-all active:scale-95 cursor-pointer relative group ${
+                showNotifications ? 'ring-2 ring-[#133527]/20 border-[#133527] dark:border-emerald-500' : ''
+              }`}
+              title="Notifications"
+              aria-label="Notifications"
+            >
+              <Bell size={17} strokeWidth={2} className="transition-transform group-hover:animate-bell-ring" />
+              {/* Solid dark round badge matching Image 1 */}
+              <span className="absolute -top-1 -right-1 min-w-[19px] h-[19px] px-1 rounded-full bg-[#133527] dark:bg-emerald-600 text-white text-[10px] font-extrabold flex items-center justify-center shadow-xs ring-2 ring-white dark:ring-[#141916]">
+                {unreadNotificationsCount > 0 ? unreadNotificationsCount : 1}
+              </span>
+            </button>
+
+            {showNotifications && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)}></div>
+                <div className="absolute right-0 mt-2.5 w-80 sm:w-88 bg-white dark:bg-[#1a211c] border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl z-20 overflow-hidden animate-slide-down origin-top-right">
+                  <div className="px-4 py-3 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-slate-50/70 dark:bg-white/5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-xs text-slate-800 dark:text-white">Alerts & Logs</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#133527] text-white">
+                        {unreadNotificationsCount || 1} new
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {unreadNotificationsCount > 0 && (
+                        <button onClick={handleClearNotifs} className="text-[10px] font-bold text-[#133527] dark:text-emerald-400 hover:underline cursor-pointer">
+                          Clear All
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          setShowNotifications(false);
+                          navigate('/admin/notifications');
+                        }}
+                        className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer flex items-center justify-center"
+                        title="View all notifications"
+                      >
+                        <ExternalLink size={13} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-slate-100 dark:divide-white/5 max-h-84 overflow-y-auto custom-scrollbar">
+                    {notifications.length === 0 ? (
+                      <div className="p-7 text-center">
+                        <div className="w-9 h-9 mx-auto mb-2 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                          <CheckCheck size={18} />
+                        </div>
+                        <div className="text-xs font-bold text-slate-800 dark:text-white">All caught up!</div>
+                        <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">No notifications pending.</div>
+                      </div>
+                    ) : (
+                      notifications.map((notif) => {
+                        const meta = resolveNotificationMeta(notif);
+                        return (
+                          <div
+                            key={notif.id}
+                            onClick={() => handleNotifClick(notif)}
+                            className={`p-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer flex gap-3 ${
+                              notif.isRead ? 'opacity-60' : 'bg-emerald-50/20 dark:bg-emerald-950/10'
+                            }`}
+                          >
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${meta.colorClass}`}>
+                              {meta.icon}
+                            </div>
+                            <div className="space-y-0.5 flex-1 min-w-0">
+                              <div className="flex justify-between items-baseline gap-1">
+                                <p className={`text-[11.5px] text-slate-800 dark:text-slate-100 leading-tight truncate ${notif.isRead ? 'font-medium' : 'font-extrabold'}`}>
+                                  {notif.title}
+                                </p>
+                                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-semibold shrink-0">{notif.time}</span>
+                              </div>
+                              <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-snug line-clamp-2">{notif.desc}</p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* ── Theme Toggle Circular Button ── */}
+          <button
+            type="button"
+            onClick={(e) => toggleTheme(e)}
+            className="w-10 h-10 rounded-full bg-white dark:bg-[#1a211c] border border-slate-200/80 dark:border-white/10 shadow-[0_2px_6px_rgba(0,0,0,0.02)] flex items-center justify-center text-slate-700 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 hover:shadow-md transition-all active:scale-95 cursor-pointer group"
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle dark/light theme"
+          >
+            {theme === 'dark' ? (
+              <Sun size={17} strokeWidth={2} className="transition-transform duration-300 group-hover:rotate-45" />
+            ) : (
+              <Moon size={17} strokeWidth={2} className="transition-transform duration-300 group-hover:-rotate-12" />
+            )}
+          </button>
+
+          {/* ── Fullscreen Toggle Circular Button ── */}
           <button
             type="button"
             onClick={() => {
-              setShowNotifications(!showNotifications);
-              setShowProfileMenu(false);
+              if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+                setIsFullscreen(true);
+              } else {
+                document.exitFullscreen();
+                setIsFullscreen(false);
+              }
             }}
-            className="group relative w-8 h-8 flex items-center justify-center text-[var(--text-muted)] rounded-xl hover:bg-[var(--bg-muted)] hover:text-[var(--text-subtle)] transition-all duration-200 active:scale-90 cursor-pointer"
-            title="Notifications"
+            className="w-10 h-10 rounded-full bg-white dark:bg-[#1a211c] border border-slate-200/80 dark:border-white/10 shadow-[0_2px_6px_rgba(0,0,0,0.02)] hidden lg:flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-[#133527] dark:hover:text-white hover:shadow-md transition-all active:scale-95 cursor-pointer"
+            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
           >
-            {unreadNotificationsCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-brand rounded-full border border-[var(--bg-surface)]"></span>
-            )}
-            <Bell size={16} className="transition-transform group-hover:animate-bell-ring origin-top" />
+            {isFullscreen ? <ScanLine size={16} strokeWidth={2} /> : <Scan size={16} strokeWidth={2} />}
           </button>
 
-          {showNotifications && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)}></div>
-              <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xl z-20 overflow-hidden animate-slide-down origin-top-right">
-                <div className="px-4 py-2.5 border-b border-[var(--border-muted)] flex justify-between items-center bg-[var(--bg-muted)]">
-                  <span className="font-bold text-xs text-[var(--text-primary)]">Alerts & Logs</span>
-                  <div className="flex items-center gap-2.5">
-                    {unreadNotificationsCount > 0 && (
-                      <button onClick={handleClearNotifs} className="text-[9px] font-bold text-brand hover:underline cursor-pointer">Clear All</button>
-                    )}
+          {/* ── User Profile Avatar Icon Button (Minimal simple clean icon design) ── */}
+          <div className="relative ml-0.5 sm:ml-1" ref={profileRef}>
+            <button
+              type="button"
+              id="profile-menu-trigger"
+              onClick={() => {
+                setShowProfileMenu(!showProfileMenu);
+                setShowNotifications(false);
+              }}
+              className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer select-none border ${
+                showProfileMenu
+                  ? 'bg-[#133527]/10 dark:bg-emerald-500/15 border-[#133527]/30 dark:border-emerald-500/30 text-[#133527] dark:text-emerald-400 ring-2 ring-[#133527]/20 dark:ring-emerald-500/20 shadow-sm'
+                  : 'bg-white dark:bg-[#1a211c] border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:text-[#133527] dark:hover:text-emerald-400 hover:border-slate-300 dark:hover:border-white/20 shadow-[0_2px_6px_rgba(0,0,0,0.02)] hover:shadow-md'
+              } active:scale-95 group`}
+              title="Admin profile menu"
+              aria-label="Admin profile menu"
+            >
+              <User size={18} strokeWidth={2} className="transition-transform duration-200 group-hover:scale-105" />
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#141916]" />
+            </button>
+
+            {/* Profile Dropdown Panel */}
+            {showProfileMenu && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowProfileMenu(false)} />
+                <div className="absolute right-0 mt-2.5 w-68 bg-white dark:bg-[#1a211c] border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl z-20 overflow-hidden animate-slide-down origin-top-right">
+                  {/* User Profile Header */}
+                  <div className="p-4 bg-slate-50/70 dark:bg-white/5 border-b border-slate-100 dark:border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="relative shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-[#133527]/10 dark:bg-emerald-500/15 border border-[#133527]/20 dark:border-emerald-500/25 flex items-center justify-center text-[#133527] dark:text-emerald-400 shadow-xs">
+                          <User size={18} strokeWidth={2} />
+                        </div>
+                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#141916]" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-bold text-slate-800 dark:text-white truncate leading-tight">
+                            {displayName}
+                          </p>
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            Active
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate mt-0.5">
+                          {adminUser.email || 'admin@gharmb.com'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Status info strip */}
+                    <div className="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between text-[10px]">
+                      <span className="text-slate-400 dark:text-slate-500 font-medium">Role</span>
+                      <span className="inline-flex items-center gap-1 font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-white/10 px-2 py-0.5 rounded-md border border-slate-200/80 dark:border-white/10 uppercase">
+                        <ShieldCheck size={11} className="text-[#133527] dark:text-emerald-400" />
+                        {adminUser.role || 'Admin'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Navigation Actions - Platform Settings only */}
+                  <div className="p-2">
                     <button
+                      type="button"
+                      id="profile-menu-settings"
                       onClick={() => {
-                        setShowNotifications(false);
-                        navigate('/admin/notifications');
+                        setShowProfileMenu(false);
+                        navigate('/admin/settings');
                       }}
-                      className="p-1 rounded-lg text-[var(--text-muted)] hover:text-brand hover:bg-[var(--bg-surface)] transition-all cursor-pointer flex items-center justify-center"
-                      title="View all notifications"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-all cursor-pointer"
                     >
-                      <ExternalLink size={13} />
+                      <Settings size={14} className="text-slate-400" />
+                      <span>Platform Settings</span>
+                    </button>
+                  </div>
+
+                  {/* Logout Action */}
+                  <div className="p-2 border-t border-slate-100 dark:border-white/5">
+                    <button
+                      type="button"
+                      id="profile-menu-logout"
+                      onClick={handleLogout}
+                      className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-all duration-150 cursor-pointer group/logout"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-rose-500/10 group-hover/logout:bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center transition-colors">
+                          <LogOut size={13} strokeWidth={2.2} />
+                        </div>
+                        <span>Log Out</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 group-hover/logout:text-rose-500/80 font-normal">
+                        End session
+                      </span>
                     </button>
                   </div>
                 </div>
-                <div className="divide-y divide-[var(--border-muted)] max-h-80 overflow-y-auto custom-scrollbar">
-                  {notifications.length === 0 ? (
-                    <div className="p-6 text-center text-xs text-[var(--text-muted)] font-semibold">No notifications pending.</div>
-                  ) : (
-                    notifications.map((notif) => {
-                      const meta = resolveNotificationMeta(notif);
-                      return (
-                        <div
-                          key={notif.id}
-                          onClick={() => handleNotifClick(notif)}
-                          className={`p-3 hover:bg-[var(--bg-muted)] transition-colors cursor-pointer flex gap-2.5 ${
-                            notif.isRead ? 'opacity-60' : ''
-                          }`}
-                        >
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${meta.colorClass}`}>
-                            {meta.icon}
-                          </div>
-                          <div className="space-y-0.5 flex-1 min-w-0">
-                            <div className="flex justify-between items-baseline gap-1">
-                              <p className={`text-[11px] text-[var(--text-primary)] leading-tight truncate ${notif.isRead ? 'font-medium' : 'font-extrabold'}`}>
-                                {notif.title}
-                              </p>
-                              <span className="text-[8px] text-[var(--text-muted)] font-semibold shrink-0">{notif.time}</span>
-                            </div>
-                            <p className="text-[10px] text-[var(--text-subtle)] leading-snug line-clamp-2">{notif.desc}</p>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Fullscreen Toggle */}
-        <button
-          type="button"
-          onClick={() => {
-            if (!document.fullscreenElement) {
-              document.documentElement.requestFullscreen();
-              setIsFullscreen(true);
-            } else {
-              document.exitFullscreen();
-              setIsFullscreen(false);
-            }
-          }}
-          className="w-8 h-8 flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] transition-colors duration-150 cursor-pointer"
-          title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-        >
-          {isFullscreen ? <ScanLine size={16} strokeWidth={2} /> : <Scan size={16} strokeWidth={2} />}
-        </button>
-
-        {/* Theme Toggle Switch */}
-        <div className="h-8 flex items-center shrink-0">
-          <div
-            className="theme-toggle-switch flex items-center cursor-pointer select-none" 
-            style={{ transform: 'scale(0.82)', transformOrigin: 'center' }}
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            onClick={(e) => toggleTheme(e)}
-            role="button"
-            tabIndex={0}
-            aria-label="Toggle dark/light theme"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                toggleTheme(e);
-              }
-            }}
-          >
-            <input
-              className="toggle-checkbox"
-              type="checkbox"
-              checked={theme === 'dark'}
-              readOnly
-              tabIndex={-1}
-            />
-            <div className="toggle-slot">
-              <div className="sun-icon-wrapper">
-                <Sun className="sun-icon" />
-              </div>
-              <div className="toggle-button" aria-hidden="true" />
-              <div className="moon-icon-wrapper">
-                <Moon className="moon-icon" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Profile Avatar Dropdown ──────────────────────────────────────── */}
-        <div className="relative" ref={profileRef}>
-          <button
-            type="button"
-            id="profile-menu-trigger"
-            onClick={() => {
-              setShowProfileMenu(!showProfileMenu);
-              setShowNotifications(false);
-            }}
-            className={`group relative flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200 cursor-pointer select-none ring-2 ${
-              showProfileMenu
-                ? 'ring-brand/40 shadow-sm scale-95'
-                : 'ring-transparent hover:ring-[var(--border)] active:scale-95'
-            }`}
-            title="Admin profile"
-            aria-label="Admin profile menu"
-          >
-            {adminUser.avatar ? (
-              <img
-                src={adminUser.avatar}
-                alt={adminUser.name}
-                className="w-full h-full rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full rounded-full bg-slate-100 dark:bg-zinc-800/90 border border-slate-200/90 dark:border-zinc-700/80 flex items-center justify-center text-slate-600 dark:text-zinc-300 shadow-2xs group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                <User size={15} strokeWidth={2} />
-              </div>
+              </>
             )}
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[var(--bg-surface)]" />
-          </button>
-
-          {/* Dropdown panel — CSS transition for smooth slide */}
-          <div
-            className={`absolute right-0 mt-2 w-64 bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-xl shadow-black/10 dark:shadow-black/40 z-50 overflow-hidden origin-top-right transition-all duration-200 ease-out ${
-              showProfileMenu
-                ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
-                : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
-            }`}
-          >
-            {/* User Profile Header */}
-            <div className="p-3.5 bg-[var(--bg-muted)]/50 border-b border-[var(--border)]">
-              <div className="flex items-center gap-3">
-                <div className="relative shrink-0">
-                  {adminUser.avatar ? (
-                    <img
-                      src={adminUser.avatar}
-                      alt={adminUser.name}
-                      className="w-10 h-10 rounded-full object-cover ring-1 ring-[var(--border)] shadow-xs"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-zinc-800/90 border border-slate-200/90 dark:border-zinc-700/80 flex items-center justify-center text-slate-600 dark:text-zinc-300 shadow-2xs">
-                      <User size={18} strokeWidth={2} />
-                    </div>
-                  )}
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[var(--bg-surface)]" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-xs font-bold text-[var(--text-primary)] truncate leading-tight">
-                      {adminUser.name}
-                    </p>
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      Active
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[var(--text-muted)] truncate mt-0.5">
-                    {adminUser.email || 'admin@gharmb.com'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Status info strip */}
-              <div className="mt-2.5 pt-2 border-t border-[var(--border)]/60 flex items-center justify-between text-[10px]">
-                <span className="text-[var(--text-muted)] font-medium">Role</span>
-                <span className="inline-flex items-center gap-1 font-semibold text-[var(--text-subtle)] bg-[var(--bg-surface)] px-2 py-0.5 rounded-md border border-[var(--border)]">
-                  <ShieldCheck size={11} className="text-brand" />
-                  {adminUser.role === 'Admin' || !adminUser.role ? 'Super Admin' : adminUser.role}
-                </span>
-              </div>
-            </div>
-
-            {/* Logout Action */}
-            <div className="p-1.5">
-              <button
-                type="button"
-                id="profile-menu-logout"
-                onClick={handleLogout}
-                className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all duration-150 cursor-pointer group/logout"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-rose-500/10 group-hover/logout:bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center transition-colors">
-                    <LogOut size={13} strokeWidth={2.2} />
-                  </div>
-                  <span>Log Out</span>
-                </div>
-                <span className="text-[10px] text-[var(--text-muted)] group-hover/logout:text-rose-500/80 font-normal">
-                  End session
-                </span>
-              </button>
-            </div>
           </div>
         </div>
-        {/* ── /Profile Avatar Dropdown ─────────────────────────────────────── */}
-      </div>
-    </header>
+      </header>
     </>
   );
 };

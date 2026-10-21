@@ -169,21 +169,27 @@ class FirebaseStorageService {
       const uploadDir = path.join(__dirname, '../../uploads');
       if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
+      const isVideo = (file.mimetype && file.mimetype.startsWith('video/')) || /\.(mp4|webm|mov|m4v|mkv|avi|3gp)$/i.test(file.originalname || '');
+      const originalExt = path.extname(file.originalname || '').toLowerCase() || (isVideo ? '.mp4' : '.jpg');
+
       if (fileBuffer) {
-        try {
-          const opt = await optimizeImage(fileBuffer, file.originalname || 'file.jpg', file.mimetype || 'image/jpeg');
-          fileBuffer = opt.buffer;
-          const ext = path.extname(opt.filename || '').toLowerCase() || '.webp';
-          filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+        if (isVideo) {
+          filename = `video-${Date.now()}-${Math.round(Math.random() * 1e9)}${originalExt}`;
           fs.writeFileSync(path.join(uploadDir, filename), fileBuffer);
-        } catch (_) {
-          const ext = path.extname(file.originalname || '').toLowerCase() || '.jpg';
-          filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-          fs.writeFileSync(path.join(uploadDir, filename), fileBuffer);
+        } else {
+          try {
+            const opt = await optimizeImage(fileBuffer, file.originalname || 'file.jpg', file.mimetype || 'image/jpeg');
+            fileBuffer = opt.buffer;
+            const ext = path.extname(opt.filename || '').toLowerCase() || (opt.wasOptimized ? '.webp' : originalExt);
+            filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+            fs.writeFileSync(path.join(uploadDir, filename), fileBuffer);
+          } catch (_) {
+            filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${originalExt}`;
+            fs.writeFileSync(path.join(uploadDir, filename), fileBuffer);
+          }
         }
       } else {
-        const ext = path.extname(file.originalname || '').toLowerCase() || '.jpg';
-        filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+        filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${originalExt}`;
       }
     }
     return `${protocol}://${host}/uploads/${filename}`;

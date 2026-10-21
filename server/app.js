@@ -157,9 +157,9 @@ app.use(compression({
 // 3. Logger Middleware
 app.use(morgan('dev'));
 
-// 4. Request Body Parsers (Increased to 50mb to support rich articles, base64 images & documents)
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// 4. Request Body Parsers (Increased to 100mb to support rich articles, base64 media & short videos)
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // 5. Serve Static Assets (Uploaded images & files locally) with aggressive CDN & Browser Caching
 const staticOptions = {
@@ -332,6 +332,9 @@ app.use('/api/upload', appUploadRoutes);
 app.use('/api/user/upload', appUploadRoutes); // Supports $baseUrl/user/upload/multiple
 
 app.use('/api/users/enquiries', appEnquiryRoutes);
+app.use('/api/enquiries', appEnquiryRoutes);
+app.use('/api/user/enquiries', appEnquiryRoutes);
+app.use('/api/inquiries', appEnquiryRoutes);
 
 // Wishlist & Favorites (Supports both /wishlist and /favorites conventions)
 app.use('/api/favorites', appFavoriteRoutes);

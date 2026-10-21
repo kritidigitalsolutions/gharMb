@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BadgeCheck, BedDouble, Maximize2, MapPin, ArrowRight, Zap, Star, MessageSquare, ShieldAlert, ShoppingCart, Ban } from 'lucide-react';
+import { BadgeCheck, BedDouble, Maximize2, MapPin, ArrowRight, Zap, Star, MessageSquare, ShieldAlert, ShoppingCart, Ban, Building2 } from 'lucide-react';
 import TokenRequestModal from './TokenRequestModal';
 import PropertyEnquiryModal from './PropertyEnquiryModal';
 import PropertyReviewModal from './PropertyReviewModal';
@@ -27,12 +27,25 @@ export default function PropertyCard({ property }) {
   const ratingValue = Number(property.rating || property.averageRating || 0);
   const reviewsCountValue = Number(property.reviewsCount || property.totalRatings || 0);
 
+  // 🏷️ Check if property is marked Sold Out
+  const isSoldOut = Boolean(
+    property.isSold ||
+    property.saleStatus === 'sold' ||
+    status === 'sold' ||
+    status === 'Sold' ||
+    badge?.toLowerCase().includes('sold')
+  );
+
   // 🛡️ Determine if current visitor is the owner of this property
   const isOwner = isOwnerOfProperty(property);
 
-  // Handler for actions that owners are forbidden to perform
+  // Handler for actions that owners or sold-out status forbid
   const handleProtectedAction = (actionType, e) => {
     if (e) e.preventDefault();
+
+    if (isSoldOut && actionType !== 'review') {
+      return;
+    }
 
     if (isOwner) {
       // 🚫 SHOW POPUP ALERT FOR OWNER
@@ -63,17 +76,35 @@ export default function PropertyCard({ property }) {
             <SmoothImage
               src={image}
               alt={title}
-              className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500 ease-out"
+              className={`w-full h-full object-cover transition-transform duration-500 ease-out ${
+                isSoldOut ? 'grayscale-[45%] opacity-90' : 'group-hover:scale-[1.03]'
+              }`}
               containerClassName="w-full h-full"
             />
 
             {/* Badges */}
             <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
+              {/* SOLD OUT Badge */}
+              {isSoldOut && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-extrabold bg-rose-600 text-white shadow-lg border border-rose-700 tracking-wide uppercase animate-in fade-in">
+                  <Ban size={12} strokeWidth={2.5} />
+                  Sold Out
+                </span>
+              )}
+
               {/* Owner Status Tag */}
               {isOwner && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-md border border-amber-400">
                   <ShieldAlert size={12} />
                   Your Listing (Owner)
+                </span>
+              )}
+
+              {/* Developer / Builder Badge */}
+              {(property.postedByRole === 'Builder' || property.role === 'builder' || property.isDeveloper) && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-brand text-white shadow-md border border-brand-dark">
+                  <Building2 size={12} />
+                  {property.developerName || 'Direct Developer'}
                 </span>
               )}
 
@@ -137,19 +168,26 @@ export default function PropertyCard({ property }) {
 
               <div className="flex items-center gap-1.5">
                 {/* Buy / Rent Direct Trigger */}
-                <button
-                  type="button"
-                  onClick={(e) => handleProtectedAction(isRental ? 'rent' : 'buy', e)}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                    isOwner
-                      ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
-                      : 'bg-brand/10 text-brand hover:bg-brand hover:text-white'
-                  }`}
-                  title={isOwner ? `Owners cannot ${isRental ? 'rent' : 'buy'} this property` : `${isRental ? 'Rent' : 'Buy'} Property`}
-                >
-                  {isOwner && <Ban size={11} className="text-rose-600" />}
-                  <span>{isRental ? 'Rent' : 'Buy'}</span>
-                </button>
+                {isSoldOut ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-50 text-rose-700 border border-rose-200 cursor-not-allowed select-none">
+                    <Ban size={11} className="text-rose-600" />
+                    <span>Sold Out</span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => handleProtectedAction(isRental ? 'rent' : 'buy', e)}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                      isOwner
+                        ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+                        : 'bg-brand/10 text-brand hover:bg-brand hover:text-white'
+                    }`}
+                    title={isOwner ? `Owners cannot ${isRental ? 'rent' : 'buy'} this property` : `${isRental ? 'Rent' : 'Buy'} Property`}
+                  >
+                    {isOwner && <Ban size={11} className="text-rose-600" />}
+                    <span>{isRental ? 'Rent' : 'Buy'}</span>
+                  </button>
+                )}
 
                 <Link
                   to="/properties"
@@ -161,21 +199,29 @@ export default function PropertyCard({ property }) {
               </div>
             </div>
 
-            {/* Quick Actions (Enquiry & Review) */}
+            {/* Quick Actions (Inquiry & Review) */}
             <div className="flex items-center gap-2 pt-2.5 mt-2 border-t border-gray-100 text-[11px]">
-              <button
-                type="button"
-                onClick={(e) => handleProtectedAction('enquiry', e)}
-                className="flex-1 py-1 px-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer"
-              >
-                <MessageSquare size={11} className="text-gray-500" />
-                <span>Enquire</span>
-              </button>
+              {isSoldOut ? (
+                <div className="flex-1 py-1.5 px-2 rounded-lg bg-rose-50 text-rose-700 font-bold flex items-center justify-center gap-1 border border-rose-200 select-none">
+                  <Ban size={11} className="text-rose-600" />
+                  <span>Site Sold Out</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => handleProtectedAction('enquiry', e)}
+                  className="flex-1 py-1.5 px-2 rounded-lg bg-brand/10 hover:bg-brand hover:text-white text-brand font-bold flex items-center justify-center gap-1 transition-all cursor-pointer shadow-2xs"
+                  title="Send inquiry directly to GharMB Admin"
+                >
+                  <MessageSquare size={12} />
+                  <span>Inquiry Now</span>
+                </button>
+              )}
 
               <button
                 type="button"
                 onClick={(e) => handleProtectedAction('review', e)}
-                className="flex-1 py-1 px-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                className="py-1.5 px-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer"
               >
                 <Star size={11} className="text-amber-500" />
                 <span>Review</span>
@@ -185,7 +231,7 @@ export default function PropertyCard({ property }) {
         </div>
 
         {/* ⚡ 1-Click Token Request CTA */}
-        {isRental && (
+        {isRental && !isSoldOut && (
           <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-0">
             <div className={`p-2.5 rounded-xl flex items-center justify-between gap-2 border ${
               isOwner

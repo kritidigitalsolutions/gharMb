@@ -35,7 +35,7 @@ const notificationSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: {
-        values: ['enquiry', 'visit_booking', 'property_status', 'verification', 'payment', 'token_request', 'service_enquiry', 'system'],
+        values: ['enquiry', 'visit_booking', 'property_status', 'verification', 'payment', 'token_request', 'service_enquiry', 'property_sale', 'system'],
         message: 'Invalid notification type.',
       },
       default: 'system',
@@ -83,6 +83,14 @@ const notificationSchema = new mongoose.Schema(
         ref: 'User',
       },
       reraNumber: String,
+      projectId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Project',
+      },
+      developerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
       customLink: String,
       broadcastId: {
         type: mongoose.Schema.Types.ObjectId,

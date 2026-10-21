@@ -141,8 +141,14 @@ const projectSchema = new mongoose.Schema(
       default: false,
     },
 
-    // Step 4: Photos & Plans
+    // Step 4: Photos, Short Videos & Plans (Project Gallery)
     projectPhotos: [
+      {
+        type: String,
+      },
+    ],
+    // Project Gallery - Short Video Support (Walkthroughs, drone overviews, reels, 3D animations)
+    projectVideos: [
       {
         type: String,
       },
@@ -190,6 +196,31 @@ const projectSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Developer Project Sale / Availability Status
+    isSold: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    saleStatus: {
+      type: String,
+      enum: ['available', 'sold'],
+      default: 'available',
+      index: true,
+    },
+    soldMarkedAt: {
+      type: Date,
+    },
+    soldByAdmin: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Admin',
+    },
+    saleNotes: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+
     // Performance Metrics
     viewsCount: {
       type: Number,
@@ -232,6 +263,36 @@ const projectSchema = new mongoose.Schema(
     toObject: { virtuals: true },
   }
 );
+
+// Virtual for unified Project Gallery (photos and short videos with type tags)
+projectSchema.virtual('gallery').get(function () {
+  const isVideo = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    try {
+      const decoded = decodeURIComponent(url).toLowerCase();
+      const cleanPath = decoded.split('?')[0];
+      return (
+        /\.(mp4|webm|mov|m4v|mkv|avi|3gp)$/i.test(cleanPath) ||
+        decoded.includes('/video/') ||
+        decoded.includes('/videos/') ||
+        decoded.includes('video/mp4') ||
+        decoded.includes('format=mp4') ||
+        decoded.includes('contenttype=video')
+      );
+    } catch (_) {
+      return /\.(mp4|webm|mov|m4v|mkv|avi|3gp)/i.test(url) || url.toLowerCase().includes('video');
+    }
+  };
+  const photos = (this.projectPhotos || []).map((url) => ({
+    url,
+    type: isVideo(url) ? 'video' : 'image',
+  }));
+  const videos = (this.projectVideos || []).map((url) => ({
+    url,
+    type: 'video',
+  }));
+  return [...photos, ...videos];
+});
 
 // Auto-generate Project Submission ID before saving
 projectSchema.pre('save', function () {

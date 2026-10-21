@@ -12,6 +12,7 @@ import DeleteProfile from './pages/Legal/DeleteProfile';
 import Properties from './pages/Properties/Properties';
 import Commercial from './pages/Commercial/Commercial';
 import Developers from './pages/Developers/Developers';
+import NewProjects from './pages/NewProjects/NewProjects';
 
 function App() {
   return (
@@ -25,6 +26,8 @@ function App() {
             <Route path="/properties" element={<Properties />} />
             <Route path="/commercial" element={<Commercial />} />
             <Route path="/developers" element={<Developers />} />
+            <Route path="/new-projects" element={<NewProjects />} />
+            <Route path="/projects" element={<NewProjects />} />
             <Route path="/insights" element={<Blog />} />
             <Route path="/insights/:slug" element={<BlogDetail />} />
             <Route path="/blog" element={<Blog />} />

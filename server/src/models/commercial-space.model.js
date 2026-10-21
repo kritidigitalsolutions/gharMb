@@ -360,6 +360,13 @@ commercialSpaceSchema.pre('save', function () {
     this.submissionId = `#GBM-COM-${dateStr}-${randomNum}`;
   }
 
+  // Ensure security deposit & duration are undefined for sale commercial spaces
+  const isForSale = String(this.listingFor || '').trim().toLowerCase() === 'sale';
+  if (isForSale) {
+    this.securityDeposit = undefined;
+    this.securityDepositDuration = undefined;
+  }
+
   // Normalize listingAs, userRole, and postedByRole (Builder, Agent, Owner)
   const raw = (this.listingAs || '').toLowerCase();
   const role = (this.userRole || '').toLowerCase();

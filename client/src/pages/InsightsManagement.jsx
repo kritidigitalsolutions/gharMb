@@ -10,6 +10,7 @@ import {
   RotateCcw, Sparkles
 } from 'lucide-react';
 import API from '../api/api';
+import Badge from '../components/ui/Badge';
 
 const WEBPAGE_URL = import.meta.env.VITE_WEBSITE_URL || 'http://localhost:5174';
 
@@ -272,9 +273,9 @@ const InsightsManagement = () => {
             <h1 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">
               Insights & Articles
             </h1>
-            <span className="px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-md">
+            <Badge color="slate" variant="pastel" size="xs">
               {stats.total} total
-            </span>
+            </Badge>
           </div>
           <p className="text-xs text-[var(--text-muted)] mt-1">
             Manage real estate research, buyer guides, market updates, and editorial categories.
@@ -524,11 +525,22 @@ const InsightsManagement = () => {
             </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="w-full overflow-hidden">
+            <table className="w-full text-left border-collapse table-fixed">
+              <colgroup>
+                <col className="w-[4%]" />
+                <col className="w-[4%]" />
+                <col className="w-[32%]" />
+                <col className="w-[14%]" />
+                <col className="w-[14%]" />
+                <col className="w-[11%]" />
+                <col className="w-[7%]" />
+                <col className="w-[7%]" />
+                <col className="w-[7%]" />
+              </colgroup>
               <thead>
-                <tr className="border-b border-[var(--border)] bg-slate-50/70 dark:bg-slate-800/40 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                  <th className="py-3 px-3.5 w-10">
+                <tr className="border-b border-[var(--border)] bg-[var(--bg-muted)]/50 text-[11px] font-semibold text-[var(--text-muted)]">
+                  <th className="py-2 px-2 text-center align-middle">
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -540,14 +552,14 @@ const InsightsManagement = () => {
                       title="Select all on this page"
                     />
                   </th>
-                  <th className="py-3 px-3 w-10 text-center font-mono">#</th>
-                  <th className="py-3 px-4 min-w-[280px]">Article</th>
-                  <th className="py-3 px-3 min-w-[130px]">Category</th>
-                  <th className="py-3 px-3 min-w-[140px]">Author</th>
-                  <th className="py-3 px-3 min-w-[100px]">Status</th>
-                  <th className="py-3 px-3 text-right min-w-[70px]">Views</th>
-                  <th className="py-3 px-3 min-w-[100px]">Published</th>
-                  <th className="py-3 px-4 text-right min-w-[100px]">Actions</th>
+                  <th className="py-2 px-2 text-center font-mono align-middle">#</th>
+                  <th className="py-2 px-3 align-middle">Article</th>
+                  <th className="py-2 px-3 align-middle">Category</th>
+                  <th className="py-2 px-3 align-middle">Author</th>
+                  <th className="py-2 px-3 align-middle">Status</th>
+                  <th className="py-2 px-3 text-right align-middle">Views</th>
+                  <th className="py-2 px-3 align-middle">Published</th>
+                  <th className="py-2 px-3 text-right align-middle">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)] text-xs">
@@ -561,12 +573,12 @@ const InsightsManagement = () => {
                       key={blog._id}
                       className={`transition-colors duration-100 ${
                         isSelected
-                          ? 'bg-orange-50/40 dark:bg-orange-950/20'
-                          : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/30'
+                          ? 'bg-brand/5 dark:bg-brand/10'
+                          : 'hover:bg-[var(--bg-muted)]/40'
                       }`}
                     >
                       {/* Checkbox */}
-                      <td className="py-3 px-3.5">
+                      <td className="py-1.5 px-2 text-center align-middle">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -576,15 +588,15 @@ const InsightsManagement = () => {
                       </td>
 
                       {/* S.No */}
-                      <td className="py-3 px-3 text-center font-mono text-[11px] text-slate-400">
+                      <td className="py-1.5 px-2 text-center font-mono text-[11px] text-[var(--text-muted)] align-middle">
                         {(currentPage - 1) * pageSize + index + 1}
                       </td>
 
                       {/* Article Details */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
+                      <td className="py-1.5 px-3 align-middle min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
                           {/* Banner thumbnail */}
-                          <div className="w-12 h-9 rounded-md overflow-hidden bg-slate-100 dark:bg-slate-800 border border-[var(--border)] shrink-0 flex items-center justify-center">
+                          <div className="w-10 h-7 rounded-md overflow-hidden bg-slate-100 dark:bg-slate-800 border border-[var(--border)] shrink-0 flex items-center justify-center">
                             {hasImage ? (
                               <img
                                 src={blog.bannerImage}
@@ -596,27 +608,27 @@ const InsightsManagement = () => {
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-50 dark:bg-slate-800/80">
-                                <BookOpen size={14} className="opacity-60" />
+                                <BookOpen size={12} className="opacity-60" />
                               </div>
                             )}
                           </div>
 
-                          <div className="min-w-0 flex-1">
+                          <div className="min-w-0 flex-1 truncate">
                             <Link
                               to={`/admin/insights/edit/${blog._id}`}
-                              className="font-medium text-[var(--text-primary)] hover:text-brand line-clamp-1 transition-colors"
+                              className="font-medium text-xs text-[var(--text-primary)] hover:text-brand truncate block transition-colors"
                               title={blog.title}
                             >
                               {blog.title}
                             </Link>
-                            <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[var(--text-muted)]">
-                              <span className="font-mono text-slate-400 truncate max-w-[220px]">
+                            <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)] truncate">
+                              <span className="font-mono text-slate-400 truncate">
                                 /{blog.slug}
                               </span>
                               {blog.isFeatured && (
-                                <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 font-semibold rounded text-[9px]">
+                                <Badge.Featured size="xs">
                                   Featured
-                                </span>
+                                </Badge.Featured>
                               )}
                             </div>
                           </div>
@@ -624,82 +636,77 @@ const InsightsManagement = () => {
                       </td>
 
                       {/* Category */}
-                      <td className="py-3 px-3 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 text-slate-700 dark:text-slate-300 text-[11px] font-medium">
-                          <Folder size={11} className="text-slate-400 shrink-0" />
-                          <span className="truncate max-w-[140px]">
-                            {blog.category?.name || 'Uncategorized'}
-                          </span>
-                        </span>
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap min-w-0">
+                        <Badge color="purple" variant="pastel" size="xs" icon={<Folder size={10} className="shrink-0" />}>
+                          {blog.category?.name || 'Uncategorized'}
+                        </Badge>
                       </td>
 
                       {/* Author & Read Time */}
-                      <td className="py-3 px-3 whitespace-nowrap text-slate-600 dark:text-slate-400 text-[11px]">
-                        <div className="flex items-center gap-1 text-[var(--text-primary)] font-medium">
-                          <User size={11} className="text-slate-400 shrink-0" />
-                          <span className="truncate max-w-[160px]">{blog.author || 'Admin'}</span>
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap min-w-0 text-[11px]">
+                        <div className="flex items-center gap-1 text-[var(--text-primary)] font-medium truncate">
+                          <User size={10} className="text-slate-400 shrink-0" />
+                          <span className="truncate">{blog.author || 'Admin'}</span>
                         </div>
-                        <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                          <Clock size={10} />
-                          <span>{blog.readTime || 5} min read</span>
+                        <div className="text-[10px] text-[var(--text-muted)] flex items-center gap-1">
+                          <Clock size={9} />
+                          <span>{blog.readTime || 5}m</span>
                         </div>
                       </td>
 
                       {/* Status toggle pill */}
-                      <td className="py-3 px-3 whitespace-nowrap">
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap">
                         <button
+                          type="button"
                           onClick={() => handleTogglePublish(blog)}
                           title="Click to toggle publish status"
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer ${
-                            blog.isPublished
-                              ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
-                          }`}
+                          className="inline-flex cursor-pointer transition-transform active:scale-95"
                         >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              blog.isPublished ? 'bg-emerald-500' : 'bg-slate-400'
-                            }`}
-                          />
-                          <span>{blog.isPublished ? 'Published' : 'Draft'}</span>
+                          {blog.isPublished ? (
+                            <Badge.Active size="xs">Published</Badge.Active>
+                          ) : (
+                            <Badge color="amber" variant="pastel" size="xs" dot pulse icon={<Clock size={10} className="shrink-0" />}>
+                              Draft
+                            </Badge>
+                          )}
                         </button>
                       </td>
 
                       {/* Views */}
-                      <td className="py-3 px-3 whitespace-nowrap text-right font-mono text-[11px] font-semibold text-[var(--text-primary)]">
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap text-right font-mono text-[11px] font-semibold text-[var(--text-primary)]">
                         {Number(blog.views || 0).toLocaleString()}
                       </td>
 
                       {/* Date */}
-                      <td className="py-3 px-3 whitespace-nowrap text-[11px] text-slate-500">
+                      <td className="py-1.5 px-3 align-middle whitespace-nowrap text-[10px] text-[var(--text-muted)]">
                         {pubDate ? (
-                          <span>{pubDate}</span>
+                          <span className="truncate block">{pubDate}</span>
                         ) : (
-                          <span className="text-slate-400 italic">Unpublished</span>
+                          <span className="text-slate-400 italic">Draft</span>
                         )}
                       </td>
 
                       {/* Actions */}
-                      <td className="py-3 px-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="py-1.5 px-3 text-right align-middle whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-1 shrink-0">
                           {blog.isPublished && (
                             <a
                               href={`${WEBPAGE_URL}/insights/${blog.slug}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="p-1 rounded-md text-slate-400 hover:text-brand hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                              className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                               title="View on live website"
                             >
-                              <ExternalLink size={14} />
+                              <ExternalLink size={12} />
                             </a>
                           )}
 
                           <Link
                             to={`/admin/insights/edit/${blog._id}`}
-                            className="p-1 rounded-md text-slate-400 hover:text-[var(--text-primary)] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                             title="Edit article"
                           >
-                            <Edit size={14} />
+                            <Edit size={12} />
                           </Link>
 
                           <button
@@ -711,10 +718,10 @@ const InsightsManagement = () => {
                                 isDeleting: false,
                               })
                             }
-                            className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                            className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-rose-600 hover:border-rose-300 dark:hover:border-rose-900/50 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                             title="Delete article"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </td>

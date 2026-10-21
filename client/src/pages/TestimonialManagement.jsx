@@ -9,6 +9,7 @@ import {
   RotateCcw, Upload, Check, ExternalLink, SlidersHorizontal
 } from 'lucide-react';
 import API, { getBaseUrl } from '../api/api';
+import Badge from '../components/ui/Badge';
 import { compressImage } from '../utils/imageCompressor';
 import SmoothImage from '../components/common/SmoothImage';
 
@@ -451,9 +452,9 @@ const TestimonialManagement = () => {
           </div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">Real Stories</h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand/10 text-brand border border-brand/20">
+            <Badge color="brand" variant="pastel" size="xs">
               {stats.total} {stats.total === 1 ? 'story' : 'stories'}
-            </span>
+            </Badge>
           </div>
           <p className="text-xs text-[var(--text-muted)] mt-1">
             Manage authentic customer experiences, verified badges, and social proof shown on GharMB.
@@ -674,12 +675,20 @@ const TestimonialManagement = () => {
             </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="w-full overflow-hidden">
+            <table className="w-full text-left border-collapse table-fixed">
+              <colgroup>
+                <col className="w-[4%]" />
+                <col className="w-[4%]" />
+                <col className="w-[24%]" />
+                <col className="w-[46%]" />
+                <col className="w-[12%]" />
+                <col className="w-[10%]" />
+              </colgroup>
               <thead>
-                <tr className="border-b border-[var(--border)] bg-slate-50/70 dark:bg-slate-800/40 text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                <tr className="border-b border-[var(--border)] bg-[var(--bg-muted)]/50 text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
                   {/* Select All */}
-                  <th className="py-3 px-4 w-12 text-center">
+                  <th className="py-2 px-2 text-center align-middle">
                     <button
                       type="button"
                       onClick={handleToggleSelectAll}
@@ -687,32 +696,32 @@ const TestimonialManagement = () => {
                       title={isAllSelected ? 'Deselect all' : 'Select all'}
                     >
                       {isAllSelected ? (
-                        <CheckSquare size={16} className="text-brand" />
+                        <CheckSquare size={14} className="text-brand" />
                       ) : isSomeSelected ? (
-                        <div className="relative w-4 h-4 flex items-center justify-center text-brand">
-                          <Square size={16} />
+                        <div className="relative w-3.5 h-3.5 flex items-center justify-center text-brand">
+                          <Square size={14} />
                           <div className="absolute w-2 h-0.5 bg-brand rounded-xs" />
                         </div>
                       ) : (
-                        <Square size={16} />
+                        <Square size={14} />
                       )}
                     </button>
                   </th>
 
                   {/* S.No */}
-                  <th className="py-3 px-3 w-12 text-center">#</th>
+                  <th className="py-2 px-2 text-center align-middle">#</th>
 
                   {/* Author */}
-                  <th className="py-3 px-4 min-w-[220px]">Author & Profile</th>
+                  <th className="py-2 px-3 align-middle">Author & Profile</th>
 
                   {/* Story & Quote */}
-                  <th className="py-3 px-4 min-w-[320px]">Story & Highlights</th>
+                  <th className="py-2 px-3 align-middle">Story & Highlights</th>
 
                   {/* Status */}
-                  <th className="py-3 px-4 w-36 text-center">Status</th>
+                  <th className="py-2 px-3 text-center align-middle">Status</th>
 
                   {/* Actions */}
-                  <th className="py-3 px-4 w-32 text-right">Actions</th>
+                  <th className="py-2 px-3 text-right align-middle">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)] text-xs">
@@ -728,11 +737,11 @@ const TestimonialManagement = () => {
                       className={`group transition-colors cursor-pointer ${
                         isSelected
                           ? 'bg-brand/5 dark:bg-brand/10'
-                          : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/30'
+                          : 'hover:bg-[var(--bg-muted)]/40'
                       }`}
                     >
                       {/* Checkbox */}
-                      <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-1.5 px-2 text-center align-middle" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
                           onClick={() => handleToggleSelectOne(t._id)}
@@ -740,18 +749,18 @@ const TestimonialManagement = () => {
                             isSelected ? 'text-brand' : 'text-slate-400 hover:text-[var(--text-primary)]'
                           }`}
                         >
-                          {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+                          {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
                         </button>
                       </td>
 
                       {/* S.No */}
-                      <td className="py-3.5 px-3 text-center font-mono text-[11px] text-[var(--text-muted)]">
+                      <td className="py-1.5 px-2 text-center font-mono text-[11px] text-[var(--text-muted)] align-middle">
                         {index + 1}
                       </td>
 
                       {/* Author */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
+                      <td className="py-1.5 px-3 align-middle min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
                           {/* Avatar with fallback */}
                           <div className="relative shrink-0">
                             {avatarSrc && !hasImgError ? (
@@ -761,10 +770,10 @@ const TestimonialManagement = () => {
                                 loading="lazy"
                                 decoding="async"
                                 onError={() => handleImageError(t._id)}
-                                className="w-10 h-10 rounded-full object-cover border border-[var(--border)] shadow-2xs"
+                                className="w-7 h-7 rounded-full object-cover border border-[var(--border)] shadow-2xs"
                               />
                             ) : (
-                              <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getAvatarGradient(t.name)} flex items-center justify-center font-bold text-xs tracking-wider shadow-2xs`}>
+                              <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${getAvatarGradient(t.name)} flex items-center justify-center font-bold text-[10px] tracking-wider shadow-2xs`}>
                                 {getInitials(t.name)}
                               </div>
                             )}
@@ -774,25 +783,22 @@ const TestimonialManagement = () => {
                                 className="absolute -bottom-0.5 -right-0.5 bg-blue-500 text-white rounded-full p-0.5 shadow-2xs"
                                 title="Verified Buyer Experience"
                               >
-                                <Check size={9} strokeWidth={3} />
+                                <Check size={7} strokeWidth={3} />
                               </div>
                             )}
                           </div>
 
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-semibold text-[var(--text-primary)] truncate max-w-[160px]">
-                                {t.name}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] mt-0.5 truncate max-w-[200px]">
-                              <span>{t.role || 'Homebuyer'}</span>
+                          <div className="min-w-0 truncate">
+                            <span className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate block">
+                              {t.name}
+                            </span>
+                            <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] truncate">
+                              <span className="truncate">{t.role || 'Homebuyer'}</span>
                               {t.location && (
                                 <>
                                   <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
                                   <span className="flex items-center gap-0.5 truncate">
-                                    <MapPin size={10} className="shrink-0 text-slate-400" />
+                                    <MapPin size={9} className="shrink-0 text-slate-400" />
                                     {t.location}
                                   </span>
                                 </>
@@ -803,90 +809,78 @@ const TestimonialManagement = () => {
                       </td>
 
                       {/* Story & Quote */}
-                      <td className="py-3.5 px-4">
-                        <div className="space-y-1.5">
-                          <p className="text-[12.5px] text-[var(--text-primary)] leading-snug line-clamp-2">
+                      <td className="py-1.5 px-3 align-middle min-w-0">
+                        <div className="min-w-0">
+                          <p className="text-xs text-[var(--text-primary)] truncate">
                             "{t.quote}"
                           </p>
-
-                          {/* Chips row */}
-                          <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 mt-0.5 truncate text-[10px] text-[var(--text-muted)]">
                             {t.propertyType && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-medium bg-[var(--bg-muted)] text-[var(--text-muted)] border border-[var(--border)]">
-                                <Building2 size={10} className="text-slate-400" />
+                              <Badge.Category size="xs" type={t.propertyType} icon={<Building2 size={9} className="shrink-0" />}>
                                 {t.propertyType}
-                              </span>
+                              </Badge.Category>
                             )}
-
                             {t.journeyType && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-medium bg-brand/10 text-brand border border-brand/20">
-                                <Sparkles size={10} />
+                              <Badge color="brand" variant="pastel" size="xs" icon={<Sparkles size={9} className="shrink-0" />}>
                                 {t.journeyType}
-                              </span>
-                            )}
-
-                            {t.stages && t.stages.length > 0 && (
-                              <span className="text-[10.5px] text-[var(--text-muted)]">
-                                Stage: <strong className="font-medium text-[var(--text-primary)]">{t.stages[t.activeStageIndex] || t.stages[0]}</strong>
-                              </span>
+                              </Badge>
                             )}
                           </div>
                         </div>
                       </td>
 
                       {/* Status & 1-Click Toggle */}
-                      <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-1.5 px-3 text-center align-middle whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
                           onClick={(e) => handleToggleStatus(t._id, t.isActive, e)}
                           disabled={statusTogglingId === t._id}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
-                            t.isActive
-                              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
-                          }`}
+                          className="inline-flex cursor-pointer transition-transform active:scale-95"
                           title={`Click to ${t.isActive ? 'hide from website' : 'publish to website'}`}
                         >
                           {statusTogglingId === t._id ? (
-                            <RefreshCw size={11} className="animate-spin text-slate-500" />
+                            <Badge color="slate" variant="pastel" size="xs" icon={<RefreshCw size={10} className="animate-spin shrink-0 text-slate-500" />}>
+                              Updating...
+                            </Badge>
+                          ) : t.isActive ? (
+                            <Badge.Active size="xs">Active</Badge.Active>
                           ) : (
-                            <span className={`w-1.5 h-1.5 rounded-full ${t.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                            <Badge.Offline size="xs">Hidden</Badge.Offline>
                           )}
-                          <span>{t.isActive ? 'Active' : 'Hidden'}</span>
                         </button>
                       </td>
 
                       {/* Actions */}
-                      <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="py-1.5 px-3 text-right align-middle whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="inline-flex items-center justify-end gap-1 shrink-0">
                           {/* Quick Preview */}
                           <button
                             type="button"
                             onClick={() => setPreviewTestimonial(t)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+                            className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                             title="Quick preview card"
                           >
-                            <Eye size={15} />
+                            <Eye size={12} />
                           </button>
 
                           {/* Edit */}
                           <button
                             type="button"
                             onClick={(e) => openEditModal(t, e)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-brand hover:bg-brand/10 transition-colors cursor-pointer"
+                            className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                             title="Edit story"
                           >
-                            <Edit size={15} />
+                            <Edit size={12} />
                           </button>
 
                           {/* Delete */}
                           <button
                             type="button"
                             onClick={() => setDeleteModal({ open: true, id: t._id, name: t.name, isDeleting: false })}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                            className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-rose-600 hover:border-rose-300 dark:hover:border-rose-900/50 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                             title="Delete story"
                           >
-                            <Trash2 size={15} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </td>
@@ -1040,14 +1034,11 @@ const TestimonialManagement = () => {
                 </div>
 
                 <div className="text-right">
-                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                    previewTestimonial.isActive
-                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                  }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${previewTestimonial.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                    {previewTestimonial.isActive ? 'Live on Site' : 'Draft'}
-                  </span>
+                  {previewTestimonial.isActive ? (
+                    <Badge.Active size="sm">Live on Site</Badge.Active>
+                  ) : (
+                    <Badge color="slate" variant="pastel" size="sm">Draft</Badge>
+                  )}
                 </div>
               </div>
             </div>

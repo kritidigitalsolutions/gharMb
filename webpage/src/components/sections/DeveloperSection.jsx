@@ -15,10 +15,10 @@ export default function DeveloperSection() {
             subtitle="Explore new launches and ready-to-move projects from verified builders."
           />
           <Link
-            to="/developers"
+            to="/new-projects"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:text-brand-dark transition-colors shrink-0 group"
           >
-            Explore developers
+            Explore all new projects
             <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
           </Link>
         </div>

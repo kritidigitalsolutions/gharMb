@@ -73,6 +73,7 @@ router.post('/', projectController.createProject);
  *         description: Project not found
  */
 router.patch('/:id/status', projectController.updateProjectStatus);
+router.patch('/:id/toggle-sold', projectController.toggleSoldStatus);
 
 /**
  * @swagger

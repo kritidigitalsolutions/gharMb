@@ -20,7 +20,7 @@ const safeUploadAny = (req, res, next) => {
         return res.status(400).json({
           status: 'fail',
           success: false,
-          message: 'One or more files exceed the maximum allowed size of 15MB.',
+          message: 'One or more files exceed the maximum allowed size of 100MB.',
         });
       }
       return res.status(400).json({

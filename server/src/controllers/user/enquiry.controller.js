@@ -5,70 +5,196 @@
 
 const PropertyEnquiry = require('../../models/property-enquiry.model');
 const Property = require('../../models/property.model');
+const Project = require('../../models/project.model');
 const DeveloperEnquiry = require('../../models/developer-enquiry.model');
 const User = require('../../models/user.model');
 const Notification = require('../../models/notification.model');
 const { notifyAdmin } = require('../../utils/adminNotification.helper');
 const { checkPropertyOwnership, checkDeveloperOwnership } = require('../../utils/ownershipCheck.helper');
 
-// @desc    Submit an enquiry for a property listing
-// @route   POST /api/users/enquiries
-// @access  Private (Buyer/Tenant only)
+// @desc    Submit an enquiry for a property or developer project (Inquiry Now)
+// @route   POST /api/users/enquiries OR POST /api/enquiries
+// @access  Public / Optional Auth (Logged in or guest)
 exports.createEnquiry = async (req, res, next) => {
   try {
-    const { propertyId, message, visitPreferredDate, visitTimeSlot } = req.body;
-
-    const property = await Property.findById(propertyId).populate('owner', 'name phone email role');
-    if (!property || property.approvalStatus === 'rejected') {
-      return res.status(404).json({
-        status: 'fail',
-        message: 'Property not found or unavailable for enquiry.',
-      });
-    }
-
-    // 🛡️ Prevent self-enquiring
-    const ownership = checkPropertyOwnership(property, req.user, req.body);
-    if (ownership.isOwner) {
-      return res.status(403).json({
-        status: 'fail',
-        success: false,
-        isOwnerBlocked: true,
-        message: ownership.message || 'Action not allowed: You cannot submit an enquiry on your own property listing.',
-      });
-    }
-
-    const enquiry = await PropertyEnquiry.create({
-      property: propertyId,
-      client: req.user._id,
-      message,
+    const {
+      propertyId,
+      projectId,
+      developerId,
+      message = 'Inquiry sent to GharMB Admin.',
       visitPreferredDate,
       visitTimeSlot,
+      channel = 'Portal Form',
+      budget,
+    } = req.body;
+
+    // Resolve client contact details (authenticated user or payload)
+    const clientName = (req.user?.name || req.body.name || req.body.fullName || req.body.clientName || 'Prospective Client').trim();
+    const clientPhone = (req.user?.phone || req.body.phone || req.body.mobile || req.body.clientPhone || '').trim();
+    const clientEmail = (req.user?.email || req.body.email || req.body.clientEmail || '').trim().toLowerCase();
+
+    if (!clientPhone && !clientEmail && !req.user) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Please provide at least a phone number or email so our admin team can contact you.',
+      });
+    }
+
+    const clientDetails = {
+      name: clientName,
+      phone: clientPhone,
+      email: clientEmail,
+    };
+
+    const scheduleDetails = (visitPreferredDate || visitTimeSlot)
+      ? {
+          date: visitPreferredDate ? new Date(visitPreferredDate).toLocaleDateString('en-IN') : undefined,
+          time: visitTimeSlot || undefined,
+        }
+      : undefined;
+
+    const scheduleNote = scheduleDetails
+      ? ` | Scheduled Visit: ${scheduleDetails.date || ''} ${scheduleDetails.time || ''}`
+      : '';
+
+    // --- CASE 1: DEVELOPER PROJECT INQUIRY ---
+    if (projectId || (!propertyId && (req.body.projectName || req.body.developerName))) {
+      let project = null;
+      if (projectId) {
+        project = await Project.findById(projectId).populate('developer', 'name companyName phone email');
+      }
+
+      const projectName = project?.projectName || req.body.projectName || 'Developer Project';
+      const developerName = project?.developerName || project?.developer?.companyName || project?.developer?.name || req.body.developerName || 'Developer';
+      const developerIdVal = project?.developer?._id || project?.developer || developerId;
+
+      // Prevent self-enquiring if authenticated as developer
+      if (project && req.user) {
+        const ownership = checkDeveloperOwnership(project.developer || { _id: project.developer }, req.user, req.body);
+        if (ownership.isOwner) {
+          return res.status(403).json({
+            status: 'fail',
+            success: false,
+            isOwnerBlocked: true,
+            message: 'Action not allowed: Developers cannot submit enquiries on their own projects.',
+          });
+        }
+      }
+
+      const enquiry = await DeveloperEnquiry.create({
+        developer: developerIdVal,
+        developerName,
+        project: project?._id,
+        projectName,
+        client: req.user?._id,
+        clientDetails,
+        message,
+        visitPreferredDate: visitPreferredDate ? new Date(visitPreferredDate) : undefined,
+        visitTimeSlot,
+        budget: budget || (project?.bhkConfigurations?.[0]?.minPrice ? `₹${project.bhkConfigurations[0].minPrice}` : undefined),
+        channel: channel || 'Project Enquiry Form',
+        status: 'pending',
+      });
+
+      // Increment project inquiries count
+      if (project) {
+        await Project.findByIdAndUpdate(project._id, { $inc: { inquiriesCount: 1 } }).catch(() => {});
+      }
+
+      // Notify GharMB Admin Notification Panel directly
+      await notifyAdmin({
+        title: 'New Project Enquiry 🏢',
+        message: `${clientName} (${clientPhone || clientEmail}) submitted an enquiry for project "${projectName}" (${developerName}). Message: "${message}"${scheduleNote}`,
+        type: 'enquiry',
+        senderId: req.user?._id,
+        metadata: {
+          projectId: project?._id,
+          developerId: developerIdVal,
+          enquiryId: enquiry._id,
+          clientDetails,
+          scheduleDetails,
+          customLink: '/admin/enquiries?tab=developer',
+        },
+      });
+
+      return res.status(201).json({
+        status: 'success',
+        message: 'Inquiry received by GharMB Admin. Our project coordinator will contact you shortly.',
+        data: {
+          enquiry,
+          type: 'project',
+        },
+      });
+    }
+
+    // --- CASE 2: PROPERTY LISTING INQUIRY ---
+    let property = null;
+    if (propertyId) {
+      property = await Property.findById(propertyId).populate('owner', 'name phone email role');
+      if (property && property.approvalStatus === 'rejected') {
+        return res.status(404).json({
+          status: 'fail',
+          message: 'Property listing is currently unavailable for enquiry.',
+        });
+      }
+
+      // Prevent self-enquiring by property owner
+      if (property) {
+        const ownership = checkPropertyOwnership(property, req.user, { ...req.body, phone: clientPhone, email: clientEmail });
+        if (ownership.isOwner) {
+          return res.status(403).json({
+            status: 'fail',
+            success: false,
+            isOwnerBlocked: true,
+            message: ownership.message || 'Action not allowed: You cannot submit an enquiry on your own property listing.',
+          });
+        }
+      }
+    }
+
+    const propTitle = property?.title || req.body.propertyName || req.body.title || 'General Real Estate Listing';
+    const location = property?.locality ? `${property.locality}, ${property.city}` : property?.city || req.body.location || '';
+
+    const enquiry = await PropertyEnquiry.create({
+      property: property?._id,
+      propertyName: propTitle,
+      location,
+      client: req.user?._id,
+      clientDetails,
+      message,
+      visitPreferredDate: visitPreferredDate ? new Date(visitPreferredDate) : undefined,
+      visitTimeSlot,
+      budget: budget || (property?.price ? `₹${property.price}` : undefined),
+      channel: channel || 'Property Enquiry Form',
       status: 'pending',
     });
 
-    // Inquiries are handled exclusively by Admin (owner is not notified)
+    // Increment property inquiries count
+    if (property) {
+      await Property.findByIdAndUpdate(property._id, { $inc: { inquiriesCount: 1 } }).catch(() => {});
+    }
 
-    // Notify Admin Notification Panel directly
+    // Notify GharMB Admin Notification Panel directly
     await notifyAdmin({
       title: 'New Property Enquiry 📩',
-      message: `${req.user.name || 'A user'} submitted an enquiry for listing "${property.title}". Phone: ${req.user.phone || 'N/A'}${message ? ` | Message: "${message}"` : ''}`,
+      message: `${clientName} (${clientPhone || clientEmail}) submitted an enquiry for listing "${propTitle}". Message: "${message}"${scheduleNote}`,
       type: 'enquiry',
-      senderId: req.user._id,
+      senderId: req.user?._id,
       metadata: {
-        propertyId: property._id,
+        propertyId: property?._id,
         enquiryId: enquiry._id,
-        clientDetails: {
-          name: req.user.name,
-          phone: req.user.phone,
-          email: req.user.email,
-        },
+        clientDetails,
+        scheduleDetails,
+        customLink: '/admin/enquiries?tab=property',
       },
     });
 
     res.status(201).json({
       status: 'success',
+      message: 'Inquiry received by GharMB Admin. Our property coordinator will contact you shortly.',
       data: {
         enquiry,
+        type: 'property',
       },
     });
   } catch (error) {
@@ -223,35 +349,59 @@ exports.createDeveloperEnquiry = async (req, res, next) => {
       });
     }
 
+    const clientName = (req.user?.name || req.body.name || req.body.fullName || req.body.clientName || 'Prospective Buyer').trim();
+    const clientPhone = (req.user?.phone || req.body.phone || req.body.mobile || req.body.clientPhone || '').trim();
+    const clientEmail = (req.user?.email || req.body.email || req.body.clientEmail || '').trim().toLowerCase();
+
+    const clientDetails = {
+      name: clientName,
+      phone: clientPhone,
+      email: clientEmail,
+    };
+
+    const projectId = req.body.projectId || req.body.project;
+    let projectName = req.body.projectName;
+    if (projectId && !projectName) {
+      const prj = await Project.findById(projectId).select('projectName');
+      if (prj) projectName = prj.projectName;
+    }
+
+    const visitPreferredDate = req.body.visitPreferredDate ? new Date(req.body.visitPreferredDate) : undefined;
+    const visitTimeSlot = req.body.visitTimeSlot || undefined;
+
     // 3. Create enquiry
     const enquiry = await DeveloperEnquiry.create({
       developer: developerId,
-      client: req.user._id,
+      developerName: developer.companyName || developer.name,
+      project: projectId,
+      projectName,
+      client: req.user?._id,
+      clientDetails,
       message,
+      visitPreferredDate,
+      visitTimeSlot,
       status: 'pending',
     });
 
-    // Developer inquiries are handled exclusively by Admin (developer is not notified directly)
-
-    // 5. Notify Admin Notification Panel directly
+    // 5. Notify GharMB Admin Notification Panel directly
+    const targetLabel = projectName ? `project "${projectName}" (${developer.companyName || developer.name})` : `builder/developer "${developer.companyName || developer.name}"`;
     await notifyAdmin({
       title: 'New Developer Enquiry 🏢',
-      message: `${req.user.name || 'A user'} submitted an enquiry for builder/developer "${developer.name}". Phone: ${req.user.phone || 'N/A'}${message ? ` | Message: "${message}"` : ''}`,
+      message: `${clientName} (${clientPhone || clientEmail}) submitted an enquiry for ${targetLabel}. Message: "${message}"`,
       type: 'enquiry',
-      senderId: req.user._id,
+      senderId: req.user?._id,
       metadata: {
         enquiryId: enquiry._id,
-        clientDetails: {
-          name: req.user.name,
-          phone: req.user.phone,
-          email: req.user.email,
-        },
+        developerId,
+        projectId,
+        clientDetails,
+        customLink: '/admin/enquiries?tab=developer',
       },
     });
 
     res.status(201).json({
       status: 'success',
-      message: 'Enquiry submitted successfully to developer.',
+      message: 'Enquiry submitted successfully to GharMB Admin.',
       data: {
         enquiry,
       },
