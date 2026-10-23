@@ -707,6 +707,335 @@ exports.createInteriorEnquiry = async (req, res, next) => {
 // @desc    Unified Service Enquiry (Flexible endpoint for any service type)
 // @route   POST /api/services/enquiry
 // @access  Public (Optional User Auth)
+// @desc    Home Loan Enquiry & Quick Eligibility Check
+// @route   POST /api/services/loan/enquiry (and /api/home-loan/enquiry)
+// @access  Public (Optional User Auth)
+exports.createHomeLoanEnquiry = async (req, res, next) => {
+  try {
+    const {
+      clientName,
+      name,
+      fullName,
+      clientPhone,
+      phone,
+      mobile,
+      clientEmail,
+      email,
+      serviceName,
+      location,
+      city,
+      propertyId,
+      property,
+      propertyRef,
+      propertyName,
+      propertyValue,
+      estimatedPropertyValue,
+      propertyPrice,
+      monthlyIncome,
+      monthlyNetIncome,
+      income,
+      existingEmis,
+      existingMonthlyEmis,
+      existingEmi,
+      currentEmis,
+      loanRequired,
+      loanAmount,
+      requestedAmount,
+      loanTenure,
+      tenure,
+      tenureYears,
+      interestRate,
+      employmentType,
+      cibilScore,
+      creditScore,
+      preferredBank,
+      bank,
+      budgetRange,
+      notes,
+      message,
+    } = req.body;
+
+    const resolvedName = (clientName || name || fullName || req.user?.name || 'Loan Applicant').trim();
+    const resolvedPhone = (clientPhone || phone || mobile || req.user?.phone || '').trim();
+    const resolvedEmail = (clientEmail || email || req.user?.email || '').trim().toLowerCase();
+    const resolvedLocation = (location || city || req.user?.city || 'India').trim();
+
+    if (!resolvedPhone) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Client contact mobile number is required for home loan enquiry.',
+      });
+    }
+
+    if (!resolvedName) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Client full name is required for home loan enquiry.',
+      });
+    }
+
+    // Helper to safely parse currency and numbers
+    const parseAmount = (val) => {
+      if (!val) return 0;
+      const cleaned = String(val).replace(/[^0-9.]/g, '');
+      return parseFloat(cleaned) || 0;
+    };
+
+    const incomeNum = parseAmount(monthlyIncome || monthlyNetIncome || income);
+    const propValNum = parseAmount(propertyValue || estimatedPropertyValue || propertyPrice);
+    const existingEmiNum = parseAmount(existingEmis || existingMonthlyEmis || existingEmi || currentEmis);
+    let tenureNum = parseAmount(loanTenure || tenure || tenureYears) || 20;
+    if (tenureNum > 30) tenureNum = 30; // max 30 years
+    if (tenureNum < 1) tenureNum = 20;
+
+    const rateNum = parseAmount(interestRate) || 8.5; // standard 8.5% p.a.
+    const monthlyRate = rateNum / (12 * 100);
+    const totalMonths = tenureNum * 12;
+
+    // Standard Banking FOIR (Fixed Obligation to Income Ratio):
+    // Income <= ₹50,000 -> 50% max EMI; > ₹50,000 -> 60% max EMI
+    const foirRatio = incomeNum > 50000 ? 0.60 : 0.50;
+    const maxPermissibleEmi = Math.max(0, (incomeNum * foirRatio) - existingEmiNum);
+
+    // Loan eligibility: P = EMI * ((1+r)^n - 1) / (r * (1+r)^n)
+    let maxEligibleLoan = 0;
+    if (maxPermissibleEmi > 0 && monthlyRate > 0) {
+      const factor = Math.pow(1 + monthlyRate, totalMonths);
+      maxEligibleLoan = Math.round(maxPermissibleEmi * ((factor - 1) / (monthlyRate * factor)));
+    }
+
+    // LTV (Loan to Value) cap according to RBI guidelines:
+    // <= ₹30L: up to 90%, ₹30L-₹75L: up to 80%, > ₹75L: up to 75%
+    if (propValNum > 0) {
+      let ltvCap = 0.80;
+      if (propValNum <= 3000000) ltvCap = 0.90;
+      else if (propValNum > 7500000) ltvCap = 0.75;
+      const ltvMax = Math.round(propValNum * ltvCap);
+      if (maxEligibleLoan > 0) {
+        maxEligibleLoan = Math.min(maxEligibleLoan, ltvMax);
+      } else {
+        maxEligibleLoan = ltvMax;
+      }
+    }
+
+    // Estimated EMI for requested loan or max eligible loan
+    const reqLoanNum = parseAmount(loanRequired || loanAmount || requestedAmount);
+    const loanBaseForEmi = reqLoanNum > 0 ? reqLoanNum : maxEligibleLoan;
+    let calculatedEmi = 0;
+    if (loanBaseForEmi > 0 && monthlyRate > 0) {
+      const factor = Math.pow(1 + monthlyRate, totalMonths);
+      calculatedEmi = Math.round((loanBaseForEmi * monthlyRate * factor) / (factor - 1));
+    }
+
+    const formattedEligibility = maxEligibleLoan > 0 ? `₹${maxEligibleLoan.toLocaleString('en-IN')}` : 'Under Assessment';
+    const formattedEmi = calculatedEmi > 0 ? `₹${calculatedEmi.toLocaleString('en-IN')}/month` : 'Contact for Quote';
+
+    const serviceRequestId = generateServiceId('Loan');
+    const source = resolveSource(req);
+
+    const targetPropId = propertyId || property;
+    const resolvedPropRef = propertyRef?.trim() || propertyName?.trim() || '';
+
+    const service = await ServiceRequest.create({
+      serviceRequestId,
+      serviceType: 'Loan',
+      serviceName: serviceName?.trim() || 'Home Loan Assistance',
+      client: req.user?._id || undefined,
+      clientName: resolvedName,
+      clientPhone: resolvedPhone,
+      clientEmail: resolvedEmail,
+      location: resolvedLocation,
+      property: targetPropId && targetPropId.match(/^[0-9a-fA-F]{24}$/) ? targetPropId : undefined,
+      propertyRef: resolvedPropRef,
+      propertyValue: propValNum > 0 ? `₹${propValNum.toLocaleString('en-IN')}` : (propertyValue?.trim() || ''),
+      monthlyIncome: incomeNum > 0 ? `₹${incomeNum.toLocaleString('en-IN')}` : (monthlyIncome?.trim() || ''),
+      existingEmis: existingEmiNum > 0 ? `₹${existingEmiNum.toLocaleString('en-IN')}` : (existingEmis?.trim() || '₹0'),
+      loanRequired: reqLoanNum > 0 ? `₹${reqLoanNum.toLocaleString('en-IN')}` : (loanRequired?.trim() || ''),
+      loanTenure: `${tenureNum} Years`,
+      interestRate: `${rateNum}%`,
+      calculatedEligibility: formattedEligibility,
+      estimatedEmi: formattedEmi,
+      employmentType: employmentType?.trim() || 'Salaried',
+      cibilScore: (cibilScore || creditScore)?.trim() || '',
+      preferredBank: (preferredBank || bank)?.trim() || '',
+      budgetRange: budgetRange?.trim() || (propValNum > 0 ? `₹${propValNum.toLocaleString('en-IN')}` : ''),
+      status: 'In Progress',
+      timeline: getDefaultMilestones('Loan'),
+      source,
+      notes: notes?.trim() || message?.trim() || `Home Loan Eligibility Check: Monthly Income ₹${incomeNum.toLocaleString('en-IN')}, Property ₹${propValNum.toLocaleString('en-IN')}, Existing EMIs ₹${existingEmiNum.toLocaleString('en-IN')}. Estimated Eligibility: ${formattedEligibility}`,
+    });
+
+    // Notify Admin Panel with in-app alert & FCM push notification
+    await notifyAdmin({
+      title: `New Home Loan Enquiry (${serviceRequestId})`,
+      message: `${resolvedName} submitted Home Loan Eligibility Enquiry. Monthly Income: ₹${incomeNum.toLocaleString('en-IN')}, Property: ₹${propValNum.toLocaleString('en-IN')}, Contact: ${resolvedPhone}`,
+      type: 'enquiry',
+      metadata: {
+        serviceRequestId: service._id,
+        serviceRequestIdCode: serviceRequestId,
+        serviceType: 'Loan',
+        monthlyIncome: service.monthlyIncome,
+        propertyValue: service.propertyValue,
+        existingEmis: service.existingEmis,
+        calculatedEligibility: service.calculatedEligibility,
+        estimatedEmi: service.estimatedEmi,
+        loanRequired: service.loanRequired,
+        employmentType: service.employmentType,
+        clientDetails: {
+          name: resolvedName,
+          phone: resolvedPhone,
+          email: resolvedEmail,
+        },
+        customLink: '/admin/enquiries?tab=service',
+      },
+      senderId: req.user?._id || null,
+    });
+
+    res.status(201).json({
+      status: 'success',
+      message: 'Home loan inquiry submitted successfully. Our finance specialist will contact you shortly.',
+      data: {
+        serviceRequestId: service.serviceRequestId,
+        serviceId: service._id,
+        eligibilityCheck: {
+          monthlyIncome: service.monthlyIncome,
+          propertyValue: service.propertyValue,
+          existingEmis: service.existingEmis,
+          maxEligibleLoan: formattedEligibility,
+          estimatedMonthlyEmi: formattedEmi,
+          tenureYears: tenureNum,
+          assumedInterestRate: `${rateNum}%`,
+        },
+        service,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Calculate Home Loan Eligibility & EMI in real time
+// @route   POST /api/services/loan/calculate-eligibility
+// @route   GET /api/services/loan/calculate-eligibility
+// @access  Public
+exports.calculateHomeLoanEligibility = async (req, res, next) => {
+  try {
+    const params = req.method === 'GET' ? req.query : req.body;
+    const {
+      monthlyIncome,
+      monthlyNetIncome,
+      income,
+      propertyValue,
+      estimatedPropertyValue,
+      propertyPrice,
+      existingEmis,
+      existingMonthlyEmis,
+      existingEmi,
+      currentEmis,
+      loanRequired,
+      loanAmount,
+      requestedAmount,
+      loanTenure,
+      tenure,
+      tenureYears,
+      interestRate,
+      employmentType,
+    } = params;
+
+    const parseAmount = (val) => {
+      if (!val) return 0;
+      const cleaned = String(val).replace(/[^0-9.]/g, '');
+      return parseFloat(cleaned) || 0;
+    };
+
+    const incomeNum = parseAmount(monthlyIncome || monthlyNetIncome || income);
+    const propValNum = parseAmount(propertyValue || estimatedPropertyValue || propertyPrice);
+    const existingEmiNum = parseAmount(existingEmis || existingMonthlyEmis || existingEmi || currentEmis);
+    let tenureNum = parseAmount(loanTenure || tenure || tenureYears) || 20;
+    if (tenureNum > 30) tenureNum = 30;
+    if (tenureNum < 1) tenureNum = 20;
+
+    const rateNum = parseAmount(interestRate) || 8.5;
+    const monthlyRate = rateNum / (12 * 100);
+    const totalMonths = tenureNum * 12;
+
+    const foirRatio = incomeNum > 50000 ? 0.60 : 0.50;
+    const maxPermissibleEmi = Math.max(0, (incomeNum * foirRatio) - existingEmiNum);
+
+    let maxLoanByEmi = 0;
+    if (maxPermissibleEmi > 0 && monthlyRate > 0) {
+      const factor = Math.pow(1 + monthlyRate, totalMonths);
+      maxLoanByEmi = Math.round(maxPermissibleEmi * ((factor - 1) / (monthlyRate * factor)));
+    }
+
+    let ltvCap = 0.80;
+    let ltvMax = 0;
+    if (propValNum > 0) {
+      if (propValNum <= 3000000) ltvCap = 0.90;
+      else if (propValNum > 7500000) ltvCap = 0.75;
+      ltvMax = Math.round(propValNum * ltvCap);
+    }
+
+    let maxEligibleLoan = maxLoanByEmi;
+    if (ltvMax > 0 && maxEligibleLoan > 0) {
+      maxEligibleLoan = Math.min(maxLoanByEmi, ltvMax);
+    } else if (ltvMax > 0 && maxEligibleLoan === 0) {
+      maxEligibleLoan = ltvMax;
+    }
+
+    const reqLoanNum = parseAmount(loanRequired || loanAmount || requestedAmount);
+    const loanBaseForEmi = reqLoanNum > 0 ? reqLoanNum : maxEligibleLoan;
+    let calculatedEmi = 0;
+    if (loanBaseForEmi > 0 && monthlyRate > 0) {
+      const factor = Math.pow(1 + monthlyRate, totalMonths);
+      calculatedEmi = Math.round((loanBaseForEmi * monthlyRate * factor) / (factor - 1));
+    }
+
+    let eligibilityStatus = 'Eligible';
+    if (incomeNum === 0 && propValNum === 0) {
+      eligibilityStatus = 'Enter Details';
+    } else if (maxPermissibleEmi <= 0) {
+      eligibilityStatus = 'High Existing EMIs';
+    } else if (maxEligibleLoan > 0) {
+      eligibilityStatus = 'Eligible';
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        inputs: {
+          monthlyIncome: incomeNum,
+          propertyValue: propValNum,
+          existingEmis: existingEmiNum,
+          tenureYears: tenureNum,
+          interestRate: rateNum,
+          requestedLoan: reqLoanNum > 0 ? reqLoanNum : undefined,
+          employmentType: employmentType || 'Salaried',
+        },
+        eligibility: {
+          maxEligibleLoanAmount: maxEligibleLoan,
+          maxEligibleLoanFormatted: maxEligibleLoan > 0 ? `₹${maxEligibleLoan.toLocaleString('en-IN')}` : '₹0',
+          maxPermissibleEmi: Math.round(maxPermissibleEmi),
+          maxPermissibleEmiFormatted: `₹${Math.round(maxPermissibleEmi).toLocaleString('en-IN')}/month`,
+          estimatedMonthlyEmi: calculatedEmi,
+          estimatedMonthlyEmiFormatted: calculatedEmi > 0 ? `₹${calculatedEmi.toLocaleString('en-IN')}/month` : '₹0',
+          tenureMonths: totalMonths,
+          tenureYears: tenureNum,
+          assumedInterestRate: `${rateNum}%`,
+          foirRatioPercentage: Math.round(foirRatio * 100),
+          ltvPercentage: Math.round(ltvCap * 100),
+          eligibilityStatus,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Unified Service Enquiry (Flexible endpoint for any service type)
+// @route   POST /api/services/enquiry
+// @access  Public (Optional User Auth)
 exports.createUnifiedEnquiry = async (req, res, next) => {
   try {
     const { serviceType = 'Movers' } = req.body;
@@ -718,81 +1047,12 @@ exports.createUnifiedEnquiry = async (req, res, next) => {
       return exports.createLegalEnquiry(req, res, next);
     } else if (normalizedType === 'Interior') {
       return exports.createInteriorEnquiry(req, res, next);
+    } else if (normalizedType === 'Loan' || normalizedType === 'Homeloan' || normalizedType === 'Home-loan') {
+      return exports.createHomeLoanEnquiry(req, res, next);
     }
 
-    // Default general / loan fallback
-    const {
-      clientName,
-      clientPhone,
-      clientEmail,
-      serviceName,
-      location,
-      loanRequired,
-      employmentType,
-      monthlyIncome,
-      budgetRange,
-      notes,
-    } = req.body;
-
-    const resolvedName = (clientName || req.user?.name || '').trim();
-    const resolvedPhone = (clientPhone || req.user?.phone || '').trim();
-    const resolvedEmail = (clientEmail || req.user?.email || '').trim().toLowerCase();
-
-    if (!resolvedName || !resolvedPhone) {
-      return res.status(400).json({
-        status: 'fail',
-        message: 'Client name and phone number are required.',
-      });
-    }
-
-    const serviceRequestId = generateServiceId('Loan');
-    const source = resolveSource(req);
-
-    const service = await ServiceRequest.create({
-      serviceRequestId,
-      serviceType: 'Loan',
-      serviceName: serviceName?.trim() || 'Home Loan Assistance',
-      client: req.user?._id || undefined,
-      clientName: resolvedName,
-      clientPhone: resolvedPhone,
-      clientEmail: resolvedEmail,
-      location: location?.trim() || 'India',
-      loanRequired: loanRequired?.trim() || '',
-      employmentType: employmentType?.trim() || '',
-      monthlyIncome: monthlyIncome?.trim() || '',
-      budgetRange: budgetRange?.trim() || '',
-      status: 'In Progress',
-      timeline: getDefaultMilestones('Loan'),
-      source,
-      notes: notes?.trim() || 'Financial / Loan consultation request',
-    });
-
-    await notifyAdmin({
-      title: `New Home Loan Enquiry (${serviceRequestId})`,
-      message: `${resolvedName} requested loan assistance. Contact: ${resolvedPhone}`,
-      type: 'enquiry',
-      metadata: {
-        serviceRequestId: service._id,
-        serviceRequestIdCode: serviceRequestId,
-        serviceType: 'Loan',
-        clientDetails: {
-          name: resolvedName,
-          phone: resolvedPhone,
-          email: resolvedEmail,
-        },
-        customLink: '/admin/services',
-      },
-      senderId: req.user?._id || null,
-    });
-
-    res.status(201).json({
-      status: 'success',
-      message: 'Service inquiry submitted successfully.',
-      data: {
-        serviceRequestId: service.serviceRequestId,
-        service,
-      },
-    });
+    // Default general loan enquiry fallback
+    return exports.createHomeLoanEnquiry(req, res, next);
   } catch (error) {
     next(error);
   }

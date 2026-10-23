@@ -508,11 +508,11 @@ const InsightsCategories = () => {
               <colgroup>
                 <col className="w-[5%]" />
                 <col className="w-[30%]" />
-                <col className="w-[20%]" />
+                <col className="w-[18%]" />
                 <col className="w-[15%]" />
                 <col className="w-[12%]" />
                 <col className="w-[10%]" />
-                <col className="w-[8%]" />
+                <col className="w-[10%]" />
               </colgroup>
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--bg-muted)]/50 text-[11px] font-semibold text-[var(--text-muted)]">
@@ -533,7 +533,7 @@ const InsightsCategories = () => {
                   <th className="py-2 px-3 align-middle">Articles Count</th>
                   <th className="py-2 px-3 align-middle text-center">Status</th>
                   <th className="py-2 px-3 align-middle">Created</th>
-                  <th className="py-2 px-3 text-right align-middle">Actions</th>
+                  <th className="py-2 pl-2 pr-4 text-right align-middle">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)] text-xs">
@@ -603,7 +603,7 @@ const InsightsCategories = () => {
                         {createdDate}
                       </td>
 
-                      <td className="py-1.5 px-3 text-right whitespace-nowrap align-middle">
+                      <td className="py-1.5 pl-2 pr-4 text-right whitespace-nowrap align-middle">
                         <div className="inline-flex items-center justify-end gap-1 shrink-0">
                           <button
                             onClick={() => handleOpenEdit(cat)}

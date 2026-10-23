@@ -528,15 +528,15 @@ const InsightsManagement = () => {
           <div className="w-full overflow-hidden">
             <table className="w-full text-left border-collapse table-fixed">
               <colgroup>
-                <col className="w-[4%]" />
-                <col className="w-[4%]" />
-                <col className="w-[32%]" />
-                <col className="w-[14%]" />
-                <col className="w-[14%]" />
-                <col className="w-[11%]" />
-                <col className="w-[7%]" />
-                <col className="w-[7%]" />
-                <col className="w-[7%]" />
+                <col className="w-[3.5%]" />
+                <col className="w-[3.5%]" />
+                <col className="w-[30%]" />
+                <col className="w-[12%]" />
+                <col className="w-[12%]" />
+                <col className="w-[10%]" />
+                <col className="w-[6%]" />
+                <col className="w-[10%]" />
+                <col className="w-[13%]" />
               </colgroup>
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--bg-muted)]/50 text-[11px] font-semibold text-[var(--text-muted)]">
@@ -559,7 +559,7 @@ const InsightsManagement = () => {
                   <th className="py-2 px-3 align-middle">Status</th>
                   <th className="py-2 px-3 text-right align-middle">Views</th>
                   <th className="py-2 px-3 align-middle">Published</th>
-                  <th className="py-2 px-3 text-right align-middle">Actions</th>
+                  <th className="py-2 pl-2 pr-4 text-right align-middle">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)] text-xs">
@@ -665,7 +665,7 @@ const InsightsManagement = () => {
                           {blog.isPublished ? (
                             <Badge.Active size="xs">Published</Badge.Active>
                           ) : (
-                            <Badge color="amber" variant="pastel" size="xs" dot pulse icon={<Clock size={10} className="shrink-0" />}>
+                            <Badge color="amber" variant="pastel" size="xs" dot icon={<Clock size={10} className="shrink-0" />}>
                               Draft
                             </Badge>
                           )}
@@ -687,7 +687,7 @@ const InsightsManagement = () => {
                       </td>
 
                       {/* Actions */}
-                      <td className="py-1.5 px-3 text-right align-middle whitespace-nowrap">
+                      <td className="py-1.5 pl-2 pr-4 text-right align-middle whitespace-nowrap">
                         <div className="inline-flex items-center justify-end gap-1 shrink-0">
                           {blog.isPublished && (
                             <a

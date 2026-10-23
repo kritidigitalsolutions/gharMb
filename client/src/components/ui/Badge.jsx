@@ -35,7 +35,8 @@ export const Badge = ({
 }) => {
   // Size specifications
   const sizeStyles = {
-    xs: 'h-[20px] px-2 text-[10px] gap-1 font-semibold',
+    '2xs': 'h-[18px] px-1.5 text-[9px] gap-0.5 font-medium',
+    xs: 'h-[19px] px-2 text-[9.5px] gap-1 font-medium',
     sm: 'h-[24px] px-2.5 text-[11px] gap-1.5 font-medium',
     md: 'h-[28px] px-3 text-xs gap-1.5 font-medium',
     lg: 'h-[32px] px-3.5 text-sm gap-2 font-semibold',
@@ -257,13 +258,13 @@ Badge.ForRent = ({ children = 'For Rent', ...props }) => (
   <Badge color="emerald" variant="pastel" {...props}>{children}</Badge>
 );
 
-Badge.Pending = ({ children = 'Needs Audit', pulse = true, icon, ...props }) => (
+Badge.Pending = ({ children = 'Needs Audit', pulse = false, dot = false, icon, ...props }) => (
   <Badge
     color="amber"
     variant="pastel"
-    dot
+    dot={dot}
     pulse={pulse}
-    icon={icon !== undefined ? icon : <Clock size={props.size === 'xs' ? 10 : 11} className="shrink-0" />}
+    icon={icon !== undefined ? icon : <Clock size={props.size === 'xs' || props.size === '2xs' ? 9.5 : 11} className="shrink-0" />}
     {...props}
   >
     {children}
@@ -274,7 +275,7 @@ Badge.Approved = ({ children = 'Approved', icon, ...props }) => (
   <Badge
     color="emerald"
     variant="pastel"
-    icon={icon !== undefined ? icon : <CheckCircle2 size={props.size === 'xs' ? 10 : 11} className="shrink-0" />}
+    icon={icon !== undefined ? icon : <CheckCircle2 size={props.size === 'xs' || props.size === '2xs' ? 9.5 : 11} className="shrink-0" />}
     {...props}
   >
     {children}
@@ -285,7 +286,7 @@ Badge.Rejected = ({ children = 'Rejected', icon, ...props }) => (
   <Badge
     color="red"
     variant="pastel"
-    icon={icon !== undefined ? icon : <XCircle size={props.size === 'xs' ? 10 : 11} className="shrink-0" />}
+    icon={icon !== undefined ? icon : <XCircle size={props.size === 'xs' || props.size === '2xs' ? 9.5 : 11} className="shrink-0" />}
     {...props}
   >
     {children}
@@ -296,7 +297,7 @@ Badge.Sold = ({ children = 'Sold', icon, ...props }) => (
   <Badge
     color="purple"
     variant="pastel"
-    icon={icon !== undefined ? icon : <ShieldCheck size={props.size === 'xs' ? 10 : 11} className="shrink-0" />}
+    icon={icon !== undefined ? icon : <ShieldCheck size={props.size === 'xs' || props.size === '2xs' ? 9.5 : 11} className="shrink-0" />}
     {...props}
   >
     {children}

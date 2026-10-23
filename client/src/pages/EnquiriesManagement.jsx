@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
 import CallContactModal from '../components/common/CallContactModal';
 import API from '../api/api';
+import Badge from '../components/ui/Badge';
 import {
   Inbox,
   Search,
@@ -48,45 +49,51 @@ const normalizeStatus = (status) => {
   return s || 'pending';
 };
 
-// Status Badge Metadata
+// Status Badge Metadata (Mapped to BADGES_UI_DESIGN_SYSTEM.md Tokens)
 const getStatusBadge = (status) => {
   const norm = normalizeStatus(status);
   switch (norm) {
     case 'pending':
       return {
         label: 'Pending',
-        dot: 'bg-amber-500',
-        pill: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border-amber-200 dark:border-amber-800/40',
+        dot: 'bg-[#78350f] dark:bg-[#fef08a]',
+        pill: 'bg-[#fef08a] text-[#78350f] dark:bg-[#4d3209] dark:text-[#fef08a] border-transparent',
+        badgeColor: 'amber',
       };
     case 'contacted':
       return {
         label: 'In Follow-Up',
-        dot: 'bg-sky-500',
-        pill: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400 border-sky-200 dark:border-sky-800/40',
+        dot: 'bg-[#075985] dark:bg-[#38bdf8]',
+        pill: 'bg-[#bae6fd] text-[#075985] dark:bg-[#113c54] dark:text-[#7dd3fc] border-transparent',
+        badgeColor: 'sky',
       };
     case 'confirmed':
       return {
         label: 'Confirmed',
-        dot: 'bg-indigo-500',
-        pill: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800/40',
+        dot: 'bg-[#4c1d95] dark:bg-[#c4b5fd]',
+        pill: 'bg-[#c4b5fd] text-[#4c1d95] dark:bg-[#3b1968] dark:text-[#ddd6fe] border-transparent',
+        badgeColor: 'purple',
       };
     case 'resolved':
       return {
         label: 'Completed',
-        dot: 'bg-emerald-500',
-        pill: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/40',
+        dot: 'bg-[#064e3b] dark:bg-[#6ee7b7]',
+        pill: 'bg-[#52c99b] text-[#064e3b] dark:bg-[#1a4a38] dark:text-[#6ee7b7] border-transparent',
+        badgeColor: 'emerald',
       };
     case 'cancelled':
       return {
         label: 'Cancelled',
-        dot: 'bg-rose-500',
-        pill: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-800/40',
+        dot: 'bg-[#701a2b] dark:bg-[#fda4af]',
+        pill: 'bg-[#fca5a5] text-[#701a2b] dark:bg-[#521722] dark:text-[#fda4af] border-transparent',
+        badgeColor: 'red',
       };
     default:
       return {
         label: status ? String(status).charAt(0).toUpperCase() + String(status).slice(1) : 'Pending',
-        dot: 'bg-zinc-400',
-        pill: 'bg-zinc-50 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800',
+        dot: 'bg-[#334155] dark:bg-[#94a3b8]',
+        pill: 'bg-[#e2e8f0] text-[#334155] dark:bg-[#273244] dark:text-[#cbd5e1] border-transparent',
+        badgeColor: 'slate',
       };
   }
 };
@@ -234,7 +241,7 @@ export default function EnquiriesManagement() {
         code: `PRP-${String(item._id).slice(-4).toUpperCase()}`,
         stream: 'property',
         categoryLabel: 'Property Lead',
-        categoryBadgeClass: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20',
+        categoryColor: 'sky',
         title: propTitle,
         subtitle: locality,
         budget: budget,
@@ -268,7 +275,7 @@ export default function EnquiriesManagement() {
         code: `DEV-${String(item._id).slice(-4).toUpperCase()}`,
         stream: 'developer',
         categoryLabel: 'Builder Lead',
-        categoryBadgeClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+        categoryColor: 'purple',
         title,
         subtitle,
         budget: item.budget || '',
@@ -302,7 +309,7 @@ export default function EnquiriesManagement() {
         code: `VST-${String(item._id).slice(-4).toUpperCase()}`,
         stream: 'visit',
         categoryLabel: 'Site Visit',
-        categoryBadgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+        categoryColor: 'emerald',
         title: propTitle,
         subtitle: `${visitDateFormatted}${slotText}`,
         budget: item.property?.price ? `₹${Number(item.property.price).toLocaleString('en-IN')}` : '',
@@ -333,7 +340,7 @@ export default function EnquiriesManagement() {
         code: item.referenceId ? `WEB-${item.referenceId}` : `WEB-${String(item._id).slice(-4).toUpperCase()}`,
         stream: 'web',
         categoryLabel: 'Web Contact',
-        categoryBadgeClass: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+        categoryColor: 'slate',
         title: subject,
         subtitle: item.referenceId ? `Ref #${item.referenceId}` : 'Contact Form Submission',
         budget: '',
@@ -361,11 +368,7 @@ export default function EnquiriesManagement() {
       const locationSub = item.location || item.propertyRef || (item.property?.locality ? `${item.property.locality}, ${item.property.city || ''}` : '');
       const budget = item.quotation && item.quotation !== 'Under Review' ? item.quotation : (item.budgetRange || item.estimatedPrice || item.quotation || '');
 
-      let badgeClass = 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20';
-      if (sType === 'Interior') badgeClass = 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20';
-      else if (sType === 'Loan') badgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
-      else if (sType === 'Legal') badgeClass = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
-      else if (sType === 'Movers') badgeClass = 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20';
+      const sColor = sType === 'Interior' ? 'purple' : sType === 'Loan' ? 'emerald' : sType === 'Legal' ? 'amber' : sType === 'Movers' ? 'sky' : 'peach';
 
       const notesList = (item.notesHistory || []).map((n) => ({
         text: n.text,
@@ -382,7 +385,7 @@ export default function EnquiriesManagement() {
         code: item.serviceRequestId || `SRV-${String(item._id).slice(-4).toUpperCase()}`,
         stream: 'service',
         categoryLabel: `${sType} Service`,
-        categoryBadgeClass: badgeClass,
+        categoryColor: sColor,
         title: serviceTitle,
         subtitle: `${item.serviceRequestId ? `#${item.serviceRequestId} · ` : ''}${locationSub}`,
         budget: budget,
@@ -1070,9 +1073,9 @@ export default function EnquiriesManagement() {
                           {enquiry.code}
                         </span>
                         <div className="mt-0.5">
-                          <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-semibold border ${enquiry.categoryBadgeClass}`}>
+                          <Badge color={enquiry.categoryColor || 'peach'} variant="pastel" size="2xs">
                             {enquiry.categoryLabel}
-                          </span>
+                          </Badge>
                         </div>
                       </td>
 
@@ -1224,9 +1227,9 @@ export default function EnquiriesManagement() {
             {/* Drawer Header */}
             <div className="py-3 px-4 border-b border-[var(--border)] flex items-center justify-between shrink-0 bg-[var(--bg-muted)]/40">
               <div className="flex items-center gap-2">
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${selectedEnquiry.categoryBadgeClass}`}>
+                <Badge color={selectedEnquiry.categoryColor || 'peach'} variant="pastel" size="xs">
                   {selectedEnquiry.categoryLabel}
-                </span>
+                </Badge>
                 <span className="font-mono text-xs font-semibold text-[var(--text-primary)]">
                   {selectedEnquiry.code}
                 </span>

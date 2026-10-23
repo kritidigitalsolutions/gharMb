@@ -95,6 +95,27 @@ const serviceRequestSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    // Home Loan Quick Eligibility & EMI check fields
+    existingEmis: {
+      type: String,
+      trim: true,
+    },
+    loanTenure: {
+      type: String,
+      trim: true,
+    },
+    calculatedEligibility: {
+      type: String,
+      trim: true,
+    },
+    estimatedEmi: {
+      type: String,
+      trim: true,
+    },
+    interestRate: {
+      type: String,
+      trim: true,
+    },
     budgetRange: {
       type: String,
       trim: true,

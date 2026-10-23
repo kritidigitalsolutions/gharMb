@@ -7,6 +7,7 @@ import {
 import API from '../api/api';
 import { compressImage } from '../utils/imageCompressor';
 import SmoothImage from '../components/common/SmoothImage';
+import Badge from '../components/ui/Badge';
 
 const PLACEMENT_OPTIONS = [
   { id: 'all', label: 'All Placements' },
@@ -445,9 +446,9 @@ const BannerManagement = () => {
                       onChange={() => toggleSelectOne(banner._id)}
                       className="w-3.5 h-3.5 rounded text-brand focus:ring-brand border-white/60 cursor-pointer"
                     />
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-black/70 backdrop-blur-xs text-white">
+                    <Badge color="purple" variant="pastel" size="xs">
                       {getPlacementLabel(banner.position)}
-                    </span>
+                    </Badge>
                   </div>
 
                   {/* Active Toggle Switch */}
@@ -455,11 +456,14 @@ const BannerManagement = () => {
                     <button
                       type="button"
                       onClick={(e) => handleToggleStatus(banner, e)}
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
-                        banner.isActive ? 'bg-emerald-500 text-white' : 'bg-black/60 text-zinc-300'
-                      }`}
+                      className="cursor-pointer transition-transform active:scale-95"
+                      title={banner.isActive ? 'Click to deactivate' : 'Click to activate'}
                     >
-                      {banner.isActive ? 'Active' : 'Inactive'}
+                      {banner.isActive ? (
+                        <Badge.Active size="xs" />
+                      ) : (
+                        <Badge.Offline size="xs">Inactive</Badge.Offline>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -579,9 +583,9 @@ const BannerManagement = () => {
                         <div className="text-[10px] text-[var(--text-muted)] truncate">{banner.linkValue || 'No link'}</div>
                       </td>
                       <td className="py-1.5 px-3 align-middle min-w-0">
-                        <span className="text-[11px] text-[var(--text-muted)] truncate block">
+                        <Badge color="purple" variant="pastel" size="xs">
                           {getPlacementLabel(banner.position)}
-                        </span>
+                        </Badge>
                       </td>
                       <td className="py-1.5 px-3 align-middle min-w-0">
                         <span className="text-[11px] text-[var(--text-muted)] truncate block font-mono">
@@ -592,14 +596,14 @@ const BannerManagement = () => {
                         <button
                           type="button"
                           onClick={(e) => handleToggleStatus(banner, e)}
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border shadow-2xs transition-all cursor-pointer ${
-                            banner.isActive
-                              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
-                              : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20'
-                          }`}
+                          className="cursor-pointer transition-transform active:scale-95 inline-flex"
+                          title={banner.isActive ? 'Click to deactivate' : 'Click to activate'}
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full ${banner.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
-                          <span>{banner.isActive ? 'Active' : 'Inactive'}</span>
+                          {banner.isActive ? (
+                            <Badge.Active size="xs" />
+                          ) : (
+                            <Badge.Offline size="xs">Inactive</Badge.Offline>
+                          )}
                         </button>
                       </td>
                       <td className="py-1.5 px-3 align-middle text-right whitespace-nowrap">

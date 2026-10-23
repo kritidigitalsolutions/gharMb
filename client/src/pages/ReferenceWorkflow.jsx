@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
 import CallContactModal from '../components/common/CallContactModal';
 import API from '../api/api';
+import Badge from '../components/ui/Badge';
 import {
   Users, Gift, Award, CheckCircle2, XCircle, Clock,
   Search, Filter, Plus, ArrowRight, IndianRupee,
@@ -297,28 +298,42 @@ const ReferenceWorkflow = () => {
     .filter(r => r.payoutStatus === 'Eligible for Payout')
     .reduce((sum, r) => sum + (r.rewardAmount || 0), 0);
 
+  const renderStatusBadge = (status, size = 'xs') => {
+    switch (status?.toLowerCase()) {
+      case 'paid':
+        return <Badge.Approved size={size}>Paid</Badge.Approved>;
+      case 'eligible for payout':
+        return <Badge color="brand" variant="pastel" size={size}>Eligible for Payout</Badge>;
+      case 'deal in progress':
+        return <Badge color="sky" variant="pastel" size={size}>Deal in Progress</Badge>;
+      case 'pending audit':
+      default:
+        return <Badge.Pending size={size}>Pending Audit</Badge.Pending>;
+    }
+  };
+
   const getStatusBadge = (status) => {
     switch (status?.toLowerCase()) {
       case 'paid':
         return {
-          pill: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200/80 dark:border-emerald-800/40',
-          dot: 'bg-emerald-500'
+          pill: 'bg-[#52c99b] text-[#064e3b] dark:bg-[#1a4a38] dark:text-[#6ee7b7] border-transparent',
+          dot: 'bg-[#064e3b]'
         };
       case 'eligible for payout':
         return {
-          pill: 'bg-brand/10 text-brand border-brand/30',
-          dot: 'bg-brand'
+          pill: 'bg-[#ffc5bb] text-[#992211] dark:bg-[#4f160e] dark:text-[#ff9b8a] border-transparent',
+          dot: 'bg-[#992211]'
         };
       case 'deal in progress':
         return {
-          pill: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border-blue-200/80 dark:border-blue-800/40',
-          dot: 'bg-blue-500'
+          pill: 'bg-[#bae6fd] text-[#075985] dark:bg-[#113c54] dark:text-[#7dd3fc] border-transparent',
+          dot: 'bg-[#075985]'
         };
       case 'pending audit':
       default:
         return {
-          pill: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border-amber-200/80 dark:border-amber-800/40',
-          dot: 'bg-amber-500'
+          pill: 'bg-[#fef08a] text-[#78350f] dark:bg-[#4d3209] dark:text-[#fef08a] border-transparent',
+          dot: 'bg-[#78350f]'
         };
     }
   };
@@ -354,10 +369,7 @@ const ReferenceWorkflow = () => {
               <h1 className="text-sm font-bold text-[var(--text-primary)] tracking-tight">
                 Referral Network & Rewards
               </h1>
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Live MongoDB</span>
-              </span>
+              <Badge.Active size="xs">Live MongoDB</Badge.Active>
             </div>
             <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate max-w-xl">
               Track ambassador referrals, lead attribution, and commission payout settlements
@@ -620,8 +632,6 @@ const ReferenceWorkflow = () => {
                 </tr>
               ) : (
                 filteredRefs.map((r) => {
-                  const statusCfg = getStatusBadge(r.payoutStatus);
-
                   return (
                     <tr
                       key={r.id || r.mongoId}
@@ -707,13 +717,7 @@ const ReferenceWorkflow = () => {
 
                       {/* 7. Payout Status */}
                       <td className="py-1.5 px-3 align-middle text-center whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border shadow-2xs ${statusCfg.pill}`}>
-                          <span className="relative flex h-1.5 w-1.5 shrink-0">
-                            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${statusCfg.dot}`}></span>
-                            <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${statusCfg.dot}`}></span>
-                          </span>
-                          <span>{r.payoutStatus}</span>
-                        </span>
+                        {renderStatusBadge(r.payoutStatus, 'xs')}
                       </td>
 
                       {/* 8. Actions */}
@@ -1137,9 +1141,7 @@ const ReferenceWorkflow = () => {
                   <span className="font-mono text-[10px] font-semibold text-brand bg-brand/10 px-2 py-0.5 rounded border border-brand/20">
                     {selectedRef.id}
                   </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border shadow-2xs ${getStatusBadge(selectedRef.payoutStatus).pill}`}>
-                    {selectedRef.payoutStatus}
-                  </span>
+                  {renderStatusBadge(selectedRef.payoutStatus, 'xs')}
                 </div>
                 <h3 className="text-sm font-bold text-[var(--text-primary)] mt-1.5">
                   Referral: {selectedRef.referrerName}

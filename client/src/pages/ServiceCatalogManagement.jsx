@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
 import API from '../api/api';
+import Badge from '../components/ui/Badge';
 import {
   CreditCard, Home, Truck, Scale, Search, Plus,
   X, Layers, Check, Edit2, Trash2, RefreshCw,
@@ -272,15 +273,15 @@ const ServiceCatalogManagement = () => {
   const getCategoryConfig = (category) => {
     switch (category) {
       case 'Loan':
-        return { label: 'Loan Services', icon: CreditCard, color: 'text-blue-600 bg-blue-500/10 border-blue-500/20' };
+        return { label: 'Loan Services', icon: CreditCard, color: 'text-blue-600 bg-blue-500/10 border-blue-500/20', badgeColor: 'sky' };
       case 'Interior':
-        return { label: 'Home Interior', icon: Home, color: 'text-purple-600 bg-purple-500/10 border-purple-500/20' };
+        return { label: 'Home Interior', icon: Home, color: 'text-purple-600 bg-purple-500/10 border-purple-500/20', badgeColor: 'purple' };
       case 'Movers':
-        return { label: 'Packers & Movers', icon: Truck, color: 'text-amber-600 bg-amber-500/10 border-amber-500/20' };
+        return { label: 'Packers & Movers', icon: Truck, color: 'text-amber-600 bg-amber-500/10 border-amber-500/20', badgeColor: 'peach' };
       case 'Legal':
-        return { label: 'Legal Services', icon: Scale, color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20' };
+        return { label: 'Legal Services', icon: Scale, color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20', badgeColor: 'emerald' };
       default:
-        return { label: 'General', icon: Layers, color: 'text-slate-600 bg-slate-500/10 border-slate-500/20' };
+        return { label: 'General', icon: Layers, color: 'text-slate-600 bg-slate-500/10 border-slate-500/20', badgeColor: 'slate' };
     }
   };
 
@@ -616,9 +617,9 @@ const ServiceCatalogManagement = () => {
                               {item.title}
                             </span>
                             {item.badge && (
-                              <span className="text-[9px] font-bold text-brand bg-brand/10 px-1 py-0.2 rounded border border-brand/20 shrink-0">
+                              <Badge color="brand" variant="pastel" size="2xs">
                                 {item.badge}
-                              </span>
+                              </Badge>
                             )}
                           </div>
                           {item.subtitle && (
@@ -631,9 +632,9 @@ const ServiceCatalogManagement = () => {
 
                       {/* 2. Category */}
                       <td className="py-1.5 px-3 align-middle whitespace-nowrap min-w-0">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border ${catCfg.color}`}>
-                          <span>{catCfg.label}</span>
-                        </span>
+                        <Badge color={catCfg.badgeColor || 'slate'} variant="pastel" size="xs">
+                          {catCfg.label}
+                        </Badge>
                       </td>
 
                       {/* 3. Price / Display */}
@@ -648,15 +649,14 @@ const ServiceCatalogManagement = () => {
                         <button
                           type="button"
                           onClick={() => handleToggleActive(item)}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border transition-all cursor-pointer ${
-                            item.isActive
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
-                              : 'bg-slate-500/10 text-slate-500 border-slate-500/20 hover:bg-slate-500/20'
-                          }`}
+                          className="cursor-pointer transition-transform active:scale-95 inline-flex"
                           title="Click to toggle visibility on App & Website"
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full ${item.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
-                          <span>{item.isActive ? 'Live' : 'Hidden'}</span>
+                          {item.isActive ? (
+                            <Badge.Active size="xs">Live</Badge.Active>
+                          ) : (
+                            <Badge.Offline size="xs">Hidden</Badge.Offline>
+                          )}
                         </button>
                       </td>
 
