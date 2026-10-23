@@ -33,6 +33,11 @@ const safeUploadAny = (req, res, next) => {
   });
 };
 
+// 0. Pre-Signed Upload URL (Supports both GET and POST) - Allows direct client uploads for video/large files
+router.route('/signed-url')
+  .get(uploadController.getSignedUploadUrl)
+  .post(uploadController.getSignedUploadUrl);
+
 // 1. Multiple Files Upload (Aliases: / , /multiple , /multi)
 router.route('/')
   .post(safeUploadAny, uploadController.uploadMultipleFiles);

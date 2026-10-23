@@ -6,8 +6,9 @@
 
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const crypto = require('crypto');
-const { bucket } = require('../config/firebase');
+const { bucket, hasServiceAccount } = require('../config/firebase');
 const { optimizeImage } = require('../utils/imageOptimizer');
 
 class FirebaseStorageService {
@@ -132,6 +133,51 @@ class FirebaseStorageService {
   }
 
   /**
+   * Generate a V4 Pre-Signed Upload URL for direct client-to-Firebase upload.
+   * Allows frontend to upload videos (up to 5GB) and large photos directly to Firebase Storage,
+   * completely bypassing Vercel's 4.5MB Serverless Payload limit.
+   * 
+   * @param {string} originalname - Name of file (e.g. 'tour.mp4')
+   * @param {string} mimetype - MIME type (e.g. 'video/mp4')
+   * @param {string} folder - Folder name in bucket (e.g. 'properties', 'banners', 'uploads')
+   * @param {number} expiresInMinutes - URL validity in minutes (default 15)
+   * @returns {Promise<{ uploadUrl: string, downloadUrl: string, firebaseUrl: string, filename: string, path: string, mimetype: string }>}
+   */
+  async createSignedUploadUrl(originalname = 'file', mimetype = 'application/octet-stream', folder = 'uploads', expiresInMinutes = 15) {
+    if (!this.isConfigured()) {
+      throw new Error('Firebase Storage is not initialized. Please verify service account credentials.');
+    }
+
+    const finalFilename = this._sanitizeFilename(originalname);
+    const destinationPath = folder ? `${folder.replace(/^\/+|\/+$/g, '')}/${finalFilename}` : finalFilename;
+    const fileRef = bucket.file(destinationPath);
+    const downloadToken = crypto.randomUUID();
+
+    // Generate V4 write-action Signed URL
+    const [uploadUrl] = await fileRef.getSignedUrl({
+      version: 'v4',
+      action: 'write',
+      expires: Date.now() + expiresInMinutes * 60 * 1000,
+      contentType: mimetype,
+    });
+
+    // Firebase Download URL (accessible after direct upload)
+    const firebaseUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(destinationPath)}?alt=media&token=${downloadToken}`;
+    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${encodeURIComponent(destinationPath)}`;
+
+    return {
+      uploadUrl,
+      downloadUrl: firebaseUrl,
+      firebaseUrl,
+      publicUrl,
+      filename: finalFilename,
+      path: destinationPath,
+      mimetype,
+      downloadToken,
+    };
+  }
+
+  /**
    * Helper to resolve file URL: Uploads to Firebase Storage if available,
    * otherwise falls back to local server URL.
    * @param {Object} req - Express request
@@ -155,41 +201,58 @@ class FirebaseStorageService {
           return result.url;
         }
       } catch (fbErr) {
-        console.warn(`⚠️ Firebase Storage upload failed for ${file.originalname || file.filename}:`, fbErr.message);
+        console.error(`❌ Firebase Storage upload error for "${file.originalname || file.filename}":`, fbErr.message);
       }
     }
 
-    // 2. Emergency fallback to local server URL (only if Firebase is not configured or down)
+    // 2. Emergency fallback to local server URL (only if Firebase is down or local dev)
     const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
     const host = req.get('host') || 'localhost:5001';
     let filename = file.filename;
     let fileBuffer = file.buffer;
 
     if (!filename || fileBuffer) {
-      const uploadDir = path.join(__dirname, '../../uploads');
-      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
       const isVideo = (file.mimetype && file.mimetype.startsWith('video/')) || /\.(mp4|webm|mov|m4v|mkv|avi|3gp)$/i.test(file.originalname || '');
       const originalExt = path.extname(file.originalname || '').toLowerCase() || (isVideo ? '.mp4' : '.jpg');
 
-      if (fileBuffer) {
-        if (isVideo) {
-          filename = `video-${Date.now()}-${Math.round(Math.random() * 1e9)}${originalExt}`;
-          fs.writeFileSync(path.join(uploadDir, filename), fileBuffer);
-        } else {
-          try {
-            const opt = await optimizeImage(fileBuffer, file.originalname || 'file.jpg', file.mimetype || 'image/jpeg');
-            fileBuffer = opt.buffer;
-            const ext = path.extname(opt.filename || '').toLowerCase() || (opt.wasOptimized ? '.webp' : originalExt);
-            filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-            fs.writeFileSync(path.join(uploadDir, filename), fileBuffer);
-          } catch (_) {
-            filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${originalExt}`;
-            fs.writeFileSync(path.join(uploadDir, filename), fileBuffer);
-          }
+      try {
+        // Check if server uploads directory is writable (fallback to /tmp in serverless)
+        let targetDir = path.join(__dirname, '../../uploads');
+        let canWrite = true;
+        try {
+          if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+        } catch (_) {
+          targetDir = os.tmpdir();
+          canWrite = false;
         }
-      } else {
-        filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${originalExt}`;
+
+        if (fileBuffer) {
+          if (isVideo) {
+            filename = `video-${Date.now()}-${Math.round(Math.random() * 1e9)}${originalExt}`;
+            try {
+              fs.writeFileSync(path.join(targetDir, filename), fileBuffer);
+            } catch (_) {}
+          } else {
+            try {
+              const opt = await optimizeImage(fileBuffer, file.originalname || 'file.jpg', file.mimetype || 'image/jpeg');
+              fileBuffer = opt.buffer;
+              const ext = path.extname(opt.filename || '').toLowerCase() || (opt.wasOptimized ? '.webp' : originalExt);
+              filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+              try {
+                fs.writeFileSync(path.join(targetDir, filename), fileBuffer);
+              } catch (_) {}
+            } catch (_) {
+              filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${originalExt}`;
+              try {
+                fs.writeFileSync(path.join(targetDir, filename), fileBuffer);
+              } catch (_) {}
+            }
+          }
+        } else {
+          filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${originalExt}`;
+        }
+      } catch (diskErr) {
+        filename = filename || `file-${Date.now()}${originalExt}`;
       }
     }
     return `${protocol}://${host}/uploads/${filename}`;

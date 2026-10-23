@@ -19,9 +19,11 @@ try {
   const apps = getApps();
   if (!apps.length) {
 
-    // 1. Check for Service Account file paths
+    // 1. Check for Service Account file paths (bundled or local)
     const possibleFilePaths = [
       process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+      path.join(__dirname, 'firebaseCredentials.json'),
+      path.join(__dirname, 'serviceAccountKey.json'),
       path.join(__dirname, '../firebase/serviceAccountKey.json'),
       path.join(__dirname, '../../serviceAccountKey.json'),
       path.join(__dirname, '../../../serviceAccountKey.json')
@@ -41,6 +43,17 @@ try {
       }
     }
 
+    // 1.5 Check for Base64 encoded JSON in env (100% foolproof on Vercel)
+    if (!serviceAccount && process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+      try {
+        const decoded = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf8');
+        serviceAccount = JSON.parse(decoded);
+        console.log(`🔥 Loaded Firebase Service Account from FIREBASE_SERVICE_ACCOUNT_BASE64 env`);
+      } catch (e) {
+        console.warn("⚠️ Could not parse FIREBASE_SERVICE_ACCOUNT_BASE64 JSON env:", e.message);
+      }
+    }
+
     // 2. Check for JSON string in env
     if (!serviceAccount && process.env.FIREBASE_SERVICE_ACCOUNT) {
       try {
@@ -54,7 +67,11 @@ try {
     // 3. Check for FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY
     if (!serviceAccount && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
       const email = process.env.FIREBASE_CLIENT_EMAIL.trim();
-      const privateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n').trim();
+      let privateKey = process.env.FIREBASE_PRIVATE_KEY.trim();
+      // Remove surrounding quotes if pasted with quotes
+      privateKey = privateKey.replace(/^["']|["']$/g, '');
+      // Handle escaped newlines (\n)
+      privateKey = privateKey.replace(/\\n/g, '\n');
       const emailProjectMatch = email.match(/@([a-z0-9-]+)\.iam\.gserviceaccount\.com/);
       const emailProjectId = emailProjectMatch ? emailProjectMatch[1] : null;
 

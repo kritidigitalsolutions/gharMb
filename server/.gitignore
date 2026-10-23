@@ -12,7 +12,7 @@ src/uploads/*
 !src/uploads/.gitkeep
 
 # Credentials and Keys
-serviceAccountKey.json
+# serviceAccountKey.json (uncommented to allow deployment to Vercel)
 *.pem
 
 # Local logs
