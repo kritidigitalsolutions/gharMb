@@ -162,7 +162,7 @@ exports.getDashboardStats = async (req, res, next) => {
 // @access  Private (Admin only)
 exports.getAllEnquiries = async (req, res, next) => {
   try {
-    const [propEnquiries, devEnquiries, visitRequests] = await Promise.all([
+    const [propEnquiries, devEnquiries, visitRequests, loanEnquiries] = await Promise.all([
       PropertyEnquiry.find()
         .populate('property', 'title price locality city carpetArea images propertyImages submissionId listingTier')
         .populate('project', 'projectName developerName locality city projectPhotos submissionId')
@@ -177,6 +177,10 @@ exports.getAllEnquiries = async (req, res, next) => {
         .populate('property', 'title price locality city carpetArea images propertyImages submissionId listingTier')
         .populate('user', 'name email phone')
         .populate('owner', 'name email phone companyName')
+        .sort({ createdAt: -1 }),
+      ServiceRequest.find({ serviceType: 'Loan' })
+        .populate('property', 'title price locality city carpetArea images propertyImages submissionId listingTier')
+        .populate('client', 'name email phone')
         .sort({ createdAt: -1 })
     ]);
 
@@ -185,7 +189,9 @@ exports.getAllEnquiries = async (req, res, next) => {
       data: {
         propertyEnquiries: propEnquiries,
         developerEnquiries: devEnquiries,
-        visitRequests: visitRequests
+        visitRequests: visitRequests,
+        loanEnquiries: loanEnquiries,
+        homeLoanEnquiries: loanEnquiries
       }
     });
   } catch (error) {
@@ -304,6 +310,11 @@ exports.updateEnquiry = async (req, res, next) => {
     }
 
     if (!enquiry) {
+      enquiry = await ServiceRequest.findById(id);
+      type = 'service';
+    }
+
+    if (!enquiry) {
       return res.status(404).json({
         status: 'fail',
         message: 'No enquiry found with that ID.'
@@ -353,6 +364,19 @@ exports.updateEnquiry = async (req, res, next) => {
           createdAt: new Date()
         });
       }
+    } else if (type === 'service') {
+      if (status) enquiry.status = status;
+      if (assignedTo !== undefined) enquiry.assignedPartner = assignedTo;
+      if (noteTextToAdd) {
+        enquiry.notes = noteTextToAdd.trim();
+        enquiry.notesHistory = enquiry.notesHistory || [];
+        enquiry.notesHistory.push({
+          text: noteTextToAdd.trim(),
+          date: dateFormatted,
+          author: authorName,
+          createdAt: new Date()
+        });
+      }
     }
 
     await enquiry.save();
@@ -382,6 +406,9 @@ exports.deleteEnquiry = async (req, res, next) => {
     }
     if (!enquiry) {
       enquiry = await VisitRequest.findByIdAndDelete(id);
+    }
+    if (!enquiry) {
+      enquiry = await ServiceRequest.findByIdAndDelete(id);
     }
 
     if (!enquiry) {

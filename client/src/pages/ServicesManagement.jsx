@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
 import CallContactModal from '../components/common/CallContactModal';
 import API from '../api/api';
+import Badge from '../components/ui/Badge';
 import {
-  Home, Truck, Scale, Search, Plus,
+  Home, Truck, Scale, CreditCard, Search, Plus,
   MapPin, UserCheck, X, Eye, Layers, Check, Edit2,
   Phone, Mail, ArrowUpRight, Sparkles, Clock, CheckCircle2,
   Trash2, RefreshCw, MessageCircle, AlertTriangle, Send,
@@ -64,6 +65,7 @@ const ServicesManagement = () => {
   const [availableProperties, setAvailableProperties] = useState([]);
   const [counts, setCounts] = useState({
     total: 0,
+    loan: 0,
     interior: 0,
     movers: 0,
     legal: 0
@@ -79,6 +81,7 @@ const ServicesManagement = () => {
   // Dynamically compute partners from active service catalog stored in database
   const partnersCatalog = useMemo(() => {
     const map = {
+      Loan: ['HDFC Home Loans', 'SBI Home Finance', 'ICICI Bank Loans', 'Axis Bank Direct', 'GharMB Finance Desk'],
       Interior: [],
       Movers: [],
       Legal: []
@@ -120,6 +123,16 @@ const ServicesManagement = () => {
           location: item.location || 'India',
           propertyRef: item.propertyRef || (item.property?.title ? item.property.title : 'Direct Inquiry'),
           propertyValue: item.propertyValue || (item.property?.price ? `₹${Number(item.property.price).toLocaleString('en-IN')}` : ''),
+          monthlyIncome: item.monthlyIncome || '',
+          existingEmis: item.existingEmis || '',
+          loanRequired: item.loanRequired || '',
+          loanTenure: item.loanTenure || '',
+          calculatedEligibility: item.calculatedEligibility || '',
+          estimatedEmi: item.estimatedEmi || '',
+          employmentType: item.employmentType || '',
+          preferredBank: item.preferredBank || '',
+          interestRate: item.interestRate || '',
+          cibilScore: item.cibilScore || '',
           budgetRange: item.budgetRange || '',
           designStyle: item.designStyle || '',
           scope: item.scope || [],
@@ -537,6 +550,13 @@ const ServicesManagement = () => {
 
   const getServiceConfig = (type) => {
     switch (type) {
+      case 'Loan':
+        return {
+          label: 'Home Loan',
+          icon: CreditCard,
+          pillColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+          hoverBorder: 'group-hover:border-emerald-400'
+        };
       case 'Interior':
         return {
           label: 'Home Interior',
@@ -568,33 +588,50 @@ const ServicesManagement = () => {
     }
   };
 
+  const renderStatusBadge = (status, size = 'xs') => {
+    switch (status) {
+      case 'Confirmed':
+      case 'Completed':
+        return <Badge.Approved size={size}>{status}</Badge.Approved>;
+      case 'Quotation Sent':
+        return <Badge color="purple" variant="pastel" size={size}>{status}</Badge>;
+      case 'In Progress':
+        return <Badge color="sky" variant="pastel" size={size}>{status}</Badge>;
+      case 'Cancelled':
+        return <Badge.Rejected size={size}>{status}</Badge.Rejected>;
+      case 'Pending':
+      default:
+        return <Badge.Pending size={size}>{status || 'Pending'}</Badge.Pending>;
+    }
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case 'Confirmed':
       case 'Completed':
         return {
-          pill: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
-          dot: 'bg-emerald-500'
+          pill: 'bg-[#52c99b] text-[#064e3b] dark:bg-[#1a4a38] dark:text-[#6ee7b7] border-transparent',
+          dot: 'bg-[#064e3b]'
         };
       case 'Quotation Sent':
         return {
-          pill: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20',
-          dot: 'bg-purple-500'
+          pill: 'bg-[#c4b5fd] text-[#4c1d95] dark:bg-[#3b1968] dark:text-[#ddd6fe] border-transparent',
+          dot: 'bg-[#4c1d95]'
         };
       case 'In Progress':
         return {
-          pill: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20',
-          dot: 'bg-sky-500'
+          pill: 'bg-[#bae6fd] text-[#075985] dark:bg-[#113c54] dark:text-[#7dd3fc] border-transparent',
+          dot: 'bg-[#075985]'
         };
       case 'Cancelled':
         return {
-          pill: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20',
-          dot: 'bg-rose-500'
+          pill: 'bg-[#fca5a5] text-[#701a2b] dark:bg-[#521722] dark:text-[#fda4af] border-transparent',
+          dot: 'bg-[#701a2b]'
         };
       default:
         return {
-          pill: 'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20',
-          dot: 'bg-slate-400'
+          pill: 'bg-[#fef08a] text-[#78350f] dark:bg-[#4d3209] dark:text-[#fef08a] border-transparent',
+          dot: 'bg-[#78350f]'
         };
     }
   };
@@ -606,6 +643,7 @@ const ServicesManagement = () => {
     const cleanTitle = raw.replace(/^(Legal|Interior(\s+Design)?|Packers\s*&\s*Movers)\s*[-:–—]\s*/i, '').trim();
 
     const categoryLabel = 
+      item.serviceType === 'Loan' ? 'Home Loan Assistance' :
       item.serviceType === 'Interior' ? 'Home Interior' :
       item.serviceType === 'Movers' ? 'Packers & Movers' :
       item.serviceType === 'Legal' ? 'Legal & Title' : 'General Service';
@@ -649,9 +687,19 @@ const ServicesManagement = () => {
         </div>
       )}
       
-      {/* ─── 3 POLISHED KPI CARDS (TOP-ACCENT MINIMAL STYLE) ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-3">
+      {/* ─── 4 POLISHED KPI CARDS (TOP-ACCENT MINIMAL STYLE) ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
+          {
+            key: 'Loan',
+            title: 'Home Loans',
+            subtitle: 'Eligibility & Finance',
+            icon: CreditCard,
+            count: enquiries.filter(e => e.serviceType === 'Loan').length,
+            unit: 'Inquiries',
+            accent: 'border-t-brand/40 hover:border-t-brand',
+            iconColor: 'text-brand bg-brand/10'
+          },
           {
             key: 'Interior',
             title: 'Home Interior',
@@ -750,6 +798,7 @@ const ServicesManagement = () => {
           <div className="flex flex-wrap items-center gap-1 bg-[var(--bg-muted)]/60 p-1 rounded-xl border border-[var(--border)]">
             {[
               { id: 'ALL', label: 'All Services', count: enquiries.length },
+              { id: 'Loan', label: 'Home Loans', count: enquiries.filter(e => e.serviceType === 'Loan').length },
               { id: 'Interior', label: 'Interior', count: enquiries.filter(e => e.serviceType === 'Interior').length },
               { id: 'Movers', label: 'Movers', count: enquiries.filter(e => e.serviceType === 'Movers').length },
               { id: 'Legal', label: 'Legal', count: enquiries.filter(e => e.serviceType === 'Legal').length }
@@ -1043,10 +1092,7 @@ const ServicesManagement = () => {
 
                       {/* 5. Status */}
                       <td className="py-1.5 px-3 align-middle text-center whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border shadow-2xs ${statusCfg.pill} transition-all duration-200`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`}></span>
-                          <span>{item.status}</span>
-                        </span>
+                        {renderStatusBadge(item.status, 'xs')}
                       </td>
 
                       {/* 6. Actions: View, Edit, Delete */}
@@ -1331,8 +1377,9 @@ const ServicesManagement = () => {
                 <label className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block">
                   Service Vertical *
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
+                    { id: 'Loan', label: 'Home Loan', desc: 'Eligibility & Quote', icon: CreditCard },
                     { id: 'Interior', label: 'Interior', desc: 'Decor & Fitouts', icon: Home },
                     { id: 'Movers', label: 'Movers', desc: 'Relocation', icon: Truck },
                     { id: 'Legal', label: 'Legal', desc: 'Deeds & Title', icon: Scale }
@@ -1632,9 +1679,7 @@ const ServicesManagement = () => {
                   <span className="font-mono text-[10px] font-semibold text-brand bg-brand/10 px-2 py-0.5 rounded border border-brand/20">
                     {selectedEnquiry.id}
                   </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border shadow-2xs ${getStatusBadge(selectedEnquiry.status).pill}`}>
-                    {selectedEnquiry.status}
-                  </span>
+                  {renderStatusBadge(selectedEnquiry.status, 'xs')}
                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-[var(--text-muted)] border border-[var(--border)]">
                     {selectedEnquiry.source === 'app' ? (
                       <><Smartphone size={10} className="text-brand" /> App</>
@@ -1771,6 +1816,60 @@ const ServicesManagement = () => {
                     <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
                       <span className="text-[var(--text-muted)]">Consultation Date</span>
                       <span className="font-medium text-[var(--text-primary)]">{selectedEnquiry.consultationDate}</span>
+                    </div>
+                  )}
+                  {selectedEnquiry.monthlyIncome && (
+                    <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
+                      <span className="text-[var(--text-muted)]">Monthly Net Income</span>
+                      <span className="font-semibold text-emerald-600">{selectedEnquiry.monthlyIncome}</span>
+                    </div>
+                  )}
+                  {selectedEnquiry.propertyValue && (
+                    <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
+                      <span className="text-[var(--text-muted)]">Estimated Property Value</span>
+                      <span className="font-semibold text-[var(--text-primary)]">{selectedEnquiry.propertyValue}</span>
+                    </div>
+                  )}
+                  {selectedEnquiry.existingEmis && (
+                    <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
+                      <span className="text-[var(--text-muted)]">Existing Monthly EMIs</span>
+                      <span className="font-medium text-amber-600">{selectedEnquiry.existingEmis}</span>
+                    </div>
+                  )}
+                  {selectedEnquiry.calculatedEligibility && (
+                    <div className="p-2.5 flex justify-between bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors">
+                      <span className="text-emerald-700 dark:text-emerald-400 font-medium">Max Eligible Loan</span>
+                      <span className="font-bold text-emerald-700 dark:text-emerald-300">{selectedEnquiry.calculatedEligibility}</span>
+                    </div>
+                  )}
+                  {selectedEnquiry.estimatedEmi && (
+                    <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
+                      <span className="text-[var(--text-muted)]">Estimated Monthly EMI</span>
+                      <span className="font-semibold text-sky-600">{selectedEnquiry.estimatedEmi}</span>
+                    </div>
+                  )}
+                  {selectedEnquiry.loanRequired && (
+                    <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
+                      <span className="text-[var(--text-muted)]">Requested Loan Amount</span>
+                      <span className="font-semibold text-blue-600">{selectedEnquiry.loanRequired}</span>
+                    </div>
+                  )}
+                  {selectedEnquiry.employmentType && (
+                    <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
+                      <span className="text-[var(--text-muted)]">Employment Type</span>
+                      <span className="font-medium text-[var(--text-primary)]">{selectedEnquiry.employmentType}</span>
+                    </div>
+                  )}
+                  {selectedEnquiry.preferredBank && (
+                    <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
+                      <span className="text-[var(--text-muted)]">Preferred Bank</span>
+                      <span className="font-medium text-indigo-600">{selectedEnquiry.preferredBank}</span>
+                    </div>
+                  )}
+                  {selectedEnquiry.loanTenure && (
+                    <div className="p-2.5 flex justify-between hover:bg-[var(--bg-muted)]/40 transition-colors">
+                      <span className="text-[var(--text-muted)]">Loan Tenure</span>
+                      <span className="font-medium text-[var(--text-primary)]">{selectedEnquiry.loanTenure}</span>
                     </div>
                   )}
                   {selectedEnquiry.propertyRef && (

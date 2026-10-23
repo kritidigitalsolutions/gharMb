@@ -7,6 +7,7 @@ import {
   Copy, Check, ExternalLink, Heart, Award
 } from 'lucide-react';
 import API from '../api/api';
+import Badge from '../components/ui/Badge';
 
 const EMPTY_FORM = {
   title: '',
@@ -168,9 +169,9 @@ export default function AboutSettings() {
               <h1 className="text-sm font-bold text-[var(--text-primary)] tracking-tight">
                 About Platform & Brand Identity
               </h1>
-              <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 uppercase">
+              <Badge color="sky" variant="pastel" size="xs">
                 Brand Core
-              </span>
+              </Badge>
             </div>
             <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
               Public story narrative, mission & vision statements, and RERA credentials
@@ -483,8 +484,7 @@ export default function AboutSettings() {
               {/* Preview Header Bar */}
               <div className="px-3.5 py-2 border-b border-[var(--border)] bg-[var(--bg-muted)]/40 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-                  <span className="text-xs font-bold text-[var(--text-primary)]">Live Brand Card Preview</span>
+                  <Badge.Active size="xs">Live Brand Card Preview</Badge.Active>
                 </div>
 
                 <div className="flex items-center gap-1 bg-[var(--bg-surface)] p-0.5 rounded-md border border-[var(--border)] text-[10px]">
@@ -519,10 +519,7 @@ export default function AboutSettings() {
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[9px] font-bold text-brand uppercase tracking-wider">Brand Showcase</span>
                     {form.reraRegistration && (
-                      <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-1.5 py-0.2 rounded-full">
-                        <ShieldCheck size={9} />
-                        <span>RERA Verified</span>
-                      </span>
+                      <Badge.Verified size="xs">RERA Verified</Badge.Verified>
                     )}
                   </div>
 

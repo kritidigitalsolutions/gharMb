@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import API from '../api/api';
 import { sendFirebasePasswordReset } from '../config/firebase';
+import Badge from '../components/ui/Badge';
 
 const Settings = () => {
   // Real Admin Profile loaded from /api/admin/auth/me
@@ -203,9 +204,15 @@ const Settings = () => {
       {/* ── Top Header Toolbar matching Core System ── */}
       <div className="flex items-center justify-between gap-3 pt-1">
         <div>
-          <h1 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
-            Settings
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
+              Settings
+            </h1>
+            <Badge.Active size="xs">Super Admin</Badge.Active>
+            <Badge color="brand" variant="pastel" size="xs">
+              Platform Verified
+            </Badge>
+          </div>
           <p className="text-xs text-[var(--text-muted)] mt-0.5 font-normal">
             Configure your platform preferences
           </p>
@@ -270,9 +277,14 @@ const Settings = () => {
             <User size={15} />
           </div>
           <div>
-            <h2 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] tracking-tight">
-              Admin Account & Credentials
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] tracking-tight">
+                Admin Account & Credentials
+              </h2>
+              <Badge color="emerald" variant="pastel" size="2xs">
+                Active Session
+              </Badge>
+            </div>
             <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
               Update your login profile details and system passwords
             </p>

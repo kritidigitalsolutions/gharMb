@@ -306,6 +306,10 @@ app.use('/api/admin/banners', adminBannerRoutes);
 app.use('/api/admin/tokens', adminTokenRoutes);
 app.use('/api/admin/visit-requests', adminVisitRequestRoutes);
 app.use('/api/admin/services', adminServiceRoutes);
+app.use(['/api/admin/home-loans', '/api/admin/loans'], (req, res, next) => {
+  if (!req.query.serviceType) req.query.serviceType = 'Loan';
+  adminServiceRoutes(req, res, next);
+});
 app.use('/api/admin/service-catalog', adminServiceCatalogRoutes);
 app.use('/api/admin/referrals', adminReferralRoutes);
 app.use('/api/admin/upload', appUploadRoutes);
@@ -402,9 +406,11 @@ app.use('/api/site-visits', appVisitRequestRoutes);
 app.use('/api/user/site-visits', appVisitRequestRoutes);
 app.use('/api/user/properties/visit-requests', appVisitRequestRoutes);
 
-// Customer Service Enquiries (Packers & Movers, Legal, Interior, Loan)
+// Customer Service Enquiries (Packers & Movers, Legal, Interior, Home Loan)
 app.use('/api/services', appServiceEnquiryRoutes);
 app.use('/api/user/services', appServiceEnquiryRoutes);
+app.use(['/api/home-loan', '/api/home-loans', '/api/user/home-loan', '/api/user/home-loans'], appServiceEnquiryRoutes);
+app.use(['/api/loans', '/api/user/loans'], appServiceEnquiryRoutes);
 
 // Refer & Earn Program and GharMB Coins Wallet
 app.use('/api/referrals', appReferralRoutes);

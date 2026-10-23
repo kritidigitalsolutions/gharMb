@@ -13,6 +13,7 @@ import Underline from '@tiptap/extension-underline';
 import LinkExtension from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import API from '../api/api';
+import Badge from '../components/ui/Badge';
 
 const slugify = (text) => {
   return (text || '')
@@ -613,6 +614,7 @@ const LegalSettings = () => {
         <div className="flex items-center gap-2.5 flex-wrap">
           <div className="flex items-center gap-1.5">
             <h1 className="text-sm font-bold text-[var(--text-primary)] tracking-tight">Legal Policies</h1>
+            <Badge color="sky" variant="pastel" size="xs">Web & App</Badge>
             {isRevalidating && <Loader2 size={11} className="animate-spin text-brand" />}
           </div>
 
@@ -635,8 +637,10 @@ const LegalSettings = () => {
                 >
                   <FileText size={11} className={isSelected ? 'text-brand' : 'opacity-50'} />
                   <span>{p.title}</span>
-                  {p.status === 'draft' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Draft"></span>
+                  {p.status === 'draft' ? (
+                    <Badge.Pending size="2xs">Draft</Badge.Pending>
+                  ) : (
+                    <Badge.Active size="2xs">Live</Badge.Active>
                   )}
                 </button>
               );
@@ -866,8 +870,7 @@ const LegalSettings = () => {
             {/* Header */}
             <div className="shrink-0 px-3.5 py-1.5 border-b border-[var(--border)] bg-[var(--bg-muted)]/50 flex items-center justify-between text-xs">
               <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="font-bold text-xs text-[var(--text-primary)]">Live Document Preview</span>
+                <Badge.Active size="xs">Live Document Preview</Badge.Active>
               </div>
               <span className="text-[10.5px] text-[var(--text-muted)] font-medium">
                 Updated {lastUpdated}

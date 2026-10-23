@@ -54,9 +54,7 @@ const getDefaultMilestones = (serviceType) => {
 exports.getAllServices = async (req, res, next) => {
   try {
     const { serviceType, status, search } = req.query;
-    const filter = {
-      serviceType: { $ne: 'Loan' }
-    };
+    const filter = {};
 
     if (serviceType && serviceType !== 'ALL') {
       filter.serviceType = serviceType;
@@ -81,15 +79,16 @@ exports.getAllServices = async (req, res, next) => {
       ];
     }
 
-    const [services, totalCount, interiorCount, moversCount, legalCount] = await Promise.all([
+    const [services, totalCount, interiorCount, moversCount, legalCount, loanCount] = await Promise.all([
       ServiceRequest.find(filter)
         .populate('property', 'title price locality city carpetArea')
         .populate('client', 'name email phone')
         .sort({ createdAt: -1 }),
-      ServiceRequest.countDocuments({ serviceType: { $ne: 'Loan' } }),
+      ServiceRequest.countDocuments(),
       ServiceRequest.countDocuments({ serviceType: 'Interior' }),
       ServiceRequest.countDocuments({ serviceType: 'Movers' }),
-      ServiceRequest.countDocuments({ serviceType: 'Legal' })
+      ServiceRequest.countDocuments({ serviceType: 'Legal' }),
+      ServiceRequest.countDocuments({ serviceType: 'Loan' })
     ]);
 
     res.status(200).json({
@@ -99,7 +98,8 @@ exports.getAllServices = async (req, res, next) => {
         total: totalCount,
         interior: interiorCount,
         movers: moversCount,
-        legal: legalCount
+        legal: legalCount,
+        loan: loanCount
       },
       data: {
         services
@@ -238,6 +238,11 @@ exports.createService = async (req, res, next) => {
       loanRequired: loanRequired?.trim() || '',
       employmentType: employmentType?.trim() || '',
       monthlyIncome: monthlyIncome?.trim() || '',
+      existingEmis: req.body.existingEmis?.trim() || '',
+      loanTenure: req.body.loanTenure?.trim() || '',
+      calculatedEligibility: req.body.calculatedEligibility?.trim() || '',
+      estimatedEmi: req.body.estimatedEmi?.trim() || '',
+      interestRate: req.body.interestRate?.trim() || '',
       cibilScore: cibilScore?.trim() || '',
       preferredBank: preferredBank?.trim() || '',
       budgetRange: budgetRange?.trim() || '',
@@ -368,6 +373,13 @@ exports.updateService = async (req, res, next) => {
     if (propertyRef !== undefined) service.propertyRef = propertyRef.trim();
     if (propertyValue !== undefined) service.propertyValue = propertyValue.trim();
     if (loanRequired !== undefined) service.loanRequired = loanRequired.trim();
+    if (req.body.monthlyIncome !== undefined) service.monthlyIncome = String(req.body.monthlyIncome).trim();
+    if (req.body.existingEmis !== undefined) service.existingEmis = String(req.body.existingEmis).trim();
+    if (req.body.loanTenure !== undefined) service.loanTenure = String(req.body.loanTenure).trim();
+    if (req.body.calculatedEligibility !== undefined) service.calculatedEligibility = String(req.body.calculatedEligibility).trim();
+    if (req.body.estimatedEmi !== undefined) service.estimatedEmi = String(req.body.estimatedEmi).trim();
+    if (req.body.employmentType !== undefined) service.employmentType = String(req.body.employmentType).trim();
+    if (req.body.preferredBank !== undefined) service.preferredBank = String(req.body.preferredBank).trim();
     if (budgetRange !== undefined) service.budgetRange = budgetRange.trim();
     if (designStyle !== undefined) service.designStyle = designStyle.trim();
     if (packageSelected !== undefined) service.packageSelected = packageSelected.trim();

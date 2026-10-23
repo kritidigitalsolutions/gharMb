@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
 import { useSearchParams } from 'react-router-dom';
+import Badge from '../components/ui/Badge';
 import {
   Radio,
   Send,
@@ -91,30 +92,35 @@ const TYPE_CONFIG = {
     label: 'Announcement',
     icon: Megaphone,
     badgeBg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+    badgeColor: 'sky',
     color: '#3b82f6',
   },
   system: {
     label: 'System Notice',
     icon: Shield,
     badgeBg: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20',
+    badgeColor: 'slate',
     color: '#71717a',
   },
   update: {
     label: 'Product Update',
     icon: Sparkles,
     badgeBg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+    badgeColor: 'emerald',
     color: '#10b981',
   },
   alert: {
     label: 'Alert',
     icon: AlertTriangle,
     badgeBg: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+    badgeColor: 'red',
     color: '#f43f5e',
   },
   promotional: {
     label: 'Promotional',
     icon: Flame,
     badgeBg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+    badgeColor: 'amber',
     color: '#f59e0b',
   },
 };
@@ -815,12 +821,14 @@ export default function BroadcastManagement() {
                         >
                           {/* Type Badge - Compact */}
                           <td className="py-1.5 px-3 whitespace-nowrap align-middle min-w-0">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border ${typeConf.badgeBg}`}
+                            <Badge
+                              color={typeConf.badgeColor || 'sky'}
+                              variant="pastel"
+                              size="xs"
+                              icon={<TypeIcon size={10} />}
                             >
-                              <TypeIcon size={11} />
-                              <span>{typeConf.label}</span>
-                            </span>
+                              {typeConf.label}
+                            </Badge>
                           </td>
 
                           {/* Title & Preview with Priority */}
@@ -833,14 +841,14 @@ export default function BroadcastManagement() {
                                 {b.title}
                               </span>
                               {b.priority === 'urgent' && (
-                                <span className="px-1.5 py-0.2 rounded text-[8.5px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shrink-0 uppercase">
+                                <Badge color="red" variant="pastel" size="2xs">
                                   Urgent
-                                </span>
+                                </Badge>
                               )}
                               {b.priority === 'high' && (
-                                <span className="px-1.5 py-0.2 rounded text-[8.5px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0 uppercase">
+                                <Badge color="amber" variant="pastel" size="2xs">
                                   High
-                                </span>
+                                </Badge>
                               )}
                             </div>
                             <div className="text-[10px] text-[var(--text-muted)] truncate mt-0.5 leading-tight">
@@ -1539,22 +1547,22 @@ export default function BroadcastManagement() {
 
                         <div className="flex items-center gap-1.5">
                           {formPriority === 'urgent' && (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-500/10 text-rose-600 border border-rose-500/20">
+                            <Badge color="red" variant="pastel" size="2xs">
                               Urgent
-                            </span>
+                            </Badge>
                           )}
                           {formPriority === 'high' && (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                            <Badge color="amber" variant="pastel" size="2xs">
                               High
-                            </span>
+                            </Badge>
                           )}
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[9px] font-semibold border ${
-                              TYPE_CONFIG[formType]?.badgeBg || 'bg-blue-500/10 text-blue-600 border-blue-500/20'
-                            }`}
+                          <Badge
+                            color={TYPE_CONFIG[formType]?.badgeColor || 'sky'}
+                            variant="pastel"
+                            size="2xs"
                           >
                             {TYPE_CONFIG[formType]?.label || 'Notice'}
-                          </span>
+                          </Badge>
                         </div>
                       </div>
 
@@ -1673,16 +1681,22 @@ export default function BroadcastManagement() {
               {/* Type, Priority & Time */}
               <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-[var(--border)]">
                 <div className="flex items-center gap-2">
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
-                      TYPE_CONFIG[selectedBroadcast.type]?.badgeBg || ''
-                    }`}
+                  <Badge
+                    color={TYPE_CONFIG[selectedBroadcast.type]?.badgeColor || 'sky'}
+                    variant="pastel"
+                    size="xs"
                   >
-                    <span>{TYPE_CONFIG[selectedBroadcast.type]?.label || 'Notice'}</span>
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-subtle)] uppercase">
-                    Priority: {selectedBroadcast.priority || 'Normal'}
-                  </span>
+                    {TYPE_CONFIG[selectedBroadcast.type]?.label || 'Notice'}
+                  </Badge>
+                  {selectedBroadcast.priority && selectedBroadcast.priority !== 'normal' && (
+                    <Badge
+                      color={selectedBroadcast.priority === 'urgent' ? 'red' : 'amber'}
+                      variant="pastel"
+                      size="xs"
+                    >
+                      {selectedBroadcast.priority}
+                    </Badge>
+                  )}
                 </div>
                 <span className="text-xs text-[var(--text-muted)] flex items-center gap-1">
                   <Calendar size={12} />

@@ -284,58 +284,58 @@ export default function WebInquiries() {
     triggerToast('CSV Export downloaded successfully!');
   };
 
-  // Type Badges (Unified Design System)
+  // Type Badges (Canonical BADGES_UI_DESIGN_SYSTEM.md Spec)
   const getTypeBadge = (type) => {
     if (type === 'deletion_request') {
       return (
-        <Badge color="red" variant="soft" size="xs" icon={<Trash2 size={11} className="shrink-0" />}>
+        <Badge color="red" variant="pastel" size="xs" icon={<Trash2 size={9.5} className="shrink-0" />}>
           Account Deletion
         </Badge>
       );
     }
     return (
-      <Badge color="sky" variant="soft" size="xs" icon={<MessageSquare size={11} className="shrink-0" />}>
+      <Badge color="sky" variant="pastel" size="xs" icon={<MessageSquare size={9.5} className="shrink-0" />}>
         Contact Form
       </Badge>
     );
   };
 
-  // Status Badges (Unified Design System with Pulse)
+  // Status Badges (Canonical BADGES_UI_DESIGN_SYSTEM.md Spec)
   const getStatusBadge = (status) => {
     switch (status) {
       case 'new':
         return (
-          <Badge color="amber" variant="soft" size="xs" dot pulse>
+          <Badge.Pending size="xs">
             New
-          </Badge>
+          </Badge.Pending>
         );
       case 'in_progress':
         return (
-          <Badge color="sky" variant="soft" size="xs" dot>
+          <Badge color="sky" variant="pastel" size="xs">
             In Progress
           </Badge>
         );
       case 'contacted':
         return (
-          <Badge color="purple" variant="soft" size="xs" dot>
+          <Badge color="purple" variant="pastel" size="xs">
             Contacted
           </Badge>
         );
       case 'resolved':
         return (
-          <Badge color="emerald" variant="soft" size="xs" dot>
+          <Badge.Approved size="xs">
             Resolved
-          </Badge>
+          </Badge.Approved>
         );
       case 'rejected':
         return (
-          <Badge color="red" variant="soft" size="xs" dot>
+          <Badge.Rejected size="xs">
             Rejected
-          </Badge>
+          </Badge.Rejected>
         );
       default:
         return (
-          <Badge color="slate" variant="soft" size="xs" dot>
+          <Badge color="slate" variant="pastel" size="xs">
             {status}
           </Badge>
         );

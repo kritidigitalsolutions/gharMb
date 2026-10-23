@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import API from '../api/api';
+import Badge from '../components/ui/Badge';
 import {
   Bell,
   Search,
@@ -310,30 +311,35 @@ const AdminNotifications = () => {
         return {
           label: 'KYC / Agent',
           color: 'text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20',
+          badgeColor: 'purple',
           icon: <ShieldCheck size={13} className="text-purple-500" />,
         };
       case 'token_request':
         return {
           label: 'Token',
           color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20',
+          badgeColor: 'amber',
           icon: <Coins size={13} className="text-amber-500" />,
         };
       case 'visit_booking':
         return {
           label: 'Site Visit',
           color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+          badgeColor: 'emerald',
           icon: <Calendar size={13} className="text-emerald-500" />,
         };
       case 'enquiry':
         return {
           label: 'Enquiry',
           color: 'text-sky-600 dark:text-sky-400 bg-sky-500/10 border-sky-500/20',
+          badgeColor: 'sky',
           icon: <MessageSquare size={13} className="text-sky-500" />,
         };
       default:
         return {
           label: 'System',
           color: 'text-zinc-600 dark:text-zinc-400 bg-zinc-500/10 border-zinc-500/20',
+          badgeColor: 'slate',
           icon: <Bell size={13} className="text-zinc-500" />,
         };
     }
@@ -459,14 +465,13 @@ const AdminNotifications = () => {
               Notifications & Alerts
             </h1>
             {counts.unread > 0 ? (
-              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-brand/10 text-brand border border-brand/20 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
+              <Badge color="brand" variant="pastel" size="xs">
                 {counts.unread} unread
-              </span>
+              </Badge>
             ) : (
-              <span className="text-[10px] font-medium px-1.5 py-0.2 rounded-full bg-[var(--bg-muted)] text-[var(--text-muted)] border border-[var(--border)]">
+              <Badge color="slate" variant="pastel" size="xs">
                 Up to date
-              </span>
+              </Badge>
             )}
           </div>
           <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
@@ -699,9 +704,9 @@ const AdminNotifications = () => {
                           {notif.title}
                         </span>
 
-                        <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded border shrink-0 ${meta.color}`}>
+                        <Badge color={meta.badgeColor} variant="pastel" size="2xs" className="shrink-0">
                           {meta.label}
-                        </span>
+                        </Badge>
                       </div>
 
                       {/* Snippet truncate */}
@@ -810,13 +815,9 @@ const AdminNotifications = () => {
             {/* Header */}
             <div className="py-3 px-4 border-b border-[var(--border)] flex items-center justify-between shrink-0 bg-[var(--bg-muted)]/30">
               <div className="flex items-center gap-2">
-                <span
-                  className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
-                    getCategoryMeta(selectedNotif.type).color
-                  }`}
-                >
+                <Badge color={getCategoryMeta(selectedNotif.type).badgeColor} variant="pastel" size="xs">
                   {getCategoryMeta(selectedNotif.type).label}
-                </span>
+                </Badge>
                 <span className="text-[11px] text-[var(--text-muted)]">
                   {formatFullDate(selectedNotif.createdAt)}
                 </span>

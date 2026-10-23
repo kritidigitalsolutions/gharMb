@@ -27,10 +27,19 @@ router.post(
   enquiryController.createEnquiry
 );
 
+const serviceEnquiryController = require('../../controllers/user/service-enquiry.controller');
+
 router.post(
   '/developer',
   optionalAuth,
   enquiryController.createDeveloperEnquiry
+);
+
+// Home Loan Lead & Quick Eligibility Enquiry (routes directly to Admin Panel)
+router.post(
+  ['/home-loan', '/loan', '/home-loans', '/loans', '/home-loan/enquiry', '/loan/enquiry'],
+  optionalAuth,
+  serviceEnquiryController.createHomeLoanEnquiry
 );
 
 // All personal enquiry list & management routes require authenticated user

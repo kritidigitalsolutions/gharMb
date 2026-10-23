@@ -818,24 +818,70 @@ export default function PropertyVerification() {
   };
 
   const getStatusBadge = (status, size = 'xs') => {
+    const isXs = size === 'xs';
+    const compactClass = isXs ? 'text-[9.5px] h-[19px] px-2 font-medium tracking-tight whitespace-nowrap shadow-none' : '';
+    const iconSize = isXs ? 9.5 : 11;
+
     switch (status) {
       case 'Pending':
-        return <Badge.Pending size={size}>Needs Audit</Badge.Pending>;
+        return (
+          <Badge.Pending
+            size={size}
+            dot={false}
+            pulse={false}
+            icon={<Clock size={iconSize} className="shrink-0" />}
+            className={compactClass}
+          >
+            Needs Audit
+          </Badge.Pending>
+        );
       case 'Approved':
-        return <Badge.Approved size={size}>Approved</Badge.Approved>;
+        return (
+          <Badge.Approved
+            size={size}
+            icon={<CheckCircle2 size={iconSize} className="shrink-0" />}
+            className={compactClass}
+          >
+            Approved
+          </Badge.Approved>
+        );
       case 'Rejected':
-        return <Badge.Rejected size={size}>Rejected</Badge.Rejected>;
+        return (
+          <Badge.Rejected
+            size={size}
+            icon={<XCircle size={iconSize} className="shrink-0" />}
+            className={compactClass}
+          >
+            Rejected
+          </Badge.Rejected>
+        );
       case 'Sold':
-        return <Badge.Sold size={size}>Sold</Badge.Sold>;
+        return (
+          <Badge.Sold
+            size={size}
+            icon={<ShieldCheck size={iconSize} className="shrink-0" />}
+            className={compactClass}
+          >
+            Sold
+          </Badge.Sold>
+        );
       case 'Marked as Sold':
         return (
-          <Badge color="amber" variant="pastel" size={size} dot pulse icon={<Clock size={size === 'xs' ? 10 : 11} className="shrink-0" />}>
+          <Badge
+            color="amber"
+            variant="pastel"
+            size={size}
+            dot={false}
+            pulse={false}
+            icon={<Clock size={iconSize} className="shrink-0" />}
+            className={compactClass}
+          >
             Marked as Sold
           </Badge>
         );
       default:
         return (
-          <Badge color="slate" variant="pastel" size={size}>
+          <Badge color="slate" variant="pastel" size={size} className={compactClass}>
             {status || 'Unknown'}
           </Badge>
         );
@@ -1084,83 +1130,71 @@ export default function PropertyVerification() {
           <div className="w-full overflow-hidden">
             <table className="w-full text-left border-collapse table-fixed">
               <colgroup>
-                <col className="w-[23%]" />
-                <col className="w-[15%]" />
+                <col className="w-[21%]" />
                 <col className="w-[10%]" />
-                <col className="w-[7%]" />
                 <col className="w-[14%]" />
                 <col className="w-[9%]" />
-                <col className="w-[10%]" />
-                <col className="w-[12%]" />
+                <col className="w-[7%]" />
+                <col className="w-[13%]" />
+                <col className="w-[9%]" />
+                <col className="w-[8%]" />
+                <col className="w-[9%]" />
               </colgroup>
               <thead className="bg-[var(--bg-muted)]/40 text-[var(--text-muted)] uppercase text-[9.5px] font-semibold tracking-wider border-b border-[var(--border)] select-none">
                 <tr>
-                  <th className="py-2 px-3">Property</th>
-                  <th className="py-2 px-3">Location</th>
-                  <th className="py-2 px-3">Price</th>
-                  <th className="py-2 px-3">Type</th>
-                  <th className="py-2 px-3">Seller / Owner</th>
-                  <th className="py-2 px-3">Submitted</th>
-                  <th className="py-2 px-3">Status</th>
-                  <th className="py-2 pl-2 pr-4 text-right">Actions</th>
+                  <th className="py-2.5 px-3">Property</th>
+                  <th className="py-2.5 px-3">Category</th>
+                  <th className="py-2.5 px-3">Location</th>
+                  <th className="py-2.5 px-3">Price</th>
+                  <th className="py-2.5 px-3">Type</th>
+                  <th className="py-2.5 px-3">Seller / Owner</th>
+                  <th className="py-2.5 px-3">Submitted</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 pl-2 pr-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]/60 text-xs">
                 {filteredList.map((item) => {
-                  const mainImage = item.images?.[0] || item.gallery?.[0]?.url;
-
                   return (
                     <tr
                       key={item._id}
                       onClick={() => openReviewDrawer(item)}
                       className="hover:bg-[var(--bg-muted)]/35 transition-colors cursor-pointer group"
                     >
-                      {/* Property Thumbnail & Info */}
-                      <td className="py-1.5 px-3 align-middle overflow-hidden">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="relative w-8 h-8 rounded-md overflow-hidden bg-[var(--bg-muted)] shrink-0 border border-[var(--border)]">
-                            {mainImage ? (
-                              <SmoothImage src={mainImage} alt={item.title} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)]">
-                                <Building size={14} />
-                              </div>
+                      {/* Property Info (No Images, Clean Typography) */}
+                      <td className="py-2.5 px-3 align-middle overflow-hidden">
+                        <div className="min-w-0">
+                          <span
+                            className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate block leading-snug"
+                            title={item.title}
+                          >
+                            {item.title}
+                          </span>
+                          <div className="flex items-center gap-1.5 text-[10.5px] text-[var(--text-muted)] truncate font-mono mt-0.5 leading-tight">
+                            <span className="font-medium text-[var(--text-secondary)]">{item.id}</span>
+                            {[item.bhk, item.area].filter(Boolean).length > 0 && (
+                              <>
+                                <span className="text-[var(--border)] font-sans">•</span>
+                                <span className="font-sans text-[var(--text-muted)] truncate">
+                                  {[item.bhk, item.area].filter(Boolean).join(' · ')}
+                                </span>
+                              </>
                             )}
-                            {item.gallery?.length > 1 && (
-                              <span className="absolute bottom-0.5 right-0.5 bg-black/75 text-white text-[7.5px] font-bold px-0.5 rounded leading-none">
-                                {item.gallery.length}
-                              </span>
-                            )}
-                            {item.videos?.length > 0 && (
-                              <span className="absolute top-0.5 left-0.5 bg-purple-600/90 text-white text-[7px] font-bold px-1 py-0.2 rounded-xs flex items-center gap-0.5 shadow-2xs leading-none">
-                                <Play size={5} className="fill-white" /> Video
-                              </span>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate" title={item.title}>
-                                {item.title}
-                              </span>
-                              {item.category && (
-                                <Badge.Category type={item.category} size="xs" />
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1 text-[10.5px] text-[var(--text-muted)] truncate font-mono mt-0.5 leading-tight">
-                              <span>{item.id}</span>
-                              {[item.bhk, item.area].filter(Boolean).length > 0 && (
-                                <>
-                                  <span className="text-[var(--border)] font-sans">•</span>
-                                  <span className="font-sans truncate">{[item.bhk, item.area].filter(Boolean).join(' · ')}</span>
-                                </>
-                              )}
-                            </div>
                           </div>
                         </div>
                       </td>
 
+                      {/* Category (Residential / Commercial Aligned Badges) */}
+                      <td className="py-2.5 px-3 align-middle whitespace-nowrap">
+                        <Badge.Category
+                          type={item.category || 'Residential'}
+                          size="xs"
+                          className="w-[84px] justify-center text-center font-medium text-[9.5px] h-[19px] tracking-tight shadow-none"
+                        />
+                      </td>
+
                       {/* Location */}
-                      <td className="py-1.5 px-3 align-middle overflow-hidden">
+                      <td className="py-2.5 px-3 align-middle overflow-hidden">
                         <div className="min-w-0">
                           <div className="flex items-center gap-1 text-xs font-medium text-[var(--text-primary)] truncate">
                             <MapPin size={11} className="text-brand shrink-0 opacity-80" />
@@ -1175,23 +1209,23 @@ export default function PropertyVerification() {
                       </td>
 
                       {/* Price */}
-                      <td className="py-1.5 px-3 align-middle whitespace-nowrap overflow-hidden">
+                      <td className="py-2.5 px-3 align-middle whitespace-nowrap overflow-hidden">
                         <span className="font-semibold text-xs text-[var(--text-primary)] block leading-tight">
                           {item.price}
                         </span>
                       </td>
 
                       {/* Listing Type (Sale / Rent Badge) */}
-                      <td className="py-1.5 px-3 align-middle whitespace-nowrap">
+                      <td className="py-2.5 px-3 align-middle whitespace-nowrap">
                         {item.listingFor?.toLowerCase() === 'rent' ? (
-                          <Badge.ForRent size="xs" variant="pastel">Rent</Badge.ForRent>
+                          <Badge.ForRent size="xs" variant="pastel" className="min-w-[44px] justify-center text-[9.5px] h-[19px] font-medium tracking-tight shadow-none">Rent</Badge.ForRent>
                         ) : (
-                          <Badge.ForSale size="xs" variant="pastel">Sale</Badge.ForSale>
+                          <Badge.ForSale size="xs" variant="pastel" className="min-w-[44px] justify-center text-[9.5px] h-[19px] font-medium tracking-tight shadow-none">Sale</Badge.ForSale>
                         )}
                       </td>
 
                       {/* Seller Info */}
-                      <td className="py-1.5 px-3 align-middle overflow-hidden">
+                      <td className="py-2.5 px-3 align-middle overflow-hidden">
                         <div className="min-w-0">
                           <span className="font-medium text-xs text-[var(--text-primary)] truncate block leading-tight">
                             {item.ownerName}
@@ -1203,17 +1237,17 @@ export default function PropertyVerification() {
                       </td>
 
                       {/* Submitted Date */}
-                      <td className="py-1.5 px-3 align-middle whitespace-nowrap text-[11px] text-[var(--text-muted)]">
+                      <td className="py-2.5 px-3 align-middle whitespace-nowrap text-[11px] text-[var(--text-muted)]">
                         {item.submittedDate}
                       </td>
 
                       {/* Status */}
-                      <td className="py-1.5 px-3 align-middle whitespace-nowrap">
+                      <td className="py-2.5 px-3 align-middle whitespace-nowrap">
                         {getStatusBadge(item.status, 'xs')}
                       </td>
 
                       {/* Actions (Icon-Only Minimalist Buttons) */}
-                      <td className="py-1.5 pl-2 pr-4 align-middle text-right whitespace-nowrap">
+                      <td className="py-2.5 pl-2 pr-4 align-middle text-right whitespace-nowrap">
                         <div className="inline-flex items-center justify-end gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"

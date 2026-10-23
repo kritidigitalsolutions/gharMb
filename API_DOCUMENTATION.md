@@ -252,6 +252,48 @@ export const submitInquiryNow = async ({ propertyId, projectId, developerId, nam
 };
 ```
 
+| `POST` | `/api/services/loan/enquiry`<br>*(Aliases: `/api/home-loan/enquiry`, `/api/services/home-loan/enquiry`, `/api/enquiries/home-loan`, `/api/loans/enquiry`)* | **Home Loan Quick Eligibility Check & Loan Assistance Enquiry** | Buyer checking loan eligibility / requesting bank financing assistance directly to Admin | **Header:** `Bearer <userToken>` *(optional)*<br>**Body (JSON):**<br>• `monthlyNetIncome` *(Number/String, required)*: e.g. `120000`<br>• `estimatedPropertyValue` *(Number/String, optional)*: e.g. `895000`<br>• `existingMonthlyEmis` *(Number/String, optional)*: e.g. `15000` or `0`<br>• `phone` *(String, required if guest)*: Contact phone number<br>• `name` *(String, required if guest)*: Applicant full name<br>• `email` *(String, optional)*: Contact email<br>• `loanRequired` *(String/Number, optional)*: Desired loan amount<br>• `loanTenure` *(Number, optional)*: Tenure in years (defaults to 20)<br>• `employmentType` *(String, optional)*: `Salaried` \| `Self-Employed` \| `Business`<br>• `preferredBank` *(String, optional)*: e.g. `HDFC`, `SBI`, `ICICI`<br>• `propertyId` *(String, optional)*: Linked property ID<br>• `location` *(String, optional)*: City / Region | `{ status: "success", message: "Home loan inquiry submitted successfully...", data: { serviceRequestId: "SRV-LN-909", eligibilityCheck: { monthlyIncome: "₹1,20,000", propertyValue: "₹8,95,000", existingEmis: "₹15,000", maxEligibleLoan: "₹8,05,500", estimatedMonthlyEmi: "₹6,990/month", tenureYears: 20, assumedInterestRate: "8.5%" }, service: { ... } } }` |
+| `GET` | `/api/services/my-enquiries?serviceType=Loan` | Retrieves logged-in user's submitted home loan enquiries & status | User reviewing their loan requests & banker milestones | **Header:** `Bearer <userToken>` | List of user's submitted loan inquiries with live milestones |
+
+#### 📋 Example: "Home Loan Quick Eligibility Check" Front-End Code Snippet (React Native / Flutter / Web)
+```javascript
+// Submit Home Loan Quick Eligibility Check
+export const submitHomeLoanEnquiry = async ({
+  monthlyNetIncome,       // e.g. 120000
+  estimatedPropertyValue, // e.g. 895000
+  existingMonthlyEmis,    // e.g. 15000 or 0
+  name,
+  phone,
+  email,
+  employmentType = 'Salaried',
+  preferredBank,
+  propertyId
+}) => {
+  const token = localStorage.getItem('token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const response = await fetch('http://localhost:5001/api/home-loan/enquiry', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      monthlyNetIncome,
+      estimatedPropertyValue,
+      existingMonthlyEmis,
+      name,
+      phone,
+      email,
+      employmentType,
+      preferredBank,
+      propertyId,
+      source: 'app'
+    }),
+  });
+
+  return await response.json();
+};
+```
+
 ---
 
 ## 9. Wishlist & Saved Listings
