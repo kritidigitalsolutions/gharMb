@@ -178,84 +178,38 @@ class FirebaseStorageService {
   }
 
   /**
-   * Helper to resolve file URL: Uploads to Firebase Storage if available,
-   * otherwise falls back to local server URL.
+   * Helper to resolve file URL: Uploads STRICTLY to Firebase Cloud Storage.
+   * Zero local fallback. Returns only persistent Firebase Storage URLs.
    * @param {Object} req - Express request
    * @param {Object} file - Multer file object
    * @param {string} folder - Folder name in bucket (e.g. 'properties', 'banners', 'uploads')
+   * @returns {Promise<string>} Firebase Storage public download URL
    */
   async resolveFileUrl(req, file, folder = 'uploads') {
     if (!file) return null;
 
-    // 1. Try uploading to Firebase Storage if available
-    if (this.isConfigured()) {
-      try {
-        let result = null;
-        if (file.buffer) {
-          result = await this.uploadBuffer(file.buffer, file.originalname, file.mimetype, folder);
-        } else if (file.path && fs.existsSync(file.path)) {
-          result = await this.uploadLocalFile(file.path, file.originalname, file.mimetype, folder, true);
-        }
-
-        if (result && result.url) {
-          return result.url;
-        }
-      } catch (fbErr) {
-        console.error(`❌ Firebase Storage upload error for "${file.originalname || file.filename}":`, fbErr.message);
-      }
+    if (!this.isConfigured()) {
+      throw new Error('Firebase Storage is not initialized. Please verify Firebase credentials (firebaseCredentials.json / FIREBASE_SERVICE_ACCOUNT).');
     }
 
-    // 2. Emergency fallback to local server URL (only if Firebase is down or local dev)
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-    const host = req.get('host') || 'localhost:5001';
-    let filename = file.filename;
-    let fileBuffer = file.buffer;
-
-    if (!filename || fileBuffer) {
-      const isVideo = (file.mimetype && file.mimetype.startsWith('video/')) || /\.(mp4|webm|mov|m4v|mkv|avi|3gp)$/i.test(file.originalname || '');
-      const originalExt = path.extname(file.originalname || '').toLowerCase() || (isVideo ? '.mp4' : '.jpg');
-
-      try {
-        // Check if server uploads directory is writable (fallback to /tmp in serverless)
-        let targetDir = path.join(__dirname, '../../uploads');
-        let canWrite = true;
-        try {
-          if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
-        } catch (_) {
-          targetDir = os.tmpdir();
-          canWrite = false;
-        }
-
-        if (fileBuffer) {
-          if (isVideo) {
-            filename = `video-${Date.now()}-${Math.round(Math.random() * 1e9)}${originalExt}`;
-            try {
-              fs.writeFileSync(path.join(targetDir, filename), fileBuffer);
-            } catch (_) {}
-          } else {
-            try {
-              const opt = await optimizeImage(fileBuffer, file.originalname || 'file.jpg', file.mimetype || 'image/jpeg');
-              fileBuffer = opt.buffer;
-              const ext = path.extname(opt.filename || '').toLowerCase() || (opt.wasOptimized ? '.webp' : originalExt);
-              filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-              try {
-                fs.writeFileSync(path.join(targetDir, filename), fileBuffer);
-              } catch (_) {}
-            } catch (_) {
-              filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${originalExt}`;
-              try {
-                fs.writeFileSync(path.join(targetDir, filename), fileBuffer);
-              } catch (_) {}
-            }
-          }
-        } else {
-          filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${originalExt}`;
-        }
-      } catch (diskErr) {
-        filename = filename || `file-${Date.now()}${originalExt}`;
+    try {
+      let result = null;
+      if (file.buffer) {
+        result = await this.uploadBuffer(file.buffer, file.originalname, file.mimetype, folder);
+      } else if (file.path && fs.existsSync(file.path)) {
+        result = await this.uploadLocalFile(file.path, file.originalname, file.mimetype, folder, true);
+      } else {
+        throw new Error(`File buffer or valid local path missing for ${file.originalname || file.filename}`);
       }
+
+      if (result && result.url) {
+        return result.url;
+      }
+      throw new Error(`Upload succeeded but no URL was returned for ${file.originalname || file.filename}`);
+    } catch (fbErr) {
+      console.error(`❌ Firebase Storage upload failed for "${file.originalname || file.filename}":`, fbErr.message);
+      throw new Error(`Firebase Storage Upload Failed: ${fbErr.message}`);
     }
-    return `${protocol}://${host}/uploads/${filename}`;
   }
 
   /**

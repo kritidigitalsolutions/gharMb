@@ -92,34 +92,22 @@ const saveBase64File = async (base64String, fallbackName = 'upload', folder = 'u
     const filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`;
     const origName = `${fallbackName}.${ext}`;
 
-    if (firebaseStorageService.isConfigured()) {
-      try {
-        const cloudRes = await firebaseStorageService.uploadBuffer(buffer, origName, mimeType, folder);
-        return {
-          isCloud: true,
-          url: cloudRes.url,
-          filename: cloudRes.filename,
-          originalname: origName,
-          mimetype: mimeType,
-          size: buffer.length,
-        };
-      } catch (cloudErr) {
-        console.warn('Firebase base64 upload failed, falling back to local disk:', cloudErr.message);
-      }
+    if (!firebaseStorageService.isConfigured()) {
+      throw new Error('Firebase Storage is not initialized. Service account credentials required.');
     }
 
-    const filePath = path.join(uploadDir, filename);
-    fs.writeFileSync(filePath, buffer);
-
+    const cloudRes = await firebaseStorageService.uploadBuffer(buffer, origName, mimeType, folder);
     return {
-      filename,
+      isCloud: true,
+      url: cloudRes.url,
+      filename: cloudRes.filename,
       originalname: origName,
       mimetype: mimeType,
       size: buffer.length,
     };
   } catch (err) {
-    console.error('Error saving base64 file:', err.message);
-    return null;
+    console.error('Error uploading base64 file to Firebase:', err.message);
+    throw err;
   }
 };
 
