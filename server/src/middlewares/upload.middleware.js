@@ -8,11 +8,13 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure uploads directory exists at project root server/uploads
-const uploadDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// Ensure uploads directory exists if writable (safe on Vercel read-only filesystem)
+try {
+  const uploadDir = path.join(__dirname, '../../uploads');
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (_) {}
 
 // Multer In-Memory Storage: buffers held in RAM, uploaded directly to Firebase Storage without touching disk
 const storage = multer.memoryStorage();

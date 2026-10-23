@@ -14,11 +14,13 @@ const Property = require('../../models/property.model');
 const Project = require('../../models/project.model');
 const firebaseStorageService = require('../../services/firebaseStorage.service');
 
-// Ensure uploads directory exists
+// Ensure uploads directory exists if writable (safe on Vercel read-only filesystem)
 const uploadDir = path.join(__dirname, '../../../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (_) {}
 
 /**
  * Construct full public URL for uploaded files (local fallback)
@@ -34,34 +36,7 @@ const getFileUrl = (req, filename) => {
  * otherwise falls back to local server URL.
  */
 const resolveFileUrl = async (req, f, folder = 'uploads') => {
-  if (firebaseStorageService.isConfigured()) {
-    try {
-      if (f.buffer) {
-        const cloudRes = await firebaseStorageService.uploadBuffer(f.buffer, f.originalname, f.mimetype, folder);
-        return cloudRes.url;
-      }
-      const localPath = f.path || (f.filename ? path.join(uploadDir, f.filename) : null);
-      if (localPath && fs.existsSync(localPath)) {
-        const cloudRes = await firebaseStorageService.uploadLocalFile(localPath, f.originalname || f.filename, f.mimetype, folder, true);
-        return cloudRes.url;
-      }
-    } catch (fbErr) {
-      console.warn(`⚠️ Firebase Storage upload notice, falling back to local URL:`, fbErr.message);
-    }
-  }
-
-  // Fallback to local server if Firebase fails or not configured
-  let filename = f.filename;
-  if (!filename) {
-    const ext = path.extname(f.originalname || '').toLowerCase() || '.jpg';
-    filename = `file-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    if (f.buffer) {
-      try {
-        fs.writeFileSync(path.join(uploadDir, filename), f.buffer);
-      } catch (_) {}
-    }
-  }
-  return getFileUrl(req, filename);
+  return await firebaseStorageService.resolveFileUrl(req, f, folder);
 };
 
 /**
@@ -674,5 +649,34 @@ exports.uploadProjectFiles = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+};
+
+/**
+ * Generate Pre-Signed Upload URL for direct client-to-Firebase upload.
+ * Crucial for Video and large file uploads: completely bypasses Vercel's 4.5MB serverless limit!
+ */
+exports.getSignedUploadUrl = async (req, res, next) => {
+  try {
+    const filename = req.query.filename || req.body?.filename || `file-${Date.now()}`;
+    const mimetype = req.query.mimetype || req.body?.mimetype || 'application/octet-stream';
+    const folder = req.query.folder || req.body?.folder || 'uploads';
+    const expiresIn = Number(req.query.expiresIn || req.body?.expiresIn || 15);
+
+    const result = await firebaseStorageService.createSignedUploadUrl(filename, mimetype, folder, expiresIn);
+
+    return res.status(200).json({
+      status: 'success',
+      success: true,
+      message: 'Pre-signed upload URL generated successfully. Upload file directly via HTTP PUT.',
+      data: result,
+    });
+  } catch (error) {
+    console.error('❌ Error generating signed upload URL:', error.message);
+    return res.status(500).json({
+      status: 'error',
+      success: false,
+      message: error.message || 'Failed to generate signed upload URL.',
+    });
   }
 };
