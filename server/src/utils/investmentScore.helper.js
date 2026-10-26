@@ -7,8 +7,10 @@
  * Rounds a number to 1 decimal place (e.g. 8.92 -> 8.9)
  */
 const roundToOneDecimal = (num) => {
-  if (typeof num !== 'number' || isNaN(num)) return 0;
-  return Math.round(num * 10) / 10;
+  if (num === null || num === undefined || num === '') return 0;
+  const val = Number(num);
+  if (isNaN(val)) return 0;
+  return Math.round(val * 10) / 10;
 };
 
 /**

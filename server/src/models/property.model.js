@@ -53,8 +53,8 @@ const propertySchema = new mongoose.Schema(
     },
     listingFor: {
       type: String,
-      enum: ['Sale', 'Rent', 'Lease', 'PG'],
-      required: [true, 'Specify if listing is for Sale, Rent, Lease, or PG.'],
+      enum: ['Sale', 'Rent', 'Lease', 'PG', 'Resale'],
+      required: [true, 'Specify if listing is for Sale, Rent, Lease, PG, or Resale.'],
     },
     propertyType: {
       type: String,
@@ -63,6 +63,14 @@ const propertySchema = new mongoose.Schema(
       // Shop / Retail, Office space, Showroom, Warehouse, Co-working, Industrial plot (Commercial)
       trim: true,
     },
+    // Multiple RERA Registrations (Mandatory for Developer / Builder New Projects except Plots)
+    reraNumbers: [
+      {
+        _id: false,
+        name: { type: String, trim: true, default: '' },
+        reraNumber: { type: String, trim: true },
+      },
+    ],
     title: {
       type: String,
       required: [true, 'Property listing title is required.'],
@@ -197,6 +205,12 @@ const propertySchema = new mongoose.Schema(
     },
     availableFrom: {
       type: String, // 'Immediate', 'Within 1 Month', 'Within 3 Months', 'Custom Date'
+    },
+    // Expected Possession Date - Month and Year only (e.g. 'June 2028', 'Dec 2026', 'Immediate')
+    possessionDate: {
+      type: String,
+      trim: true,
+      default: '',
     },
 
     // Step 3: Photos & Short Videos Upload (Walkthroughs, reels, tours)
@@ -546,6 +560,54 @@ const propertySchema = new mongoose.Schema(
         futureDemand: { type: Number, default: 0, min: 0, max: 10 },
       },
     },
+
+    // Admin Commission & Platform Discount Configurations
+    adminCommission: {
+      type: {
+        type: String,
+        enum: ['percentage', 'fixed'],
+        default: 'percentage',
+      },
+      rate: {
+        type: Number,
+        default: 2,
+      },
+      amount: {
+        type: Number,
+        default: 0,
+      },
+    },
+    commissionDiscount: {
+      enabled: {
+        type: Boolean,
+        default: false,
+      },
+      discountType: {
+        type: String,
+        enum: ['percentage', 'fixed'],
+        default: 'percentage',
+      },
+      discountValue: {
+        type: Number,
+        default: 0,
+      },
+      discountAmount: {
+        type: Number,
+        default: 0,
+      },
+      netCommission: {
+        type: Number,
+        default: 0,
+      },
+      discountOnCommissionOnly: {
+        type: Boolean,
+        default: true,
+      },
+      notes: {
+        type: String,
+        default: '',
+      },
+    },
   },
   {
     timestamps: true,
@@ -556,8 +618,8 @@ const propertySchema = new mongoose.Schema(
 
 // Pre-validate hook to calculate defaults from multiple BHK configurations and omit security deposit for sale
 propertySchema.pre('validate', function () {
-  // If listing is for Sale, remove / clear Security Deposit and Duration
-  const isForSale = String(this.listingFor || '').trim().toLowerCase() === 'sale';
+  // If listing is for Sale or Resale, remove / clear Security Deposit and Duration
+  const isForSale = ['sale', 'resale'].includes(String(this.listingFor || '').trim().toLowerCase());
   if (isForSale) {
     this.securityDeposit = undefined;
     this.securityDepositDuration = undefined;
@@ -597,8 +659,8 @@ propertySchema.pre('save', function () {
     this.submissionId = `#GBM-${dateStr}-${randomNum}`;
   }
 
-  // Ensure security deposit & duration are undefined for sale listings
-  const isForSale = String(this.listingFor || '').trim().toLowerCase() === 'sale';
+  // Ensure security deposit & duration are undefined for sale/resale listings
+  const isForSale = ['sale', 'resale'].includes(String(this.listingFor || '').trim().toLowerCase());
   if (isForSale) {
     this.securityDeposit = undefined;
     this.securityDepositDuration = undefined;
@@ -695,9 +757,13 @@ propertySchema.pre('save', function () {
   }
 
   // Calculate & normalize Admin Commission and Commission Discount
-  // DEVELOPER RULE: Commission will NOT be included in property listings created by developers/builders
+  // DEVELOPER RULE: Default commission is 0% for builder listings UNLESS explicitly configured by admin
   const propPrice = Number(this.price) || 0;
-  if (isBuilder) {
+  const hasConfiguredCommission =
+    Boolean(this.adminCommission && (Number(this.adminCommission.rate) > 0 || Number(this.adminCommission.amount) > 0)) ||
+    Boolean(this.commissionDiscount && this.commissionDiscount.enabled);
+
+  if (isBuilder && !hasConfiguredCommission) {
     this.adminCommission = {
       type: 'percentage',
       rate: 0,
@@ -815,6 +881,13 @@ propertySchema.virtual('totalRatings').get(function () {
 // Virtuals for multiple BHK configurations
 propertySchema.virtual('hasMultipleBhk').get(function () {
   return Array.isArray(this.bhkConfigurations) && this.bhkConfigurations.length > 0;
+});
+
+// Virtual for primary RERA number
+propertySchema.virtual('reraNumber').get(function () {
+  if (!Array.isArray(this.reraNumbers) || this.reraNumbers.length === 0) return '';
+  const first = this.reraNumbers[0];
+  return typeof first === 'string' ? first : (first?.reraNumber || '');
 });
 
 propertySchema.virtual('bhkSummary').get(function () {

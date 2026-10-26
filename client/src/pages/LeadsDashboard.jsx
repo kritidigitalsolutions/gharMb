@@ -318,7 +318,7 @@ const LeadsDashboard = () => {
     // Direct Lead property details
     setPropertyPreviewModal({
       id: propertyId || 'LEAD-PROP',
-      _id: null,
+      _id: (propertyId && propertyId !== 'LEAD-PROP' && propertyId !== 'PROP-DIR') ? propertyId : null,
       title: fallbackTitle || 'Inquired Property',
       location: leadObj?.location || 'Target Locality',
       price: leadObj?.budget || 'Price on Request',
@@ -1286,8 +1286,9 @@ const LeadsDashboard = () => {
                 <button
                   type="button"
                   onClick={() => {
+                    const targetId = propertyPreviewModal?._id || propertyPreviewModal?.id;
                     setPropertyPreviewModal(null);
-                    navigate('/admin/verification');
+                    navigate(targetId ? `/admin/verification?id=${encodeURIComponent(targetId)}` : '/admin/verification');
                   }}
                   className="flex-1 h-8 bg-brand hover:bg-brand-dark text-white rounded-md text-xs font-semibold shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
                 >

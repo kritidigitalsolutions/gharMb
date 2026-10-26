@@ -35,7 +35,14 @@ import {
   Layers,
   ArrowRight,
   Play,
-  Film
+  Film,
+  Percent,
+  BadgePercent,
+  Coins,
+  SlidersHorizontal,
+  Info,
+  TrendingUp,
+  Star
 } from 'lucide-react';
 
 const QUICK_REJECTION_REASONS = [
@@ -90,6 +97,37 @@ export default function PropertyVerification() {
   const [showConfirmSaleModal, setShowConfirmSaleModal] = useState(false);
   const [confirmSaleAction, setConfirmSaleAction] = useState('confirm'); // 'confirm' | 'cancel'
   const [confirmSaleNotes, setConfirmSaleNotes] = useState('');
+
+  // ── 📅 Expected Possession Date Edit States ──
+  const [isEditingPossession, setIsEditingPossession] = useState(false);
+  const [newPossessionDate, setNewPossessionDate] = useState('');
+  const [isSavingPossession, setIsSavingPossession] = useState(false);
+
+  // ── 💎 Admin Commission & Platform Discount Approval Modal States ──
+  const [showCommissionModal, setShowCommissionModal] = useState(false);
+  const [commissionModalTarget, setCommissionModalTarget] = useState(null);
+  const [isModalApprovalMode, setIsModalApprovalMode] = useState(true); // true = approving, false = updating existing
+  const [commissionForm, setCommissionForm] = useState({
+    type: 'percentage', // 'percentage' | 'fixed'
+    rate: 2,
+    fixedAmount: 0,
+    discountEnabled: false,
+    discountType: 'percentage', // 'percentage' | 'fixed'
+    discountValue: 0,
+    notes: '',
+  });
+
+  // ── 🌟 Property Investment Score Modal States ──
+  const [showScoreModal, setShowScoreModal] = useState(false);
+  const [editingScoreItem, setEditingScoreItem] = useState(null);
+  const [isSavingScore, setIsSavingScore] = useState(false);
+  const [scoreForm, setScoreForm] = useState({
+    connectivity: 8.0,
+    rentalPotential: 8.0,
+    growthPotential: 8.0,
+    familyLiving: 8.0,
+    futureDemand: 8.0,
+  });
 
   // --- Lightbox States ---
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -187,6 +225,7 @@ export default function PropertyVerification() {
     return {
       _id: p._id,
       id: p.submissionId || `PROP-${p._id.slice(-4).toUpperCase()}`,
+      submissionId: p.submissionId || '',
       title: p.title || 'Untitled Property',
       category: p.category || 'Residential',
       propertyType: p.propertyType || 'Apartment',
@@ -215,9 +254,15 @@ export default function PropertyVerification() {
       furnishing: p.furnishing || 'Unfurnished',
       facing: p.facingDirection ? `${p.facingDirection} Facing` : null,
       floorInfo: p.floorNo ? `Floor ${p.floorNo}${p.totalFloors ? ` of ${p.totalFloors}` : ''}` : null,
-      possessionDate: p.availableFrom || p.ageOfProperty || 'Immediate',
+      possessionDate: p.possessionDate ? String(p.possessionDate).trim() : '',
       parking: p.parking || null,
-      reraNumber: p.propertyDocuments?.reraCertificate || p.reraNumber || '',
+      reraNumbers: Array.isArray(p.reraNumbers) && p.reraNumbers.length > 0
+        ? p.reraNumbers.map((r, idx) => {
+            if (typeof r === 'string') return { name: `Phase ${idx + 1}`, reraNumber: r };
+            return { name: r.name || `Phase ${idx + 1}`, reraNumber: r.reraNumber || '' };
+          }).filter(r => r.reraNumber)
+        : (p.reraNumber ? [{ name: 'Phase 1', reraNumber: p.reraNumber }] : (p.propertyDocuments?.reraCertificate ? [{ name: 'Phase 1', reraNumber: p.propertyDocuments.reraCertificate }] : [])),
+      reraNumber: (Array.isArray(p.reraNumbers) && p.reraNumbers[0]?.reraNumber) || (typeof p.reraNumbers?.[0] === 'string' ? p.reraNumbers[0] : '') || p.reraNumber || p.propertyDocuments?.reraCertificate || '',
       amenities: Array.isArray(p.amenities) ? p.amenities : [],
       status: isSoldListing
         ? 'Sold'
@@ -242,7 +287,32 @@ export default function PropertyVerification() {
       propertyDocuments: p.propertyDocuments || {},
       documents: Array.isArray(p.documents) ? p.documents : [],
       description: p.description || '',
-      itemType: 'property'
+      itemType: 'property',
+      rawPrice: priceNum,
+      adminCommission: p.adminCommission || { type: 'percentage', rate: 2, amount: Math.round((priceNum * 2) / 100) },
+      commissionDiscount: p.commissionDiscount || {
+        enabled: false,
+        discountType: 'percentage',
+        discountValue: 0,
+        discountAmount: 0,
+        netCommission: p.adminCommission?.amount || Math.round((priceNum * 2) / 100),
+        discountOnCommissionOnly: true,
+        notes: '',
+      },
+      userRole: p.userRole,
+      postedByRole: p.postedByRole,
+      listingAs: p.listingAs,
+      investmentScore: p.investmentScore || {
+        overall: 0,
+        grade: 'Not Rated',
+        metrics: {
+          connectivity: 0,
+          rentalPotential: 0,
+          growthPotential: 0,
+          familyLiving: 0,
+          futureDemand: 0,
+        },
+      },
     };
   };
 
@@ -267,6 +337,7 @@ export default function PropertyVerification() {
     return {
       _id: p._id,
       id: p.submissionId || `PRJ-${p._id.slice(-4).toUpperCase()}`,
+      submissionId: p.submissionId || '',
       title: p.projectName || 'Untitled Project',
       category: p.projectType || 'Residential',
       propertyType: 'RERA Project',
@@ -285,7 +356,14 @@ export default function PropertyVerification() {
       price: priceDisplay,
       priceVal: firstBhk?.minPrice || 0,
       area: p.totalProjectArea || (p.projectArea ? `${p.projectArea} Acres` : 'N/A'),
-      reraNumber: p.reraRegistrationNumber || p.reraNumber || '',
+      possessionDate: p.possessionDate ? String(p.possessionDate).trim() : '',
+      reraNumbers: Array.isArray(p.reraNumbers) && p.reraNumbers.length > 0
+        ? p.reraNumbers.map((r, idx) => {
+            if (typeof r === 'string') return { name: `Phase ${idx + 1}`, reraNumber: r };
+            return { name: r.name || `Phase ${idx + 1}`, reraNumber: r.reraNumber || '' };
+          }).filter(r => r.reraNumber)
+        : (p.reraProjectNumber || p.reraRegistrationNumber || p.reraNumber ? [{ name: 'Phase 1', reraNumber: p.reraProjectNumber || p.reraRegistrationNumber || p.reraNumber }] : []),
+      reraNumber: (Array.isArray(p.reraNumbers) && p.reraNumbers[0]?.reraNumber) || (typeof p.reraNumbers?.[0] === 'string' ? p.reraNumbers[0] : '') || p.reraProjectNumber || p.reraRegistrationNumber || p.reraNumber || '',
       amenities: Array.isArray(p.amenities) ? p.amenities : [],
       status: p.isSold
         ? 'Sold'
@@ -304,7 +382,18 @@ export default function PropertyVerification() {
       videos: allVideos,
       gallery,
       description: p.shortDescription || p.description || '',
-      itemType: 'project'
+      itemType: 'project',
+      investmentScore: p.investmentScore || {
+        overall: 0,
+        grade: 'Not Rated',
+        metrics: {
+          connectivity: 0,
+          rentalPotential: 0,
+          growthPotential: 0,
+          familyLiving: 0,
+          futureDemand: 0,
+        },
+      },
     };
   };
 
@@ -344,21 +433,57 @@ export default function PropertyVerification() {
     fetchData();
   }, []);
 
-  // Handle direct navigation via URL params (from notifications/search)
+  // Handle direct navigation via URL params (from notifications/search/leads deep-links)
   useEffect(() => {
     const q = searchParams.get('search') || searchParams.get('q');
-    const targetId = searchParams.get('id');
+    const targetId = searchParams.get('id') || searchParams.get('propertyId');
 
     if (q) setSearchQuery(q);
 
-    if (targetId && properties.length > 0) {
-      const found = properties.find(p => p._id === targetId || p.id === targetId);
-      if (found) {
-        setSelectedItem(found);
-        setIsDrawerOpen(true);
+    if (targetId) {
+      const cleanTarget = String(targetId).trim().toLowerCase();
+
+      const isMatch = (item) => {
+        if (!item) return false;
+        const itemId = String(item._id || '').toLowerCase();
+        const displayId = String(item.id || '').toLowerCase();
+        const subId = String(item.submissionId || '').toLowerCase();
+        const title = String(item.title || item.projectName || '').toLowerCase();
+
+        return (
+          itemId === cleanTarget ||
+          displayId === cleanTarget ||
+          subId === cleanTarget ||
+          (subId && (subId.includes(cleanTarget) || cleanTarget.includes(subId))) ||
+          (displayId && (displayId.includes(cleanTarget) || cleanTarget.includes(displayId))) ||
+          title === cleanTarget
+        );
+      };
+
+      // 1. Look in properties first
+      if (properties.length > 0) {
+        const foundProp = properties.find(isMatch);
+        if (foundProp) {
+          setActivePipeline('properties');
+          setSelectedItem(foundProp);
+          setIsDrawerOpen(true);
+          setActiveDrawerTab('overview');
+          return;
+        }
+      }
+
+      // 2. Look in projects if not found in properties
+      if (projects.length > 0) {
+        const foundProj = projects.find(isMatch);
+        if (foundProj) {
+          setActivePipeline('projects');
+          setSelectedItem(foundProj);
+          setIsDrawerOpen(true);
+          setActiveDrawerTab('overview');
+        }
       }
     }
-  }, [searchParams, properties]);
+  }, [searchParams, properties, projects]);
 
   // Keyboard navigation for Lightbox
   useEffect(() => {
@@ -578,6 +703,363 @@ export default function PropertyVerification() {
       showToast(err?.response?.data?.message || 'Failed to update status on server.', 'error');
     } finally {
       setIsSubmittingAction(false);
+    }
+  };
+
+  // ── 🛡️ Helper to detect developer/builder listings (0% Platform Commission Rule) ──
+  const checkIsBuilder = (item) => {
+    if (!item) return false;
+    if (item.itemType === 'project') return true;
+    const role = (item.userRole || item.ownerRole || item.postedByRole || item.listingAs || '').toLowerCase();
+    return role.includes('builder') || role.includes('developer');
+  };
+
+  // ── 📊 Real-time Live Financial Calculations for Commission & Discount Modal ──
+  const computedCommission = useMemo(() => {
+    if (!commissionModalTarget) {
+      return {
+        price: 0,
+        grossCommission: 0,
+        discountAmount: 0,
+        netCommission: 0,
+        sellerPayout: 0,
+        effectiveBuyerPrice: 0,
+        isBuilder: false,
+      };
+    }
+
+    const price = Number(commissionModalTarget.rawPrice || commissionModalTarget.priceVal) || 0;
+    const isBuilder = checkIsBuilder(commissionModalTarget);
+
+    let grossCommission = 0;
+    if (commissionForm.type === 'percentage') {
+      const rate = Math.max(0, Number(commissionForm.rate) || 0);
+      grossCommission = Math.round((price * rate) / 100);
+    } else {
+      grossCommission = Math.max(0, Math.round(Number(commissionForm.fixedAmount) || 0));
+    }
+
+    let discountAmount = 0;
+    if (commissionForm.discountEnabled && grossCommission > 0) {
+      const val = Number(commissionForm.discountValue) || 0;
+      if (commissionForm.discountType === 'percentage') {
+        const pct = Math.min(100, Math.max(0, val));
+        discountAmount = Math.round((grossCommission * pct) / 100);
+      } else {
+        discountAmount = Math.round(Math.min(grossCommission, Math.max(0, val)));
+      }
+    }
+
+    const netCommission = Math.max(0, grossCommission - discountAmount);
+    // CRITICAL: The discount is strictly deducted from Admin Commission, NOT on property price!
+    const sellerPayout = price;
+    const effectiveBuyerPrice = Math.max(0, price - discountAmount);
+
+    return {
+      price,
+      grossCommission,
+      discountAmount,
+      netCommission,
+      sellerPayout,
+      effectiveBuyerPrice,
+      isBuilder,
+    };
+  }, [commissionModalTarget, commissionForm]);
+
+  // Open modal for approving property or editing existing commission discount
+  const openApprovalAndCommissionModal = (item, isApprovalMode = true) => {
+    if (!item) return;
+    setCommissionModalTarget(item);
+    setIsModalApprovalMode(isApprovalMode);
+
+    const price = Number(item.rawPrice || item.priceVal) || 0;
+    const isBuilder = checkIsBuilder(item);
+
+    const comm = item.adminCommission || {};
+    const commType = comm.type === 'fixed' ? 'fixed' : 'percentage';
+    const hasConfiguredRate = comm.rate !== undefined && comm.rate !== null && Number(comm.rate) > 0;
+    const commRate = hasConfiguredRate ? Number(comm.rate) : (isBuilder ? 0 : 2);
+    const commFixed = comm.amount ? comm.amount : Math.round((price * commRate) / 100);
+
+    const disc = item.commissionDiscount || {};
+    const discEnabled = Boolean(disc.enabled);
+    const discType = disc.discountType === 'fixed' ? 'fixed' : 'percentage';
+    const discVal = disc.discountValue || 0;
+    const discNotes = disc.notes || '';
+
+    setCommissionForm({
+      type: commType,
+      rate: commRate,
+      fixedAmount: commFixed,
+      discountEnabled: discEnabled,
+      discountType: discType,
+      discountValue: discVal,
+      notes: discNotes,
+    });
+
+    setShowCommissionModal(true);
+  };
+
+  // Intercept approval action: properties open the commission discount modal; projects approve directly
+  const handleApproveClick = (item) => {
+    if (!item) return;
+    if (item.itemType === 'project') {
+      handleUpdateStatus(item, 'Approved');
+    } else {
+      openApprovalAndCommissionModal(item, true);
+    }
+  };
+
+  // ── 🚀 Save Commission & Discount Settings (Approve or Update via API) ──
+  const handleSaveCommissionDiscount = async (approveListing = true) => {
+    if (!commissionModalTarget) return;
+    setIsSubmittingAction(true);
+
+    try {
+      const price = Number(commissionModalTarget.rawPrice || commissionModalTarget.priceVal) || 0;
+
+      const adminCommissionPayload = {
+        type: commissionForm.type,
+        rate: commissionForm.type === 'percentage' ? Number(commissionForm.rate) || 0 : 0,
+        amount: computedCommission.grossCommission,
+      };
+
+      const commissionDiscountPayload = {
+        enabled: Boolean(commissionForm.discountEnabled),
+        discountType: commissionForm.discountType,
+        discountValue: Number(commissionForm.discountValue) || 0,
+        discountAmount: computedCommission.discountAmount,
+        netCommission: computedCommission.netCommission,
+        discountOnCommissionOnly: true,
+        notes: (commissionForm.notes || '').trim(),
+      };
+
+      let res;
+      if (isModalApprovalMode || approveListing) {
+        // Approval endpoint: PATCH /api/admin/properties/:id/status
+        res = await API.patch(`/admin/properties/${commissionModalTarget._id}/status`, {
+          approvalStatus: 'approved',
+          status: 'approved',
+          adminCommission: adminCommissionPayload,
+          commissionDiscount: commissionDiscountPayload,
+        });
+      } else {
+        // Dedicated edit endpoint: PATCH /api/admin/properties/:id/commission-discount
+        res = await API.patch(`/admin/properties/${commissionModalTarget._id}/commission-discount`, {
+          adminCommission: adminCommissionPayload,
+          commissionDiscount: commissionDiscountPayload,
+        });
+      }
+
+      if (res.data?.status === 'success') {
+        const updatedProp = res.data?.data?.property;
+        const msg = isModalApprovalMode || approveListing
+          ? `Listing ${commissionModalTarget.id} approved and live with platform commission settings!`
+          : `Commission discount settings saved for listing ${commissionModalTarget.id}!`;
+
+        showToast(msg, 'success');
+
+        // Immediately update local properties list
+        setProperties((prev) =>
+          prev.map((p) => {
+            if (p._id === commissionModalTarget._id) {
+              return {
+                ...p,
+                status: 'Approved',
+                approvalStatus: 'approved',
+                isLive: true,
+                adminCommission: updatedProp?.adminCommission || adminCommissionPayload,
+                commissionDiscount: updatedProp?.commissionDiscount || commissionDiscountPayload,
+              };
+            }
+            return p;
+          })
+        );
+
+        // Update selected drawer item if currently open
+        if (selectedItem?._id === commissionModalTarget._id) {
+          setSelectedItem((prev) => ({
+            ...prev,
+            status: 'Approved',
+            approvalStatus: 'approved',
+            isLive: true,
+            adminCommission: updatedProp?.adminCommission || adminCommissionPayload,
+            commissionDiscount: updatedProp?.commissionDiscount || commissionDiscountPayload,
+          }));
+        }
+
+        setShowCommissionModal(false);
+        setCommissionModalTarget(null);
+        window.dispatchEvent(new CustomEvent('admin-data-sync'));
+      } else {
+        showToast(res.data?.message || 'Failed to update commission settings.', 'error');
+      }
+    } catch (err) {
+      console.error('Commission discount submission error:', err);
+      showToast(err?.response?.data?.message || 'Failed to update property commission settings.', 'error');
+    } finally {
+      setIsSubmittingAction(false);
+    }
+  };
+
+  // ── 🌟 Investment Score Form Handlers ─────────────────────────────────────
+  const openScoreModal = (item) => {
+    if (!item) return;
+    const cur = item.investmentScore?.metrics || item.investmentScore || {};
+    setScoreForm({
+      connectivity: cur.connectivity !== undefined && cur.connectivity !== null && cur.connectivity !== ''
+        ? Number(cur.connectivity)
+        : 8.0,
+      rentalPotential: cur.rentalPotential !== undefined && cur.rentalPotential !== null && cur.rentalPotential !== ''
+        ? Number(cur.rentalPotential)
+        : 8.0,
+      growthPotential: cur.growthPotential !== undefined && cur.growthPotential !== null && cur.growthPotential !== ''
+        ? Number(cur.growthPotential)
+        : 8.0,
+      familyLiving: cur.familyLiving !== undefined && cur.familyLiving !== null && cur.familyLiving !== ''
+        ? Number(cur.familyLiving)
+        : 8.0,
+      futureDemand: cur.futureDemand !== undefined && cur.futureDemand !== null && cur.futureDemand !== ''
+        ? Number(cur.futureDemand)
+        : 8.0,
+    });
+    setEditingScoreItem(item);
+    setShowScoreModal(true);
+  };
+
+  const computedOverallScore = useMemo(() => {
+    const vals = [
+      Number(scoreForm.connectivity) || 0,
+      Number(scoreForm.rentalPotential) || 0,
+      Number(scoreForm.growthPotential) || 0,
+      Number(scoreForm.familyLiving) || 0,
+      Number(scoreForm.futureDemand) || 0,
+    ];
+    const sum = vals.reduce((a, b) => a + b, 0);
+    return Math.round((sum / vals.length) * 10) / 10;
+  }, [scoreForm]);
+
+  const computedScoreGrade = useMemo(() => {
+    if (!computedOverallScore || computedOverallScore <= 0) return 'Not Rated';
+    if (computedOverallScore >= 8.0) return 'Excellent';
+    if (computedOverallScore >= 6.5) return 'Good';
+    if (computedOverallScore >= 5.0) return 'Average';
+    return 'Below Average';
+  }, [computedOverallScore]);
+
+  const handleSaveScore = async () => {
+    if (!editingScoreItem) return;
+    setIsSavingScore(true);
+    try {
+      const payload = {
+        connectivity: Math.min(10, Math.max(0, Number(scoreForm.connectivity) || 0)),
+        rentalPotential: Math.min(10, Math.max(0, Number(scoreForm.rentalPotential) || 0)),
+        growthPotential: Math.min(10, Math.max(0, Number(scoreForm.growthPotential) || 0)),
+        familyLiving: Math.min(10, Math.max(0, Number(scoreForm.familyLiving) || 0)),
+        futureDemand: Math.min(10, Math.max(0, Number(scoreForm.futureDemand) || 0)),
+      };
+
+      const endpoint = editingScoreItem.itemType === 'project'
+        ? `/admin/projects/${editingScoreItem._id}/investment-score`
+        : `/admin/properties/${editingScoreItem._id}/investment-score`;
+
+      const res = await API.put(endpoint, payload);
+      if (res.data?.status === 'success') {
+        showToast('Property investment score updated successfully!', 'success');
+        const updatedScore = res.data.data?.investmentScore;
+
+        const isMatch = (item) =>
+          String(item._id) === String(editingScoreItem._id) ||
+          String(item.id) === String(editingScoreItem.id) ||
+          String(item.submissionId) === String(editingScoreItem.submissionId);
+
+        const updateItemInList = (prevList) =>
+          prevList.map((p) =>
+            isMatch(p)
+              ? { ...p, investmentScore: updatedScore }
+              : p
+          );
+
+        if (editingScoreItem.itemType === 'project') {
+          setProjects(updateItemInList);
+        } else {
+          setProperties(updateItemInList);
+        }
+
+        if (selectedItem && isMatch(selectedItem)) {
+          setSelectedItem((prev) => ({
+            ...prev,
+            investmentScore: updatedScore,
+          }));
+        }
+
+        setShowScoreModal(false);
+        setEditingScoreItem(null);
+      } else {
+        showToast(res.data?.message || 'Failed to update investment score.', 'error');
+      }
+    } catch (err) {
+      console.error('Error updating investment score:', err);
+      showToast(err?.response?.data?.message || 'Failed to update investment score on server.', 'error');
+    } finally {
+      setIsSavingScore(false);
+    }
+  };
+
+  // Update Expected Possession Date
+  const handleSavePossessionDate = async () => {
+    if (!selectedItem) return;
+    setIsSavingPossession(true);
+    let dateToSave = newPossessionDate.trim();
+    const yyyyMm = dateToSave.match(/^(\d{4})-(\d{1,2})$/);
+    if (yyyyMm) {
+      const d = new Date(parseInt(yyyyMm[1], 10), parseInt(yyyyMm[2], 10) - 1, 1);
+      if (!isNaN(d.getTime())) dateToSave = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    }
+
+    try {
+      const endpoint = selectedItem.itemType === 'project'
+        ? `/admin/projects/${selectedItem._id}`
+        : `/admin/properties/${selectedItem._id}`;
+
+      const res = await API.put(endpoint, {
+        possessionDate: dateToSave,
+      });
+
+      if (res.data?.status === 'success') {
+        showToast(`Possession date updated: ${dateToSave || 'Not specified'}`, 'success');
+
+        const isMatch = (item) =>
+          String(item._id) === String(selectedItem._id) ||
+          String(item.id) === String(selectedItem.id);
+
+        const updateItemInList = (prevList) =>
+          prevList.map((p) =>
+            isMatch(p)
+              ? { ...p, possessionDate: dateToSave }
+              : p
+          );
+
+        if (selectedItem.itemType === 'project') {
+          setProjects(updateItemInList);
+        } else {
+          setProperties(updateItemInList);
+        }
+
+        setSelectedItem((prev) => ({
+          ...prev,
+          possessionDate: dateToSave,
+        }));
+
+        setIsEditingPossession(false);
+      } else {
+        showToast(res.data?.message || 'Failed to update possession date.', 'error');
+      }
+    } catch (err) {
+      console.error('Error updating possession date:', err);
+      showToast(err?.response?.data?.message || 'Failed to update possession date on server.', 'error');
+    } finally {
+      setIsSavingPossession(false);
     }
   };
 
@@ -1125,20 +1607,20 @@ export default function PropertyVerification() {
           )}
         </div>
       ) : (
-        /* ── TABLE VIEW (Full-Fit 100% Zero Horizontal Scroll, Icon-Only Actions) ── */
+        /* ── TABLE VIEW (Full-Fit Zero Cutoff, Perfectly Organized Actions) ── */
         <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-2xs">
-          <div className="w-full overflow-hidden">
-            <table className="w-full text-left border-collapse table-fixed">
+          <div className="w-full overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left border-collapse table-fixed min-w-[1080px]">
               <colgroup>
-                <col className="w-[21%]" />
-                <col className="w-[10%]" />
-                <col className="w-[14%]" />
+                <col className="w-[18%]" />
                 <col className="w-[9%]" />
-                <col className="w-[7%]" />
+                <col className="w-[13%]" />
+                <col className="w-[10%]" />
+                <col className="w-[6%]" />
                 <col className="w-[13%]" />
                 <col className="w-[9%]" />
                 <col className="w-[8%]" />
-                <col className="w-[9%]" />
+                <col className="w-[14%]" />
               </colgroup>
               <thead className="bg-[var(--bg-muted)]/40 text-[var(--text-muted)] uppercase text-[9.5px] font-semibold tracking-wider border-b border-[var(--border)] select-none">
                 <tr>
@@ -1150,7 +1632,7 @@ export default function PropertyVerification() {
                   <th className="py-2.5 px-3">Seller / Owner</th>
                   <th className="py-2.5 px-3">Submitted</th>
                   <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 pl-2 pr-4 text-right">Actions</th>
+                  <th className="py-2.5 px-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]/60 text-xs">
@@ -1179,6 +1661,26 @@ export default function PropertyVerification() {
                                   {[item.bhk, item.area].filter(Boolean).join(' · ')}
                                 </span>
                               </>
+                            )}
+                            <span className="text-[var(--border)] font-sans">•</span>
+                            {item.investmentScore?.overall > 0 ? (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); openScoreModal(item); }}
+                                className="inline-flex items-center gap-0.5 font-bold text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500 hover:text-white transition-all cursor-pointer font-sans"
+                                title="Click to edit property investment score"
+                              >
+                                <TrendingUp size={8} /> {Number(item.investmentScore.overall).toFixed(1)}/10
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); openScoreModal(item); }}
+                                className="text-[9px] text-amber-600 dark:text-amber-400 hover:underline cursor-pointer font-sans"
+                                title="Click to add investment score"
+                              >
+                                + Score
+                              </button>
                             )}
                           </div>
                         </div>
@@ -1213,6 +1715,11 @@ export default function PropertyVerification() {
                         <span className="font-semibold text-xs text-[var(--text-primary)] block leading-tight">
                           {item.price}
                         </span>
+                        {item.commissionDiscount?.enabled && item.commissionDiscount?.discountAmount > 0 && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 mt-1 cursor-help" title={`Admin Commission Discount: -${formatCurrency(item.commissionDiscount.discountAmount)} (100% borne by Admin)`}>
+                            <Sparkles size={8} /> -{formatCurrency(item.commissionDiscount.discountAmount)} Comm. Disc
+                          </span>
+                        )}
                       </td>
 
                       {/* Listing Type (Sale / Rent Badge) */}
@@ -1246,13 +1753,13 @@ export default function PropertyVerification() {
                         {getStatusBadge(item.status, 'xs')}
                       </td>
 
-                      {/* Actions (Icon-Only Minimalist Buttons) */}
-                      <td className="py-2.5 pl-2 pr-4 align-middle text-right whitespace-nowrap">
+                      {/* Actions (Icon-Only Minimalist Buttons with Perfect Right Spacing) */}
+                      <td className="py-2.5 px-3.5 align-middle text-right whitespace-nowrap">
                         <div className="inline-flex items-center justify-end gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
                             onClick={() => openReviewDrawer(item)}
-                            className="w-6 h-6 rounded-md flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                            className="w-6.5 h-6.5 rounded-lg flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
                             title="Review & Audit Details"
                           >
                             <Eye size={12} />
@@ -1261,14 +1768,46 @@ export default function PropertyVerification() {
                           {item.status !== 'Approved' && item.status !== 'Sold' && (
                             <button
                               type="button"
-                              onClick={() => handleUpdateStatus(item, 'Approved')}
+                              onClick={() => handleApproveClick(item)}
                               disabled={isSubmittingAction}
-                              className="w-6 h-6 rounded-md flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
-                              title="Approve & Publish Live"
+                              className="w-6.5 h-6.5 rounded-lg flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                              title="Approve & Set Commission Discount"
                             >
                               <Check size={11} strokeWidth={2.5} />
                             </button>
                           )}
+
+                          {/* Quick Commission Discount settings button for approved properties */}
+                          {item.status === 'Approved' && item.itemType === 'property' && (
+                            <button
+                              type="button"
+                              onClick={() => openApprovalAndCommissionModal(item, false)}
+                              disabled={isSubmittingAction}
+                              className={`w-6.5 h-6.5 rounded-lg flex items-center justify-center transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50 ${
+                                item.commissionDiscount?.enabled && item.commissionDiscount?.discountAmount > 0
+                                  ? 'bg-emerald-500/15 hover:bg-emerald-600 text-emerald-700 dark:text-emerald-300 hover:text-white border border-emerald-500/30'
+                                  : 'bg-purple-500/10 hover:bg-purple-600 text-purple-700 dark:text-purple-400 hover:text-white border border-purple-500/20'
+                              }`}
+                              title={item.commissionDiscount?.enabled ? 'Edit Commission Discount (Currently Active)' : 'Add Commission Discount'}
+                            >
+                              <Percent size={11} strokeWidth={2.5} />
+                            </button>
+                          )}
+
+                          {/* Quick Investment Score Button */}
+                          <button
+                            type="button"
+                            onClick={() => openScoreModal(item)}
+                            disabled={isSubmittingAction}
+                            className={`w-6.5 h-6.5 rounded-lg flex items-center justify-center transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50 ${
+                              item.investmentScore?.overall > 0
+                                ? 'bg-amber-500/15 hover:bg-amber-600 text-amber-700 dark:text-amber-300 hover:text-white border border-amber-500/30'
+                                : 'bg-amber-500/10 hover:bg-amber-500 text-amber-700 dark:text-amber-400 hover:text-white border border-amber-500/20'
+                            }`}
+                            title={item.investmentScore?.overall > 0 ? `Investment Score: ${Number(item.investmentScore.overall).toFixed(1)}/10 (${item.investmentScore.grade})` : 'Curate Investment Score'}
+                          >
+                            <TrendingUp size={11} strokeWidth={2.2} />
+                          </button>
 
                           {/* Quick 1-Click Sold Out button for approved listings */}
                           {item.status === 'Approved' && !item.isSold && (
@@ -1276,7 +1815,7 @@ export default function PropertyVerification() {
                               type="button"
                               onClick={() => handleToggleSold(item, true)}
                               disabled={isSubmittingAction}
-                              className="w-6 h-6 rounded-md flex items-center justify-center bg-amber-500/10 hover:bg-amber-500 text-amber-700 dark:text-amber-400 hover:text-white border border-amber-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                              className="w-6.5 h-6.5 rounded-lg flex items-center justify-center bg-amber-500/10 hover:bg-amber-500 text-amber-700 dark:text-amber-400 hover:text-white border border-amber-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
                               title="Mark as Sold Out (Off-Market)"
                             >
                               <Tag size={11} strokeWidth={2.2} />
@@ -1289,7 +1828,7 @@ export default function PropertyVerification() {
                               type="button"
                               onClick={() => handleToggleSold(item, false)}
                               disabled={isSubmittingAction}
-                              className="w-6 h-6 rounded-md flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                              className="w-6.5 h-6.5 rounded-lg flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
                               title="Relist as Available"
                             >
                               <RotateCcw size={11} />
@@ -1301,7 +1840,7 @@ export default function PropertyVerification() {
                               type="button"
                               onClick={() => { setSelectedItem(item); setShowRejectModal(true); }}
                               disabled={isSubmittingAction}
-                              className="w-6 h-6 rounded-md flex items-center justify-center bg-rose-500/10 hover:bg-rose-500 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                              className="w-6.5 h-6.5 rounded-lg flex items-center justify-center bg-rose-500/10 hover:bg-rose-500 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
                               title="Reject Listing"
                             >
                               <X size={11} strokeWidth={2.5} />
@@ -1349,12 +1888,12 @@ export default function PropertyVerification() {
                 {selectedItem.status !== 'Approved' && (
                   <button
                     type="button"
-                    onClick={() => handleUpdateStatus(selectedItem, 'Approved')}
+                    onClick={() => handleApproveClick(selectedItem)}
                     disabled={isSubmittingAction}
                     className="h-7 px-3 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
                   >
                     <Check size={13} strokeWidth={2.5} />
-                    <span>Approve & Publish</span>
+                    <span>Approve & Set Commission</span>
                   </button>
                 )}
 
@@ -1493,6 +2032,121 @@ export default function PropertyVerification() {
                     </div>
                   </div>
 
+                  {/* ── Admin Commission & Commission Discount Section (Overview Card) ── */}
+                  {selectedItem.itemType === 'property' && (
+                    <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-500/5 via-[var(--bg-muted)]/40 to-emerald-500/5 border border-[var(--border)] space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                            <BadgePercent size={15} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-bold text-[var(--text-primary)]">Admin Commission & Platform Discount</h4>
+                            <span className="text-[10px] text-[var(--text-muted)]">Discount strictly deducted from platform commission (0% seller impact)</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openApprovalAndCommissionModal(selectedItem, selectedItem.status !== 'Approved')}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-brand/10 hover:bg-brand text-brand hover:text-white border border-brand/20 transition-all cursor-pointer"
+                        >
+                          {selectedItem.status === 'Approved' ? 'Modify Commission' : 'Configure & Approve'}
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                        <div className="p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]/60">
+                          <span className="text-[10px] text-[var(--text-muted)] block">Platform Commission</span>
+                          <span className="font-bold text-[var(--text-primary)]">
+                            {checkIsBuilder(selectedItem)
+                              ? '0% (Builder Listing)'
+                              : `${selectedItem.adminCommission?.type === 'fixed' ? 'Fixed' : `${selectedItem.adminCommission?.rate ?? 2}%`} • ${formatCurrency(selectedItem.adminCommission?.amount || 0)}`}
+                          </span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]/60">
+                          <span className="text-[10px] text-[var(--text-muted)] block">Commission Discount</span>
+                          <span className={`font-bold ${selectedItem.commissionDiscount?.enabled ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--text-muted)]'}`}>
+                            {selectedItem.commissionDiscount?.enabled
+                              ? `-${formatCurrency(selectedItem.commissionDiscount?.discountAmount || 0)} (${selectedItem.commissionDiscount?.discountType === 'percentage' ? `${selectedItem.commissionDiscount?.discountValue}%` : 'Fixed'})`
+                              : 'No Discount'}
+                          </span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]/60">
+                          <span className="text-[10px] text-[var(--text-muted)] block">Net Admin Earning</span>
+                          <span className="font-bold text-brand">
+                            {formatCurrency(selectedItem.commissionDiscount?.netCommission ?? selectedItem.adminCommission?.amount ?? 0)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {selectedItem.commissionDiscount?.notes && (
+                        <div className="text-[11px] text-[var(--text-muted)] bg-[var(--bg-surface)]/60 px-3 py-1.5 rounded-lg border border-[var(--border)]/40 italic">
+                          "{selectedItem.commissionDiscount.notes}"
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Admin Curated Investment Score Card (Drawer Overview) ── */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/5 via-[var(--bg-muted)]/40 to-emerald-500/5 border border-[var(--border)] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                          <TrendingUp size={15} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-bold text-[var(--text-primary)]">Property Investment Score</h4>
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                              (selectedItem.investmentScore?.overall || 0) >= 8.0
+                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                                : (selectedItem.investmentScore?.overall || 0) >= 6.5
+                                ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30'
+                                : (selectedItem.investmentScore?.overall || 0) >= 5.0
+                                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
+                                : 'bg-gray-500/15 text-gray-700 dark:text-gray-300 border-gray-500/30'
+                            }`}>
+                              {selectedItem.investmentScore?.grade || 'Not Rated'}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-[var(--text-muted)]">Curated 5-metric algorithm shown on mobile app</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-right">
+                          <span className="text-base font-black text-[var(--text-primary)]">
+                            {selectedItem.investmentScore?.overall ? Number(selectedItem.investmentScore.overall).toFixed(1) : '0.0'}
+                          </span>
+                          <span className="text-[10px] text-[var(--text-muted)] font-bold"> / 10</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openScoreModal(selectedItem)}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500 text-amber-700 dark:text-amber-400 hover:text-white border border-amber-500/25 transition-all cursor-pointer"
+                        >
+                          {selectedItem.investmentScore?.overall > 0 ? 'Edit Score' : '+ Add Score'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                      {[
+                        { label: 'Connectivity', val: selectedItem.investmentScore?.metrics?.connectivity },
+                        { label: 'Rental Yield', val: selectedItem.investmentScore?.metrics?.rentalPotential },
+                        { label: 'Growth', val: selectedItem.investmentScore?.metrics?.growthPotential },
+                        { label: 'Family Living', val: selectedItem.investmentScore?.metrics?.familyLiving },
+                        { label: 'Future Demand', val: selectedItem.investmentScore?.metrics?.futureDemand },
+                      ].map((m, idx) => (
+                        <div key={idx} className="p-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]/60 text-center">
+                          <span className="text-[9.5px] text-[var(--text-muted)] block truncate">{m.label}</span>
+                          <span className="text-xs font-bold text-[var(--text-primary)]">
+                            {m.val !== undefined && m.val !== null ? `${Number(m.val).toFixed(1)}/10` : '—'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Multiple BHK Options & Custom Pricing (strictly ONLY BHK and its custom Price) */}
                   {selectedItem.bhkConfigurations?.length > 0 && (
                     <div>
@@ -1518,6 +2172,50 @@ export default function PropertyVerification() {
                             </span>
                           </div>
                         ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Multiple RERA Registrations (Developer / Builder Inventory) */}
+                  {selectedItem.reraNumbers?.length > 0 && (
+                    <div className="p-3.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-1.5">
+                          <ShieldCheck size={14} className="text-emerald-500" />
+                          <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                            RERA Registrations ({selectedItem.reraNumbers.length})
+                          </h3>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                          RERA Verified
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedItem.reraNumbers.map((rItem, idx) => {
+                          const reraVal = typeof rItem === 'string' ? rItem : (rItem.reraNumber || '');
+                          const nameVal = typeof rItem === 'string' ? `Phase ${idx + 1}` : (rItem.name || '');
+                          return (
+                            <div
+                              key={idx}
+                              className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs shadow-xs"
+                            >
+                              {nameVal && (
+                                <span className="font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded text-[10.5px]">
+                                  {nameVal}
+                                </span>
+                              )}
+                              <span className="font-mono font-bold text-[var(--text-primary)]">{reraVal}</span>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(reraVal, nameVal || `RERA #${idx + 1}`)}
+                                className="text-[var(--text-muted)] hover:text-brand transition-colors cursor-pointer"
+                                title="Copy RERA"
+                              >
+                                <Copy size={11} />
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -1548,12 +2246,95 @@ export default function PropertyVerification() {
                         <span className="text-[10px] text-[var(--text-muted)] block">Floor</span>
                         <strong className="text-[var(--text-primary)]">{selectedItem.floorInfo || 'N/A'}</strong>
                       </div>
-                      <div className="p-2.5 rounded-xl bg-[var(--bg-muted)]/30 border border-[var(--border)]/60">
-                        <span className="text-[10px] text-[var(--text-muted)] block">Possession</span>
-                        <strong className="text-[var(--text-primary)]">{selectedItem.possessionDate || 'Immediate'}</strong>
+                      <div className="p-2.5 rounded-xl bg-[var(--bg-muted)]/30 border border-[var(--border)]/60 flex flex-col justify-between">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[10px] text-[var(--text-muted)] block">Possession</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingPossession(prev => !prev);
+                              setNewPossessionDate(selectedItem.possessionDate || '');
+                            }}
+                            className="text-[10px] font-bold text-brand hover:underline cursor-pointer"
+                            title="Edit Expected Possession Date"
+                          >
+                            {isEditingPossession ? 'Close' : 'Edit'}
+                          </button>
+                        </div>
+                        <strong className="text-[var(--text-primary)] block mt-0.5 truncate" title={selectedItem.possessionDate || 'Possession date not specified'}>
+                          {selectedItem.possessionDate || 'Possession date not specified'}
+                        </strong>
                       </div>
                     </div>
                   </div>
+
+                  {/* Inline Possession Date Editor */}
+                  {isEditingPossession && (
+                    <div className="p-3.5 rounded-2xl bg-brand/5 border border-brand/20 space-y-2.5 animate-in fade-in">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                          <Calendar size={13} className="text-brand" />
+                          Set Expected Possession (Month & Year)
+                        </span>
+                        <span className="text-[10px] text-[var(--text-muted)]">
+                          Pick Month & Year or milestone
+                        </span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <input
+                          type="text"
+                          value={newPossessionDate}
+                          onChange={(e) => setNewPossessionDate(e.target.value)}
+                          placeholder="e.g. June 2028 or Ready to Move"
+                          className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)] focus:outline-none focus:border-brand"
+                        />
+                        <input
+                          type="month"
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              const [year, month] = e.target.value.split('-');
+                              const d = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
+                              const formatted = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+                              setNewPossessionDate(formatted);
+                            }
+                          }}
+                          className="px-2.5 py-1.5 text-xs rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)] focus:outline-none focus:border-brand cursor-pointer"
+                          title="Pick Month & Year"
+                        />
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-brand/10">
+                        <div className="flex items-center gap-1.5">
+                          {['Ready to Move', 'Immediate', 'Dec 2026', 'Dec 2027', 'June 2028', 'Dec 2028'].map((preset) => (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() => setNewPossessionDate(preset)}
+                              className="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-[var(--bg-surface)] hover:bg-brand/10 text-[var(--text-secondary)] hover:text-brand border border-[var(--border)] transition-colors cursor-pointer"
+                            >
+                              {preset}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingPossession(false)}
+                            className="px-2.5 py-1 text-xs font-medium rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-muted)] cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isSavingPossession}
+                            onClick={handleSavePossessionDate}
+                            className="px-3.5 py-1 text-xs font-bold rounded-lg bg-brand text-white hover:bg-brand-dark transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                          >
+                            {isSavingPossession ? 'Saving...' : 'Save Date'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Location & Address */}
                   <div>
@@ -1790,12 +2571,12 @@ export default function PropertyVerification() {
                 {selectedItem.status !== 'Approved' && selectedItem.status !== 'Sold' && (
                   <button
                     type="button"
-                    onClick={() => handleUpdateStatus(selectedItem, 'Approved')}
+                    onClick={() => handleApproveClick(selectedItem)}
                     disabled={isSubmittingAction}
                     className="h-8 px-4 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
                   >
                     <Check size={13} strokeWidth={2.5} />
-                    <span>Approve & Publish Live</span>
+                    <span>Approve & Set Commission</span>
                   </button>
                 )}
               </div>
@@ -2075,6 +2856,634 @@ export default function PropertyVerification() {
                 {isSubmittingAction
                   ? 'Processing...'
                   : (confirmSaleAction === 'confirm' ? 'Confirm Sale (Unlist)' : 'Keep Active')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 07D. ADMIN COMMISSION & COMMISSION DISCOUNT APPROVAL MODAL ── */}
+      {showCommissionModal && commissionModalTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-200"
+            onClick={() => !isSubmittingAction && setShowCommissionModal(false)}
+          />
+
+          <div className="relative w-full max-w-xl bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl z-10 animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between shrink-0 bg-[var(--bg-surface)]">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center shadow-sm shrink-0">
+                  <BadgePercent size={18} />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] truncate">
+                    {isModalApprovalMode ? 'Approve Listing & Configure Commission' : 'Edit Commission & Platform Discount'}
+                  </h3>
+                  <p className="text-[11px] text-[var(--text-muted)] truncate">
+                    {commissionModalTarget.title} • <span className="font-mono">{commissionModalTarget.id}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isSubmittingAction && setShowCommissionModal(false)}
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1 text-xs">
+              
+              {/* Property Summary Strip */}
+              <div className="p-3 rounded-xl bg-[var(--bg-muted)]/50 border border-[var(--border)] flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span className="text-[10px] text-[var(--text-muted)] block font-medium">Property Price</span>
+                  <span className="text-sm sm:text-base font-extrabold text-[var(--text-primary)]">
+                    {formatCurrency(computedCommission.price)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-[var(--text-muted)] block font-medium">Category / Type</span>
+                  <span className="font-semibold text-[var(--text-primary)]">
+                    {commissionModalTarget.category} • {commissionModalTarget.propertyType}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-[var(--text-muted)] block font-medium">Seller Profile</span>
+                  <span className="font-semibold text-[var(--text-primary)]">
+                    {commissionModalTarget.ownerName} ({commissionModalTarget.ownerRole})
+                  </span>
+                </div>
+              </div>
+
+              {/* ── 🛡️ ZERO-SELLER-IMPACT GUARANTEE BANNER ── */}
+              <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-900 dark:text-emerald-300 flex items-start gap-2.5">
+                <ShieldCheck size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <span className="font-bold block text-emerald-800 dark:text-emerald-200">
+                    Platform Commission Discount Policy
+                  </span>
+                  <p className="text-[11px] leading-relaxed opacity-95">
+                    <strong>Important:</strong> Any discount specified below is absorbed strictly from <strong>GharMB Admin Commission</strong>. The property seller receives <strong>100% of their listed price ({formatCurrency(computedCommission.price)})</strong> with zero deduction.
+                  </p>
+                </div>
+              </div>
+
+              {/* Builder / Developer Listing Info Badge */}
+              {computedCommission.isBuilder && (
+                <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/25 text-blue-900 dark:text-blue-300 flex items-start gap-2">
+                  <Info size={15} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block text-[11px]">Developer / Builder Listing</span>
+                    <p className="text-[10.5px] mt-0.5 opacity-90">
+                      Standard policy defaults to 0% platform commission for developer listings. You can keep it 0% or specify an agreed platform commission and discount below.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* ── 1. ADMIN PLATFORM COMMISSION SETTINGS ── */}
+                  <div className="p-3.5 rounded-xl bg-[var(--bg-muted)]/30 border border-[var(--border)] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-[var(--text-primary)]">
+                        <Coins size={14} className="text-amber-500" />
+                        <span>1. GharMB Platform Commission</span>
+                      </div>
+                      <span className="text-[11px] font-bold text-brand">
+                        Gross: {formatCurrency(computedCommission.grossCommission)}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-medium">
+                          Commission Structure:
+                        </label>
+                        <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+                          <button
+                            type="button"
+                            onClick={() => setCommissionForm((prev) => ({ ...prev, type: 'percentage' }))}
+                            className={`py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                              commissionForm.type === 'percentage'
+                                ? 'bg-brand text-white shadow-xs'
+                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                            }`}
+                          >
+                            Percentage (%)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCommissionForm((prev) => ({ ...prev, type: 'fixed' }))}
+                            className={`py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                              commissionForm.type === 'fixed'
+                                ? 'bg-brand text-white shadow-xs'
+                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                            }`}
+                          >
+                            Fixed (₹)
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-medium">
+                          {commissionForm.type === 'percentage' ? 'Commission Rate (%):' : 'Fixed Commission Amount (₹):'}
+                        </label>
+                        {commissionForm.type === 'percentage' ? (
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.1"
+                              value={commissionForm.rate}
+                              onChange={(e) => setCommissionForm((prev) => ({ ...prev, rate: e.target.value }))}
+                              placeholder="2"
+                              className="w-full px-3 py-1.5 pr-8 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)] text-xs font-bold focus:outline-brand"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] font-bold">
+                              %
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min="0"
+                              step="1000"
+                              value={commissionForm.fixedAmount}
+                              onChange={(e) => setCommissionForm((prev) => ({ ...prev, fixedAmount: e.target.value }))}
+                              placeholder="50000"
+                              className="w-full px-3 py-1.5 pl-6 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)] text-xs font-bold focus:outline-brand"
+                            />
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] font-bold">
+                              ₹
+                            </span>
+                          </div>
+                        )}
+                        <span className="text-[10px] text-[var(--text-muted)] mt-1 block">
+                          Default platform standard is 2%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── 2. COMMISSION DISCOUNT CONFIGURATION ── */}
+                  <div className="p-3.5 rounded-xl bg-[var(--bg-muted)]/30 border border-[var(--border)] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-[var(--text-primary)]">
+                        <Percent size={14} className="text-emerald-500" />
+                        <span>2. Platform Commission Discount</span>
+                      </div>
+                      <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                        <span className="text-[11px] font-bold text-[var(--text-muted)]">
+                          {commissionForm.discountEnabled ? 'Discount Active' : 'No Discount'}
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={commissionForm.discountEnabled}
+                          onChange={(e) => setCommissionForm((prev) => ({ ...prev, discountEnabled: e.target.checked }))}
+                          className="sr-only peer"
+                        />
+                        <div className="w-8 h-4 bg-gray-300 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3.5 after:transition-all peer-checked:bg-emerald-600 relative"></div>
+                      </label>
+                    </div>
+
+                    {commissionForm.discountEnabled ? (
+                      <div className="space-y-3 pt-1 border-t border-[var(--border)]/60">
+                        <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                          Reduce platform commission to create an exclusive buyer incentive without lowering the seller's proceeds.
+                        </p>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-medium">
+                              Discount Unit:
+                            </label>
+                            <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+                              <button
+                                type="button"
+                                onClick={() => setCommissionForm((prev) => ({ ...prev, discountType: 'percentage' }))}
+                                className={`py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                  commissionForm.discountType === 'percentage'
+                                    ? 'bg-emerald-600 text-white shadow-xs'
+                                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                                }`}
+                              >
+                                % of Commission
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setCommissionForm((prev) => ({ ...prev, discountType: 'fixed' }))}
+                                className={`py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                  commissionForm.discountType === 'fixed'
+                                    ? 'bg-emerald-600 text-white shadow-xs'
+                                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                                }`}
+                              >
+                                Fixed (₹)
+                              </button>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-medium">
+                              {commissionForm.discountType === 'percentage'
+                                ? 'Discount Percentage on Commission:'
+                                : 'Discount Amount (₹ from Commission):'}
+                            </label>
+                            {commissionForm.discountType === 'percentage' ? (
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="1"
+                                  value={commissionForm.discountValue}
+                                  onChange={(e) => setCommissionForm((prev) => ({ ...prev, discountValue: e.target.value }))}
+                                  placeholder="25"
+                                  className="w-full px-3 py-1.5 pr-8 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)] text-xs font-bold focus:outline-emerald-500"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] font-bold">
+                                  %
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={computedCommission.grossCommission}
+                                  step="500"
+                                  value={commissionForm.discountValue}
+                                  onChange={(e) => setCommissionForm((prev) => ({ ...prev, discountValue: e.target.value }))}
+                                  placeholder="10000"
+                                  className="w-full px-3 py-1.5 pl-6 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)] text-xs font-bold focus:outline-emerald-500"
+                                />
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] font-bold">
+                                  ₹
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Preset Buttons for Fast Selection */}
+                            {commissionForm.discountType === 'percentage' && (
+                              <div className="flex items-center gap-1.5 mt-1.5">
+                                {[10, 25, 50, 100].map((preset) => (
+                                  <button
+                                    key={preset}
+                                    type="button"
+                                    onClick={() => setCommissionForm((prev) => ({ ...prev, discountValue: preset }))}
+                                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition-colors cursor-pointer ${
+                                      Number(commissionForm.discountValue) === preset
+                                        ? 'bg-emerald-600 text-white border-emerald-600'
+                                        : 'bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] border-[var(--border)] text-[var(--text-secondary)]'
+                                    }`}
+                                  >
+                                    {preset === 100 ? '100% (Zero Comm)' : `${preset}%`}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Promotion Note / Campaign Reason */}
+                        <div>
+                          <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-medium">
+                            Promotion Reason / Campaign Note (Optional):
+                          </label>
+                          <input
+                            type="text"
+                            value={commissionForm.notes}
+                            onChange={(e) => setCommissionForm((prev) => ({ ...prev, notes: e.target.value }))}
+                            placeholder="e.g., Festive season platform waiver, Prime property promo"
+                            className="w-full px-3 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)] text-xs focus:outline-emerald-500"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-[var(--text-muted)] italic">
+                        No commission discount configured. Standard platform commission ({formatCurrency(computedCommission.grossCommission)}) will be retained in full upon closing.
+                      </p>
+                    )}
+                  </div>
+
+              {/* ── 3. LIVE FINANCIAL IMPACT BREAKDOWN ── */}
+              <div className="p-4 rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white shadow-inner space-y-2.5">
+                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                  <span className="font-bold text-[11px] text-white/80 uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles size={13} className="text-amber-400" />
+                    Deal Economics & Breakdown
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                    Discount on Admin Commission Only
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-[10px] text-white/60 block">Property Price (Seller Payout)</span>
+                    <span className="text-sm font-extrabold text-white">
+                      {formatCurrency(computedCommission.sellerPayout)}
+                    </span>
+                    <span className="text-[9.5px] text-emerald-400 block mt-0.5">
+                      ✓ 100% Payout Guaranteed
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] text-white/60 block">Gross Admin Commission</span>
+                    <span className="text-sm font-extrabold text-white">
+                      {formatCurrency(computedCommission.grossCommission)}
+                    </span>
+                    <span className="text-[9.5px] text-white/50 block mt-0.5">
+                      {computedCommission.isBuilder ? '0% Builder Policy' : `${commissionForm.type === 'percentage' ? `${commissionForm.rate}%` : 'Fixed fee'}`}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] text-white/60 block">Commission Discount Absorbed</span>
+                    <span className="text-sm font-extrabold text-amber-300">
+                      {computedCommission.discountAmount > 0
+                        ? `-${formatCurrency(computedCommission.discountAmount)}`
+                        : '₹0'}
+                    </span>
+                    <span className="text-[9.5px] text-amber-300/80 block mt-0.5">
+                      Borne by GharMB Platform
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] text-white/60 block">Net Platform Commission</span>
+                    <span className="text-sm font-extrabold text-emerald-400">
+                      {formatCurrency(computedCommission.netCommission)}
+                    </span>
+                    <span className="text-[9.5px] text-emerald-300/80 block mt-0.5">
+                      Final platform revenue
+                    </span>
+                  </div>
+                </div>
+
+                {computedCommission.discountAmount > 0 && (
+                  <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs">
+                    <span className="text-white/70">Effective Deal Price for Buyer:</span>
+                    <span className="font-extrabold text-sm text-emerald-300">
+                      {formatCurrency(computedCommission.effectiveBuyerPrice)}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div className="px-5 py-3.5 border-t border-[var(--border)] bg-[var(--bg-muted)]/30 flex items-center justify-between gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowCommissionModal(false)}
+                disabled={isSubmittingAction}
+                className="h-8 px-4 rounded-xl border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-semibold text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <div className="flex items-center gap-2">
+                {/* Option to approve without discount if discount is currently turned on */}
+                {isModalApprovalMode && commissionForm.discountEnabled && !computedCommission.isBuilder && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCommissionForm((prev) => ({ ...prev, discountEnabled: false }));
+                      setTimeout(() => handleSaveCommissionDiscount(true), 50);
+                    }}
+                    disabled={isSubmittingAction}
+                    className="h-8 px-3.5 rounded-xl border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] font-bold text-xs transition-all cursor-pointer"
+                  >
+                    Approve Without Discount
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handleSaveCommissionDiscount(isModalApprovalMode)}
+                  disabled={isSubmittingAction}
+                  className="h-8 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                >
+                  <Check size={14} strokeWidth={2.5} />
+                  <span>
+                    {isSubmittingAction
+                      ? 'Saving...'
+                      : isModalApprovalMode
+                      ? 'Confirm Approval & Publish Live'
+                      : 'Save Commission Settings'}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 07E. PROPERTY INVESTMENT SCORE MODAL ── */}
+      {showScoreModal && editingScoreItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-200"
+            onClick={() => !isSavingScore && setShowScoreModal(false)}
+          />
+
+          <div className="relative w-full max-w-lg bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl z-10 animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between shrink-0 bg-[var(--bg-surface)]">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-400 text-white flex items-center justify-center shadow-sm shrink-0">
+                  <TrendingUp size={18} />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] truncate">
+                    Curate Property Investment Score
+                  </h3>
+                  <p className="text-[11px] text-[var(--text-muted)] truncate">
+                    {editingScoreItem.title} • <span className="font-mono">{editingScoreItem.id}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isSavingScore && setShowScoreModal(false)}
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Scrollable Body */}
+            <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1 text-xs">
+              
+              {/* Overall Score Highlight Banner */}
+              <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-teal-500/10 border border-emerald-500/20 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
+                    Calculated Overall Investment Score
+                  </span>
+                  <div className="flex items-baseline gap-2 mt-0.5">
+                    <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400">
+                      {computedOverallScore}
+                    </span>
+                    <span className="text-xs text-[var(--text-muted)] font-bold">/ 10.0</span>
+                  </div>
+                  <span className="text-[10px] text-[var(--text-muted)] block mt-0.5">
+                    5-factor average rating visible to buyers
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className={`text-xs font-black px-3 py-1 rounded-xl border ${
+                    computedOverallScore >= 8.0
+                      ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                      : computedOverallScore >= 6.5
+                      ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30'
+                      : computedOverallScore >= 5.0
+                      ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30'
+                      : 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30'
+                  }`}>
+                    {computedScoreGrade}
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Preset Buttons */}
+              <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                <span className="text-[11px] font-bold text-[var(--text-muted)]">Quick Presets:</span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {[
+                    { label: 'Prime A+ (9.0)', val: 9.0 },
+                    { label: 'High Potential (8.2)', val: 8.2 },
+                    { label: 'Balanced (7.5)', val: 7.5 },
+                    { label: 'Emerging (6.5)', val: 6.5 },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() =>
+                        setScoreForm({
+                          connectivity: preset.val,
+                          rentalPotential: preset.val,
+                          growthPotential: preset.val,
+                          familyLiving: preset.val,
+                          futureDemand: preset.val,
+                        })
+                      }
+                      className="px-2 py-0.5 rounded-lg text-[10.5px] font-bold border border-[var(--border)] bg-[var(--bg-muted)]/50 hover:bg-brand/10 hover:border-brand/30 hover:text-brand transition-colors cursor-pointer"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 5 Interactive Parameters */}
+              <div className="space-y-3">
+                {[
+                  {
+                    key: 'connectivity',
+                    label: 'Connectivity & Transit Access',
+                    desc: 'Proximity to metro stations, expressways, arterial roads & railway.',
+                  },
+                  {
+                    key: 'rentalPotential',
+                    label: 'Rental Potential & Yield',
+                    desc: 'Tenant demand, proximity to business parks, expected rental yield.',
+                  },
+                  {
+                    key: 'growthPotential',
+                    label: 'Growth Potential & Appreciation',
+                    desc: '3-5 year capital appreciation forecast and land value acceleration.',
+                  },
+                  {
+                    key: 'familyLiving',
+                    label: 'Family Living & Livability',
+                    desc: 'Proximity to top schools, healthcare, parks, markets & security.',
+                  },
+                  {
+                    key: 'futureDemand',
+                    label: 'Future Infrastructure Demand',
+                    desc: 'Master-plan development, upcoming SEZs, commercial hubs & transit.',
+                  },
+                ].map(({ key, label, desc }) => (
+                  <div key={key} className="p-3 bg-[var(--bg-muted)]/40 border border-[var(--border)]/70 rounded-xl space-y-2">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <span className="font-bold text-xs text-[var(--text-primary)]">{label}</span>
+                        <span className="text-[10px] text-[var(--text-muted)] block mt-0.5">{desc}</span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0 ml-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="10"
+                          step="0.1"
+                          value={scoreForm[key] !== undefined ? scoreForm[key] : ''}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            if (raw === '') {
+                              setScoreForm((prev) => ({ ...prev, [key]: '' }));
+                              return;
+                            }
+                            const parsed = parseFloat(raw);
+                            const val = isNaN(parsed) ? 0 : Math.min(10, Math.max(0, Math.round(parsed * 10) / 10));
+                            setScoreForm((prev) => ({ ...prev, [key]: val }));
+                          }}
+                          onBlur={() => {
+                            if (scoreForm[key] === '' || isNaN(scoreForm[key])) {
+                              setScoreForm((prev) => ({ ...prev, [key]: 0 }));
+                            }
+                          }}
+                          className="w-14 px-1.5 py-1 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-center font-black text-xs text-[var(--text-primary)] focus:outline-none focus:border-amber-500"
+                        />
+                        <span className="text-[10px] font-bold text-[var(--text-muted)]">/ 10</span>
+                      </div>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="10"
+                      step="0.1"
+                      value={Number(scoreForm[key]) || 0}
+                      onChange={(e) =>
+                        setScoreForm((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
+                      }
+                      className="w-full accent-amber-500 cursor-pointer h-1.5 bg-[var(--border)] rounded-lg"
+                    />
+                  </div>
+                ))}
+              </div>
+
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div className="px-5 py-3.5 border-t border-[var(--border)] bg-[var(--bg-muted)]/30 flex items-center justify-between gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowScoreModal(false)}
+                disabled={isSavingScore}
+                className="h-8 px-4 rounded-xl border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-semibold text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveScore}
+                disabled={isSavingScore}
+                className="h-8 px-5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+              >
+                <Check size={14} strokeWidth={2.5} />
+                <span>{isSavingScore ? 'Saving Score...' : 'Save Investment Score'}</span>
               </button>
             </div>
           </div>

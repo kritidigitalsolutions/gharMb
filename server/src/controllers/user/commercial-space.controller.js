@@ -7,77 +7,13 @@
 
 const CommercialSpace = require('../../models/commercial-space.model');
 
-// Well-known coordinates for Indian cities used for reliable geocoding fallback
-const CITY_COORDINATES = {
-  noida: [77.3910, 28.5355],
-  delhi: [77.2090, 28.6139],
-  'new delhi': [77.2090, 28.6139],
-  gurgaon: [77.0266, 28.4595],
-  gurugram: [77.0266, 28.4595],
-  ghaziabad: [77.4538, 28.6692],
-  faridabad: [77.3178, 28.4089],
-  agra: [78.0081, 27.1767],
-  agar: [78.0081, 27.1767],
-  mumbai: [72.8777, 19.0760],
-  pune: [73.8567, 18.5204],
-  bangalore: [77.5946, 12.9716],
-  bengaluru: [77.5946, 12.9716],
-  hyderabad: [78.4867, 17.3850],
-  kolkata: [88.3639, 22.5726],
-  chennai: [80.2707, 13.0827],
-  ahmedabad: [72.5714, 23.0225],
-  jaipur: [75.7873, 26.9124],
-  lucknow: [80.9462, 26.8467],
-  chandigarh: [76.7794, 30.7333],
-  meerut: [77.7064, 28.9845],
-};
-
-function calculateDistanceInKm(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Number((R * c).toFixed(2));
-}
-
-function resolveCoordinates(body = {}) {
-  const targetLng =
-    body.lng ??
-    body.longitude ??
-    body.location?.coordinates?.[0] ??
-    body.location?.longitude ??
-    body.location?.lng;
-  const targetLat =
-    body.lat ??
-    body.latitude ??
-    body.location?.coordinates?.[1] ??
-    body.location?.latitude ??
-    body.location?.lat;
-
-  if (
-    targetLng !== undefined &&
-    targetLat !== undefined &&
-    targetLng !== null &&
-    targetLat !== null &&
-    !isNaN(Number(targetLng)) &&
-    !isNaN(Number(targetLat))
-  ) {
-    return [Number(targetLng), Number(targetLat)];
-  }
-
-  const cityName = (body.city || '').toLowerCase().trim();
-  if (cityName && CITY_COORDINATES[cityName]) {
-    return CITY_COORDINATES[cityName];
-  }
-
-  return [77.3910, 28.5355];
-}
+const {
+  CITY_COORDINATES,
+  calculateDistanceInKm,
+  formatDistanceText,
+  resolveCoordinates,
+  resolveCoordinatesAsync,
+} = require('../../utils/geocoder.helper');
 
 // Helper to sanitize page and limit values
 const getPagination = (queryPage, queryLimit, defaultLimit = 20) => {
@@ -646,8 +582,64 @@ exports.createSpace = async (req, res, next) => {
       }
     }
 
+    // ── 🛡️ MULTIPLE RERA NUMBERS FOR BUILDER / DEVELOPER LISTINGS ─────────────
+    let rawRera = req.body.reraNumbers !== undefined ? req.body.reraNumbers : req.body.reraNumber;
+    let parsedReraNumbers = [];
+    if (typeof rawRera === 'string') {
+      try {
+        const parsed = JSON.parse(rawRera);
+        if (Array.isArray(parsed)) parsedReraNumbers = parsed;
+        else if (parsed && typeof parsed === 'object') parsedReraNumbers = [parsed];
+        else if (parsed) parsedReraNumbers = [{ reraNumber: String(parsed) }];
+      } catch {
+        parsedReraNumbers = rawRera.includes(',')
+          ? rawRera.split(',').map((r) => ({ reraNumber: r }))
+          : [{ reraNumber: rawRera }];
+      }
+    } else if (Array.isArray(rawRera)) {
+      parsedReraNumbers = rawRera;
+    } else if (rawRera && typeof rawRera === 'object') {
+      parsedReraNumbers = [rawRera];
+    }
+
+    parsedReraNumbers = parsedReraNumbers
+      .map((item, idx) => {
+        if (typeof item === 'string') {
+          const trimmed = item.trim();
+          return trimmed ? { name: `Phase ${idx + 1}`, reraNumber: trimmed } : null;
+        }
+        if (item && typeof item === 'object') {
+          const num = String(item.reraNumber || item.number || item.id || '').trim();
+          if (!num) return null;
+          const nm = String(item.name || item.phase || item.phaseName || '').trim();
+          return { name: nm, reraNumber: num };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    const seenRera = new Set();
+    const uniqueReraNumbers = [];
+    for (const r of parsedReraNumbers) {
+      if (!seenRera.has(r.reraNumber)) {
+        seenRera.add(r.reraNumber);
+        uniqueReraNumbers.push(r);
+      }
+    }
+
+    const isCommercialPlot = String(req.body.spaceType || req.body.propertyType || '').trim().toLowerCase().includes('plot');
+    if (normalizedUserRole === 'builder' && !isCommercialPlot) {
+      if (!uniqueReraNumbers || uniqueReraNumbers.length === 0) {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'At least one RERA registration number is mandatory for Developer/Builder commercial listings (except Plots).',
+        });
+      }
+    }
+
     const spaceData = {
       ...req.body,
+      reraNumbers: uniqueReraNumbers,
       listingAs: normalizedListingAs,
       userRole: normalizedUserRole,
       postedByRole: normalizedPostedByRole,
@@ -656,7 +648,7 @@ exports.createSpace = async (req, res, next) => {
       isLive: false,
     };
 
-    const resolvedCoords = resolveCoordinates(req.body);
+    const resolvedCoords = await resolveCoordinatesAsync(req.body);
     spaceData.location = {
       type: 'Point',
       coordinates: resolvedCoords,
@@ -797,13 +789,15 @@ exports.updateSpace = async (req, res, next) => {
       updateFields.lat !== undefined ||
       updateFields.lng !== undefined ||
       updateFields.location !== undefined ||
-      updateFields.city !== undefined;
+      updateFields.city !== undefined ||
+      updateFields.locality !== undefined ||
+      updateFields.fullAddress !== undefined;
 
     if (coordsProvided) {
       const merged = { ...space.toObject(), ...updateFields };
       updateFields.location = {
         type: 'Point',
-        coordinates: resolveCoordinates(merged),
+        coordinates: await resolveCoordinatesAsync(merged),
       };
       delete updateFields.latitude;
       delete updateFields.longitude;

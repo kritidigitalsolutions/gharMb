@@ -4,6 +4,20 @@ import { MapPin, Building2, ArrowRight, Play, MessageSquare } from 'lucide-react
 import SmoothImage from '../common/SmoothImage';
 import PropertyEnquiryModal from './PropertyEnquiryModal';
 
+// Helper to format possession date to Month & Year only
+const formatMonthYear = (val) => {
+  if (!val || typeof val !== 'string') return '';
+  const trimmed = val.trim();
+  if (!trimmed) return '';
+  if (/^(ready\s*to\s*move|immediate|under\s*construction)$/i.test(trimmed)) return trimmed;
+  const parsed = new Date(trimmed);
+  if (!isNaN(parsed.getTime()) && parsed.getFullYear() > 1900) {
+    const hasDay = /\b\d{1,2}\s+[A-Za-z]+\s+\d{4}\b|\b[A-Za-z]+\s+\d{1,2},?\s+\d{4}\b|\b\d{4}-\d{2}-\d{2}\b/.test(trimmed);
+    if (hasDay) return parsed.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  }
+  return trimmed;
+};
+
 export default function DeveloperCard({ developer }) {
   const [showEnquiryModal, setShowEnquiryModal] = useState(false);
   const { name, projectName, location, projectType, priceRange, status, image, units, videos } = developer;
@@ -64,6 +78,12 @@ export default function DeveloperCard({ developer }) {
               <span className="w-px h-3 bg-border" />
               <span>{units} units</span>
             </div>
+
+            {developer.possessionDate && (
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/60 mb-3 w-fit">
+                <span>Expected Possession: <strong>{formatMonthYear(developer.possessionDate)}</strong></span>
+              </div>
+            )}
           </div>
         </div>
 

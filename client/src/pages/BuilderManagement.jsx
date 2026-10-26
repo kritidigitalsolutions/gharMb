@@ -313,7 +313,13 @@ export default function BuilderManagement() {
             totalUnits: p.totalUnits || 0,
             stage: p.projectStatus || 'Under construction',
             category: p.projectType || 'Residential',
-            reraNumber: p.reraProjectNumber || 'Pending',
+            reraNumbers: Array.isArray(p.reraNumbers) && p.reraNumbers.length > 0
+              ? p.reraNumbers.map((r, idx) => {
+                  if (typeof r === 'string') return { name: `Phase ${idx + 1}`, reraNumber: r };
+                  return { name: r.name || `Phase ${idx + 1}`, reraNumber: r.reraNumber || '' };
+                }).filter(r => r.reraNumber)
+              : (p.reraProjectNumber ? [{ name: 'Phase 1', reraNumber: p.reraProjectNumber }] : []),
+            reraNumber: (Array.isArray(p.reraNumbers) && p.reraNumbers[0]?.reraNumber) || (typeof p.reraNumbers?.[0] === 'string' ? p.reraNumbers[0] : '') || p.reraProjectNumber || 'Pending',
             possessionDate: p.possessionDate || 'Dec 2026',
             description: p.shortDescription || p.description || 'Residential/Commercial developer project development.',
             photos: photos.map(getDocumentUrl),
@@ -2289,9 +2295,37 @@ export default function BuilderManagement() {
                         <span className="text-[10px] text-[var(--text-muted)] font-mono">City: {selectedProject.city}</span>
                       </div>
                     </div>
-                    <div className="pt-2 border-t border-[var(--border)] flex items-center justify-between">
-                      <span className="text-[10px] uppercase font-bold text-[var(--text-muted)]">RERA Project Number</span>
-                      <span className="font-mono font-bold text-xs text-[var(--text-primary)]">{selectedProject.reraNumber}</span>
+                    <div className="pt-2 border-t border-[var(--border)]">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] uppercase font-bold text-[var(--text-muted)]">RERA Registrations</span>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                          {selectedProject.reraNumbers?.length || 1} RERA ID{(selectedProject.reraNumbers?.length || 1) > 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(selectedProject.reraNumbers?.length > 0 ? selectedProject.reraNumbers : [{ name: 'Phase 1', reraNumber: selectedProject.reraNumber }]).map((rItem, idx) => {
+                          const reraVal = typeof rItem === 'string' ? rItem : (rItem?.reraNumber || '');
+                          const nameVal = typeof rItem === 'string' ? `Phase ${idx + 1}` : (rItem?.name || '');
+                          return (
+                            <div key={idx} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--bg-surface)] border border-[var(--border)] text-xs font-bold text-[var(--text-primary)]">
+                              {nameVal && (
+                                <span className="font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1 py-0.5 rounded text-[10px]">
+                                  {nameVal}
+                                </span>
+                              )}
+                              <span className="font-mono">{reraVal}</span>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(reraVal, nameVal || `RERA #${idx + 1}`)}
+                                className="text-[var(--text-muted)] hover:text-brand transition-colors cursor-pointer"
+                                title="Copy RERA"
+                              >
+                                <Copy size={10} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
 
