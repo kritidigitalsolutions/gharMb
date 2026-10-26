@@ -575,6 +575,7 @@ export default function BuilderManagement() {
         if (secondaryFilter === 'COMMERCIAL' && !p.category?.toLowerCase().includes('comm')) return false;
         if (secondaryFilter === 'READY' && !p.stage?.toLowerCase().includes('ready')) return false;
         if (secondaryFilter === 'UNDER_CONST' && !p.stage?.toLowerCase().includes('under')) return false;
+        if (secondaryFilter === 'NEW_LAUNCH' && !p.stage?.toLowerCase().includes('launch')) return false;
       }
 
       if (searchQuery.trim()) {
@@ -1199,6 +1200,7 @@ export default function BuilderManagement() {
               { key: 'COMMERCIAL', label: 'Commercial' },
               { key: 'UNDER_CONST', label: 'Under Construction' },
               { key: 'READY', label: 'Ready to Move' },
+              { key: 'NEW_LAUNCH', label: 'New Launch' },
             ].map((f) => (
               <button
                 key={f.key}
