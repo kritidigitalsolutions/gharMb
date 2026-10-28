@@ -12,7 +12,8 @@ src/uploads/*
 !src/uploads/.gitkeep
 
 # Credentials and Keys
-# serviceAccountKey.json (uncommented to allow deployment to Vercel)
+*serviceAccount*.json
+firebaseCredentials.json
 *.pem
 
 # Local logs
