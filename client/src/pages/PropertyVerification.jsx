@@ -1607,7 +1607,6 @@ export default function PropertyVerification() {
           )}
         </div>
       ) : (
-<<<<<<< HEAD
         /* ── RESPONSIVE LISTING DISPLAY: MOBILE CARDS + DESKTOP DATA TABLE ── */
         <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-2xs">
           
@@ -1693,7 +1692,7 @@ export default function PropertyVerification() {
                     {item.status !== 'Approved' && item.status !== 'Sold' && (
                       <button
                         type="button"
-                        onClick={() => handleUpdateStatus(item, 'Approved')}
+                        onClick={() => handleApproveClick(item)}
                         disabled={isSubmittingAction}
                         className="py-1.5 px-3 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-98 disabled:opacity-50"
                         title="Approve & Publish Live"
@@ -1750,12 +1749,6 @@ export default function PropertyVerification() {
           {/* ── DESKTOP & TABLET DATA TABLE: (Hidden on Mobile, Visible on md+) ── */}
           <div className="hidden md:block w-full overflow-x-auto custom-scrollbar">
             <table className="w-full text-left border-collapse table-fixed min-w-[960px]">
-=======
-        /* ── TABLE VIEW (Full-Fit Zero Cutoff, Perfectly Organized Actions) ── */
-        <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-2xs">
-          <div className="w-full overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse table-fixed min-w-[1080px]">
->>>>>>> 294413cd8a9f0c074dd7e67fda6b4b46eea203e4
               <colgroup>
                 <col className="w-[18%]" />
                 <col className="w-[9%]" />
@@ -2038,11 +2031,7 @@ export default function PropertyVerification() {
                     className="h-7 sm:h-8 px-2.5 sm:px-3 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1 transition-all active:scale-95 disabled:opacity-50"
                   >
                     <Check size={13} strokeWidth={2.5} />
-<<<<<<< HEAD
-                    <span>Approve<span className="hidden sm:inline"> & Publish</span></span>
-=======
-                    <span>Approve & Set Commission</span>
->>>>>>> 294413cd8a9f0c074dd7e67fda6b4b46eea203e4
+                    <span>Approve<span className="hidden sm:inline"> & Set Commission</span></span>
                   </button>
                 )}
 
@@ -2725,11 +2714,7 @@ export default function PropertyVerification() {
                     className="h-8 px-3.5 sm:px-4 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
                   >
                     <Check size={13} strokeWidth={2.5} />
-<<<<<<< HEAD
-                    <span>Approve<span className="hidden sm:inline"> & Publish Live</span></span>
-=======
-                    <span>Approve & Set Commission</span>
->>>>>>> 294413cd8a9f0c074dd7e67fda6b4b46eea203e4
+                    <span>Approve<span className="hidden sm:inline"> & Set Commission</span></span>
                   </button>
                 )}
               </div>
