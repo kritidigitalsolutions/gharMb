@@ -767,7 +767,7 @@ export default function EnquiriesManagement() {
       )}
 
       {/* ─── 4 POLISHED TOP-ACCENT KPI CARDS (GHARMB STANDARDIZED DESIGN) ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         {[
           {
             key: 'total',
@@ -827,33 +827,33 @@ export default function EnquiriesManagement() {
             <div
               key={card.key}
               onClick={card.onClick}
-              className={`group bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl p-3.5 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden flex flex-col justify-between border-t-2 cursor-pointer ${card.accent}`}
+              className={`group bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl p-3 sm:p-3.5 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden flex flex-col justify-between border-t-2 cursor-pointer ${card.accent}`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block">
+              <div className="flex items-start justify-between gap-1.5 sm:gap-2">
+                <div className="space-y-0.5 sm:space-y-1 min-w-0">
+                  <span className="text-[9.5px] sm:text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block truncate">
                     {card.title}
                   </span>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+                  <div className="flex items-baseline gap-1 sm:gap-1.5">
+                    <span className="text-lg sm:text-xl font-bold tracking-tight text-[var(--text-primary)]">
                       {card.count}
                     </span>
-                    <span className="text-[10px] text-[var(--text-muted)] font-medium">
+                    <span className="text-[9px] sm:text-[10px] text-[var(--text-muted)] font-medium">
                       {card.unit}
                     </span>
                   </div>
                 </div>
 
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110 ${card.iconColor}`}>
-                  <Icon size={16} strokeWidth={2} />
+                <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110 ${card.iconColor}`}>
+                  <Icon size={14} className="sm:size-[16px]" strokeWidth={2} />
                 </div>
               </div>
 
-              <div className="mt-2.5 pt-2 border-t border-[var(--border)] flex items-center justify-between text-[11px]">
-                <span className="text-[var(--text-muted)] truncate max-w-[150px]">
+              <div className="mt-2 sm:mt-2.5 pt-1.5 sm:pt-2 border-t border-[var(--border)] flex items-center justify-between text-[10px] sm:text-[11px] gap-1">
+                <span className="text-[var(--text-muted)] truncate max-w-[85px] sm:max-w-[150px]">
                   {card.subtitle}
                 </span>
-                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${card.tagClass}`}>
+                <span className={`text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded truncate shrink-0 ${card.tagClass}`}>
                   {card.tag}
                 </span>
               </div>
@@ -862,15 +862,15 @@ export default function EnquiriesManagement() {
         })}
       </div>
 
-      {/* ─── MAIN MASTER CONTAINER: CLEAN TOOLBAR + DATA TABLE ─── */}
+      {/* ─── MAIN MASTER CONTAINER: CLEAN TOOLBAR + DATA DISPLAY ─── */}
       <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-2xs overflow-hidden transition-all duration-200">
         
         {/* Header Toolbar */}
         <div className="p-3 border-b border-[var(--border)] space-y-2.5 bg-[var(--bg-surface)]">
           {/* Top Row: Category Tabs & Action Buttons */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             {/* Category Tabs */}
-            <div className="flex items-center gap-1 overflow-x-auto p-1 bg-[var(--bg-muted)]/70 rounded-lg border border-[var(--border)] max-w-full custom-scrollbar">
+            <div className="flex items-center gap-1 overflow-x-auto p-1 bg-[var(--bg-muted)]/70 rounded-lg border border-[var(--border)] max-w-full custom-scrollbar scroll-smooth">
               {[
                 { id: 'all', label: 'All Inquiries', count: counts.total },
                 { id: 'property', label: 'Properties', count: counts.propertyCount },
@@ -885,7 +885,7 @@ export default function EnquiriesManagement() {
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveCategory(tab.id)}
-                    className={`h-7 px-2.5 rounded-md text-xs font-medium transition-all duration-150 flex items-center gap-1.5 whitespace-nowrap cursor-pointer active:scale-95 ${
+                    className={`h-7 px-2.5 rounded-md text-xs font-medium transition-all duration-150 flex items-center gap-1.5 whitespace-nowrap cursor-pointer shrink-0 active:scale-95 ${
                       isActive
                         ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] font-semibold shadow-xs border border-[var(--border)]/70'
                         : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] border border-transparent'
@@ -907,7 +907,7 @@ export default function EnquiriesManagement() {
             </div>
 
             {/* Header Right Actions */}
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center justify-end gap-1.5 shrink-0 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => fetchEnquiries(false)}
@@ -931,7 +931,7 @@ export default function EnquiriesManagement() {
               <button
                 type="button"
                 onClick={() => setShowAddModal(true)}
-                className="h-8 px-3 bg-brand hover:bg-brand-dark text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
+                className="flex-1 sm:flex-none h-8 px-3 bg-brand hover:bg-brand-dark text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
               >
                 <Plus size={13} />
                 <span>Log Lead</span>
@@ -963,13 +963,13 @@ export default function EnquiriesManagement() {
             </div>
 
             {/* Dropdown Filters */}
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5">
+            <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-1.5 w-full sm:w-auto">
                 <span className="text-[11px] text-[var(--text-muted)] font-medium hidden sm:inline">Status:</span>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="h-8 px-2.5 bg-[var(--bg-muted)] text-xs font-medium text-[var(--text-primary)] rounded-lg border border-[var(--border)] hover:border-slate-300 dark:hover:border-slate-700 focus:outline-none focus:border-brand cursor-pointer transition-all"
+                  className="w-full sm:w-auto h-8 px-2.5 bg-[var(--bg-muted)] text-xs font-medium text-[var(--text-primary)] rounded-lg border border-[var(--border)] hover:border-slate-300 dark:hover:border-slate-700 focus:outline-none focus:border-brand cursor-pointer transition-all"
                 >
                   <option value="all">All Status</option>
                   <option value="pending">Pending Review</option>
@@ -983,7 +983,7 @@ export default function EnquiriesManagement() {
               <select
                 value={sortOrder}
                 onChange={(e) => setSortOrder(e.target.value)}
-                className="h-8 px-2.5 bg-[var(--bg-muted)] text-xs font-medium text-[var(--text-primary)] rounded-lg border border-[var(--border)] hover:border-slate-300 dark:hover:border-slate-700 focus:outline-none focus:border-brand cursor-pointer transition-all"
+                className="w-full sm:w-auto h-8 px-2.5 bg-[var(--bg-muted)] text-xs font-medium text-[var(--text-primary)] rounded-lg border border-[var(--border)] hover:border-slate-300 dark:hover:border-slate-700 focus:outline-none focus:border-brand cursor-pointer transition-all"
               >
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
@@ -992,201 +992,346 @@ export default function EnquiriesManagement() {
           </div>
         </div>
 
-        {/* ─── DATA TABLE: CLEAN, BEAUTIFUL & MINIMAL (Full-Fit 100% Zero Horizontal Scroll) ─── */}
-        <div className="w-full overflow-hidden min-h-[300px]">
-          <table className="w-full text-left border-collapse table-fixed">
-            <colgroup>
-              <col className="w-[14%]" />
-              <col className="w-[22%]" />
-              <col className="w-[26%]" />
-              <col className="w-[12%]" />
-              <col className="w-[14%]" />
-              <col className="w-[12%]" />
-            </colgroup>
-            <thead>
-              <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-[9.5px] font-semibold uppercase tracking-wider bg-[var(--bg-muted)]/40 select-none">
-                <th className="py-2 px-3 align-middle">Lead ID & Stream</th>
-                <th className="py-2 px-3 align-middle">Client Details</th>
-                <th className="py-2 px-3 align-middle">Interest / Subject</th>
-                <th className="py-2 px-3 align-middle">Date</th>
-                <th className="py-2 px-3 align-middle text-center">Status</th>
-                <th className="py-2 pl-2 pr-3 align-middle text-right">Actions</th>
-              </tr>
-            </thead>
+        {/* ─── LOADING STATE ─── */}
+        {isLoading ? (
+          <div className="py-16 text-center">
+            <AdminLoader
+              text="Fetching customer inquiries..."
+              subtext="Loading verified leads, site visits, and service requests"
+              minHeight="min-h-[180px]"
+            />
+          </div>
+        ) : filteredEnquiries.length === 0 ? (
+          <div className="py-16 text-center text-[var(--text-muted)]">
+            {/* ─── EMPTY STATE ─── */}
+            <div className="flex flex-col items-center justify-center space-y-2 animate-in fade-in duration-200">
+              <div className="w-10 h-10 rounded-full bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)] border border-[var(--border)]">
+                <Inbox size={18} />
+              </div>
+              <p className="font-semibold text-sm text-[var(--text-primary)]">
+                {unifiedEnquiries.length === 0 ? 'No Inquiries Recorded' : 'No Matching Enquiries Found'}
+              </p>
+              <p className="text-xs text-[var(--text-muted)] max-w-sm px-4">
+                {unifiedEnquiries.length === 0
+                  ? 'Customer property leads, builder consultations, scheduled site visits, and service requests will appear here automatically.'
+                  : 'Try adjusting your search keywords, category filter, or status selection.'}
+              </p>
+              {unifiedEnquiries.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setStatusFilter('all');
+                    setActiveCategory('all');
+                  }}
+                  className="mt-1 text-xs font-semibold text-brand hover:underline cursor-pointer"
+                >
+                  Clear all filters
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* ─── DESKTOP DATA TABLE: (Hidden on Mobile, Visible on Desktop/Tablet) ─── */}
+            <div className="hidden md:block w-full overflow-x-auto min-h-[300px]">
+              <table className="w-full text-left border-collapse table-fixed min-w-[760px]">
+                <colgroup>
+                  <col className="w-[14%]" />
+                  <col className="w-[22%]" />
+                  <col className="w-[26%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[12%]" />
+                </colgroup>
+                <thead>
+                  <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-[9.5px] font-semibold uppercase tracking-wider bg-[var(--bg-muted)]/40 select-none">
+                    <th className="py-2 px-3 align-middle">Lead ID & Stream</th>
+                    <th className="py-2 px-3 align-middle">Client Details</th>
+                    <th className="py-2 px-3 align-middle">Interest / Subject</th>
+                    <th className="py-2 px-3 align-middle">Date</th>
+                    <th className="py-2 px-3 align-middle text-center">Status</th>
+                    <th className="py-2 pl-2 pr-3 align-middle text-right">Actions</th>
+                  </tr>
+                </thead>
 
-            <tbody className="divide-y divide-[var(--border)]/60 text-xs">
-              {isLoading ? (
-                <tr>
-                  <td colSpan="6" className="py-16 text-center">
-                    <AdminLoader
-                      text="Fetching customer inquiries..."
-                      subtext="Loading verified leads, site visits, and service requests"
-                      minHeight="min-h-[180px]"
-                    />
-                  </td>
-                </tr>
-              ) : filteredEnquiries.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="py-16 text-center text-[var(--text-muted)]">
-                    <div className="flex flex-col items-center justify-center space-y-2 animate-in fade-in duration-200">
-                      <div className="w-10 h-10 rounded-full bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)] border border-[var(--border)]">
-                        <Inbox size={18} />
-                      </div>
-                      <p className="font-semibold text-sm text-[var(--text-primary)]">
-                        {unifiedEnquiries.length === 0 ? 'No Inquiries Recorded' : 'No Matching Enquiries Found'}
-                      </p>
-                      <p className="text-xs text-[var(--text-muted)] max-w-sm">
-                        {unifiedEnquiries.length === 0
-                          ? 'Customer property leads, builder consultations, scheduled site visits, and service requests will appear here automatically.'
-                          : 'Try adjusting your search keywords, category filter, or status selection.'}
-                      </p>
-                      {unifiedEnquiries.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSearchQuery('');
-                            setStatusFilter('all');
-                            setActiveCategory('all');
-                          }}
-                          className="mt-1 text-xs font-semibold text-brand hover:underline cursor-pointer"
-                        >
-                          Clear all filters
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredEnquiries.map((enquiry) => {
-                  const statusCfg = getStatusBadge(enquiry.status);
-                  const isUpdating = statusUpdatingId === enquiry.id;
+                <tbody className="divide-y divide-[var(--border)]/60 text-xs">
+                  {filteredEnquiries.map((enquiry) => {
+                    const statusCfg = getStatusBadge(enquiry.status);
+                    const isUpdating = statusUpdatingId === enquiry.id;
 
-                  return (
-                    <tr
-                      key={enquiry.id}
-                      onClick={() => setSelectedEnquiry(enquiry)}
-                      className="group hover:bg-[var(--bg-muted)]/35 transition-colors duration-150 cursor-pointer"
-                    >
-                      {/* 1. Lead Code & Category */}
-                      <td className="py-1.5 px-3 align-middle overflow-hidden">
-                        <span className="font-mono text-xs font-semibold text-[var(--text-primary)] group-hover:text-brand transition-colors block leading-tight truncate">
-                          {enquiry.code}
-                        </span>
-                        <div className="mt-0.5">
-                          <Badge color={enquiry.categoryColor || 'peach'} variant="pastel" size="2xs">
-                            {enquiry.categoryLabel}
-                          </Badge>
-                        </div>
-                      </td>
+                    return (
+                      <tr
+                        key={enquiry.id}
+                        onClick={() => setSelectedEnquiry(enquiry)}
+                        className="group hover:bg-[var(--bg-muted)]/35 transition-colors duration-150 cursor-pointer"
+                      >
+                        {/* 1. Lead Code & Category */}
+                        <td className="py-1.5 px-3 align-middle overflow-hidden">
+                          <span className="font-mono text-xs font-semibold text-[var(--text-primary)] group-hover:text-brand transition-colors block leading-tight truncate">
+                            {enquiry.code}
+                          </span>
+                          <div className="mt-0.5">
+                            <Badge color={enquiry.categoryColor || 'peach'} variant="pastel" size="2xs">
+                              {enquiry.categoryLabel}
+                            </Badge>
+                          </div>
+                        </td>
 
-                      {/* 2. Client Name & Phone */}
-                      <td className="py-1.5 px-3 align-middle overflow-hidden">
-                        <div className="min-w-0">
-                          <p className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate">
-                            {enquiry.clientName}
-                          </p>
-                          <p className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5 truncate leading-tight">
-                            {enquiry.clientPhone || enquiry.clientEmail || '—'}
-                          </p>
-                        </div>
-                      </td>
+                        {/* 2. Client Name & Phone */}
+                        <td className="py-1.5 px-3 align-middle overflow-hidden">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate">
+                              {enquiry.clientName}
+                            </p>
+                            <p className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5 truncate leading-tight">
+                              {enquiry.clientPhone || enquiry.clientEmail || '—'}
+                            </p>
+                          </div>
+                        </td>
 
-                      {/* 3. Interest / Subject */}
-                      <td className="py-1.5 px-3 align-middle overflow-hidden">
-                        <div className="min-w-0">
-                          <p className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate" title={enquiry.title}>
-                            {enquiry.title}
-                          </p>
-                          <p className="text-[10px] text-[var(--text-muted)] truncate mt-0.5 leading-tight" title={enquiry.subtitle}>
-                            {enquiry.subtitle || enquiry.budget || 'Direct Consultation'}
-                          </p>
-                        </div>
-                      </td>
+                        {/* 3. Interest / Subject */}
+                        <td className="py-1.5 px-3 align-middle overflow-hidden">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate" title={enquiry.title}>
+                              {enquiry.title}
+                            </p>
+                            <p className="text-[10px] text-[var(--text-muted)] truncate mt-0.5 leading-tight" title={enquiry.subtitle}>
+                              {enquiry.subtitle || enquiry.budget || 'Direct Consultation'}
+                            </p>
+                          </div>
+                        </td>
 
-                      {/* 4. Date */}
-                      <td className="py-1.5 px-3 align-middle whitespace-nowrap overflow-hidden">
-                        <span className="text-[10.5px] text-[var(--text-muted)] font-medium">
-                          {formatRelativeTime(enquiry.createdAt)}
-                        </span>
-                      </td>
+                        {/* 4. Date */}
+                        <td className="py-1.5 px-3 align-middle whitespace-nowrap overflow-hidden">
+                          <span className="text-[10.5px] text-[var(--text-muted)] font-medium">
+                            {formatRelativeTime(enquiry.createdAt)}
+                          </span>
+                        </td>
 
-                      {/* 5. Interactive Status Pill (Click-to-change directly in table) */}
-                      <td className="py-1.5 px-3 align-middle text-center whitespace-nowrap overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                        <div className="inline-flex items-center justify-center relative">
-                          <select
-                            value={normalizeStatus(enquiry.status)}
-                            onChange={(e) => handleUpdateStatus(enquiry, e.target.value)}
-                            disabled={isUpdating}
-                            className={`appearance-none inline-flex items-center pl-4.5 pr-4.5 py-0.5 rounded-full text-[9.5px] font-bold border shadow-2xs cursor-pointer transition-all hover:scale-102 focus:outline-none focus:ring-1 focus:ring-brand/30 disabled:opacity-50 ${statusCfg.pill}`}
-                            title="Click to update status"
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="contacted">In Follow-Up</option>
-                            <option value="confirmed">Confirmed</option>
-                            <option value="resolved">Completed</option>
-                            <option value="cancelled">Cancelled</option>
-                          </select>
-                          <span className={`absolute left-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full pointer-events-none ${statusCfg.dot} ${isUpdating ? 'animate-ping' : ''}`} />
-                          <ChevronDown size={9} className="absolute right-1 top-1/2 -translate-y-1/2 opacity-50 pointer-events-none" />
-                        </div>
-                      </td>
-
-                      {/* 6. Actions */}
-                      <td className="py-1.5 pl-2 pr-3 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <div className="inline-flex items-center gap-1 justify-end shrink-0">
-                          {/* WhatsApp Trigger */}
-                          {enquiry.clientPhone && (
-                            <a
-                              href={`https://wa.me/${enquiry.clientPhone.replace(/[^0-9]/g, '')}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              title="Chat on WhatsApp"
-                              className="w-6 h-6 rounded-md flex items-center justify-center text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 transition-all shadow-2xs active:scale-95"
+                        {/* 5. Interactive Status Pill */}
+                        <td className="py-1.5 px-3 align-middle text-center whitespace-nowrap overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                          <div className="inline-flex items-center justify-center relative">
+                            <select
+                              value={normalizeStatus(enquiry.status)}
+                              onChange={(e) => handleUpdateStatus(enquiry, e.target.value)}
+                              disabled={isUpdating}
+                              className={`appearance-none inline-flex items-center pl-4.5 pr-4.5 py-0.5 rounded-full text-[9.5px] font-bold border shadow-2xs cursor-pointer transition-all hover:scale-102 focus:outline-none focus:ring-1 focus:ring-brand/30 disabled:opacity-50 ${statusCfg.pill}`}
+                              title="Click to update status"
                             >
-                              <MessageCircle size={11} />
-                            </a>
-                          )}
+                              <option value="pending">Pending</option>
+                              <option value="contacted">In Follow-Up</option>
+                              <option value="confirmed">Confirmed</option>
+                              <option value="resolved">Completed</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                            <span className={`absolute left-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full pointer-events-none ${statusCfg.dot} ${isUpdating ? 'animate-ping' : ''}`} />
+                            <ChevronDown size={9} className="absolute right-1 top-1/2 -translate-y-1/2 opacity-50 pointer-events-none" />
+                          </div>
+                        </td>
 
-                          {/* Direct Call Trigger */}
-                          {enquiry.clientPhone && (
+                        {/* 6. Actions */}
+                        <td className="py-1.5 pl-2 pr-3 align-middle text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="inline-flex items-center gap-1 justify-end shrink-0">
+                            {/* WhatsApp Trigger */}
+                            {enquiry.clientPhone && (
+                              <a
+                                href={`https://wa.me/${enquiry.clientPhone.replace(/[^0-9]/g, '')}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Chat on WhatsApp"
+                                className="w-6 h-6 rounded-md flex items-center justify-center text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 transition-all shadow-2xs active:scale-95"
+                              >
+                                <MessageCircle size={11} />
+                              </a>
+                            )}
+
+                            {/* Direct Call Trigger */}
+                            {enquiry.clientPhone && (
+                              <button
+                                type="button"
+                                onClick={() => setCallTarget(enquiry)}
+                                title={`Call ${enquiry.clientName}`}
+                                className="w-6 h-6 rounded-md flex items-center justify-center text-sky-600 dark:text-sky-400 bg-sky-500/10 hover:bg-sky-500 hover:text-white border border-sky-500/20 transition-all shadow-2xs active:scale-95 cursor-pointer"
+                              >
+                                <Phone size={11} />
+                              </button>
+                            )}
+
+                            {/* Inspect Eye */}
                             <button
                               type="button"
-                              onClick={() => setCallTarget(enquiry)}
-                              title={`Call ${enquiry.clientName}`}
-                              className="w-6 h-6 rounded-md flex items-center justify-center text-sky-600 dark:text-sky-400 bg-sky-500/10 hover:bg-sky-500 hover:text-white border border-sky-500/20 transition-all shadow-2xs active:scale-95 cursor-pointer"
+                              onClick={() => setSelectedEnquiry(enquiry)}
+                              title="Inspect Details"
+                              className="w-6 h-6 rounded-md flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
                             >
-                              <Phone size={11} />
+                              <Eye size={12} />
                             </button>
-                          )}
 
-                          {/* Inspect Eye */}
+                            {/* Delete Trigger */}
+                            <button
+                              type="button"
+                              onClick={() => setDeleteTarget(enquiry)}
+                              title="Delete Enquiry"
+                              className="w-6 h-6 rounded-md flex items-center justify-center text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* ─── MOBILE CARDS VIEW: (Visible on Mobile, Hidden on Desktop) ─── */}
+            <div className="block md:hidden divide-y divide-[var(--border)]/70">
+              {filteredEnquiries.map((enquiry) => {
+                const statusCfg = getStatusBadge(enquiry.status);
+                const isUpdating = statusUpdatingId === enquiry.id;
+
+                return (
+                  <div
+                    key={enquiry.id}
+                    onClick={() => setSelectedEnquiry(enquiry)}
+                    className="p-3.5 space-y-2.5 hover:bg-[var(--bg-muted)]/20 transition-colors cursor-pointer active:bg-[var(--bg-muted)]/35"
+                  >
+                    {/* Top Row: Code, Category, Time & Status Pill */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                        <span className="font-mono text-xs font-bold text-[var(--text-primary)]">
+                          {enquiry.code}
+                        </span>
+                        <Badge color={enquiry.categoryColor || 'peach'} variant="pastel" size="2xs">
+                          {enquiry.categoryLabel}
+                        </Badge>
+                        <span className="text-[10px] text-[var(--text-muted)] font-medium">
+                          • {formatRelativeTime(enquiry.createdAt)}
+                        </span>
+                      </div>
+
+                      {/* Interactive Status Pill */}
+                      <div onClick={(e) => e.stopPropagation()} className="shrink-0 relative">
+                        <select
+                          value={normalizeStatus(enquiry.status)}
+                          onChange={(e) => handleUpdateStatus(enquiry, e.target.value)}
+                          disabled={isUpdating}
+                          className={`appearance-none inline-flex items-center pl-4.5 pr-4.5 py-0.5 rounded-full text-[10px] font-bold border shadow-2xs cursor-pointer transition-all ${statusCfg.pill}`}
+                          title="Click to update status"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="contacted">In Follow-Up</option>
+                          <option value="confirmed">Confirmed</option>
+                          <option value="resolved">Completed</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                        <span className={`absolute left-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full pointer-events-none ${statusCfg.dot} ${isUpdating ? 'animate-ping' : ''}`} />
+                        <ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 opacity-60 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    {/* Middle: Client Info & Subject */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="font-bold text-xs text-[var(--text-primary)] truncate">
+                          {enquiry.clientName}
+                        </h4>
+                        {enquiry.budget && (
+                          <span className="text-[10px] font-bold text-brand bg-brand/10 border border-brand/20 px-1.5 py-0.5 rounded shrink-0">
+                            {enquiry.budget}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Phone & Email */}
+                      <div className="flex items-center gap-3 text-[11px] text-[var(--text-muted)] font-mono flex-wrap">
+                        {enquiry.clientPhone && (
+                          <span className="flex items-center gap-1">
+                            <Phone size={10} className="text-slate-400" />
+                            {enquiry.clientPhone}
+                          </span>
+                        )}
+                        {enquiry.clientEmail && (
+                          <span className="flex items-center gap-1 truncate max-w-[180px]">
+                            <Mail size={10} className="text-slate-400" />
+                            <span className="truncate">{enquiry.clientEmail}</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Property/Service Subject */}
+                      <div className="p-2 rounded-lg bg-[var(--bg-muted)]/50 border border-[var(--border)]/60 text-xs">
+                        <p className="font-semibold text-[var(--text-primary)] truncate">
+                          {enquiry.title}
+                        </p>
+                        {enquiry.subtitle && (
+                          <p className="text-[10px] text-[var(--text-muted)] truncate mt-0.5">
+                            {enquiry.subtitle}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Customer Note */}
+                      {enquiry.message && (
+                        <p className="text-[11px] text-[var(--text-muted)] line-clamp-2 italic px-0.5">
+                          "{enquiry.message}"
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Bottom: Action Buttons */}
+                    <div className="flex items-center justify-between pt-1 border-t border-[var(--border)]/40" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-1.5">
+                        {enquiry.clientPhone && (
+                          <a
+                            href={`https://wa.me/${enquiry.clientPhone.replace(/[^0-9]/g, '')}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="h-7 px-2.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 transition-all active:scale-95"
+                          >
+                            <MessageCircle size={12} />
+                            <span>WhatsApp</span>
+                          </a>
+                        )}
+                        {enquiry.clientPhone && (
                           <button
                             type="button"
-                            onClick={() => setSelectedEnquiry(enquiry)}
-                            title="Inspect Details"
-                            className="w-6 h-6 rounded-md flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                            onClick={() => setCallTarget(enquiry)}
+                            className="h-7 px-2.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400 bg-sky-500/10 hover:bg-sky-500 hover:text-white border border-sky-500/20 transition-all active:scale-95 cursor-pointer"
                           >
-                            <Eye size={12} />
+                            <Phone size={12} />
+                            <span>Call</span>
                           </button>
+                        )}
+                      </div>
 
-                          {/* Delete Trigger */}
-                          <button
-                            type="button"
-                            onClick={() => setDeleteTarget(enquiry)}
-                            title="Delete Enquiry"
-                            className="w-6 h-6 rounded-md flex items-center justify-center text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
-                          >
-                            <Trash2 size={11} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedEnquiry(enquiry)}
+                          className="h-7 px-2.5 rounded-lg flex items-center gap-1 text-xs font-semibold bg-[var(--bg-muted)] hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer active:scale-95"
+                        >
+                          <Eye size={12} />
+                          <span>Details</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget(enquiry)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/20 transition-all cursor-pointer active:scale-95"
+                          title="Delete"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         {/* Footer summary bar */}
         <div className="p-3 border-t border-[var(--border)] bg-[var(--bg-muted)]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
@@ -1194,7 +1339,7 @@ export default function EnquiriesManagement() {
             Showing <strong className="text-[var(--text-primary)]">{filteredEnquiries.length}</strong> of{' '}
             <strong className="text-[var(--text-primary)]">{unifiedEnquiries.length}</strong> total inquiries
           </span>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
             <span className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
               <span>{counts.pending} Pending</span>
@@ -1447,12 +1592,12 @@ export default function EnquiriesManagement() {
 
       {/* ─── MODAL: MANUAL ADD LEAD ─── */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
           <div
             className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity animate-fadeIn"
             onClick={() => setShowAddModal(false)}
           />
-          <div className="relative w-full max-w-md bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-2xl p-5 space-y-4 z-10 animate-slide-down">
+          <div className="relative w-full max-w-md bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-2xl p-4 sm:p-5 space-y-3.5 sm:space-y-4 z-10 animate-slide-down max-h-[90vh] overflow-y-auto custom-scrollbar">
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-2.5">
               <h3 className="text-sm font-bold text-[var(--text-primary)]">Log Customer Lead</h3>
               <button
@@ -1465,7 +1610,7 @@ export default function EnquiriesManagement() {
             </div>
 
             <form onSubmit={handleCreateLead} className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">
                     Client Name *
@@ -1494,7 +1639,7 @@ export default function EnquiriesManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">
                     Email Address
@@ -1537,7 +1682,7 @@ export default function EnquiriesManagement() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">
                     Location

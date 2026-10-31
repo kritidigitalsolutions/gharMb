@@ -1096,8 +1096,8 @@ const ReportsScreen = () => {
         </div>
 
         {/* Fluid Responsive Table */}
-        <div className="w-full overflow-hidden">
-          <table className="w-full text-left border-collapse table-fixed">
+        <div className="w-full overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left border-collapse table-fixed min-w-[850px]">
             <colgroup>
               {reportType === 'properties' ? (
                 <>

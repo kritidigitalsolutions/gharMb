@@ -30,6 +30,7 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCw,
+  RotateCcw,
   Building2,
   Building,
   Clock,
@@ -1284,10 +1285,10 @@ export default function BuilderManagement() {
             )}
           </div>
         ) : viewMode === 'table' ? (
-          /* Table View: Full-Fit 100% Zero Horizontal Scroll */
+          /* Table View: Responsive Scrollable Table */
           <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-2xs">
-            <div className="w-full overflow-hidden">
-              <table className="w-full text-left border-collapse table-fixed">
+            <div className="w-full overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse table-fixed min-w-[900px]">
                 <colgroup>
                   <col className="w-[28%]" />
                   <col className="w-[17%]" />
@@ -1590,10 +1591,10 @@ export default function BuilderManagement() {
             )}
           </div>
         ) : viewMode === 'table' ? (
-          /* Projects Table View: Full-Fit 100% Zero Horizontal Scroll */
+          /* Projects Table View: Responsive Scrollable Table */
           <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-2xs">
-            <div className="w-full overflow-hidden">
-              <table className="w-full text-left border-collapse table-fixed">
+            <div className="w-full overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse table-fixed min-w-[850px]">
                 <colgroup>
                   <col className="w-[28%]" />
                   <col className="w-[18%]" />

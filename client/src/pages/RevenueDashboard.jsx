@@ -447,10 +447,10 @@ const RevenueDashboard = () => {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
-              Revenue & Monetization
+              Transactions
             </h1>
             <Badge color="emerald" variant="pastel" size="xs" dot pulse>
-              Live Billing • {lastSyncTime}
+              Live • {lastSyncTime}
             </Badge>
             {counts.pending > 0 && (
               <Badge color="amber" variant="pastel" size="xs" dot pulse>
@@ -459,7 +459,7 @@ const RevenueDashboard = () => {
             )}
           </div>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">
-            Track platform billing streams, premium tier subscriptions, and buyer escrow custody from real transactions
+            Manage buyer payments, token deposits, and refunds
           </p>
         </div>
 
@@ -469,7 +469,7 @@ const RevenueDashboard = () => {
             onClick={() => fetchRevenueData(true)}
             disabled={isRefreshing || isLoading}
             className="h-8 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-muted)] hover:text-[var(--text-primary)] text-xs font-semibold transition-all duration-150 flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95 disabled:opacity-50"
-            title="Refresh revenue data"
+            title="Refresh transactions"
           >
             <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-brand' : ''} />
             <span>{isRefreshing ? 'Syncing...' : 'Refresh'}</span>
@@ -494,9 +494,9 @@ const RevenueDashboard = () => {
         </div>
       )}
 
-      {/* ── 04. 4 POLISHED KPI CARDS WITH PASTEL DESIGN SYSTEM TOKENS ── */}
+      {/* ── 04. 4 POLISHED KPI CARDS & 05. REVENUE TRAJECTORY CHART (Commented Out) ──
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {/* Card 1: Gross Platform Revenue */}
+        -- Card 1: Gross Platform Revenue --
         <div className="group bg-[var(--bg-surface)] border border-[var(--border)] border-t-2 border-t-[#52c99b] rounded-2xl p-4 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden flex flex-col justify-between">
           <div className="flex items-start justify-between gap-2">
             <div className="space-y-1">
@@ -525,7 +525,7 @@ const RevenueDashboard = () => {
           </div>
         </div>
 
-        {/* Card 2: Showcase & Premium Subs */}
+        -- Card 2: Showcase & Premium Subs --
         <div className="group bg-[var(--bg-surface)] border border-[var(--border)] border-t-2 border-t-[#c4b5fd] rounded-2xl p-4 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden flex flex-col justify-between">
           <div className="flex items-start justify-between gap-2">
             <div className="space-y-1">
@@ -554,7 +554,7 @@ const RevenueDashboard = () => {
           </div>
         </div>
 
-        {/* Card 3: Listing Boosts & Addons */}
+        -- Card 3: Listing Boosts & Addons --
         <div className="group bg-[var(--bg-surface)] border border-[var(--border)] border-t-2 border-t-[#fed7aa] rounded-2xl p-4 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden flex flex-col justify-between">
           <div className="flex items-start justify-between gap-2">
             <div className="space-y-1">
@@ -583,7 +583,7 @@ const RevenueDashboard = () => {
           </div>
         </div>
 
-        {/* Card 4: Escrow Custody Vault */}
+        -- Card 4: Escrow Custody Vault --
         <div className="group bg-[var(--bg-surface)] border border-[var(--border)] border-t-2 border-t-[#bae6fd] rounded-2xl p-4 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden flex flex-col justify-between">
           <div className="flex items-start justify-between gap-2">
             <div className="space-y-1">
@@ -613,10 +613,10 @@ const RevenueDashboard = () => {
         </div>
       </div>
 
-      {/* ── 05. REVENUE TRAJECTORY CHART ── */}
+      -- 05. REVENUE TRAJECTORY CHART --
       <div className="space-y-2">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          {/* Chart Metric Switcher with Sliding Indicator */}
+          -- Chart Metric Switcher with Sliding Indicator --
           <div className="flex items-center gap-1 p-1 bg-[var(--bg-surface)] border border-[var(--border)] rounded-full w-max shadow-2xs">
             <button
               type="button"
@@ -663,6 +663,7 @@ const RevenueDashboard = () => {
           loading={isLoading}
         />
       </div>
+      ── */}
 
       {/* ── 06. SLIDING STATUS TOGGLE SWITCH (Design System Pastel Palette) ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 overflow-x-auto scrollbar-none py-1 border-b border-[var(--border)]">
@@ -806,8 +807,8 @@ const RevenueDashboard = () => {
       {/* ── 08. DATA CONTAINER: TABLE VIEW OR CARDS VIEW ── */}
       {viewMode === 'table' ? (
         <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-2xs">
-          <div className="w-full overflow-hidden">
-            <table className="w-full text-left border-collapse table-fixed">
+          <div className="w-full overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left border-collapse table-fixed min-w-[850px]">
               <colgroup>
                 <col className="w-[12%]" />
                 <col className="w-[17%]" />
