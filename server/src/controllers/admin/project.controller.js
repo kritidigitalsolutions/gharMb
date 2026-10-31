@@ -6,6 +6,7 @@
 const Project = require('../../models/project.model');
 const User = require('../../models/user.model');
 const DeveloperEnquiry = require('../../models/developer-enquiry.model');
+const { resolveCoordinatesAsync } = require('../../utils/geocoder.helper');
 
 // @desc    Get all developer projects (with filters for status, projectType, approvalStatus)
 // @route   GET /api/admin/projects
@@ -31,6 +32,7 @@ exports.getAllProjects = async (req, res, next) => {
         { city: searchRegex },
         { locality: searchRegex },
         { reraProjectNumber: searchRegex },
+        { reraNumbers: searchRegex },
         { submissionId: searchRegex },
       ];
     }
@@ -39,11 +41,41 @@ exports.getAllProjects = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .populate('developer', 'name companyName email phone reraNumber builderDocs isVerified');
 
+    const enrichedProjects = projects.map((p) => {
+      const obj = p.toObject ? p.toObject({ virtuals: true }) : { ...p };
+      obj.reraNumbers = Array.isArray(obj.reraNumbers) && obj.reraNumbers.length > 0
+        ? obj.reraNumbers.map((r, idx) => {
+            if (typeof r === 'string') return { name: `Phase ${idx + 1}`, reraNumber: r.trim() };
+            return {
+              name: String(r?.name || '').trim(),
+              reraNumber: String(r?.reraNumber || '').trim(),
+            };
+          }).filter(r => r.reraNumber)
+        : (obj.reraProjectNumber ? [{ name: 'Phase 1', reraNumber: obj.reraProjectNumber.trim() }] : []);
+      obj.reraNumber = obj.reraNumbers[0]?.reraNumber || obj.reraProjectNumber || '';
+
+      if (!obj.investmentScore || !obj.investmentScore.metrics) {
+        obj.investmentScore = {
+          overall: Number(obj.investmentScore?.overall) || 0,
+          grade: obj.investmentScore?.grade || 'Not Rated',
+          totalVotes: Number(obj.investmentScore?.totalVotes) || 0,
+          metrics: {
+            connectivity: Number(obj.investmentScore?.metrics?.connectivity) || 0,
+            rentalPotential: Number(obj.investmentScore?.metrics?.rentalPotential) || 0,
+            growthPotential: Number(obj.investmentScore?.metrics?.growthPotential) || 0,
+            familyLiving: Number(obj.investmentScore?.metrics?.familyLiving) || 0,
+            futureDemand: Number(obj.investmentScore?.metrics?.futureDemand) || 0,
+          },
+        };
+      }
+      return obj;
+    });
+
     res.status(200).json({
       status: 'success',
-      results: projects.length,
+      results: enrichedProjects.length,
       data: {
-        projects,
+        projects: enrichedProjects,
       },
     });
   } catch (error) {
@@ -150,12 +182,58 @@ exports.createProject = async (req, res, next) => {
       approvalStatus,
     } = req.body;
 
-    if (!projectName || !reraProjectNumber || !city || !locality) {
+    let rawRera = req.body.reraNumbers !== undefined ? req.body.reraNumbers : req.body.reraProjectNumber;
+    let parsedReraNumbers = [];
+    if (typeof rawRera === 'string') {
+      try {
+        const parsed = JSON.parse(rawRera);
+        if (Array.isArray(parsed)) parsedReraNumbers = parsed;
+        else if (parsed && typeof parsed === 'object') parsedReraNumbers = [parsed];
+        else if (parsed) parsedReraNumbers = [{ reraNumber: String(parsed) }];
+      } catch {
+        parsedReraNumbers = rawRera.includes(',')
+          ? rawRera.split(',').map((r) => ({ reraNumber: r }))
+          : [{ reraNumber: rawRera }];
+      }
+    } else if (Array.isArray(rawRera)) {
+      parsedReraNumbers = rawRera;
+    } else if (rawRera && typeof rawRera === 'object') {
+      parsedReraNumbers = [rawRera];
+    }
+
+    parsedReraNumbers = parsedReraNumbers
+      .map((item, idx) => {
+        if (typeof item === 'string') {
+          const trimmed = item.trim();
+          return trimmed ? { name: `Phase ${idx + 1}`, reraNumber: trimmed } : null;
+        }
+        if (item && typeof item === 'object') {
+          const num = String(item.reraNumber || item.number || item.id || '').trim();
+          if (!num) return null;
+          const nm = String(item.name || item.phase || item.phaseName || '').trim();
+          return { name: nm, reraNumber: num };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    const seenRera = new Set();
+    const uniqueReraNumbers = [];
+    for (const r of parsedReraNumbers) {
+      if (!seenRera.has(r.reraNumber)) {
+        seenRera.add(r.reraNumber);
+        uniqueReraNumbers.push(r);
+      }
+    }
+
+    if (!projectName || uniqueReraNumbers.length === 0 || !city || !locality) {
       return res.status(400).json({
         status: 'fail',
-        message: 'Project Name, RERA Number, City, and Locality are required.',
+        message: 'Project Name, at least one RERA Registration Number, City, and Locality are required.',
       });
     }
+
+    const effectiveReraNumber = uniqueReraNumbers[0].reraNumber;
 
     const submissionId = `PRJ-${Date.now().toString().slice(-6)}`;
 
@@ -176,18 +254,31 @@ exports.createProject = async (req, res, next) => {
       }
     }
 
+    const resolvedCoords = await resolveCoordinatesAsync({
+      city,
+      locality,
+      fullAddress,
+      pincode,
+      ...req.body,
+    });
+
     const newProject = await Project.create({
       submissionId,
       projectName,
       developer: devId,
       developerName: devName || 'Registered Developer',
-      reraProjectNumber,
+      reraProjectNumber: effectiveReraNumber,
+      reraNumbers: parsedReraNumbers,
       city,
       locality,
       fullAddress: fullAddress || `${locality}, ${city}`,
       pincode: pincode || '122001',
+      location: {
+        type: 'Point',
+        coordinates: resolvedCoords,
+      },
       projectType: projectType || 'Residential',
-      projectStatus: projectStatus || 'Under construction',
+      projectStatus: projectStatus || 'Under Construction',
       totalUnits: Number(totalUnits) || 0,
       possessionDate: possessionDate || 'Dec 2026',
       shortDescription: shortDescription || '',
@@ -252,7 +343,12 @@ exports.updateProject = async (req, res, next) => {
     if (fullAddress !== undefined) project.fullAddress = fullAddress;
     if (pincode !== undefined) project.pincode = pincode;
     if (projectType) project.projectType = projectType;
-    if (projectStatus) project.projectStatus = projectStatus;
+    if (projectStatus) {
+      const lower = String(projectStatus).toLowerCase().trim();
+      if (lower === 'ready to move') project.projectStatus = 'Ready to Move';
+      else if (lower === 'new launch') project.projectStatus = 'New Launch';
+      else project.projectStatus = 'Under Construction';
+    }
     if (developerName) project.developerName = developerName;
     if (towers !== undefined) project.towers = Number(towers);
     if (floors !== undefined) project.floors = String(floors);
@@ -261,6 +357,23 @@ exports.updateProject = async (req, res, next) => {
     else if (images !== undefined) project.projectPhotos = Array.isArray(images) ? images : [];
     if (projectVideos !== undefined) project.projectVideos = Array.isArray(projectVideos) ? projectVideos : [];
     else if (videos !== undefined) project.projectVideos = Array.isArray(videos) ? videos : [];
+    if (
+      req.body.longitude !== undefined ||
+      req.body.latitude !== undefined ||
+      req.body.lng !== undefined ||
+      req.body.lat !== undefined ||
+      req.body.location !== undefined ||
+      city !== undefined ||
+      locality !== undefined ||
+      fullAddress !== undefined
+    ) {
+      const merged = { ...project.toObject(), ...req.body };
+      const resolvedCoords = await resolveCoordinatesAsync(merged);
+      project.location = {
+        type: 'Point',
+        coordinates: resolvedCoords,
+      };
+    }
 
     await project.save();
 
@@ -367,21 +480,26 @@ exports.updateInvestmentScore = async (req, res, next) => {
       ? Number(req.body.totalVotes)
       : (project.investmentScore?.totalVotes || 0);
 
-    project.investmentScore = {
+    const investmentScore = {
       overall,
       grade,
       totalVotes,
       metrics,
+      updatedAt: new Date(),
     };
 
-    await project.save();
+    const updatedProject = await Project.findByIdAndUpdate(
+      req.params.id,
+      { investmentScore },
+      { new: true, runValidators: true }
+    );
 
     res.status(200).json({
       status: 'success',
       message: 'Project investment score updated successfully.',
       data: {
-        investmentScore: project.investmentScore,
-        project,
+        investmentScore: updatedProject.investmentScore,
+        project: updatedProject,
       },
     });
   } catch (error) {

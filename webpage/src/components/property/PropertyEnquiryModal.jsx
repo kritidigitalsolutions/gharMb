@@ -4,6 +4,20 @@ import OwnerActionBlockedModal from '../common/OwnerActionBlockedModal';
 import { isOwnerOfProperty } from '../../utils/ownership';
 import { API_BASE_URL } from '../../api/config';
 
+// Helper to format possession date to Month & Year only
+const formatMonthYear = (val) => {
+  if (!val || typeof val !== 'string') return '';
+  const trimmed = val.trim();
+  if (!trimmed) return '';
+  if (/^(ready\s*to\s*move|immediate|under\s*construction)$/i.test(trimmed)) return trimmed;
+  const parsed = new Date(trimmed);
+  if (!isNaN(parsed.getTime()) && parsed.getFullYear() > 1900) {
+    const hasDay = /\b\d{1,2}\s+[A-Za-z]+\s+\d{4}\b|\b[A-Za-z]+\s+\d{1,2},?\s+\d{4}\b|\b\d{4}-\d{2}-\d{2}\b/.test(trimmed);
+    if (hasDay) return parsed.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  }
+  return trimmed;
+};
+
 export default function PropertyEnquiryModal({ property, isOpen, onClose }) {
   const [formData, setFormData] = useState({
     name: localStorage.getItem('gharmb_user_name') || '',
@@ -154,6 +168,12 @@ export default function PropertyEnquiryModal({ property, isOpen, onClose }) {
                 <p className="text-xs text-gray-500 mt-0.5">
                   {targetTitle} {targetPrice ? `• ${targetPrice}` : ''}
                 </p>
+                <div className="flex items-center justify-between text-[11px] py-1.5 px-3 rounded-lg bg-gray-50 border border-gray-100 text-gray-700 mt-2">
+                  <span className="text-gray-500">Expected Possession</span>
+                  <span className="font-semibold text-gray-900">
+                    {formatMonthYear(property.possessionDate) || 'Possession date not specified'}
+                  </span>
+                </div>
               </div>
 
               {/* 🛡️ OWNER WARNING BANNER */}

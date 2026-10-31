@@ -59,10 +59,18 @@ const commercialSpaceSchema = new mongoose.Schema(
       ],
       trim: true,
     },
+    // Multiple RERA Registrations (Developer / Builder Commercial inventory)
+    reraNumbers: [
+      {
+        _id: false,
+        name: { type: String, trim: true, default: '' },
+        reraNumber: { type: String, trim: true },
+      },
+    ],
     listingFor: {
       type: String,
-      required: [true, 'Specify if listing is for Sale, Rent, or Lease.'],
-      enum: ['Sale', 'Rent', 'Lease'],
+      required: [true, 'Specify if listing is for Sale, Rent, Lease, or Resale.'],
+      enum: ['Sale', 'Rent', 'Lease', 'Resale'],
     },
     title: {
       type: String,
@@ -360,8 +368,8 @@ commercialSpaceSchema.pre('save', function () {
     this.submissionId = `#GBM-COM-${dateStr}-${randomNum}`;
   }
 
-  // Ensure security deposit & duration are undefined for sale commercial spaces
-  const isForSale = String(this.listingFor || '').trim().toLowerCase() === 'sale';
+  // Ensure security deposit & duration are undefined for sale/resale commercial spaces
+  const isForSale = ['sale', 'resale'].includes(String(this.listingFor || '').trim().toLowerCase());
   if (isForSale) {
     this.securityDeposit = undefined;
     this.securityDepositDuration = undefined;

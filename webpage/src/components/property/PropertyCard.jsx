@@ -1,12 +1,26 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BadgeCheck, BedDouble, Maximize2, MapPin, ArrowRight, Zap, Star, MessageSquare, ShieldAlert, ShoppingCart, Ban, Building2 } from 'lucide-react';
+import { BadgeCheck, BedDouble, Maximize2, MapPin, ArrowRight, Zap, Star, MessageSquare, ShieldAlert, ShoppingCart, Ban, Building2, Calendar } from 'lucide-react';
 import TokenRequestModal from './TokenRequestModal';
 import PropertyEnquiryModal from './PropertyEnquiryModal';
 import PropertyReviewModal from './PropertyReviewModal';
 import OwnerActionBlockedModal from '../common/OwnerActionBlockedModal';
 import SmoothImage from '../common/SmoothImage';
 import { isOwnerOfProperty } from '../../utils/ownership';
+
+// Helper to format possession date to Month & Year only
+const formatMonthYear = (val) => {
+  if (!val || typeof val !== 'string') return '';
+  const trimmed = val.trim();
+  if (!trimmed) return '';
+  if (/^(ready\s*to\s*move|immediate|under\s*construction)$/i.test(trimmed)) return trimmed;
+  const parsed = new Date(trimmed);
+  if (!isNaN(parsed.getTime()) && parsed.getFullYear() > 1900) {
+    const hasDay = /\b\d{1,2}\s+[A-Za-z]+\s+\d{4}\b|\b[A-Za-z]+\s+\d{1,2},?\s+\d{4}\b|\b\d{4}-\d{2}-\d{2}\b/.test(trimmed);
+    if (hasDay) return parsed.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  }
+  return trimmed;
+};
 
 export default function PropertyCard({ property }) {
   const { title, location, type, bedrooms, area, priceLabel, status, image, badge, listingType } = property;
@@ -161,6 +175,14 @@ export default function PropertyCard({ property }) {
               <span className="w-px h-3 bg-border" />
               <span>{type}</span>
             </div>
+
+            {/* Expected Possession Date (Month & Year) */}
+            {property.possessionDate && (
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/60 mb-3 w-fit">
+                <Calendar size={12} className="text-emerald-600 shrink-0" />
+                <span>Expected Possession: <strong>{formatMonthYear(property.possessionDate)}</strong></span>
+              </div>
+            )}
 
             {/* Price & Primary Action */}
             <div className="flex items-center justify-between pt-3 border-t border-border-soft">

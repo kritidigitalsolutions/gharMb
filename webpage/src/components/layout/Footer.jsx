@@ -276,9 +276,15 @@ export default function Footer() {
 
         {/* Bottom Bar */}
         <div className="mt-10 pt-5 border-t border-white/15 flex flex-col sm:flex-row items-center justify-between gap-4 text-left">
-          <p className="text-[12px] text-white/75 text-left">
-            © {new Date().getFullYear()} GharMB. All rights reserved.
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 text-[12px] text-white/75 text-left">
+            <p>
+              © {new Date().getFullYear()} GharMB - PRASHANT RAKESH KUMAR. All rights reserved.
+            </p>
+            <span className="hidden sm:inline text-white/40">•</span>
+            <p>
+              Powered by <span className="text-white font-semibold">PRASHANT RAKESH KUMAR</span>
+            </p>
+          </div>
 
           <div className="flex items-center gap-6">
             {[

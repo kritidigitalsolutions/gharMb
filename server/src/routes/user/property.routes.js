@@ -26,6 +26,7 @@ router.get('/verified', optionalAuth, propertyController.getVerifiedProperties);
 router.get('/near-me', optionalAuth, propertyController.getNearMeProperties);
 
 // 🛡️ NEW PROJECTS PAGE: Exclusively returns verified Developer/Builder properties
+router.get('/new-projects/near-me', optionalAuth, propertyController.getNewProjectsProperties);
 router.get('/new-projects', optionalAuth, propertyController.getNewProjectsProperties);
 
 router.get('/my-dashboard', userAuth, propertyController.getMyDashboard);

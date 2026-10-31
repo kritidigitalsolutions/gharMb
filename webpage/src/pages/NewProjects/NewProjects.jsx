@@ -22,38 +22,47 @@ export default function NewProjects() {
     async function fetchDeveloperData() {
       setIsLoading(true);
       try {
-        // 1. Fetch developer properties from /api/properties/new-projects (including sold for client filter)
-        const propRes = await fetch(`${API_BASE_URL}/properties/new-projects?limit=50&includeSold=true`).catch(() => null);
+        // 1. Fetch developer properties from /api/properties/new-projects (strictly for Sale only)
+        const propRes = await fetch(`${API_BASE_URL}/properties/new-projects?limit=50&includeSold=true&listingFor=Sale`).catch(() => null);
         let liveProps = [];
         if (propRes && propRes.ok) {
           const propData = await propRes.json();
           if (propData?.status === 'success' && Array.isArray(propData.data?.properties)) {
-            liveProps = propData.data.properties.map(p => ({
-              id: p._id || p.id,
-              title: p.title,
-              location: p.location || `${p.locality ? p.locality + ', ' : ''}${p.city}`,
-              type: p.propertyType || p.category,
-              bedrooms: p.bedrooms || 2,
-              area: p.carpetArea || p.builtUpArea || 1200,
-              price: p.price,
-              priceLabel: p.formattedPrice || (p.price ? `₹${p.price.toLocaleString('en-IN')}` : 'Price on Request'),
-              status: p.isFeatured ? 'premium' : 'verified',
-              image: (p.photos && p.photos.length > 0) ? p.photos[0] : (p.thumbnail || 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=400&fit=crop'),
-              badge: p.postedByRole === 'Builder' ? 'Direct Developer' : 'Builder Direct',
-              furnishing: p.furnishingStatus || 'Unfurnished',
-              listingType: p.listingFor?.toLowerCase() || 'buy',
-              rating: p.rating || 4.9,
-              reviewsCount: p.reviewsCount || 4,
-              allowTokenBooking: p.allowTokenBooking ?? true,
-              tokenAmount: p.tokenAmount || 100000,
-              postedByRole: 'Builder',
-              role: 'builder',
-              userRole: 'builder',
-              developerName: p.postedBy?.companyName || p.companyName || 'Developer Partner',
-              isDeveloper: true,
-              isSold: Boolean(p.isSold),
-              saleStatus: p.saleStatus || (p.isSold ? 'sold' : 'available'),
-            }));
+            liveProps = propData.data.properties
+              .filter(p => {
+                const lf = String(p.listingFor || '').toLowerCase();
+                return lf !== 'rent' && lf !== 'lease' && lf !== 'pg';
+              })
+              .map(p => ({
+                id: p._id || p.id,
+                title: p.title,
+                location: p.location || `${p.locality ? p.locality + ', ' : ''}${p.city}`,
+                type: p.propertyType || p.category,
+                bedrooms: p.bedrooms || 2,
+                area: p.carpetArea || p.builtUpArea || 1200,
+                price: p.price,
+                priceLabel: p.formattedPrice || (p.price ? `₹${p.price.toLocaleString('en-IN')}` : 'Price on Request'),
+                status: p.isFeatured ? 'premium' : 'verified',
+                image: (p.photos && p.photos.length > 0) ? p.photos[0] : (p.thumbnail || 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=400&fit=crop'),
+                badge: p.postedByRole === 'Builder' ? 'Direct Developer' : 'Builder Direct',
+                furnishing: p.furnishingStatus || 'Unfurnished',
+                listingFor: p.listingFor || 'Sale',
+                listingType: p.listingFor?.toLowerCase() === 'sale' ? 'buy' : (p.listingFor?.toLowerCase() || 'buy'),
+                rating: p.rating || 4.9,
+                reviewsCount: p.reviewsCount || 4,
+                allowTokenBooking: p.allowTokenBooking ?? true,
+                tokenAmount: p.tokenAmount || 100000,
+                postedByRole: 'Builder',
+                role: 'builder',
+                userRole: 'builder',
+                developerName: p.postedBy?.companyName || p.companyName || 'Developer Partner',
+                isDeveloper: true,
+                isSold: Boolean(p.isSold),
+                saleStatus: p.saleStatus || (p.isSold ? 'sold' : 'available'),
+                possessionDate: p.possessionDate ? String(p.possessionDate).trim() : '',
+                reraNumbers: Array.isArray(p.reraNumbers) ? p.reraNumbers : (p.reraNumber ? [{ name: 'Phase 1', reraNumber: p.reraNumber }] : []),
+                reraNumber: typeof p.reraNumber === 'string' ? p.reraNumber : (p.reraNumbers?.[0]?.reraNumber || (typeof p.reraNumbers?.[0] === 'string' ? p.reraNumbers[0] : '')),
+              }));
           }
         }
 
@@ -76,6 +85,9 @@ export default function NewProjects() {
               videos: p.projectVideos || [],
               isSold: Boolean(p.isSold),
               saleStatus: p.saleStatus || (p.isSold ? 'sold' : 'available'),
+              possessionDate: p.possessionDate ? String(p.possessionDate).trim() : '',
+              reraNumbers: Array.isArray(p.reraNumbers) ? p.reraNumbers : (p.reraProjectNumber ? [{ name: 'Phase 1', reraNumber: p.reraProjectNumber }] : []),
+              reraNumber: typeof p.reraProjectNumber === 'string' ? p.reraProjectNumber : (p.reraNumbers?.[0]?.reraNumber || (typeof p.reraNumbers?.[0] === 'string' ? p.reraNumbers[0] : '')),
             }));
           }
         }
@@ -85,9 +97,13 @@ export default function NewProjects() {
           if (liveProps.length > 0) {
             setDeveloperProperties(liveProps);
           } else {
-            // Strictly filter fallback properties to ONLY developer / builder properties
+            // Strictly filter fallback properties to ONLY developer / builder properties for SALE
             const curatedDeveloperProps = fallbackProperties
-              .filter(p => p.role === 'builder' || p.postedByRole === 'Builder' || p.isDeveloper || [1, 6, 8].includes(p.id))
+              .filter(p => {
+                const isBuilder = p.role === 'builder' || p.postedByRole === 'Builder' || p.isDeveloper || [1, 6, 8].includes(p.id);
+                const isNotRent = p.listingType !== 'rent' && p.listingFor !== 'Rent' && p.listingFor !== 'Lease' && p.listingFor !== 'PG';
+                return isBuilder && isNotRent;
+              })
               .map(p => ({
                 ...p,
                 postedByRole: 'Builder',
@@ -107,7 +123,11 @@ export default function NewProjects() {
       } catch (err) {
         if (isMounted) {
           const curatedDeveloperProps = fallbackProperties
-            .filter(p => p.role === 'builder' || p.postedByRole === 'Builder' || p.isDeveloper || [1, 6, 8].includes(p.id))
+            .filter(p => {
+              const isBuilder = p.role === 'builder' || p.postedByRole === 'Builder' || p.isDeveloper || [1, 6, 8].includes(p.id);
+              const isNotRent = p.listingType !== 'rent' && p.listingFor !== 'Rent' && p.listingFor !== 'Lease' && p.listingFor !== 'PG';
+              return isBuilder && isNotRent;
+            })
             .map(p => ({
               ...p,
               postedByRole: 'Builder',
@@ -130,6 +150,16 @@ export default function NewProjects() {
 
   // Filter developer properties based on active tab, availability & search
   const filteredProperties = developerProperties.filter(property => {
+    // 🛡️ NEW PROJECTS RULE: Exclude any rent, lease, or PG listing
+    if (
+      property.listingFor?.toLowerCase() === 'rent' ||
+      property.listingFor?.toLowerCase() === 'lease' ||
+      property.listingFor?.toLowerCase() === 'pg' ||
+      property.listingType?.toLowerCase() === 'rent'
+    ) {
+      return false;
+    }
+
     const isSoldProp = Boolean(property.isSold || property.saleStatus === 'sold' || property.status === 'sold');
     if (availabilityFilter === 'available' && isSoldProp) return false;
     if (availabilityFilter === 'sold' && !isSoldProp) return false;

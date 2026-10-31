@@ -3,6 +3,7 @@
  * Provides listing review and verification workflows for administrators.
  */
 
+const mongoose = require('mongoose');
 const Property = require('../../models/property.model');
 const User = require('../../models/user.model');
 const TokenRequest = require('../../models/token-request.model');
@@ -10,6 +11,44 @@ const VisitRequest = require('../../models/visit-request.model');
 const PropertyEnquiry = require('../../models/property-enquiry.model');
 const Favorite = require('../../models/favorite.model');
 const Notification = require('../../models/notification.model');
+
+/**
+ * Normalizes possession date to Month & Year only (e.g. "June 2028", "Dec 2026")
+ * or standard milestone terms like "Ready to Move", "Immediate".
+ * Prevents calendar day numbers (e.g., converts "30 June 2028" or "2028-06-30" -> "June 2028").
+ */
+const normalizePossessionDate = (val) => {
+  if (!val || typeof val !== 'string') return '';
+  const trimmed = val.trim();
+  if (!trimmed) return '';
+
+  // Standard milestone terms
+  if (/^(ready\s*to\s*move|immediate|under\s*construction)$/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Matches YYYY-MM from month pickers
+  const yyyyMmMatch = trimmed.match(/^(\d{4})-(\d{1,2})$/);
+  if (yyyyMmMatch) {
+    const year = parseInt(yyyyMmMatch[1], 10);
+    const month = parseInt(yyyyMmMatch[2], 10);
+    const d = new Date(year, month - 1, 1);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    }
+  }
+
+  // Matches dates with days like "30 June 2028", "June 30, 2028", "2028-06-30", "30-06-2028"
+  const parsed = new Date(trimmed);
+  if (!isNaN(parsed.getTime()) && parsed.getFullYear() > 1900 && parsed.getFullYear() < 2200) {
+    const hasSpecificDay = /\b\d{1,2}\s+[A-Za-z]+\s+\d{4}\b|\b[A-Za-z]+\s+\d{1,2},?\s+\d{4}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{2}[-/]\d{2}[-/]\d{4}\b/.test(trimmed);
+    if (hasSpecificDay) {
+      return parsed.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    }
+  }
+
+  return trimmed;
+};
 
 // @desc    Get all properties (with category, status, approvalStatus, search filters)
 // @route   GET /api/admin/properties
@@ -167,7 +206,29 @@ exports.getAllProperties = async (req, res, next) => {
         ownerRole: effectiveRole,
         companyName: ownerObj.companyName || '',
         reraNumber: ownerObj.reraNumber || '',
+        possessionDate: normalizePossessionDate(obj.possessionDate),
         postedBy,
+        adminCommission: obj.adminCommission || { type: 'percentage', rate: 2, amount: Math.round((Number(obj.price || 0) * 2) / 100) },
+        commissionDiscount: obj.commissionDiscount || {
+          enabled: false,
+          discountType: 'percentage',
+          discountValue: 0,
+          discountAmount: 0,
+          netCommission: obj.adminCommission?.amount || Math.round((Number(obj.price || 0) * 2) / 100),
+          discountOnCommissionOnly: true,
+          notes: '',
+        },
+        investmentScore: obj.investmentScore && obj.investmentScore.metrics ? obj.investmentScore : {
+          overall: Number(obj.investmentScore?.overall) || 0,
+          grade: obj.investmentScore?.grade || 'Not Rated',
+          metrics: {
+            connectivity: Number(obj.investmentScore?.metrics?.connectivity) || 0,
+            rentalPotential: Number(obj.investmentScore?.metrics?.rentalPotential) || 0,
+            growthPotential: Number(obj.investmentScore?.metrics?.growthPotential) || 0,
+            familyLiving: Number(obj.investmentScore?.metrics?.familyLiving) || 0,
+            futureDemand: Number(obj.investmentScore?.metrics?.futureDemand) || 0,
+          },
+        },
         images: pureImages,
         photos: pureImages,
         videos: pureVideos,
@@ -220,8 +281,12 @@ exports.getAllProperties = async (req, res, next) => {
 
 // Helper to calculate and normalize Admin Commission & Commission-Absorbed Discount
 const calculateCommissionAndDiscount = (price, rawCommission, rawDiscount, isBuilder = false) => {
-  // DEVELOPER RULE: Commission will NOT be included in property listings created by developers/builders
-  if (isBuilder) {
+  const hasCustomCommission =
+    Boolean(rawCommission && (Number(rawCommission.rate) > 0 || Number(rawCommission.amount) > 0)) ||
+    Boolean(rawDiscount && (rawDiscount.enabled === true || rawDiscount.enabled === 'true'));
+
+  // DEVELOPER RULE: Default commission is 0% for builder listings UNLESS explicitly configured by admin
+  if (isBuilder && !hasCustomCommission) {
     return {
       adminCommission: {
         type: 'percentage',
@@ -471,6 +536,9 @@ exports.updateProperty = async (req, res, next) => {
     }
 
     const updateFields = { ...req.body };
+    if (req.body.possessionDate !== undefined) {
+      updateFields.possessionDate = normalizePossessionDate(req.body.possessionDate);
+    }
 
     // Handle installment options normalization
     if (updateFields.allowInstallments !== undefined || updateFields.installmentDetails !== undefined) {
@@ -626,22 +694,24 @@ exports.updateCommissionDiscount = async (req, res, next) => {
       isBuilder
     );
 
-    property.adminCommission = adminCommission;
-    property.commissionDiscount = commissionDiscount;
-    await property.save();
+    const updatedProperty = await Property.findByIdAndUpdate(
+      req.params.id,
+      { adminCommission, commissionDiscount },
+      { new: true, runValidators: true }
+    ).populate('owner', 'name email phone role isVerified');
 
     res.status(200).json({
       status: 'success',
       message: 'Property commission and discount settings updated successfully.',
       data: {
-        property,
+        property: updatedProperty,
         pricingSummary: {
-          originalPrice: property.price,
+          originalPrice: updatedProperty.price,
           discountAmount: commissionDiscount.discountAmount,
-          effectivePrice: Math.max(0, property.price - commissionDiscount.discountAmount),
+          effectivePrice: Math.max(0, updatedProperty.price - commissionDiscount.discountAmount),
           grossCommission: adminCommission.amount,
           netCommission: commissionDiscount.netCommission,
-          sellerPayout: property.price,
+          sellerPayout: updatedProperty.price,
           discountOnCommissionOnly: true,
         },
       },
@@ -657,7 +727,10 @@ exports.updateCommissionDiscount = async (req, res, next) => {
 exports.updateInvestmentScore = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const property = await Property.findById(id);
+    const query = mongoose.Types.ObjectId.isValid(id)
+      ? { _id: id }
+      : { submissionId: id };
+    const property = await Property.findOne(query);
 
     if (!property) {
       return res.status(404).json({
@@ -713,20 +786,36 @@ exports.updateInvestmentScore = async (req, res, next) => {
 
     const grade = req.body.grade || calculateGrade(overall);
 
-    property.investmentScore = {
+    const investmentScoreData = {
       overall,
       grade,
       metrics,
+      updatedAt: new Date(),
     };
 
-    await property.save();
+    const updatedProperty = await Property.findOneAndUpdate(
+      query,
+      { investmentScore: investmentScoreData },
+      { new: true, runValidators: true }
+    );
+
+    const fullScoreResponse = {
+      overall: updatedProperty.investmentScore.overall,
+      grade: updatedProperty.investmentScore.grade,
+      metrics: updatedProperty.investmentScore.metrics,
+      connectivity: updatedProperty.investmentScore.metrics?.connectivity ?? metrics.connectivity,
+      rentalPotential: updatedProperty.investmentScore.metrics?.rentalPotential ?? metrics.rentalPotential,
+      growthPotential: updatedProperty.investmentScore.metrics?.growthPotential ?? metrics.growthPotential,
+      familyLiving: updatedProperty.investmentScore.metrics?.familyLiving ?? metrics.familyLiving,
+      futureDemand: updatedProperty.investmentScore.metrics?.futureDemand ?? metrics.futureDemand,
+    };
 
     res.status(200).json({
       status: 'success',
       message: 'Property investment score updated successfully.',
       data: {
-        investmentScore: property.investmentScore,
-        property,
+        investmentScore: fullScoreResponse,
+        property: updatedProperty,
       },
     });
   } catch (error) {

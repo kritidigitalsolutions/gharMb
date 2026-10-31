@@ -4,13 +4,30 @@
  */
 
 const Project = require('../../models/project.model');
+const {
+  calculateDistanceInKm,
+  formatDistanceText,
+  resolveCoordinatesAsync,
+} = require('../../utils/geocoder.helper');
 
-// @desc    Retrieve approved live developer projects (with city, status, type filters)
+// @desc    Retrieve approved live developer projects (with city, status, type filters, and nearest-first geospatial sorting)
 // @route   GET /api/user/projects
 // @access  Public
 exports.getAllProjects = async (req, res, next) => {
   try {
-    const { city, projectType, projectStatus, search } = req.query;
+    const {
+      city,
+      projectType,
+      projectStatus,
+      search,
+      lat,
+      lng,
+      latitude,
+      longitude,
+      radius,
+      distanceInKm,
+      radiusUnit = 'km',
+    } = req.query;
 
     const filter = { approvalStatus: 'approved', isLive: true };
 
@@ -20,7 +37,10 @@ exports.getAllProjects = async (req, res, next) => {
       filter.isSold = { $ne: true };
     }
 
-    if (city) filter.city = new RegExp(city, 'i');
+    const hasValidCity = city && city !== 'null' && city !== 'undefined' && city.trim() !== '';
+    const cleanCity = hasValidCity ? city.split(',')[0].trim() : null;
+
+    if (cleanCity) filter.city = new RegExp(cleanCity, 'i');
     if (projectType) filter.projectType = projectType;
     if (projectStatus) filter.projectStatus = projectStatus;
 
@@ -28,15 +48,87 @@ exports.getAllProjects = async (req, res, next) => {
       filter.$text = { $search: search };
     }
 
+    const targetLat = lat || latitude;
+    const targetLng = lng || longitude || req.query.long;
+    const isGeospatial =
+      targetLat !== undefined &&
+      targetLng !== undefined &&
+      !isNaN(Number(targetLat)) &&
+      !isNaN(Number(targetLng));
+
     const projects = await Project.find(filter)
       .sort({ createdAt: -1 })
       .populate('developer', 'name companyName phone profilePicture builderDocs isVerified');
 
+    let enrichedProjects = projects.map((p) => {
+      const obj = p.toObject ? p.toObject({ virtuals: true }) : { ...p };
+      if (!obj.investmentScore || !obj.investmentScore.metrics) {
+        obj.investmentScore = {
+          overall: Number(obj.investmentScore?.overall) || 0,
+          grade: obj.investmentScore?.grade || 'Not Rated',
+          totalVotes: Number(obj.investmentScore?.totalVotes) || 0,
+          metrics: {
+            connectivity: Number(obj.investmentScore?.metrics?.connectivity) || 0,
+            rentalPotential: Number(obj.investmentScore?.metrics?.rentalPotential) || 0,
+            growthPotential: Number(obj.investmentScore?.metrics?.growthPotential) || 0,
+            familyLiving: Number(obj.investmentScore?.metrics?.familyLiving) || 0,
+            futureDemand: Number(obj.investmentScore?.metrics?.futureDemand) || 0,
+          },
+        };
+      }
+
+      let distKm = null;
+      if (
+        isGeospatial &&
+        obj.location &&
+        Array.isArray(obj.location.coordinates) &&
+        obj.location.coordinates.length >= 2
+      ) {
+        const pLng = obj.location.coordinates[0];
+        const pLat = obj.location.coordinates[1];
+        distKm = calculateDistanceInKm(Number(targetLat), Number(targetLng), pLat, pLng);
+      }
+
+      obj.distanceInKm = distKm;
+      obj.distanceMeters = distKm !== null ? Math.round(distKm * 1000) : null;
+      obj.distance = distKm !== null ? `${distKm} km` : null;
+      obj.distanceText = formatDistanceText(distKm);
+
+      return obj;
+    });
+
+    if (isGeospatial) {
+      // Sort nearest-first
+      enrichedProjects.sort((a, b) => {
+        if (a.distanceInKm === null) return 1;
+        if (b.distanceInKm === null) return -1;
+        return a.distanceInKm - b.distanceInKm;
+      });
+
+      // Filter by radius if provided
+      const rawRadius = radius ?? distanceInKm;
+      if (rawRadius) {
+        const parsedRadius = parseFloat(rawRadius);
+        if (!isNaN(parsedRadius) && parsedRadius > 0) {
+          const unit = (radiusUnit || '').toLowerCase().trim();
+          const maxDistanceKm = unit === 'miles' || unit === 'mi' ? parsedRadius * 1.60934 : parsedRadius;
+          const withinRadius = enrichedProjects.filter(
+            (p) => p.distanceInKm !== null && p.distanceInKm <= maxDistanceKm
+          );
+          if (withinRadius.length > 0) {
+            enrichedProjects = withinRadius;
+          }
+        }
+      }
+    }
+
     res.status(200).json({
       status: 'success',
-      results: projects.length,
+      results: enrichedProjects.length,
+      userLocation: isGeospatial ? { latitude: Number(targetLat), longitude: Number(targetLng) } : null,
+      isLocationSorted: isGeospatial,
       data: {
-        projects,
+        projects: enrichedProjects,
       },
     });
   } catch (error) {
@@ -112,13 +204,82 @@ exports.createProject = async (req, res, next) => {
       });
     }
 
+    // ── 🛡️ MULTIPLE RERA NUMBERS HANDLING ─────────────────────────────────────
+    let rawRera = req.body.reraNumbers !== undefined ? req.body.reraNumbers : req.body.reraProjectNumber;
+    let parsedReraNumbers = [];
+    if (typeof rawRera === 'string') {
+      try {
+        const parsed = JSON.parse(rawRera);
+        if (Array.isArray(parsed)) parsedReraNumbers = parsed;
+        else if (parsed && typeof parsed === 'object') parsedReraNumbers = [parsed];
+        else if (parsed) parsedReraNumbers = [{ reraNumber: String(parsed) }];
+      } catch {
+        parsedReraNumbers = rawRera.includes(',')
+          ? rawRera.split(',').map((r) => ({ reraNumber: r }))
+          : [{ reraNumber: rawRera }];
+      }
+    } else if (Array.isArray(rawRera)) {
+      parsedReraNumbers = rawRera;
+    } else if (rawRera && typeof rawRera === 'object') {
+      parsedReraNumbers = [rawRera];
+    }
+
+    parsedReraNumbers = parsedReraNumbers
+      .map((item, idx) => {
+        if (typeof item === 'string') {
+          const trimmed = item.trim();
+          return trimmed ? { name: `Phase ${idx + 1}`, reraNumber: trimmed } : null;
+        }
+        if (item && typeof item === 'object') {
+          const num = String(item.reraNumber || item.number || item.id || '').trim();
+          if (!num) return null;
+          const nm = String(item.name || item.phase || item.phaseName || '').trim();
+          return { name: nm, reraNumber: num };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    const seenRera = new Set();
+    const uniqueReraNumbers = [];
+    for (const r of parsedReraNumbers) {
+      if (!seenRera.has(r.reraNumber)) {
+        seenRera.add(r.reraNumber);
+        uniqueReraNumbers.push(r);
+      }
+    }
+
+    if (uniqueReraNumbers.length === 0) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'At least one RERA registration number is mandatory for Developer Projects.',
+      });
+    }
+
+    // ── 🛡️ 3 CANONICAL PROJECT STATUS OPTIONS: Under Construction, Ready to Move, New Launch
+    let normalizedProjectStatus = 'Under Construction';
+    if (req.body.projectStatus) {
+      const lowerStatus = String(req.body.projectStatus).toLowerCase().trim();
+      if (lowerStatus === 'ready to move') normalizedProjectStatus = 'Ready to Move';
+      else if (lowerStatus === 'new launch') normalizedProjectStatus = 'New Launch';
+      else normalizedProjectStatus = 'Under Construction';
+    }
+
     const projectData = {
       ...req.body,
+      projectStatus: normalizedProjectStatus,
       developer: user._id,
       developerName: req.body.developerName || user.companyName || user.name,
+      reraNumbers: uniqueReraNumbers,
+      reraProjectNumber: uniqueReraNumbers[0].reraNumber,
       approvalStatus: 'pending',
       isLive: false,
     };
+
+    // ── 🛡️ DEVELOPER RULE: Ownership type is not applicable for developer projects
+    delete projectData.ownershipType;
+    delete projectData.ownership;
+    delete projectData.listingAs;
 
     // ── 🛡️ MEDIA EXTRACTION & SEPARATION (Photos & Short Videos) ──────────────
     const isProjectVideo = (url) => {
@@ -166,13 +327,18 @@ exports.createProject = async (req, res, next) => {
       projectData.projectVideos = extractedVideos;
     }
 
-    // GeoJSON Location coordinates
-    if (req.body.longitude && req.body.latitude) {
-      projectData.location = {
-        type: 'Point',
-        coordinates: [Number(req.body.longitude), Number(req.body.latitude)],
-      };
-    }
+    // GeoJSON Location coordinates (exact GPS or high-precision geocoded fallback)
+    const resolvedCoords = await resolveCoordinatesAsync({
+      city: projectData.city,
+      locality: projectData.locality,
+      fullAddress: projectData.fullAddress,
+      pincode: projectData.pincode,
+      ...req.body,
+    });
+    projectData.location = {
+      type: 'Point',
+      coordinates: resolvedCoords,
+    };
 
     const project = await Project.create(projectData);
 
@@ -264,10 +430,97 @@ exports.updateProject = async (req, res, next) => {
     }
 
     const updateFields = { ...req.body };
+    if (updateFields.reraNumbers !== undefined || updateFields.reraProjectNumber !== undefined) {
+      let rawRera = updateFields.reraNumbers !== undefined ? updateFields.reraNumbers : updateFields.reraProjectNumber;
+      let parsedReraNumbers = [];
+      if (typeof rawRera === 'string') {
+        try {
+          const parsed = JSON.parse(rawRera);
+          if (Array.isArray(parsed)) parsedReraNumbers = parsed;
+          else if (parsed && typeof parsed === 'object') parsedReraNumbers = [parsed];
+          else if (parsed) parsedReraNumbers = [{ reraNumber: String(parsed) }];
+        } catch {
+          parsedReraNumbers = rawRera.includes(',')
+            ? rawRera.split(',').map((r) => ({ reraNumber: r }))
+            : [{ reraNumber: rawRera }];
+        }
+      } else if (Array.isArray(rawRera)) {
+        parsedReraNumbers = rawRera;
+      } else if (rawRera && typeof rawRera === 'object') {
+        parsedReraNumbers = [rawRera];
+      }
+
+      parsedReraNumbers = parsedReraNumbers
+        .map((item, idx) => {
+          if (typeof item === 'string') {
+            const trimmed = item.trim();
+            return trimmed ? { name: `Phase ${idx + 1}`, reraNumber: trimmed } : null;
+          }
+          if (item && typeof item === 'object') {
+            const num = String(item.reraNumber || item.number || item.id || '').trim();
+            if (!num) return null;
+            const nm = String(item.name || item.phase || item.phaseName || '').trim();
+            return { name: nm, reraNumber: num };
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      const seenRera = new Set();
+      const uniqueReraNumbers = [];
+      for (const r of parsedReraNumbers) {
+        if (!seenRera.has(r.reraNumber)) {
+          seenRera.add(r.reraNumber);
+          uniqueReraNumbers.push(r);
+        }
+      }
+
+      if (uniqueReraNumbers.length === 0) {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'At least one RERA registration number is mandatory for Developer Projects.',
+        });
+      }
+      updateFields.reraNumbers = uniqueReraNumbers;
+      updateFields.reraProjectNumber = uniqueReraNumbers[0].reraNumber;
+    }
     if (!isAdmin) {
       updateFields.approvalStatus = 'pending';
       updateFields.isLive = false;
     }
+
+    if (
+      updateFields.longitude !== undefined ||
+      updateFields.latitude !== undefined ||
+      updateFields.lng !== undefined ||
+      updateFields.lat !== undefined ||
+      updateFields.location !== undefined ||
+      updateFields.city !== undefined ||
+      updateFields.locality !== undefined ||
+      updateFields.fullAddress !== undefined
+    ) {
+      const merged = { ...project.toObject(), ...updateFields };
+      const resolvedCoords = await resolveCoordinatesAsync(merged);
+      updateFields.location = {
+        type: 'Point',
+        coordinates: resolvedCoords,
+      };
+      delete updateFields.longitude;
+      delete updateFields.latitude;
+      delete updateFields.lng;
+      delete updateFields.lat;
+    }
+
+    if (updateFields.projectStatus) {
+      const lowerStatus = String(updateFields.projectStatus).toLowerCase().trim();
+      if (lowerStatus === 'ready to move') updateFields.projectStatus = 'Ready to Move';
+      else if (lowerStatus === 'new launch') updateFields.projectStatus = 'New Launch';
+      else updateFields.projectStatus = 'Under Construction';
+    }
+
+    delete updateFields.ownershipType;
+    delete updateFields.ownership;
+    delete updateFields.listingAs;
 
     project = await Project.findByIdAndUpdate(req.params.id, updateFields, {
       new: true,

@@ -26,77 +26,51 @@ const formatIndianPrice = (price, listingFor) => {
   return listingFor === 'Rent' || listingFor === 'Lease' ? `₹${formatted}/mo` : `₹${formatted}`;
 };
 
-// Well-known coordinates for Indian cities used for reliable geocoding fallback
-const CITY_COORDINATES = {
-  noida: [77.3910, 28.5355],
-  delhi: [77.2090, 28.6139],
-  'new delhi': [77.2090, 28.6139],
-  gurgaon: [77.0266, 28.4595],
-  gurugram: [77.0266, 28.4595],
-  ghaziabad: [77.4538, 28.6692],
-  faridabad: [77.3178, 28.4089],
-  agra: [78.0081, 27.1767],
-  agar: [78.0081, 27.1767],
-  mumbai: [72.8777, 19.0760],
-  pune: [73.8567, 18.5204],
-  bangalore: [77.5946, 12.9716],
-  bengaluru: [77.5946, 12.9716],
-  hyderabad: [78.4867, 17.3850],
-  kolkata: [88.3639, 22.5726],
-  chennai: [80.2707, 13.0827],
-  ahmedabad: [72.5714, 23.0225],
-  jaipur: [75.7873, 26.9124],
-  lucknow: [80.9462, 26.8467],
-  chandigarh: [76.7794, 30.7333],
-  meerut: [77.7064, 28.9845],
+/**
+ * Normalizes possession date to Month & Year only (e.g. "June 2028", "Dec 2026")
+ * or standard milestone terms like "Ready to Move", "Immediate".
+ * Prevents calendar day numbers (e.g., converts "30 June 2028" or "2028-06-30" -> "June 2028").
+ */
+const normalizePossessionDate = (val) => {
+  if (!val || typeof val !== 'string') return '';
+  const trimmed = val.trim();
+  if (!trimmed) return '';
+
+  // Standard milestone terms
+  if (/^(ready\s*to\s*move|immediate|under\s*construction)$/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Matches YYYY-MM from month pickers
+  const yyyyMmMatch = trimmed.match(/^(\d{4})-(\d{1,2})$/);
+  if (yyyyMmMatch) {
+    const year = parseInt(yyyyMmMatch[1], 10);
+    const month = parseInt(yyyyMmMatch[2], 10);
+    const d = new Date(year, month - 1, 1);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    }
+  }
+
+  // Matches dates with days like "30 June 2028", "June 30, 2028", "2028-06-30", "30-06-2028"
+  const parsed = new Date(trimmed);
+  if (!isNaN(parsed.getTime()) && parsed.getFullYear() > 1900 && parsed.getFullYear() < 2200) {
+    const hasSpecificDay = /\b\d{1,2}\s+[A-Za-z]+\s+\d{4}\b|\b[A-Za-z]+\s+\d{1,2},?\s+\d{4}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{2}[-/]\d{2}[-/]\d{4}\b/.test(trimmed);
+    if (hasSpecificDay) {
+      return parsed.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    }
+  }
+
+  return trimmed;
 };
 
-function calculateDistanceInKm(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Earth radius in km
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Number((R * c).toFixed(2));
-}
-
-function resolveCoordinates(body = {}) {
-  const targetLng =
-    body.lng ??
-    body.longitude ??
-    body.location?.coordinates?.[0] ??
-    body.location?.longitude ??
-    body.location?.lng;
-  const targetLat =
-    body.lat ??
-    body.latitude ??
-    body.location?.coordinates?.[1] ??
-    body.location?.latitude ??
-    body.location?.lat;
-
-  if (
-    targetLng !== undefined &&
-    targetLat !== undefined &&
-    targetLng !== null &&
-    targetLat !== null &&
-    !isNaN(Number(targetLng)) &&
-    !isNaN(Number(targetLat))
-  ) {
-    return [Number(targetLng), Number(targetLat)];
-  }
-
-  const cityName = (body.city || '').toLowerCase().trim();
-  if (cityName && CITY_COORDINATES[cityName]) {
-    return CITY_COORDINATES[cityName];
-  }
-
-  return [77.3910, 28.5355]; // Sensible default (NCR/Noida)
-}
+const {
+  CITY_COORDINATES,
+  calculateDistanceInKm,
+  formatDistanceText,
+  resolveCoordinates,
+  resolveCoordinatesAsync,
+} = require('../../utils/geocoder.helper');
 
 // Helper to normalize and auto-calculate installment options details
 const normalizeInstallmentData = (body = {}, totalPrice = 0) => {
@@ -175,7 +149,7 @@ const normalizeInstallmentData = (body = {}, totalPrice = 0) => {
 };
 
 // Helper to enrich and standardize property objects with seller/owner role metadata (Builder, Agent, Owner)
-const enrichPropertyWithSellerRole = (propertyDoc, fallbackOwner = null) => {
+const enrichPropertyWithSellerRole = (propertyDoc, fallbackOwner = null, userCoordinates = null) => {
   if (!propertyDoc) return propertyDoc;
   const obj = propertyDoc.toObject ? propertyDoc.toObject({ virtuals: true }) : { ...propertyDoc };
   const ownerObj = (obj.owner && typeof obj.owner === 'object') ? obj.owner : (fallbackOwner || {});
@@ -290,13 +264,33 @@ const enrichPropertyWithSellerRole = (propertyDoc, fallbackOwner = null) => {
     obj.priceRangeText = formatIndianPrice(obj.price, obj.listingFor);
   }
 
+  // Multiple RERA registrations
+  obj.reraNumbers = Array.isArray(obj.reraNumbers)
+    ? obj.reraNumbers
+        .map((r, idx) => {
+          if (typeof r === 'string') {
+            return { name: `Phase ${idx + 1}`, reraNumber: r.trim() };
+          }
+          return {
+            name: String(r?.name || '').trim(),
+            reraNumber: String(r?.reraNumber || '').trim(),
+          };
+        })
+        .filter((r) => r.reraNumber)
+    : (obj.reraNumber ? [{ name: 'Phase 1', reraNumber: String(obj.reraNumber).trim() }] : []);
+  obj.reraNumber = obj.reraNumbers.length > 0 ? obj.reraNumbers[0].reraNumber : '';
+
+  // Expected Possession Date (Month & Year only)
+  obj.possessionDate = normalizePossessionDate(obj.possessionDate);
+
   // Sale status attributes
   obj.isSold = Boolean(obj.isSold);
   obj.saleStatus = obj.saleStatus || 'available';
   obj.isPendingSaleConfirmation = obj.saleStatus === 'marked_as_sold';
 
-  // Security deposit for sale properties is null/omitted
-  if (String(obj.listingFor || '').trim().toLowerCase() === 'sale') {
+  // Security deposit for sale/resale properties is null/omitted
+  const cleanListingForVal = String(obj.listingFor || '').trim().toLowerCase();
+  if (['sale', 'resale'].includes(cleanListingForVal)) {
     obj.securityDeposit = null;
     obj.securityDepositDuration = null;
   }
@@ -304,6 +298,48 @@ const enrichPropertyWithSellerRole = (propertyDoc, fallbackOwner = null) => {
   // Enrich with Admin Commission & Commission-Absorbed Discount fields for Mobile App / Frontend
   const pricingMeta = getDiscountAndPricingMetadata(obj);
   Object.assign(obj, pricingMeta);
+
+  // Normalize and attach investmentScore for Mobile App feeds & details
+  const invScore = (obj.investmentScore && typeof obj.investmentScore === 'object')
+    ? (obj.investmentScore.toObject ? obj.investmentScore.toObject() : obj.investmentScore)
+    : {};
+  const rawMetrics = invScore.metrics || {};
+  const connVal = Number(rawMetrics.connectivity ?? invScore.connectivity) || 0;
+  const rentVal = Number(rawMetrics.rentalPotential ?? invScore.rentalPotential) || 0;
+  const growVal = Number(rawMetrics.growthPotential ?? invScore.growthPotential) || 0;
+  const famVal = Number(rawMetrics.familyLiving ?? invScore.familyLiving) || 0;
+  const futVal = Number(rawMetrics.futureDemand ?? invScore.futureDemand) || 0;
+  const overVal = Number(invScore.overall) || 0;
+  const grdVal = invScore.grade || 'Not Rated';
+
+  const normalizedMetrics = {
+    connectivity: connVal,
+    rentalPotential: rentVal,
+    growthPotential: growVal,
+    familyLiving: famVal,
+    futureDemand: futVal,
+  };
+
+  obj.investmentScore = {
+    overall: overVal,
+    grade: grdVal,
+    metrics: normalizedMetrics,
+    connectivity: connVal,
+    rentalPotential: rentVal,
+    growthPotential: growVal,
+    familyLiving: famVal,
+    futureDemand: futVal,
+  };
+
+  // Mobile App root-level compatibility
+  obj.connectivity = connVal;
+  obj.rentalPotential = rentVal;
+  obj.growthPotential = growVal;
+  obj.familyLiving = famVal;
+  obj.futureDemand = futVal;
+  obj.investmentGrade = grdVal;
+  obj.investmentRating = overVal;
+  obj.metrics = normalizedMetrics;
 
   // 🛡️ Owner Restrictions: Owners cannot buy, rent, submit tokens, enquire, or review their own listings
   const callerUser = (fallbackOwner && fallbackOwner._id) ? fallbackOwner : null;
@@ -370,6 +406,43 @@ const enrichPropertyWithSellerRole = (propertyDoc, fallbackOwner = null) => {
     ...pureVideos.map((u) => ({ url: u, type: 'video' })),
   ];
 
+  // ── 📍 Geolocation Distance Calculation ──────────────────────────────────
+  const coords = obj.location?.coordinates;
+  const propLng = Array.isArray(coords) ? Number(coords[0]) : null;
+  const propLat = Array.isArray(coords) ? Number(coords[1]) : null;
+
+  if (
+    userCoordinates &&
+    userCoordinates.lat !== undefined &&
+    userCoordinates.lng !== undefined &&
+    propLat !== null &&
+    propLng !== null &&
+    !isNaN(propLat) &&
+    !isNaN(propLng)
+  ) {
+    const dist = calculateDistanceInKm(userCoordinates.lat, userCoordinates.lng, propLat, propLng);
+    obj.distanceInKm = dist;
+    obj.distanceInMeters = Math.round(dist * 1000);
+    obj.distance = dist;
+    obj.distanceText = formatDistanceText(dist);
+  } else {
+    obj.distanceInKm = null;
+    obj.distanceInMeters = null;
+    obj.distance = null;
+    obj.distanceText = null;
+  }
+
+  // ── 🛡️ TRANSACTION NATURE & SELLER INTENT (Sale vs Resale vs Rent) ───────
+  const cleanListing = String(obj.listingFor || '').trim().toLowerCase();
+  const isRentListing = ['rent', 'lease', 'pg'].includes(cleanListing);
+  const isResaleListing = cleanListing === 'resale' || (!isRentListing && effectiveRole !== 'builder');
+
+  obj.isRent = isRentListing;
+  obj.isResale = isResaleListing;
+  obj.isSale = !isRentListing;
+  obj.listingIntent = isRentListing ? 'Rent' : (isResaleListing ? 'Resale' : 'Sale');
+  obj.displayListingFor = isRentListing ? 'Rent' : (isResaleListing ? 'Resale' : 'Sale');
+
   return obj;
 };
 
@@ -377,7 +450,7 @@ const enrichPropertyWithSellerRole = (propertyDoc, fallbackOwner = null) => {
 const getDiscountAndPricingMetadata = (obj = {}) => {
   const price = Number(obj.price) || 0;
 
-  // DEVELOPER RULE: Commission will NOT be included in property listings created by developers/builders
+  // DEVELOPER RULE: Default commission is 0% for builder listings UNLESS explicitly configured by admin
   const isDeveloperOrBuilder =
     obj.role === 'builder' ||
     obj.userRole === 'builder' ||
@@ -385,7 +458,11 @@ const getDiscountAndPricingMetadata = (obj = {}) => {
     (obj.listingAs || '').toLowerCase().includes('builder') ||
     (obj.listingAs || '').toLowerCase().includes('developer');
 
-  if (isDeveloperOrBuilder) {
+  const hasCustomCommission =
+    Boolean(obj.adminCommission && (Number(obj.adminCommission.rate) > 0 || Number(obj.adminCommission.amount) > 0)) ||
+    Boolean(obj.commissionDiscount && obj.commissionDiscount.enabled);
+
+  if (isDeveloperOrBuilder && !hasCustomCommission) {
     return {
       hasDiscount: false,
       discountAmount: 0,
@@ -646,6 +723,25 @@ const formatPropertyCard = (p, fallbackUser = null) => {
     // Commission-Absorbed Discount and Effective Buyer Pricing
     ...getDiscountAndPricingMetadata(obj),
 
+    // Admin-Curated Investment Score
+    investmentScore: obj.investmentScore && obj.investmentScore.metrics ? obj.investmentScore : {
+      overall: Number(obj.investmentScore?.overall) || 0,
+      grade: obj.investmentScore?.grade || 'Not Rated',
+      metrics: {
+        connectivity: Number(obj.investmentScore?.metrics?.connectivity) || 0,
+        rentalPotential: Number(obj.investmentScore?.metrics?.rentalPotential) || 0,
+        growthPotential: Number(obj.investmentScore?.metrics?.growthPotential) || 0,
+        familyLiving: Number(obj.investmentScore?.metrics?.familyLiving) || 0,
+        futureDemand: Number(obj.investmentScore?.metrics?.futureDemand) || 0,
+      },
+    },
+
+    // Distance fields
+    distanceInKm: obj.distanceInKm ?? null,
+    distanceInMeters: obj.distanceInMeters ?? null,
+    distance: obj.distance ?? null,
+    distanceText: obj.distanceText ?? null,
+
     // 🛡️ Owner Restrictions: Owners cannot buy, rent, submit tokens, enquire, or review their own listings
     isOwner: Boolean(checkPropertyOwnership(obj, (fallbackUser && fallbackUser._id) ? fallbackUser : null).isOwner),
     canBuyOrRent: !Boolean(checkPropertyOwnership(obj, (fallbackUser && fallbackUser._id) ? fallbackUser : null).isOwner),
@@ -715,11 +811,50 @@ exports.getAllProperties = async (req, res, next) => {
     }
 
     if (category) query.category = new RegExp(`^${category.trim()}$`, 'i');
-    if (listingFor) query.listingFor = new RegExp(`^${listingFor.trim()}$`, 'i');
+    if (listingFor) {
+      const cleanLF = (listingFor || '').trim().toLowerCase();
+      if (cleanLF === 'resale') {
+        const builderUsers = await User.find({ role: 'builder' }).select('_id');
+        const builderUserIds = builderUsers.map((u) => u._id);
+        const nonBuilder = {
+          postedByRole: { $nin: ['Builder', 'Developer'] },
+          userRole: { $nin: ['builder', 'developer'] },
+          listingAs: { $not: /builder|developer/i },
+          owner: { $nin: builderUserIds },
+        };
+        if (!query.$and) query.$and = [];
+        query.$and.push({
+          $or: [
+            { listingFor: new RegExp(`^resale$`, 'i') },
+            { listingFor: new RegExp(`^sale$`, 'i'), ...nonBuilder },
+          ],
+        });
+      } else if (cleanLF === 'sale' && !isNewProjects) {
+        query.listingFor = new RegExp(`^(sale|resale)$`, 'i');
+      } else {
+        query.listingFor = new RegExp(`^${listingFor.trim()}$`, 'i');
+      }
+    }
     if (propertyType) query.propertyType = new RegExp(`^${propertyType.trim()}$`, 'i');
     if (city) query.city = new RegExp(city.trim(), 'i');
     if (locality) query.locality = new RegExp(locality.trim(), 'i');
     if (bedrooms) query.bedrooms = bedrooms;
+
+    const search = req.query.search;
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      if (!query.$and) query.$and = [];
+      query.$and.push({
+        $or: [
+          { title: searchRegex },
+          { city: searchRegex },
+          { locality: searchRegex },
+          { submissionId: searchRegex },
+          { propertyType: searchRegex },
+          { description: searchRegex },
+        ],
+      });
+    }
 
     // Buyer & Property Preferences filters
     if (keyHandover !== undefined) {
@@ -766,6 +901,10 @@ exports.getAllProperties = async (req, res, next) => {
       listingAsParam.includes('developer');
 
     if (isNewProjects) {
+      // 🛡️ NEW PROJECTS RULE: Developer & Builder inventory must strictly be for Sale / Purchase
+      // Exclude Rent, Lease, and PG listings from the new projects feed
+      query.listingFor = 'Sale';
+
       // Fetch all users with role 'builder'
       const builderUsers = await User.find({ role: 'builder' }).select('_id');
       const builderUserIds = builderUsers.map((u) => u._id);
@@ -813,17 +952,45 @@ exports.getAllProperties = async (req, res, next) => {
       query.$and.push({ $and: ownerConditions });
     }
 
-    // Geospatial proximity lookup (supports distanceInKm, radius, distance, maxDistance)
+    // ── Geospatial Proximity & Nearest-First Sorting ──────────────────────────
     const targetLat = lat || latitude;
     const targetLng = lng || longitude || req.query.long;
+    const parsedLat = parseFloat(targetLat);
+    const parsedLng = parseFloat(targetLng);
+    const hasCoordinates =
+      !isNaN(parsedLat) &&
+      !isNaN(parsedLng) &&
+      parsedLat >= -90 &&
+      parsedLat <= 90 &&
+      parsedLng >= -180 &&
+      parsedLng <= 180;
+
     const rawDist = distanceInKm || radius || distance || maxDistance;
-    if (targetLat && targetLng && rawDist) {
-      const parsedDist = parseFloat(rawDist) || 50;
-      const radiusInRadians = parsedDist / 6378.1;
-      query.location = {
-        $geoWithin: {
-          $centerSphere: [[Number(targetLng), Number(targetLat)], radiusInRadians],
+    const maxDistKm = rawDist !== undefined && rawDist !== null && rawDist !== '' ? parseFloat(rawDist) : null;
+    const hasMaxDistance = maxDistKm !== null && !isNaN(maxDistKm) && maxDistKm > 0;
+
+    const countQuery = { ...query };
+
+    if (hasCoordinates) {
+      const geoNearQuery = {
+        $geometry: {
+          type: 'Point',
+          coordinates: [parsedLng, parsedLat],
         },
+      };
+
+      if (hasMaxDistance) {
+        geoNearQuery.$maxDistance = maxDistKm * 1000; // convert km to meters
+        const radiusInRadians = maxDistKm / 6378.1;
+        countQuery.location = {
+          $geoWithin: {
+            $centerSphere: [[parsedLng, parsedLat], radiusInRadians],
+          },
+        };
+      }
+
+      query.location = {
+        $nearSphere: geoNearQuery,
       };
     }
 
@@ -831,17 +998,24 @@ exports.getAllProperties = async (req, res, next) => {
     const limitNum = Math.max(1, Math.min(100, parseInt(req.query.limit, 10) || 20));
     const skip = (pageNum - 1) * limitNum;
 
+    // When querying with $nearSphere, MongoDB naturally sorts from nearest to farthest.
+    // Explicit sort() cannot be combined with $nearSphere in MongoDB.
+    let propertyQuery = Property.find(query);
+    if (!hasCoordinates) {
+      propertyQuery = propertyQuery.sort({ createdAt: -1 });
+    }
+
     const [properties, total] = await Promise.all([
-      Property.find(query)
-        .sort({ createdAt: -1 })
+      propertyQuery
         .skip(skip)
         .limit(limitNum)
         .populate('owner', 'name email phone profilePicture role isVerified builderVerificationStatus agentVerificationStatus companyName reraNumber'),
-      Property.countDocuments(query),
+      Property.countDocuments(countQuery),
     ]);
 
     const totalPages = Math.ceil(total / limitNum) || 1;
-    const enrichedProperties = properties.map((p) => enrichPropertyWithSellerRole(p, req.user));
+    const userCoords = hasCoordinates ? { lat: parsedLat, lng: parsedLng } : null;
+    const enrichedProperties = properties.map((p) => enrichPropertyWithSellerRole(p, req.user, userCoords));
 
     res.status(200).json({
       status: 'success',
@@ -851,6 +1025,8 @@ exports.getAllProperties = async (req, res, next) => {
       limit: limitNum,
       totalPages,
       hasMore: pageNum < totalPages,
+      userLocation: hasCoordinates ? { latitude: parsedLat, longitude: parsedLng } : null,
+      isLocationSorted: hasCoordinates,
       data: {
         properties: enrichedProperties,
       },
@@ -951,17 +1127,46 @@ exports.getPropertyDetails = async (req, res, next) => {
       recentReviews,
     };
 
-    enrichedProperty.investmentScore = property.investmentScore?.metrics ? property.investmentScore : {
-      overall: property.investmentScore?.overall || 0,
-      grade: property.investmentScore?.grade || 'Not Rated',
-      metrics: {
-        connectivity: property.investmentScore?.metrics?.connectivity || 0,
-        rentalPotential: property.investmentScore?.metrics?.rentalPotential || 0,
-        growthPotential: property.investmentScore?.metrics?.growthPotential || 0,
-        familyLiving: property.investmentScore?.metrics?.familyLiving || 0,
-        futureDemand: property.investmentScore?.metrics?.futureDemand || 0,
-      },
+    const propInv = (property.investmentScore && typeof property.investmentScore === 'object')
+      ? (property.investmentScore.toObject ? property.investmentScore.toObject() : property.investmentScore)
+      : {};
+    const propMetrics = propInv.metrics || {};
+    const cVal = Number(propMetrics.connectivity ?? propInv.connectivity) || 0;
+    const rVal = Number(propMetrics.rentalPotential ?? propInv.rentalPotential) || 0;
+    const gVal = Number(propMetrics.growthPotential ?? propInv.growthPotential) || 0;
+    const lVal = Number(propMetrics.familyLiving ?? propInv.familyLiving) || 0;
+    const dVal = Number(propMetrics.futureDemand ?? propInv.futureDemand) || 0;
+    const oVal = Number(propInv.overall) || 0;
+    const grVal = propInv.grade || 'Not Rated';
+
+    const cleanMetrics = {
+      connectivity: cVal,
+      rentalPotential: rVal,
+      growthPotential: gVal,
+      familyLiving: lVal,
+      futureDemand: dVal,
     };
+
+    enrichedProperty.investmentScore = {
+      overall: oVal,
+      grade: grVal,
+      metrics: cleanMetrics,
+      connectivity: cVal,
+      rentalPotential: rVal,
+      growthPotential: gVal,
+      familyLiving: lVal,
+      futureDemand: dVal,
+    };
+
+    // Root-level metrics for mobile app compatibility
+    enrichedProperty.connectivity = cVal;
+    enrichedProperty.rentalPotential = rVal;
+    enrichedProperty.growthPotential = gVal;
+    enrichedProperty.familyLiving = lVal;
+    enrichedProperty.futureDemand = dVal;
+    enrichedProperty.investmentGrade = grVal;
+    enrichedProperty.investmentRating = oVal;
+    enrichedProperty.metrics = cleanMetrics;
 
     res.status(200).json({
       status: 'success',
@@ -1104,6 +1309,7 @@ exports.createProperty = async (req, res, next) => {
       isLive: false,
       isSold: false,
       saleStatus: 'available',
+      possessionDate: normalizePossessionDate(req.body.possessionDate),
     };
 
     // ── 🛡️ MEDIA EXTRACTION & SEPARATION (Images & Videos) ─────────────────────
@@ -1155,8 +1361,8 @@ exports.createProperty = async (req, res, next) => {
     }
 
     // ── 🛡️ SECURITY DEPOSIT & DURATION RULE ──────────────────────────────────
-    // Remove Security Deposit and Security Duration fields for properties available for Sale
-    const isForSale = String(propertyData.listingFor || '').trim().toLowerCase() === 'sale';
+    // Remove Security Deposit and Security Duration fields for properties available for Sale or Resale
+    const isForSale = ['sale', 'resale'].includes(String(propertyData.listingFor || '').trim().toLowerCase());
     if (isForSale) {
       delete propertyData.securityDeposit;
       delete propertyData.securityDepositDuration;
@@ -1195,6 +1401,63 @@ exports.createProperty = async (req, res, next) => {
       }
     }
 
+    // ── 🛡️ MULTIPLE RERA NUMBERS FOR BUILDER / DEVELOPER LISTINGS ─────────────
+    let rawRera = req.body.reraNumbers !== undefined ? req.body.reraNumbers : req.body.reraNumber;
+    let parsedReraNumbers = [];
+    if (typeof rawRera === 'string') {
+      try {
+        const parsed = JSON.parse(rawRera);
+        if (Array.isArray(parsed)) parsedReraNumbers = parsed;
+        else if (parsed && typeof parsed === 'object') parsedReraNumbers = [parsed];
+        else if (parsed) parsedReraNumbers = [{ reraNumber: String(parsed) }];
+      } catch {
+        parsedReraNumbers = rawRera.includes(',')
+          ? rawRera.split(',').map((r) => ({ reraNumber: r }))
+          : [{ reraNumber: rawRera }];
+      }
+    } else if (Array.isArray(rawRera)) {
+      parsedReraNumbers = rawRera;
+    } else if (rawRera && typeof rawRera === 'object') {
+      parsedReraNumbers = [rawRera];
+    }
+
+    parsedReraNumbers = parsedReraNumbers
+      .map((item, idx) => {
+        if (typeof item === 'string') {
+          const trimmed = item.trim();
+          return trimmed ? { name: `Phase ${idx + 1}`, reraNumber: trimmed } : null;
+        }
+        if (item && typeof item === 'object') {
+          const num = String(item.reraNumber || item.number || item.id || '').trim();
+          if (!num) return null;
+          const nm = String(item.name || item.phase || item.phaseName || '').trim();
+          return { name: nm, reraNumber: num };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    const seenRera = new Set();
+    const uniqueReraNumbers = [];
+    for (const r of parsedReraNumbers) {
+      if (!seenRera.has(r.reraNumber)) {
+        seenRera.add(r.reraNumber);
+        uniqueReraNumbers.push(r);
+      }
+    }
+
+    // MANDATORY RERA RULE FOR BUILDER / DEVELOPER (EXCEPT PLOT):
+    const isPlot = String(req.body.propertyType || '').trim().toLowerCase().includes('plot');
+    if (normalizedUserRole === 'builder' && !isPlot) {
+      if (!uniqueReraNumbers || uniqueReraNumbers.length === 0) {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'At least one RERA registration number is mandatory for Developer/Builder project listings (except Plots).',
+        });
+      }
+    }
+    propertyData.reraNumbers = uniqueReraNumbers;
+
     // ── 🛡️ DEVELOPER COMMISSION RULE ─────────────────────────────────────────
     // Commission will not be included in property listings created by developers/builders
     if (normalizedUserRole === 'builder') {
@@ -1214,8 +1477,8 @@ exports.createProperty = async (req, res, next) => {
       };
     }
 
-    // Robust location coordinates handling (never allow null coordinates)
-    const resolvedCoords = resolveCoordinates(req.body);
+    // Robust location coordinates handling (exact GPS or high-precision geocoded)
+    const resolvedCoords = await resolveCoordinatesAsync(req.body);
     propertyData.location = {
       type: 'Point',
       coordinates: resolvedCoords,
@@ -1593,6 +1856,9 @@ exports.updateProperty = async (req, res, next) => {
     }
 
     const updateFields = { ...req.body };
+    if (req.body.possessionDate !== undefined) {
+      updateFields.possessionDate = normalizePossessionDate(req.body.possessionDate);
+    }
 
     // 🛡️ Role-Based Update Guard: Users cannot change to another role outside their locked role
     if (!isAdmin) {
@@ -1625,9 +1891,9 @@ exports.updateProperty = async (req, res, next) => {
       }
     }
 
-    // 🛡️ Security Deposit & Duration rule: Remove / clear for properties available for Sale
+    // 🛡️ Security Deposit & Duration rule: Remove / clear for properties available for Sale or Resale
     const targetListingFor = updateFields.listingFor || property.listingFor;
-    if (String(targetListingFor || '').trim().toLowerCase() === 'sale') {
+    if (['sale', 'resale'].includes(String(targetListingFor || '').trim().toLowerCase())) {
       updateFields.securityDeposit = undefined;
       updateFields.securityDepositDuration = undefined;
     }
@@ -1655,6 +1921,66 @@ exports.updateProperty = async (req, res, next) => {
       }
     }
 
+    // Handle multiple RERA registrations update
+    if (updateFields.reraNumbers !== undefined || updateFields.reraNumber !== undefined) {
+      let rawRera = updateFields.reraNumbers !== undefined ? updateFields.reraNumbers : updateFields.reraNumber;
+      let parsedReraNumbers = [];
+      if (typeof rawRera === 'string') {
+        try {
+          const parsed = JSON.parse(rawRera);
+          if (Array.isArray(parsed)) parsedReraNumbers = parsed;
+          else if (parsed && typeof parsed === 'object') parsedReraNumbers = [parsed];
+          else if (parsed) parsedReraNumbers = [{ reraNumber: String(parsed) }];
+        } catch {
+          parsedReraNumbers = rawRera.includes(',')
+            ? rawRera.split(',').map((r) => ({ reraNumber: r }))
+            : [{ reraNumber: rawRera }];
+        }
+      } else if (Array.isArray(rawRera)) {
+        parsedReraNumbers = rawRera;
+      } else if (rawRera && typeof rawRera === 'object') {
+        parsedReraNumbers = [rawRera];
+      }
+
+      parsedReraNumbers = parsedReraNumbers
+        .map((item, idx) => {
+          if (typeof item === 'string') {
+            const trimmed = item.trim();
+            return trimmed ? { name: `Phase ${idx + 1}`, reraNumber: trimmed } : null;
+          }
+          if (item && typeof item === 'object') {
+            const num = String(item.reraNumber || item.number || item.id || '').trim();
+            if (!num) return null;
+            const nm = String(item.name || item.phase || item.phaseName || '').trim();
+            return { name: nm, reraNumber: num };
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      const seenRera = new Set();
+      const uniqueReraNumbers = [];
+      for (const r of parsedReraNumbers) {
+        if (!seenRera.has(r.reraNumber)) {
+          seenRera.add(r.reraNumber);
+          uniqueReraNumbers.push(r);
+        }
+      }
+
+      const isBuilderListing =
+        (updateFields.userRole || property.userRole) === 'builder' ||
+        String(updateFields.listingAs || property.listingAs || '').toLowerCase().includes('builder');
+      const isPlot = String(updateFields.propertyType || property.propertyType || '').trim().toLowerCase().includes('plot');
+
+      if (isBuilderListing && !isPlot && uniqueReraNumbers.length === 0) {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'At least one RERA registration number is mandatory for Developer/Builder project listings (except Plots).',
+        });
+      }
+      updateFields.reraNumbers = uniqueReraNumbers;
+    }
+
     // Normalize listingAs if provided in update
     if (updateFields.listingAs) {
       const lower = updateFields.listingAs.toLowerCase();
@@ -1679,13 +2005,15 @@ exports.updateProperty = async (req, res, next) => {
       updateFields.lat !== undefined ||
       updateFields.lng !== undefined ||
       updateFields.location !== undefined ||
-      updateFields.city !== undefined;
+      updateFields.city !== undefined ||
+      updateFields.locality !== undefined ||
+      updateFields.fullAddress !== undefined;
 
     if (coordsProvided) {
       const merged = { ...property.toObject(), ...updateFields };
       updateFields.location = {
         type: 'Point',
-        coordinates: resolveCoordinates(merged),
+        coordinates: await resolveCoordinatesAsync(merged),
       };
       delete updateFields.latitude;
       delete updateFields.longitude;
@@ -1904,8 +2232,44 @@ exports.getNearMeProperties = async (req, res, next) => {
       query.keyHandover = keyHandover === 'true' || keyHandover === true;
     }
     if (category) query.category = new RegExp(`^${category.trim()}$`, 'i');
-    if (listingFor) query.listingFor = new RegExp(`^${listingFor.trim()}$`, 'i');
     if (propertyType) query.propertyType = new RegExp(`^${propertyType.trim()}$`, 'i');
+
+    // 🛡️ NEAR-ME RULE: Strictly display ONLY Resale & Rent properties
+    // (Developer/Builder inventory belongs to New Projects, not Near-Me Resale/Rentals)
+    const cleanListingFor = (listingFor || req.query.type || '').trim().toLowerCase();
+
+    const builderUsers = await User.find({ role: 'builder' }).select('_id');
+    const builderUserIds = builderUsers.map((u) => u._id);
+
+    const nonBuilderFilter = {
+      postedByRole: { $nin: ['Builder', 'Developer'] },
+      userRole: { $nin: ['builder', 'developer'] },
+      listingAs: { $not: /builder|developer/i },
+      owner: { $nin: builderUserIds },
+    };
+
+    const isResaleCondition = {
+      listingFor: { $regex: /^(sale|resale)$/i },
+      ...nonBuilderFilter,
+    };
+
+    const isRentCondition = {
+      listingFor: { $in: ['Rent', 'Lease', 'PG', 'rent', 'lease', 'pg'] },
+      ...nonBuilderFilter,
+    };
+
+    if (!query.$and) query.$and = [];
+
+    if (cleanListingFor === 'rent' || cleanListingFor === 'lease' || cleanListingFor === 'pg') {
+      query.listingFor = new RegExp(`^${cleanListingFor}$`, 'i');
+      query.$and.push(nonBuilderFilter);
+    } else if (cleanListingFor === 'resale' || cleanListingFor === 'sale') {
+      query.$and.push(isResaleCondition);
+    } else {
+      query.$and.push({
+        $or: [isRentCondition, isResaleCondition],
+      });
+    }
 
     const targetLat = lat || latitude;
     const targetLng = lng || longitude || req.query.long;
@@ -1929,6 +2293,9 @@ exports.getNearMeProperties = async (req, res, next) => {
 
     const radiusInRadians = maxDistanceInKm / 6378.1;
 
+    const hasValidCity = city && city !== 'null' && city !== 'undefined' && city.trim() !== '';
+    const cleanCity = hasValidCity ? city.split(',')[0].trim() : null;
+
     if (isGeospatial) {
       const geoFilter = {
         location: {
@@ -1938,8 +2305,7 @@ exports.getNearMeProperties = async (req, res, next) => {
         },
       };
 
-      if (city) {
-        const cleanCity = city.split(',')[0].trim();
+      if (cleanCity) {
         query.$or = [
           geoFilter,
           { city: new RegExp(`^${cleanCity}$`, 'i') },
@@ -1948,8 +2314,7 @@ exports.getNearMeProperties = async (req, res, next) => {
       } else {
         query.location = geoFilter.location;
       }
-    } else if (city) {
-      const cleanCity = city.split(',')[0].trim();
+    } else if (cleanCity) {
       query.city = new RegExp(cleanCity, 'i');
     }
 
@@ -1967,9 +2332,14 @@ exports.getNearMeProperties = async (req, res, next) => {
 
     // Compute exact distance and attach human-friendly distance metadata
     let properties = rawProperties.map((p) => {
-      const enriched = enrichPropertyWithSellerRole(p);
-      let distanceKm = null;
+      const userCoords = isGeospatial ? { lat: Number(targetLat), lng: Number(targetLng) } : null;
+      const enriched = enrichPropertyWithSellerRole(p, null, userCoords);
+      const isRent = ['rent', 'lease', 'pg'].includes((enriched.listingFor || '').toLowerCase());
+      const isResale = !isRent;
+
+      let distanceKm = enriched.distanceInKm;
       if (
+        distanceKm === null &&
         isGeospatial &&
         enriched.location &&
         Array.isArray(enriched.location.coordinates) &&
@@ -1986,8 +2356,13 @@ exports.getNearMeProperties = async (req, res, next) => {
       }
       return {
         ...enriched,
+        isResale,
+        isRent,
+        listingIntent: isRent ? 'Rent' : 'Resale',
         distanceInKm: distanceKm,
+        distanceMeters: distanceKm !== null ? Math.round(distanceKm * 1000) : null,
         distance: distanceKm !== null ? `${distanceKm} km` : null,
+        distanceText: formatDistanceText(distanceKm),
       };
     });
 
@@ -2057,21 +2432,59 @@ exports.getVerifiedProperties = async (req, res, next) => {
     }
 
     if (category)     query.category     = new RegExp(`^${category.trim()}$`, 'i');
-    if (listingFor)   query.listingFor   = new RegExp(`^${listingFor.trim()}$`, 'i');
     if (propertyType) query.propertyType = new RegExp(`^${propertyType.trim()}$`, 'i');
     if (city)         query.city         = new RegExp(city.trim(), 'i');
     if (locality)     query.locality     = new RegExp(locality.trim(), 'i');
 
+    // 🛡️ VERIFIED PROPERTIES RULE: Strictly display ONLY Resale & Rent properties
+    // (Developer/Builder primary projects belong to New Projects, not Resale/Rentals)
+    const cleanListingFor = (listingFor || req.query.type || '').trim().toLowerCase();
+
+    const builderUsers = await User.find({ role: 'builder' }).select('_id');
+    const builderUserIds = builderUsers.map((u) => u._id);
+
+    const nonBuilderFilter = {
+      postedByRole: { $nin: ['Builder', 'Developer'] },
+      userRole: { $nin: ['builder', 'developer'] },
+      listingAs: { $not: /builder|developer/i },
+      owner: { $nin: builderUserIds },
+    };
+
+    const isResaleCondition = {
+      listingFor: { $regex: /^(sale|resale)$/i },
+      ...nonBuilderFilter,
+    };
+
+    const isRentCondition = {
+      listingFor: { $in: ['Rent', 'Lease', 'PG', 'rent', 'lease', 'pg'] },
+      ...nonBuilderFilter,
+    };
+
+    if (!query.$and) query.$and = [];
+
+    if (cleanListingFor === 'rent' || cleanListingFor === 'lease' || cleanListingFor === 'pg') {
+      query.listingFor = new RegExp(`^${cleanListingFor}$`, 'i');
+      query.$and.push(nonBuilderFilter);
+    } else if (cleanListingFor === 'resale' || cleanListingFor === 'sale') {
+      query.$and.push(isResaleCondition);
+    } else {
+      query.$and.push({
+        $or: [isRentCondition, isResaleCondition],
+      });
+    }
+
     if (search) {
       const searchRegex = new RegExp(search.trim(), 'i');
-      query.$or = [
-        { title: searchRegex },
-        { city: searchRegex },
-        { locality: searchRegex },
-        { submissionId: searchRegex },
-        { propertyType: searchRegex },
-        { description: searchRegex },
-      ];
+      query.$and.push({
+        $or: [
+          { title: searchRegex },
+          { city: searchRegex },
+          { locality: searchRegex },
+          { submissionId: searchRegex },
+          { propertyType: searchRegex },
+          { description: searchRegex },
+        ],
+      });
     }
 
     if (minPrice || maxPrice) {
@@ -2089,12 +2502,23 @@ exports.getVerifiedProperties = async (req, res, next) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
-        .populate('owner', 'name email phone profilePicture role isVerified builderVerificationStatus agentVerificationStatus companyName reraNumber'),
+        .populate('owner', 'name email phone profilePicture role isVerified builderVerificationStatus agentVerificationStatus companyName reraNumber')
+        .lean(),
       Property.countDocuments(query),
     ]);
 
     const totalPages = Math.ceil(total / limitNum) || 1;
-    const enrichedProperties = properties.map((p) => enrichPropertyWithSellerRole(p));
+    const enrichedProperties = properties.map((p) => {
+      const enriched = enrichPropertyWithSellerRole(p);
+      const isRent = ['rent', 'lease', 'pg'].includes((enriched.listingFor || '').toLowerCase());
+      const isResale = !isRent;
+      return {
+        ...enriched,
+        isResale,
+        isRent,
+        listingIntent: isRent ? 'Rent' : 'Resale',
+      };
+    });
 
     res.status(200).json({
       status: 'success',
@@ -2146,8 +2570,31 @@ exports.getLatestProperties = async (req, res, next) => {
       query.owner = { $ne: currentUserId };
     }
 
-    if (category)     query.category     = new RegExp(`^${category.trim()}$`, 'i');
-    if (listingFor)   query.listingFor   = new RegExp(`^${listingFor.trim()}$`, 'i');
+    if (category) query.category = new RegExp(`^${category.trim()}$`, 'i');
+    if (listingFor) {
+      const cleanLF = (listingFor || '').trim().toLowerCase();
+      if (cleanLF === 'resale') {
+        const builderUsers = await User.find({ role: 'builder' }).select('_id');
+        const builderUserIds = builderUsers.map((u) => u._id);
+        const nonBuilder = {
+          postedByRole: { $nin: ['Builder', 'Developer'] },
+          userRole: { $nin: ['builder', 'developer'] },
+          listingAs: { $not: /builder|developer/i },
+          owner: { $nin: builderUserIds },
+        };
+        if (!query.$and) query.$and = [];
+        query.$and.push({
+          $or: [
+            { listingFor: new RegExp(`^resale$`, 'i') },
+            { listingFor: new RegExp(`^sale$`, 'i'), ...nonBuilder },
+          ],
+        });
+      } else if (cleanLF === 'sale') {
+        query.listingFor = new RegExp(`^(sale|resale)$`, 'i');
+      } else {
+        query.listingFor = new RegExp(`^${listingFor.trim()}$`, 'i');
+      }
+    }
     if (propertyType) query.propertyType = new RegExp(`^${propertyType.trim()}$`, 'i');
     if (city)         query.city         = new RegExp(city.trim(), 'i');
     if (locality)     query.locality     = new RegExp(locality.trim(), 'i');
@@ -2203,13 +2650,238 @@ exports.getLatestProperties = async (req, res, next) => {
   }
 };
 
-// @desc    Retrieve approved live developer/builder properties for New Projects page
-// @route   GET /api/user/properties/new-projects
-// @route   GET /api/properties/new-projects
+// @desc    Retrieve approved live developer/builder properties for New Projects, sorted nearest-first when location coordinates provided
+// @route   GET /api/user/properties/new-projects or GET /api/properties/new-projects
+// @route   GET /api/properties/new-projects/near-me
 // @access  Public
 exports.getNewProjectsProperties = async (req, res, next) => {
-  req.query.newProjects = 'true';
-  return exports.getAllProperties(req, res, next);
+  try {
+    const {
+      category,
+      propertyType,
+      city,
+      locality,
+      minPrice,
+      maxPrice,
+      bedrooms,
+      lat,
+      lng,
+      latitude,
+      longitude,
+      radius,
+      distanceInKm,
+      distance,
+      maxDistance,
+      radiusUnit = 'km',
+      page = 1,
+      limit = 20,
+      search,
+    } = req.query;
+
+    const query = {
+      approvalStatus: 'approved',
+      isLive: true,
+      isSold: { $ne: true },
+      saleStatus: { $ne: 'sold' },
+      // 🛡️ NEW PROJECTS RULE: Developer & Builder inventory strictly for Sale only
+      listingFor: 'Sale',
+    };
+
+    // Exclude properties listed by current user in discovery feed
+    const currentUserId = req.user?._id || req.query.userId || req.query.excludeOwner || req.query.currentUserId;
+    if (req.query.owner) {
+      query.owner = req.query.owner;
+    } else if (currentUserId) {
+      query.owner = { $ne: currentUserId };
+    }
+
+    if (category) query.category = new RegExp(`^${category.trim()}$`, 'i');
+    if (propertyType) query.propertyType = new RegExp(`^${propertyType.trim()}$`, 'i');
+    if (locality) query.locality = new RegExp(locality.trim(), 'i');
+    if (bedrooms) query.bedrooms = bedrooms;
+
+    if (minPrice || maxPrice) {
+      query.price = {};
+      if (minPrice) query.price.$gte = Number(minPrice);
+      if (maxPrice) query.price.$lte = Number(maxPrice);
+    }
+
+    // 🛡️ DEVELOPER / BUILDER FILTER ONLY
+    const builderUsers = await User.find({ role: 'builder' }).select('_id');
+    const builderUserIds = builderUsers.map((u) => u._id);
+
+    const builderConditions = [
+      { postedByRole: { $regex: /builder|developer/i } },
+      { userRole: { $regex: /builder|developer/i } },
+      { listingAs: { $regex: /builder|developer/i } },
+    ];
+    if (builderUserIds.length > 0) {
+      builderConditions.push({ owner: { $in: builderUserIds } });
+    }
+
+    if (!query.$and) query.$and = [];
+    query.$and.push({ $or: builderConditions });
+
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      query.$and.push({
+        $or: [
+          { title: searchRegex },
+          { city: searchRegex },
+          { locality: searchRegex },
+          { submissionId: searchRegex },
+          { propertyType: searchRegex },
+          { description: searchRegex },
+        ],
+      });
+    }
+
+    // ── Geospatial Proximity & Current Location ──────────────────────────
+    const targetLat = lat || latitude;
+    const targetLng = lng || longitude || req.query.long;
+    const isGeospatial =
+      targetLat !== undefined &&
+      targetLng !== undefined &&
+      !isNaN(Number(targetLat)) &&
+      !isNaN(Number(targetLng));
+
+    const hasValidCity = city && city !== 'null' && city !== 'undefined' && city.trim() !== '';
+    const cleanCity = hasValidCity ? city.split(',')[0].trim() : null;
+
+    if (isGeospatial) {
+      const rawRadius = radius ?? distanceInKm ?? distance ?? maxDistance ?? 50;
+      const parsedRadius = parseFloat(rawRadius) || 50;
+
+      let maxDistanceInKm = parsedRadius;
+      const unit = (radiusUnit || '').toLowerCase().trim();
+      if (unit === 'miles' || unit === 'mi') {
+        maxDistanceInKm = parsedRadius * 1.60934;
+      } else if (unit === 'meters' || unit === 'm') {
+        maxDistanceInKm = parsedRadius / 1000;
+      }
+      const radiusInRadians = maxDistanceInKm / 6378.1;
+
+      const geoFilter = {
+        location: {
+          $geoWithin: {
+            $centerSphere: [[Number(targetLng), Number(targetLat)], radiusInRadians],
+          },
+        },
+      };
+
+      if (cleanCity) {
+        query.$and.push({
+          $or: [
+            geoFilter,
+            { city: new RegExp(`^${cleanCity}$`, 'i') },
+            { city: new RegExp(cleanCity, 'i') },
+          ],
+        });
+      } else {
+        query.location = geoFilter.location;
+      }
+    } else if (cleanCity) {
+      query.city = new RegExp(cleanCity, 'i');
+    }
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10) || 20));
+    const skip = (pageNum - 1) * limitNum;
+
+    let [rawProperties, total] = await Promise.all([
+      Property.find(query)
+        .populate('owner', 'name email phone profilePicture role isVerified builderVerificationStatus agentVerificationStatus companyName reraNumber')
+        .lean(),
+      Property.countDocuments(query),
+    ]);
+
+    // If geospatial radius returned 0 developer projects, but coordinates were provided,
+    // fallback gracefully to fetch all developer projects and sort nearest first
+    if (isGeospatial && rawProperties.length === 0 && !cleanCity) {
+      const fallbackQuery = { ...query };
+      delete fallbackQuery.location;
+      if (fallbackQuery.$and) {
+        fallbackQuery.$and = fallbackQuery.$and.filter((c) => !c.location);
+      }
+      const [fallbackProps, fallbackTotal] = await Promise.all([
+        Property.find(fallbackQuery)
+          .populate('owner', 'name email phone profilePicture role isVerified builderVerificationStatus agentVerificationStatus companyName reraNumber')
+          .lean(),
+        Property.countDocuments(fallbackQuery),
+      ]);
+      rawProperties = fallbackProps;
+      total = fallbackTotal;
+    }
+
+    // Compute exact distance and attach human-friendly distance metadata
+    let properties = rawProperties.map((p) => {
+      const userCoords = isGeospatial ? { lat: Number(targetLat), lng: Number(targetLng) } : null;
+      const enriched = enrichPropertyWithSellerRole(p, req.user, userCoords);
+
+      let distanceKm = enriched.distanceInKm;
+      if (
+        distanceKm === null &&
+        isGeospatial &&
+        enriched.location &&
+        Array.isArray(enriched.location.coordinates) &&
+        enriched.location.coordinates.length >= 2
+      ) {
+        const propLng = enriched.location.coordinates[0];
+        const propLat = enriched.location.coordinates[1];
+        distanceKm = calculateDistanceInKm(
+          Number(targetLat),
+          Number(targetLng),
+          propLat,
+          propLng
+        );
+      }
+
+      return {
+        ...enriched,
+        isResale: false,
+        isRent: false,
+        isSale: true,
+        listingIntent: 'Sale',
+        displayListingFor: 'Sale',
+        distanceInKm: distanceKm,
+        distanceMeters: distanceKm !== null ? Math.round(distanceKm * 1000) : null,
+        distance: distanceKm !== null ? `${distanceKm} km` : null,
+        distanceText: formatDistanceText(distanceKm),
+      };
+    });
+
+    // Nearest first if geospatial coordinates provided; otherwise newest first
+    if (isGeospatial) {
+      properties.sort((a, b) => {
+        if (a.distanceInKm === null) return 1;
+        if (b.distanceInKm === null) return -1;
+        return a.distanceInKm - b.distanceInKm;
+      });
+    } else {
+      properties.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+
+    const paginatedProperties = properties.slice(skip, skip + limitNum);
+    const totalPages = Math.ceil(total / limitNum) || 1;
+
+    res.status(200).json({
+      status: 'success',
+      results: paginatedProperties.length,
+      totalCount: total,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages,
+      hasMore: pageNum < totalPages,
+      userLocation: isGeospatial ? { latitude: Number(targetLat), longitude: Number(targetLng) } : null,
+      isLocationSorted: isGeospatial,
+      data: {
+        properties: paginatedProperties,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 

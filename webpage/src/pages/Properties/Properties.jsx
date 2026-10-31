@@ -40,6 +40,7 @@ export default function Properties() {
               tokenAmount: p.tokenAmount || 100000,
               isSold: Boolean(p.isSold),
               saleStatus: p.saleStatus || (p.isSold ? 'sold' : 'available'),
+              possessionDate: p.possessionDate ? String(p.possessionDate).trim() : '',
             }));
             if (isMounted) setPropertiesList(mapped);
             return;

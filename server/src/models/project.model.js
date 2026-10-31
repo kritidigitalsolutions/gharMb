@@ -38,6 +38,14 @@ const projectSchema = new mongoose.Schema(
       required: [true, 'RERA project registration number is required.'],
       trim: true,
     },
+    // Multiple RERA Registrations for Project
+    reraNumbers: [
+      {
+        _id: false,
+        name: { type: String, trim: true, default: '' },
+        reraNumber: { type: String, trim: true },
+      },
+    ],
     reraExpiryDate: {
       type: String, // DD/MM/YYYY or ISO Date
       trim: true,
@@ -53,8 +61,23 @@ const projectSchema = new mongoose.Schema(
     },
     projectStatus: {
       type: String,
-      enum: ['Under construction', 'Ready to move', 'New launch'],
-      default: 'Under construction',
+      enum: [
+        'Under Construction',
+        'Ready to Move',
+        'New Launch',
+        'Under construction',
+        'Ready to move',
+        'New launch',
+      ],
+      default: 'Under Construction',
+      set: function (val) {
+        if (!val) return 'Under Construction';
+        const lower = String(val).toLowerCase().trim();
+        if (lower === 'ready to move') return 'Ready to Move';
+        if (lower === 'new launch') return 'New Launch';
+        if (lower === 'under construction') return 'Under Construction';
+        return val;
+      },
     },
     city: {
       type: String,
@@ -292,6 +315,38 @@ projectSchema.virtual('gallery').get(function () {
     type: 'video',
   }));
   return [...photos, ...videos];
+});
+
+// Virtual for primary RERA number
+projectSchema.virtual('reraNumber').get(function () {
+  if (Array.isArray(this.reraNumbers) && this.reraNumbers.length > 0) {
+    const first = this.reraNumbers[0];
+    return typeof first === 'string' ? first : (first?.reraNumber || '');
+  }
+  return this.reraProjectNumber || '';
+});
+
+// Pre-validate hook to synchronize reraNumbers and reraProjectNumber
+projectSchema.pre('validate', function () {
+  if (Array.isArray(this.reraNumbers) && this.reraNumbers.length > 0) {
+    this.reraNumbers = this.reraNumbers
+      .map((item, idx) => {
+        if (typeof item === 'string') {
+          return { name: `Phase ${idx + 1}`, reraNumber: item.trim() };
+        }
+        return {
+          name: (item.name || '').trim(),
+          reraNumber: (item.reraNumber || '').trim(),
+        };
+      })
+      .filter((r) => r.reraNumber);
+
+    if (!this.reraProjectNumber && this.reraNumbers.length > 0) {
+      this.reraProjectNumber = this.reraNumbers[0].reraNumber;
+    }
+  } else if (this.reraProjectNumber && (!this.reraNumbers || this.reraNumbers.length === 0)) {
+    this.reraNumbers = [{ name: 'Phase 1', reraNumber: this.reraProjectNumber.trim() }];
+  }
 });
 
 // Auto-generate Project Submission ID before saving
