@@ -525,9 +525,9 @@ const ServiceCatalogManagement = () => {
 
         </div>
 
-        {/* ─── DATA TABLE: 100% WIDTH, ZERO HORIZONTAL SCROLL ─── */}
-        <div className="w-full overflow-hidden">
-          <table className="w-full text-left border-collapse table-fixed">
+        {/* ─── DATA TABLE: RESPONSIVE SCROLLABLE TABLE ─── */}
+        <div className="w-full overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left border-collapse table-fixed min-w-[760px]">
             <colgroup>
               <col className="w-[40%]" />
               <col className="w-[20%]" />

@@ -54,6 +54,9 @@ const AdminRoutes = () => {
                 <Route path="tokens" element={<TokenBooking />} />
                 <Route path="references" element={<ReferenceWorkflow />} />
                 <Route path="revenue" element={<RevenueDashboard />} />
+                <Route path="transactions" element={<Navigate to="/admin/revenue" replace />} />
+                <Route path="payments" element={<Navigate to="/admin/revenue" replace />} />
+                <Route path="escrow" element={<Navigate to="/admin/revenue" replace />} />
                 <Route path="reports" element={<ReportsScreen />} />
                 <Route path="insights" element={<InsightsManagement />} />
                 <Route path="insights/categories" element={<InsightsCategories />} />

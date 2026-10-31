@@ -789,8 +789,8 @@ export default function BroadcastManagement() {
           ) : (
             /* COMPACT DENSE TABLE / LIST VIEW (~42-45px row height like Notifications) */
             <div className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xs overflow-hidden">
-              <div className="w-full overflow-hidden">
-                <table className="w-full text-left text-xs border-collapse table-fixed">
+              <div className="w-full overflow-x-auto custom-scrollbar">
+                <table className="w-full text-left text-xs border-collapse table-fixed min-w-[700px]">
                   <colgroup>
                     <col className="w-[14%]" />
                     <col className="w-[42%]" />

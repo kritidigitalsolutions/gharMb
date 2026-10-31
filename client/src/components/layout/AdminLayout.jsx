@@ -83,7 +83,7 @@ const AdminLayout = () => {
           toggleCollapse={toggleSidebarCollapse}
         />
         
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6 custom-scrollbar scroll-smooth bg-[var(--bg-main)]">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 custom-scrollbar scroll-smooth bg-[var(--bg-main)]">
           <div className="max-w-[1600px] mx-auto animate-in fade-in zoom-in-95 duration-500">
             <Suspense fallback={<PageLoader text="Loading admin section..." />}>
               <Outlet />

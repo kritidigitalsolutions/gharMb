@@ -900,9 +900,9 @@ const ServicesManagement = () => {
 
         </div>
 
-        {/* ─── DATA TABLE: 100% WIDTH, ZERO HORIZONTAL SCROLL ─── */}
-        <div className="w-full overflow-hidden">
-          <table className="w-full text-left border-collapse table-fixed">
+        {/* ─── DATA TABLE: RESPONSIVE SCROLLABLE TABLE ─── */}
+        <div className="w-full overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left border-collapse table-fixed min-w-[850px]">
             <colgroup>
               <col className="w-[26%]" />
               <col className="w-[26%]" />
@@ -2021,7 +2021,7 @@ const ServicesManagement = () => {
           onAddNote={async (text) => {
             const res = await API.patch(`/admin/services/${callTarget._id}`, { notes: text });
             if (res.data?.status === 'success') {
-              showFeedback('Call note saved');
+              showToast('Call note saved');
               fetchServices(true);
             }
           }}
