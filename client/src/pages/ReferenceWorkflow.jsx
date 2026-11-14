@@ -1204,7 +1204,7 @@ const ReferenceWorkflow = () => {
                   <MessageSquare size={16} strokeWidth={2.2} />
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-[var(--text-primary)]">Edit Referral Offer Message</h3>
+                  <h3 className="text-xs font-bold text-[var(--text-primary)]">Edit Referral Message</h3>
                   <p className="text-[10px] text-[var(--text-muted)]">Customize congratulations text shown when referral code is applied</p>
                 </div>
               </div>
