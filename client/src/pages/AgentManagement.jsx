@@ -18,6 +18,8 @@ import {
   Mail,
   MessageCircle,
   FileText,
+  CreditCard,
+  Image as ImageIcon,
   Eye,
   ZoomIn,
   ZoomOut,
@@ -402,10 +404,10 @@ const AgentManagement = () => {
           <div className="w-full overflow-hidden">
             <table className="w-full text-left border-collapse table-fixed">
               <colgroup>
-                <col className="w-[26%]" />
-                <col className="w-[20%]" />
+                <col className="w-[24%]" />
                 <col className="w-[18%]" />
                 <col className="w-[16%]" />
+                <col className="w-[22%]" />
                 <col className="w-[10%]" />
                 <col className="w-[10%]" />
               </colgroup>
@@ -507,68 +509,82 @@ const AgentManagement = () => {
                     </td>
 
                     {/* 4. Submitted Docs */}
-                    <td className="py-1.5 px-3 align-middle whitespace-nowrap overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-1 text-[9.5px]">
-                        <span
-                          onClick={() => {
-                            if (agent.hasReraDoc) {
-                              setLightboxDoc({
-                                url: agent.verificationDocs.reraCertificate,
-                                title: `RERA Certificate - ${agent.name}`,
-                                type: 'rera'
-                              });
-                            }
-                          }}
-                          className={`px-1.5 py-0.2 rounded font-semibold inline-flex items-center gap-0.5 ${
-                            agent.hasReraDoc
-                              ? 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20 cursor-pointer hover:bg-purple-500/20'
-                              : 'bg-[var(--bg-muted)] text-[var(--text-muted)] border border-[var(--border)] opacity-60'
-                          }`}
-                        >
-                          <FileText size={9} />
-                          <span>RERA</span>
-                        </span>
+                    <td className="py-2 px-3 align-middle whitespace-nowrap overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                      {!agent.hasReraDoc && !agent.hasAadhaarDoc && !agent.hasPhotoDoc ? (
+                        <span className="text-[11px] text-[var(--text-muted)] italic">No docs uploaded</span>
+                      ) : (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {agent.hasReraDoc ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLightboxDoc({
+                                  url: agent.verificationDocs.reraCertificate,
+                                  title: `RERA Certificate - ${agent.name}`,
+                                  type: 'rera'
+                                });
+                              }}
+                              className="px-2 py-0.5 rounded-md font-semibold text-[10px] inline-flex items-center gap-1 bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/25 cursor-pointer hover:bg-purple-500/20 active:scale-95 transition-all shadow-2xs"
+                              title="Click to inspect RERA Certificate"
+                            >
+                              <ShieldCheck size={11} className="shrink-0" />
+                              <span>RERA</span>
+                            </button>
+                          ) : (
+                            <span
+                              className="px-1.5 py-0.5 rounded-md text-[9.5px] font-medium inline-flex items-center gap-1 bg-[var(--bg-muted)] text-[var(--text-muted)] border border-dashed border-[var(--border)] opacity-60 cursor-not-allowed select-none"
+                              title="RERA Certificate not submitted"
+                            >
+                              <FileText size={10} className="shrink-0" />
+                              <span className="line-through">RERA</span>
+                            </span>
+                          )}
 
-                        <span
-                          onClick={() => {
-                            if (agent.hasAadhaarDoc) {
-                              setLightboxDoc({
-                                url: agent.verificationDocs.aadhaarCard,
-                                title: `Aadhaar ID - ${agent.name}`,
-                                type: 'aadhaar'
-                              });
-                            }
-                          }}
-                          className={`px-1.5 py-0.2 rounded font-semibold inline-flex items-center gap-0.5 ${
-                            agent.hasAadhaarDoc
-                              ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20 cursor-pointer hover:bg-sky-500/20'
-                              : 'bg-[var(--bg-muted)] text-[var(--text-muted)] border border-[var(--border)] opacity-60'
-                          }`}
-                        >
-                          <FileText size={9} />
-                          <span>Aadhaar</span>
-                        </span>
+                          {agent.hasAadhaarDoc ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLightboxDoc({
+                                  url: agent.verificationDocs.aadhaarCard,
+                                  title: `Aadhaar ID - ${agent.name}`,
+                                  type: 'aadhaar'
+                                });
+                              }}
+                              className="px-2 py-0.5 rounded-md font-semibold text-[10px] inline-flex items-center gap-1 bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/25 cursor-pointer hover:bg-sky-500/20 active:scale-95 transition-all shadow-2xs"
+                              title="Click to inspect Aadhaar ID"
+                            >
+                              <CreditCard size={11} className="shrink-0" />
+                              <span>Aadhaar</span>
+                            </button>
+                          ) : (
+                            <span
+                              className="px-1.5 py-0.5 rounded-md text-[9.5px] font-medium inline-flex items-center gap-1 bg-[var(--bg-muted)] text-[var(--text-muted)] border border-dashed border-[var(--border)] opacity-60 cursor-not-allowed select-none"
+                              title="Aadhaar ID not submitted"
+                            >
+                              <CreditCard size={10} className="shrink-0" />
+                              <span className="line-through">Aadhaar</span>
+                            </span>
+                          )}
 
-                        <span
-                          onClick={() => {
-                            if (agent.hasPhotoDoc) {
-                              setLightboxDoc({
-                                url: agent.verificationDocs.profilePhoto,
-                                title: `Profile Photo - ${agent.name}`,
-                                type: 'photo'
-                              });
-                            }
-                          }}
-                          className={`px-1.5 py-0.2 rounded font-semibold inline-flex items-center gap-0.5 ${
-                            agent.hasPhotoDoc
-                              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20'
-                              : 'bg-[var(--bg-muted)] text-[var(--text-muted)] border border-[var(--border)] opacity-60'
-                          }`}
-                        >
-                          <Eye size={9} />
-                          <span>Photo</span>
-                        </span>
-                      </div>
+                          {agent.hasPhotoDoc ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLightboxDoc({
+                                  url: agent.verificationDocs.profilePhoto,
+                                  title: `Profile Photo - ${agent.name}`,
+                                  type: 'photo'
+                                });
+                              }}
+                              className="px-2 py-0.5 rounded-md font-semibold text-[10px] inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 cursor-pointer hover:bg-emerald-500/20 active:scale-95 transition-all shadow-2xs"
+                              title="Click to inspect Profile Photo"
+                            >
+                              <ImageIcon size={11} className="shrink-0" />
+                              <span>Photo</span>
+                            </button>
+                          ) : null}
+                        </div>
+                      )}
                     </td>
 
                     {/* 5. Status */}
@@ -1161,7 +1177,7 @@ const AgentManagement = () => {
 
             {/* Preview Canvas */}
             <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-zinc-950/20 min-h-[300px]">
-              {lightboxDoc.url?.toLowerCase().endsWith('.pdf') ? (
+              {lightboxDoc.url?.toLowerCase().includes('.pdf') ? (
                 <iframe
                   src={lightboxDoc.url}
                   title="Document Preview"

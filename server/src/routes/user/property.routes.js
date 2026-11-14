@@ -25,6 +25,9 @@ router.get('/verified', optionalAuth, propertyController.getVerifiedProperties);
 
 router.get('/near-me', optionalAuth, propertyController.getNearMeProperties);
 
+// 📍 ALL NEAR-ME EXPLORE (Commercial, Residential, New Projects/Builders, Sale, Resale, Rent)
+router.get('/explore-near-me', optionalAuth, propertyController.getExploreNearMeProperties);
+
 // 🛡️ NEW PROJECTS PAGE: Exclusively returns verified Developer/Builder properties
 router.get('/new-projects/near-me', optionalAuth, propertyController.getNewProjectsProperties);
 router.get('/new-projects', optionalAuth, propertyController.getNewProjectsProperties);

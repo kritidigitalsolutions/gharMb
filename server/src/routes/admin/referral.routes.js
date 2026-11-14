@@ -20,7 +20,13 @@ router.route('/')
   .get(referralController.getAllReferrals)
   .post(referralController.createReferral);
 
-// 2. Single Referral CRUD
+// 2. Global Referral Settings (Offer message, template, active state)
+router.route('/settings')
+  .get(referralController.getReferralSettings)
+  .patch(referralController.updateReferralSettings)
+  .put(referralController.updateReferralSettings);
+
+// 3. Single Referral CRUD
 router.route('/:id')
   .get(referralController.getReferralById)
   .patch(referralController.updateReferral)

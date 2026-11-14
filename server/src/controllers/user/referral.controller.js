@@ -11,6 +11,7 @@ const mongoose = require('mongoose');
 const User = require('../../models/user.model');
 const Referral = require('../../models/referral.model');
 const Notification = require('../../models/notification.model');
+const ReferralSetting = require('../../models/referral-setting.model');
 const {
   validateReferralCode: checkReferralCode,
   generateUniqueReferralCode,
@@ -68,18 +69,18 @@ exports.validateReferralCode = async (req, res, next) => {
     }
 
     const referrer = result.referrer;
+    const dynamicMessage = result.message || 'Congratulations! You got an offer with this referral.';
 
     return res.status(200).json({
       status: 'success',
       isValid: true,
-      message: 'Referral code applied! You and your friend both win ₹250 reward upon signup.',
+      message: dynamicMessage,
       data: {
         referralCode: result.referralCode || referrer.referralCode,
         referrerName: referrer.name,
         referrerDisplayName: maskName(referrer.name),
-        rewardAmount: 250,
-        currency: '₹',
-        rewardDescription: '₹250 cash reward won upon signup. GharMB Admin will contact both users directly to deliver payment out of the app.',
+        rewardAmount: null,
+        rewardDescription: dynamicMessage,
       },
     });
   } catch (error) {
@@ -135,8 +136,16 @@ exports.getReferralDashboard = async (req, res, next) => {
       }),
     ]);
 
-    const rewardPerReferral = 250;
-    const totalRewardEarned = user.referralRewardEarned || (friendsInvitedCount * rewardPerReferral);
+    const rewardPerReferral = 0;
+    const totalRewardEarned = user.referralRewardEarned || 0;
+
+    let dynamicOfferMessage = 'Congratulations! You got an offer with this referral.';
+    try {
+      const settings = await ReferralSetting.getSettings();
+      if (settings && settings.offerMessage) {
+        dynamicOfferMessage = settings.offerMessage;
+      }
+    } catch {}
 
     // Web & App referral link
     const webDomain = process.env.CLIENT_URL || 'https://gharmb.com';
@@ -144,17 +153,17 @@ exports.getReferralDashboard = async (req, res, next) => {
     const appInviteLink = `gharmb://invite?code=${encodeURIComponent(userReferralCode)}`;
 
     // Share messages tailored for WhatsApp, SMS, Email, and generic share sheet
-    const shareText = `Join me on GharMB to find and list verified properties! Use my referral code *${userReferralCode}* to get ₹250 reward upon signup. GharMB Admin will contact you to deliver payment out of the app: ${referralLink}`;
+    const shareText = `Join me on GharMB to find and list verified properties! Use my referral code *${userReferralCode}* to get an exclusive offer upon signup: ${referralLink}`;
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
-    const smsBody = `Download GharMB and use my referral code ${userReferralCode} to get ₹250 reward: ${referralLink}`;
-    const emailSubject = `Join GharMB & Earn ₹250 Reward`;
-    const emailBody = `Hi,\n\nI'm inviting you to GharMB, India's trusted property platform. Register using my referral code ${userReferralCode} and we both win ₹250 reward. GharMB Admin will contact you to deliver your reward out of the app:\n\n${referralLink}\n\nHappy property searching!`;
+    const smsBody = `Download GharMB and use my referral code ${userReferralCode} to get an offer with this referral: ${referralLink}`;
+    const emailSubject = `Join GharMB with Referral Code ${userReferralCode}`;
+    const emailBody = `Hi,\n\nI'm inviting you to GharMB, India's trusted property platform. Register using my referral code ${userReferralCode} and get an exclusive offer with this referral:\n\n${referralLink}\n\nHappy property searching!`;
 
     // Format recent invited friends for UI
     const formattedRecentFriends = recentReferrals.map((ref) => {
-      let displayStatus = 'Admin Will Contact Soon';
+      let displayStatus = 'Offer Unlocked';
       if (ref.payoutStatus === 'Paid' || ref.claimStatus === 'paid') {
-        displayStatus = 'Reward Delivered';
+        displayStatus = 'Offer Availed';
       } else if (ref.claimStatus === 'rejected') {
         displayStatus = 'Rejected';
       }
@@ -170,9 +179,9 @@ exports.getReferralDashboard = async (req, res, next) => {
           year: 'numeric',
         }),
         status: displayStatus,
-        payoutStatus: ref.payoutStatus || 'Pending Admin Contact',
-        rewardAmount: ref.rewardAmount || rewardPerReferral,
-        currency: '₹',
+        payoutStatus: ref.payoutStatus || 'Offer Active',
+        rewardAmount: null,
+        offerMessage: dynamicOfferMessage,
         adminNotes: ref.adminSettlementNotes || '',
       };
     });
@@ -188,9 +197,8 @@ exports.getReferralDashboard = async (req, res, next) => {
         // KPI Banner Stats matching mobile screen
         stats: {
           friendsInvited: friendsInvitedCount,
-          totalRewardEarned,
-          rewardPerReferral,
-          currency: '₹',
+          totalRewardEarned: 0,
+          rewardPerReferral: 0,
           pendingContactCount,
           settledCount,
           walletCoins: 0,
@@ -199,10 +207,10 @@ exports.getReferralDashboard = async (req, res, next) => {
 
         // Hero Card details
         card: {
-          title: `Invite & Earn ₹${rewardPerReferral}`,
-          subtitle: `Get ₹${rewardPerReferral} reward for every friend who joins GharMB using your code. Admin contacts you directly to deliver your reward!`,
-          badge: 'Lifetime Referral Code',
-          perReferralText: `₹${rewardPerReferral} Per Referral`,
+          title: 'Invite Friends & Unlock Offers',
+          subtitle: 'Invite your friends to GharMB with your referral code to unlock exclusive offers!',
+          badge: 'Referral Code',
+          perReferralText: 'Exclusive Offer',
         },
 
         // Direct Share Channels
@@ -244,14 +252,14 @@ exports.getReferralDashboard = async (req, res, next) => {
           },
           {
             stepNumber: 3,
-            title: 'Both win ₹250',
-            description: 'Both you and your friend win ₹250 reward immediately upon signup',
+            title: 'Unlock Offers',
+            description: 'Congratulations! You and your friend get an exclusive offer with this referral',
             icon: 'gift',
           },
           {
             stepNumber: 4,
-            title: 'Admin contacts you',
-            description: 'GharMB Admin gets notified and calls both users directly to deliver payments out of the app',
+            title: 'Enjoy Benefits',
+            description: 'Explore verified properties and exclusive platform benefits on GharMB',
             icon: 'phone-call',
           },
         ],
@@ -259,9 +267,8 @@ exports.getReferralDashboard = async (req, res, next) => {
         // Exact Terms & Conditions
         termsAndConditions: [
           'Referral valid for new user signups',
-          'Both referrer and new user win ₹250 reward upon signup',
-          'Users do not need to contact admin; GharMB Admin contacts you directly',
-          'Reward payment is delivered out of the app (UPI, Cash, or Direct Transfer)',
+          dynamicOfferMessage,
+          'Applicable across GharMB platform services',
         ],
 
         // Recent Activity
@@ -320,9 +327,9 @@ exports.getReferralHistory = async (req, res, next) => {
         referralCodeUsed: ref.referralCode,
         status: statusLabel,
         rawStatus: ref.referralStatus,
-        payoutStatus: ref.payoutStatus || 'Pending Admin Contact',
-        rewardAmount: ref.rewardAmount || 250,
-        currency: '₹',
+        payoutStatus: ref.payoutStatus || 'Offer Unlocked',
+        rewardAmount: ref.rewardAmount || 0,
+        offerMessage: 'Congratulations! You got an offer with this referral.',
         rewardCreditedAt: ref.rewardCreditedAt || ref.createdAt,
         joinedAt: ref.createdAt,
       };
@@ -392,10 +399,9 @@ exports.applyReferralCode = async (req, res, next) => {
     // Link referrer
     user.referredBy = referrer._id;
     user.appliedReferralCode = cleanCode;
-    user.referralRewardEarned = (user.referralRewardEarned || 0) + 250;
     await user.save();
 
-    // Create referral tracking record (instant ₹250 reward for both users)
+    // Create referral tracking record
     const newReferral = await Referral.create({
       programType: 'refer_and_earn',
       referrerUser: referrer._id,
@@ -407,46 +413,53 @@ exports.applyReferralCode = async (req, res, next) => {
       refereeName: user.name,
       refereePhone: user.phone,
       refereeEmail: user.email,
-      rewardAmount: 250,
-      claimedAmount: 250,
+      rewardAmount: 0,
+      claimedAmount: 0,
       referralStatus: 'rewarded',
-      claimStatus: 'pending_admin_payout',
-      payoutStatus: 'Pending Admin Contact',
-      notes: `Referral code ${cleanCode} applied post-signup by ${user.name}. Both users won ₹250 reward. Admin notified to contact users to deliver reward out of app.`,
+      claimStatus: 'completed',
+      payoutStatus: 'Offer Unlocked',
+      notes: `Referral code ${cleanCode} applied post-signup by ${user.name}. Referral offer unlocked for both users.`,
     });
 
-    // Increment referrer's referralCount & referralRewardEarned
+    // Fetch dynamic offer message from settings (with safe fallback)
+    let dynamicOfferMessage = 'Congratulations! You got an offer with this referral.';
+    try {
+      const settings = await ReferralSetting.getSettings();
+      if (settings && settings.offerMessage) {
+        dynamicOfferMessage = settings.offerMessage;
+      }
+    } catch {}
+
+    // Increment referrer's referralCount
     await User.findByIdAndUpdate(referrer._id, {
-      $inc: { referralCount: 1, referralRewardEarned: 250 },
+      $inc: { referralCount: 1 },
     });
 
     // ── 1. Notify Referrer ────────────────────────────────────────────────────
     await Notification.create({
       recipient: referrer._id,
-      title: '🎉 You Won ₹250 Referral Reward!',
-      message: `Your friend ${user.name} applied your referral code (${cleanCode})! Both of you have won ₹250 reward. GharMB Admin will contact you on ${referrer.phone} to deliver your payment out of the app.`,
-      type: 'payment',
+      title: '🎉 Referral Offer Unlocked!',
+      message: `Congratulations! Your friend ${user.name} applied your referral code (${cleanCode}). You both got an offer with this referral!`,
+      type: 'referral',
       metadata: {
         referralId: newReferral._id,
         friendName: user.name,
-        rewardAmount: 250,
       },
     });
 
     // ── 2. Notify Referee (Current User) ──────────────────────────────────────
     await Notification.create({
       recipient: user._id,
-      title: '🎉 You Won ₹250 Referral Reward!',
-      message: `You applied ${referrer.name}'s referral code and won ₹250 reward! GharMB Admin will contact you on ${user.phone} to deliver your payment out of the app.`,
-      type: 'payment',
+      title: '🎉 Congratulations!',
+      message: dynamicOfferMessage,
+      type: 'referral',
       metadata: {
         referralId: newReferral._id,
         referrerName: referrer.name,
-        rewardAmount: 250,
       },
     });
 
-    // ── 3. Notify Admin(s) immediately so Admin contacts users directly ───────
+    // ── 3. Notify Admin(s) ───────────────────────────────────────────────────
     try {
       const Admin = require('../../models/admin.model');
       const admins = await Admin.find({ isActive: true }).select('_id');
@@ -454,9 +467,9 @@ exports.applyReferralCode = async (req, res, next) => {
         await Notification.insertMany(
           admins.map((admin) => ({
             recipient: admin._id,
-            title: '📞 Referral Reward Won! Contact Users to Pay',
-            message: `${user.name} (📞 ${user.phone}) applied ${referrer.name}'s (📞 ${referrer.phone}) referral code. Both users won ₹250 reward! Please contact both users directly to deliver payment out of the app.`,
-            type: 'payment',
+            title: '🎉 Referral Offer Applied',
+            message: `${user.name} (📞 ${user.phone}) applied ${referrer.name}'s (📞 ${referrer.phone}) referral code. Referral offer unlocked.`,
+            type: 'referral',
             forAdmin: true,
             metadata: {
               referralId: newReferral._id,
@@ -466,7 +479,6 @@ exports.applyReferralCode = async (req, res, next) => {
               refereeId: user._id,
               refereeName: user.name,
               refereePhone: user.phone,
-              rewardAmount: 250,
             },
           }))
         );
@@ -476,25 +488,22 @@ exports.applyReferralCode = async (req, res, next) => {
     }
 
     console.log(`\n==================================================`);
-    console.log(`🎁 [REFERRAL CODE APPLIED — BOTH USERS REWARDED ₹250]`);
+    console.log(`🎁 [REFERRAL CODE APPLIED — OFFER UNLOCKED]`);
     console.log(`   Referrer : ${referrer.name} (📞 ${referrer.phone})`);
     console.log(`   Referee  : ${user.name} (📞 ${user.phone})`);
-    console.log(`   Reward   : ₹250 each`);
-    console.log(`   Action   : Admin notified to contact users & pay out of app`);
+    console.log(`   Action   : ${dynamicOfferMessage}`);
     console.log(`==================================================\n`);
 
     return res.status(200).json({
       status: 'success',
-      message: 'Referral code applied successfully! Both you and your friend have won ₹250 reward. GharMB Admin will contact you directly to deliver your reward out of the app.',
+      message: dynamicOfferMessage,
       data: {
         referredBy: {
           name: referrer.name,
           referralCode: cleanCode,
         },
-        rewardAmount: 250,
-        currency: '₹',
-        payoutStatus: 'Pending Admin Contact',
-        note: 'GharMB Admin will contact you directly on your phone to deliver your payment out of the app.',
+        rewardAmount: null,
+        offerMessage: dynamicOfferMessage,
       },
     });
   } catch (error) {

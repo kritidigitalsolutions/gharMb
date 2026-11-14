@@ -235,11 +235,13 @@ const enrichPropertyWithSellerRole = (propertyDoc, fallbackOwner = null, userCoo
   obj.averageRating = Number(obj.rating) || 0;
   obj.totalRatings = Number(obj.reviewsCount) || 0;
 
-  // Multiple BHK configurations metadata: ONLY BHK and its Price
+  // Multiple BHK configurations metadata: BHK, Price, Carpet Area, and Floor Plan Image
   obj.bhkConfigurations = Array.isArray(obj.bhkConfigurations)
     ? obj.bhkConfigurations.map(b => ({
         bhk: b.bhk || b.bhkType || '',
-        price: Number(b.price) || 0
+        price: Number(b.price) || 0,
+        carpetArea: b.carpetArea !== undefined && b.carpetArea !== null && !isNaN(Number(b.carpetArea)) ? Number(b.carpetArea) : null,
+        planImage: b.planImage || b.planImageUrl || b.floorPlan || null,
       }))
     : [];
   obj.hasMultipleBhk = obj.bhkConfigurations.length > 0;
@@ -282,6 +284,12 @@ const enrichPropertyWithSellerRole = (propertyDoc, fallbackOwner = null, userCoo
 
   // Expected Possession Date (Month & Year only)
   obj.possessionDate = normalizePossessionDate(obj.possessionDate);
+
+  // Statutory Approvals: OC and CC Separated
+  obj.ocReceived = Boolean(obj.ocReceived);
+  obj.ccReceived = Boolean(obj.ccReceived);
+  obj.ocStatus = obj.ocReceived ? 'OC Received' : 'OC Pending';
+  obj.ccStatus = obj.ccReceived ? 'CC Received' : 'CC Pending';
 
   // Sale status attributes
   obj.isSold = Boolean(obj.isSold);
@@ -1312,6 +1320,55 @@ exports.createProperty = async (req, res, next) => {
       possessionDate: normalizePossessionDate(req.body.possessionDate),
     };
 
+    // ── 🛡️ DEVELOPER / BUILDER STRICT SALE & SPECS SANITIZATION ──────────────
+    // Developer & Builder inventory strictly belongs to 'Sale' (New Projects)
+    // and omits single-unit resale specs (floorNo, ageOfProperty, bathrooms, carpetArea, builtUpArea).
+    if (normalizedUserRole === 'builder' || effectiveRole === 'builder' || isListingAsDeveloper) {
+      propertyData.listingFor = 'Sale';
+      delete propertyData.floorNo;
+      delete propertyData.ageOfProperty;
+      delete propertyData.bathrooms;
+      delete propertyData.carpetArea;
+      delete propertyData.builtUpArea;
+      propertyData.floorNo = undefined;
+      propertyData.ageOfProperty = undefined;
+      propertyData.bathrooms = undefined;
+      propertyData.carpetArea = undefined;
+      propertyData.builtUpArea = undefined;
+      if (!propertyData.bhkConfigurations || propertyData.bhkConfigurations.length === 0) {
+        delete propertyData.bedrooms;
+        propertyData.bedrooms = undefined;
+      }
+    } else if (!propertyData.listingFor) {
+      propertyData.listingFor = 'Sale';
+    } else {
+      const cleanLF = String(propertyData.listingFor).trim().toLowerCase();
+      if (cleanLF === 'sale') propertyData.listingFor = 'Sale';
+      else if (cleanLF === 'rent') propertyData.listingFor = 'Rent';
+      else if (cleanLF === 'resale') propertyData.listingFor = 'Resale';
+      else if (cleanLF === 'lease') propertyData.listingFor = 'Lease';
+      else if (cleanLF === 'pg') propertyData.listingFor = 'PG';
+    }
+
+    // ── 🛡️ SEPARATED OC & CC STATUTORY APPROVALS ─────────────────────────────
+    if (req.body.ocReceived !== undefined) {
+      propertyData.ocReceived = req.body.ocReceived === true || req.body.ocReceived === 'true' || req.body.ocReceived === 'yes';
+    } else if (req.body.occupancyCertificateReceived !== undefined) {
+      propertyData.ocReceived = req.body.occupancyCertificateReceived === true || req.body.occupancyCertificateReceived === 'true';
+    } else if (req.body.ocCcReceived !== undefined || req.body.oc_cc_received !== undefined) {
+      const legacy = req.body.ocCcReceived ?? req.body.oc_cc_received;
+      propertyData.ocReceived = legacy === true || legacy === 'true' || legacy === 'yes';
+    }
+
+    if (req.body.ccReceived !== undefined) {
+      propertyData.ccReceived = req.body.ccReceived === true || req.body.ccReceived === 'true' || req.body.ccReceived === 'yes';
+    } else if (req.body.completionCertificateReceived !== undefined) {
+      propertyData.ccReceived = req.body.completionCertificateReceived === true || req.body.completionCertificateReceived === 'true';
+    } else if (req.body.ocCcReceived !== undefined || req.body.oc_cc_received !== undefined) {
+      const legacy = req.body.ocCcReceived ?? req.body.oc_cc_received;
+      propertyData.ccReceived = legacy === true || legacy === 'true' || legacy === 'yes';
+    }
+
     // ── 🛡️ MEDIA EXTRACTION & SEPARATION (Images & Videos) ─────────────────────
     const isMediaVideo = (url) => {
       if (!url || typeof url !== 'string') return false;
@@ -1371,7 +1428,7 @@ exports.createProperty = async (req, res, next) => {
     }
 
     // ── 🛡️ MULTIPLE BHK OPTIONS FOR DEVELOPERS / BUILDERS ─────────────────────
-    // Parse and handle multiple BHK configurations: ONLY BHK and its custom Price
+    // Parse and handle multiple BHK configurations: BHK, custom Price, Carpet Area, and Floor Plan Image
     let bhkConfigs = req.body.bhkConfigurations;
     if (typeof bhkConfigs === 'string') {
       try {
@@ -1386,6 +1443,8 @@ exports.createProperty = async (req, res, next) => {
           bhk: item.bhk || item.bhkType || '',
           bhkType: item.bhk || item.bhkType || '',
           price: Number(item.price) || 0,
+          carpetArea: item.carpetArea !== undefined && item.carpetArea !== null && !isNaN(Number(item.carpetArea)) ? Number(item.carpetArea) : null,
+          planImage: item.planImage ? String(item.planImage).trim() : (item.planImageUrl ? String(item.planImageUrl).trim() : (item.floorPlan ? String(item.floorPlan).trim() : null)),
         }))
         .filter((b) => b.bhk && b.price > 0);
 
@@ -1891,6 +1950,27 @@ exports.updateProperty = async (req, res, next) => {
       }
     }
 
+    // 🛡️ DEVELOPER / BUILDER STRICT SALE GUARD: Developer inventory strictly stays 'Sale'
+    const isPropertyDeveloper =
+      property.userRole === 'builder' ||
+      property.postedByRole === 'Builder' ||
+      String(property.listingAs || '').toLowerCase().includes('builder') ||
+      String(property.listingAs || '').toLowerCase().includes('developer');
+
+    if (!isAdmin && (isPropertyDeveloper || (req.user?.role || '').toLowerCase() === 'builder' || (req.user?.role || '').toLowerCase() === 'developer')) {
+      updateFields.listingFor = 'Sale';
+      delete updateFields.floorNo;
+      delete updateFields.ageOfProperty;
+      delete updateFields.bathrooms;
+      delete updateFields.carpetArea;
+      delete updateFields.builtUpArea;
+      updateFields.floorNo = undefined;
+      updateFields.ageOfProperty = undefined;
+      updateFields.bathrooms = undefined;
+      updateFields.carpetArea = undefined;
+      updateFields.builtUpArea = undefined;
+    }
+
     // 🛡️ Security Deposit & Duration rule: Remove / clear for properties available for Sale or Resale
     const targetListingFor = updateFields.listingFor || property.listingFor;
     if (['sale', 'resale'].includes(String(targetListingFor || '').trim().toLowerCase())) {
@@ -1898,7 +1978,20 @@ exports.updateProperty = async (req, res, next) => {
       updateFields.securityDepositDuration = undefined;
     }
 
-    // Handle multiple BHK configurations update: ONLY BHK and its Price
+    // 🛡️ SEPARATED OC & CC STATUTORY APPROVALS UPDATE
+    if (updateFields.ocReceived !== undefined) {
+      updateFields.ocReceived = updateFields.ocReceived === true || updateFields.ocReceived === 'true' || updateFields.ocReceived === 'yes';
+    } else if (updateFields.occupancyCertificateReceived !== undefined) {
+      updateFields.ocReceived = updateFields.occupancyCertificateReceived === true || updateFields.occupancyCertificateReceived === 'true';
+    }
+
+    if (updateFields.ccReceived !== undefined) {
+      updateFields.ccReceived = updateFields.ccReceived === true || updateFields.ccReceived === 'true' || updateFields.ccReceived === 'yes';
+    } else if (updateFields.completionCertificateReceived !== undefined) {
+      updateFields.ccReceived = updateFields.completionCertificateReceived === true || updateFields.completionCertificateReceived === 'true';
+    }
+
+    // Handle multiple BHK configurations update: BHK, Price, Carpet Area, and Floor Plan Image
     if (updateFields.bhkConfigurations !== undefined) {
       let configs = updateFields.bhkConfigurations;
       if (typeof configs === 'string') {
@@ -1914,6 +2007,8 @@ exports.updateProperty = async (req, res, next) => {
             bhk: item.bhk || item.bhkType || '',
             bhkType: item.bhk || item.bhkType || '',
             price: Number(item.price) || 0,
+            carpetArea: item.carpetArea !== undefined && item.carpetArea !== null && !isNaN(Number(item.carpetArea)) ? Number(item.carpetArea) : null,
+            planImage: item.planImage ? String(item.planImage).trim() : (item.planImageUrl ? String(item.planImageUrl).trim() : (item.floorPlan ? String(item.floorPlan).trim() : null)),
           }))
           .filter((b) => b.bhk && b.price > 0);
       } else {
@@ -2359,6 +2454,216 @@ exports.getNearMeProperties = async (req, res, next) => {
         isResale,
         isRent,
         listingIntent: isRent ? 'Rent' : 'Resale',
+        distanceInKm: distanceKm,
+        distanceMeters: distanceKm !== null ? Math.round(distanceKm * 1000) : null,
+        distance: distanceKm !== null ? `${distanceKm} km` : null,
+        distanceText: formatDistanceText(distanceKm),
+      };
+    });
+
+    // Nearest first if geospatial coordinates provided; otherwise newest first
+    if (isGeospatial) {
+      properties.sort((a, b) => {
+        if (a.distanceInKm === null) return 1;
+        if (b.distanceInKm === null) return -1;
+        return a.distanceInKm - b.distanceInKm;
+      });
+    } else {
+      properties.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+
+    const paginatedProperties = properties.slice(skip, skip + limitNum);
+    const totalPages = Math.ceil(total / limitNum) || 1;
+
+    res.status(200).json({
+      status: 'success',
+      results: paginatedProperties.length,
+      totalCount: total,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages,
+      hasMore: pageNum < totalPages,
+      data: {
+        properties: paginatedProperties,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Retrieve all near-me properties (Commercial, Residential, New Projects/Builders, Sale, Resale, Rent)
+// @route   GET /api/properties/explore-near-me or GET /api/user/properties/explore-near-me
+// @access  Public
+exports.getExploreNearMeProperties = async (req, res, next) => {
+  try {
+    const {
+      city,
+      lat,
+      lng,
+      latitude,
+      longitude,
+      radius,
+      distanceInKm,
+      distance,
+      maxDistance,
+      radiusUnit = 'km',
+      limit = 20,
+      page = 1,
+      keyHandover,
+      category,
+      listingFor,
+      propertyType,
+      search,
+      minPrice,
+      maxPrice,
+      bedrooms,
+    } = req.query;
+
+    const query = {
+      approvalStatus: 'approved',
+      isLive: true,
+      isSold: { $ne: true },
+      saleStatus: { $ne: 'sold' },
+    };
+
+    // Exclude properties listed by current user in discovery feed if logged in
+    const currentUserId = req.user?._id || req.query.userId || req.query.excludeOwner || req.query.currentUserId;
+    if (req.query.owner) {
+      query.owner = req.query.owner;
+    } else if (currentUserId) {
+      query.owner = { $ne: currentUserId };
+    }
+
+    if (keyHandover !== undefined) {
+      query.keyHandover = keyHandover === 'true' || keyHandover === true;
+    }
+    if (category) query.category = new RegExp(`^${category.trim()}$`, 'i');
+    if (propertyType) query.propertyType = new RegExp(`^${propertyType.trim()}$`, 'i');
+    if (bedrooms) query.bedrooms = bedrooms;
+
+    // Optional filter by listingFor if explicitly provided by caller
+    if (listingFor) {
+      const cleanListingFor = listingFor.trim().toLowerCase();
+      if (cleanListingFor === 'rent' || cleanListingFor === 'lease' || cleanListingFor === 'pg') {
+        query.listingFor = new RegExp(`^${cleanListingFor}$`, 'i');
+      } else if (cleanListingFor === 'sale' || cleanListingFor === 'resale') {
+        query.listingFor = { $regex: /^(sale|resale)$/i };
+      } else {
+        query.listingFor = new RegExp(`^${cleanListingFor}$`, 'i');
+      }
+    }
+
+    if (minPrice || maxPrice) {
+      query.price = {};
+      if (minPrice) query.price.$gte = Number(minPrice);
+      if (maxPrice) query.price.$lte = Number(maxPrice);
+    }
+
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      if (!query.$and) query.$and = [];
+      query.$and.push({
+        $or: [
+          { title: searchRegex },
+          { city: searchRegex },
+          { locality: searchRegex },
+          { submissionId: searchRegex },
+          { propertyType: searchRegex },
+          { description: searchRegex },
+        ],
+      });
+    }
+
+    const targetLat = lat || latitude;
+    const targetLng = lng || longitude || req.query.long;
+    const isGeospatial =
+      targetLat !== undefined &&
+      targetLng !== undefined &&
+      !isNaN(Number(targetLat)) &&
+      !isNaN(Number(targetLng));
+
+    // Flexible radius/distance parsing (handles "50.0", "50 km", distanceInKm, etc.)
+    const rawRadius = radius ?? distanceInKm ?? distance ?? maxDistance ?? 50;
+    const parsedRadius = parseFloat(rawRadius) || 50;
+
+    let maxDistanceInKm = parsedRadius;
+    const unit = (radiusUnit || '').toLowerCase().trim();
+    if (unit === 'miles' || unit === 'mi') {
+      maxDistanceInKm = parsedRadius * 1.60934;
+    } else if (unit === 'meters' || unit === 'm') {
+      maxDistanceInKm = parsedRadius / 1000;
+    }
+
+    const radiusInRadians = maxDistanceInKm / 6378.1;
+
+    const hasValidCity = city && city !== 'null' && city !== 'undefined' && city.trim() !== '';
+    const cleanCity = hasValidCity ? city.split(',')[0].trim() : null;
+
+    if (isGeospatial) {
+      const geoFilter = {
+        location: {
+          $geoWithin: {
+            $centerSphere: [[Number(targetLng), Number(targetLat)], radiusInRadians],
+          },
+        },
+      };
+
+      if (cleanCity) {
+        query.$or = [
+          geoFilter,
+          { city: new RegExp(`^${cleanCity}$`, 'i') },
+          { city: new RegExp(cleanCity, 'i') },
+        ];
+      } else {
+        query.location = geoFilter.location;
+      }
+    } else if (cleanCity) {
+      query.city = new RegExp(cleanCity, 'i');
+    }
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10) || 20));
+    const skip = (pageNum - 1) * limitNum;
+
+    // Fetch matching properties (all roles: builder, owner, agent; all categories: residential, commercial; all listing types: sale, resale, rent)
+    const [rawProperties, total] = await Promise.all([
+      Property.find(query)
+        .populate('owner', 'name email phone profilePicture role isVerified builderVerificationStatus agentVerificationStatus companyName reraNumber')
+        .lean(),
+      Property.countDocuments(query),
+    ]);
+
+    // Compute exact distance and attach human-friendly distance metadata
+    let properties = rawProperties.map((p) => {
+      const userCoords = isGeospatial ? { lat: Number(targetLat), lng: Number(targetLng) } : null;
+      const enriched = enrichPropertyWithSellerRole(p, null, userCoords);
+      const isRent = ['rent', 'lease', 'pg'].includes((enriched.listingFor || '').toLowerCase());
+      const isResale = !isRent;
+
+      let distanceKm = enriched.distanceInKm;
+      if (
+        distanceKm === null &&
+        isGeospatial &&
+        enriched.location &&
+        Array.isArray(enriched.location.coordinates) &&
+        enriched.location.coordinates.length >= 2
+      ) {
+        const propLng = enriched.location.coordinates[0];
+        const propLat = enriched.location.coordinates[1];
+        distanceKm = calculateDistanceInKm(
+          Number(targetLat),
+          Number(targetLng),
+          propLat,
+          propLng
+        );
+      }
+      return {
+        ...enriched,
+        isResale,
+        isRent,
+        listingIntent: isRent ? 'Rent' : (enriched.listingFor || 'Resale'),
         distanceInKm: distanceKm,
         distanceMeters: distanceKm !== null ? Math.round(distanceKm * 1000) : null,
         distance: distanceKm !== null ? `${distanceKm} km` : null,

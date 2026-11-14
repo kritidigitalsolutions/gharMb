@@ -55,6 +55,7 @@ const propertySchema = new mongoose.Schema(
       type: String,
       enum: ['Sale', 'Rent', 'Lease', 'PG', 'Resale'],
       required: [true, 'Specify if listing is for Sale, Rent, Lease, PG, or Resale.'],
+      default: 'Sale',
     },
     propertyType: {
       type: String,
@@ -105,16 +106,22 @@ const propertySchema = new mongoose.Schema(
     // Step 2: Property Specs (Residential & Commercial)
     bedrooms: {
       type: String, // '1', '2', '3', '4+'
-      default: '1',
+      trim: true,
     },
     bathrooms: {
       type: String, // '1', '2', '3', '4+'
-      default: '1',
+      trim: true,
     },
     carpetArea: {
       type: Number,
       required: [
         function () {
+          const isDev =
+            this.userRole === 'builder' ||
+            this.postedByRole === 'Builder' ||
+            String(this.listingAs || '').toLowerCase().includes('builder') ||
+            String(this.listingAs || '').toLowerCase().includes('developer');
+          if (isDev) return false;
           return !this.bhkConfigurations || this.bhkConfigurations.length === 0;
         },
         'Carpet area in sqft is required.',
@@ -123,13 +130,15 @@ const propertySchema = new mongoose.Schema(
     builtUpArea: {
       type: Number,
     },
-    // Multiple BHK Configurations: ONLY BHK and its Price
+    // Multiple BHK Configurations: BHK, Price, Carpet Area, and Floor Plan Image
     bhkConfigurations: [
       {
         _id: false,
         bhk: { type: String, trim: true }, // e.g. '1 BHK', '2 BHK', '3 BHK', '4 BHK'
         price: { type: Number, required: true }, // Custom price for this BHK configuration
         bhkType: { type: String, trim: true }, // alias for backward compatibility
+        carpetArea: { type: Number, default: null }, // Carpet area in sqft for this BHK
+        planImage: { type: String, trim: true, default: null }, // Floor plan layout image URL
       },
     ],
     floorNo: {
@@ -168,6 +177,18 @@ const propertySchema = new mongoose.Schema(
         trim: true,
       },
     ],
+
+    // Statutory Approvals & Legal Clearances (OC & CC Separated)
+    ocReceived: {
+      type: Boolean,
+      default: false, // true = Occupancy Certificate Received
+      index: true,
+    },
+    ccReceived: {
+      type: Boolean,
+      default: false, // true = Completion Certificate Received
+      index: true,
+    },
 
     // Rental Terms (If Rent/Lease/PG)
     preferredTenants: [
@@ -409,12 +430,14 @@ const propertySchema = new mongoose.Schema(
       default: false,
     },
 
-    // Property Documents (Title deed, tax receipt, electricity bill, khata, etc.)
+    // Property Documents (Title deed, tax receipt, electricity bill, khata, OC, CC, etc.)
     propertyDocuments: {
       titleDeed: { type: String, trim: true },
       electricityBill: { type: String, trim: true },
       taxReceipt: { type: String, trim: true },
       khataExtract: { type: String, trim: true },
+      occupancyCertificate: { type: String, trim: true },
+      completionCertificate: { type: String, trim: true },
       otherDoc: { type: String, trim: true },
     },
     documents: [
@@ -632,7 +655,9 @@ propertySchema.pre('validate', function () {
       return {
         bhk: bhkVal,
         bhkType: bhkVal,
-        price: Number(item.price) || 0
+        price: Number(item.price) || 0,
+        carpetArea: item.carpetArea !== undefined && item.carpetArea !== null && !isNaN(Number(item.carpetArea)) ? Number(item.carpetArea) : null,
+        planImage: item.planImage ? String(item.planImage).trim() : (item.floorPlan ? String(item.floorPlan).trim() : null),
       };
     });
 

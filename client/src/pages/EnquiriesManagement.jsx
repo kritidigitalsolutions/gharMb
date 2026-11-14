@@ -515,7 +515,7 @@ export default function EnquiriesManagement() {
         const webMap = {
           pending: 'new',
           contacted: 'in_progress',
-          confirmed: 'in_progress',
+          confirmed: 'confirmed',
           resolved: 'resolved',
           cancelled: 'rejected',
         };
@@ -525,7 +525,7 @@ export default function EnquiriesManagement() {
         const propMap = {
           pending: 'pending',
           contacted: 'contacted',
-          confirmed: 'contacted',
+          confirmed: 'confirmed',
           resolved: 'resolved',
           cancelled: 'cancelled',
         };

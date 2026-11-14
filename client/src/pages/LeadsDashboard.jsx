@@ -582,6 +582,11 @@ const LeadsDashboard = () => {
           pill: 'bg-emerald-50/90 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/40',
           dot: 'bg-emerald-500'
         };
+      case 'confirmed':
+        return {
+          pill: 'bg-purple-50/90 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400 border-purple-200 dark:border-purple-800/40',
+          dot: 'bg-purple-500'
+        };
       case 'contacted':
         return {
           pill: 'bg-sky-50/90 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400 border-sky-200 dark:border-sky-800/40',
@@ -1637,8 +1642,8 @@ const LeadsDashboard = () => {
               {/* Quick Status Controller */}
               <div className="space-y-1">
                 <label className="text-[11px] font-medium text-[var(--text-muted)]">Lead Status</label>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {['Pending', 'Contacted', 'Resolved', 'Cancelled'].map((st) => (
+                <div className="grid grid-cols-5 gap-1.5">
+                  {['Pending', 'Contacted', 'Confirmed', 'Resolved', 'Cancelled'].map((st) => (
                     <button
                       key={st}
                       type="button"

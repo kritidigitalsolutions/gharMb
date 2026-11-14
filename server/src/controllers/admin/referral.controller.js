@@ -7,6 +7,7 @@
 const Referral = require('../../models/referral.model');
 const Property = require('../../models/property.model');
 const User = require('../../models/user.model');
+const ReferralSetting = require('../../models/referral-setting.model');
 
 // Helper for pagination
 const getPagination = (page, limit, defaultLimit = 20) => {
@@ -546,6 +547,65 @@ exports.creditReferralCoins = async (req, res, next) => {
       data: {
         referral: updated,
         result,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Get Global Referral Settings (Offer message, descriptions, template)
+// @route   GET /api/admin/referrals/settings
+// @access  Private (Admin only)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getReferralSettings = async (req, res, next) => {
+  try {
+    const settings = await ReferralSetting.getSettings();
+
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        settings,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Update Global Referral Settings (Offer message, active toggle, etc.)
+// @route   PATCH /api/admin/referrals/settings
+// @access  Private (Admin only)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.updateReferralSettings = async (req, res, next) => {
+  try {
+    const { offerMessage, offerDescription, shareTextTemplate, isActive } = req.body;
+
+    let settings = await ReferralSetting.getSettings();
+
+    if (offerMessage !== undefined && offerMessage.trim() !== '') {
+      settings.offerMessage = offerMessage.trim();
+    }
+    if (offerDescription !== undefined) {
+      settings.offerDescription = offerDescription.trim();
+    }
+    if (shareTextTemplate !== undefined) {
+      settings.shareTextTemplate = shareTextTemplate.trim();
+    }
+    if (isActive !== undefined) {
+      settings.isActive = Boolean(isActive);
+    }
+
+    settings.updatedBy = req.user?._id;
+    await settings.save();
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Referral offer settings updated successfully.',
+      data: {
+        settings,
       },
     });
   } catch (error) {

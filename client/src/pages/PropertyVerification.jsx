@@ -194,12 +194,14 @@ export default function PropertyVerification() {
       ? `₹${Math.round(priceNum / carpet).toLocaleString('en-IN')}/sq.ft`
       : null;
 
-    // Multiple BHK Configurations: strictly ONLY BHK and its custom Price
+    // Multiple BHK Configurations: BHK, Price, Carpet Area, and Floor Plan Image
     const bhkConfigurations = Array.isArray(p.bhkConfigurations)
       ? p.bhkConfigurations
           .map((b) => ({
             bhk: b.bhk || b.bhkType || '',
             price: Number(b.price) || 0,
+            carpetArea: b.carpetArea ? Number(b.carpetArea) : null,
+            planImage: b.planImage || b.planImageUrl || b.floorPlan || null,
           }))
           .filter((b) => b.bhk && b.price > 0)
       : [];
@@ -256,6 +258,8 @@ export default function PropertyVerification() {
       floorInfo: p.floorNo ? `Floor ${p.floorNo}${p.totalFloors ? ` of ${p.totalFloors}` : ''}` : null,
       possessionDate: p.possessionDate ? String(p.possessionDate).trim() : '',
       parking: p.parking || null,
+      ocReceived: Boolean(p.ocReceived),
+      ccReceived: Boolean(p.ccReceived),
       reraNumbers: Array.isArray(p.reraNumbers) && p.reraNumbers.length > 0
         ? p.reraNumbers.map((r, idx) => {
             if (typeof r === 'string') return { name: `Phase ${idx + 1}`, reraNumber: r };
@@ -2162,14 +2166,33 @@ export default function PropertyVerification() {
                         {selectedItem.bhkConfigurations.map((bhkItem, idx) => (
                           <div
                             key={idx}
-                            className="p-3 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)] flex flex-col justify-between"
+                            className="p-3 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)] flex flex-col justify-between gap-1.5"
                           >
-                            <span className="text-xs font-extrabold text-[var(--text-primary)] block mb-1">
-                              {bhkItem.bhk}
-                            </span>
-                            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                              {formatCurrency(bhkItem.price)}
-                            </span>
+                            <div>
+                              <div className="flex items-center justify-between gap-1 mb-1">
+                                <span className="text-xs font-extrabold text-[var(--text-primary)]">
+                                  {bhkItem.bhk}
+                                </span>
+                                {bhkItem.carpetArea > 0 && (
+                                  <span className="text-[10px] text-[var(--text-muted)] font-medium">
+                                    {bhkItem.carpetArea.toLocaleString('en-IN')} sqft
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 block">
+                                {formatCurrency(bhkItem.price)}
+                              </span>
+                            </div>
+                            {bhkItem.planImage && (
+                              <a
+                                href={bhkItem.planImage}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:underline mt-1 pt-1.5 border-t border-[var(--border)]"
+                              >
+                                <span>📐 View Plan</span>
+                              </a>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -2265,6 +2288,31 @@ export default function PropertyVerification() {
                           {selectedItem.possessionDate || 'Possession date not specified'}
                         </strong>
                       </div>
+                    </div>
+
+                    {/* Statutory Approvals (OC & CC Status Separated) */}
+                    <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                          selectedItem.ocReceived
+                            ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                            : 'bg-[var(--bg-muted)] text-[var(--text-muted)] border-[var(--border)]'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${selectedItem.ocReceived ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+                        {selectedItem.ocReceived ? 'OC Received' : 'OC Pending'}
+                      </span>
+
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                          selectedItem.ccReceived
+                            ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
+                            : 'bg-[var(--bg-muted)] text-[var(--text-muted)] border-[var(--border)]'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${selectedItem.ccReceived ? 'bg-blue-500' : 'bg-gray-400'}`} />
+                        {selectedItem.ccReceived ? 'CC Received' : 'CC Pending'}
+                      </span>
                     </div>
                   </div>
 

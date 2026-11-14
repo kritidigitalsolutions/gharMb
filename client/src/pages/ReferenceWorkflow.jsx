@@ -31,6 +31,13 @@ const ReferenceWorkflow = () => {
   const [deleteModal, setDeleteModal] = useState(null);
   const [copiedCode, setCopiedCode] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
+  const [referralSettings, setReferralSettings] = useState({
+    offerMessage: 'Congratulations! You got an offer with this referral.',
+    offerDescription: 'Congratulations! You unlocked an exclusive offer with this referral.',
+    isActive: true,
+  });
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [callTarget, setCallTarget] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -103,9 +110,56 @@ const ReferenceWorkflow = () => {
     }
   };
 
+  // 3. Fetch Global Referral Settings (Offer Message)
+  const fetchReferralSettings = async () => {
+    try {
+      const res = await API.get('/admin/referrals/settings');
+      if (res.data?.status === 'success' && res.data.data?.settings) {
+        const s = res.data.data.settings;
+        setReferralSettings({
+          offerMessage: s.offerMessage || 'Congratulations! You got an offer with this referral.',
+          offerDescription: s.offerDescription || 'Congratulations! You unlocked an exclusive offer with this referral.',
+          isActive: s.isActive !== false,
+        });
+      }
+    } catch (err) {
+      console.warn('Could not fetch referral settings:', err.message);
+    }
+  };
+
+  // 4. Save Updated Referral Message Settings
+  const handleSaveSettings = async (e) => {
+    e?.preventDefault();
+    if (!referralSettings.offerMessage.trim()) {
+      showToastMsg('Referral message cannot be empty.', 'error');
+      return;
+    }
+
+    setIsSavingSettings(true);
+    try {
+      const res = await API.patch('/admin/referrals/settings', {
+        offerMessage: referralSettings.offerMessage.trim(),
+        offerDescription: referralSettings.offerDescription.trim(),
+        isActive: referralSettings.isActive,
+      });
+
+      if (res.data?.status === 'success') {
+        showToastMsg('Referral message updated successfully!');
+        setIsMessageModalOpen(false);
+      } else {
+        showToastMsg(res.data?.message || 'Failed to update referral message.', 'error');
+      }
+    } catch (err) {
+      showToastMsg(err.response?.data?.message || 'Failed to save referral settings.', 'error');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
   useEffect(() => {
     fetchReferrals();
     fetchProperties();
+    fetchReferralSettings();
   }, []);
 
   const handleCopyCode = (code) => {
@@ -387,6 +441,16 @@ const ReferenceWorkflow = () => {
             className="w-8 h-8 rounded-lg bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-brand flex items-center justify-center border border-[var(--border)] transition-all cursor-pointer active:scale-95 disabled:opacity-50 shadow-2xs"
           >
             <RefreshCw size={14} className={isLoading ? 'animate-spin text-brand' : ''} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsMessageModalOpen(true)}
+            title="Edit Referral Offer Message"
+            className="h-8 px-3 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] border border-[var(--border)] text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer active:scale-95"
+          >
+            <Edit2 size={13} className="text-brand" />
+            <span>Edit Referral Message</span>
           </button>
 
           <button
@@ -1125,6 +1189,130 @@ const ReferenceWorkflow = () => {
                 {isSubmitting ? 'Deleting...' : 'Delete Permanently'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: EDIT REFERRAL OFFER MESSAGE & SETTINGS ─── */}
+      {isMessageModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-xs flex items-center justify-center p-4 transition-all duration-200">
+          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-xl max-w-lg w-full shadow-2xl border border-[var(--border)] p-5 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center border border-brand/20 shadow-2xs">
+                  <MessageSquare size={16} strokeWidth={2.2} />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-[var(--text-primary)]">Edit Referral Offer Message</h3>
+                  <p className="text-[10px] text-[var(--text-muted)]">Customize congratulations text shown when referral code is applied</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMessageModalOpen(false)}
+                className="w-7 h-7 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSaveSettings} className="space-y-3.5">
+              {/* Offer Message Textarea */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-[var(--text-primary)] flex items-center justify-between">
+                  <span>Referral Message (Offer Text) *</span>
+                  <span className="text-[10px] text-[var(--text-muted)] font-normal">Shown to referee upon entering code</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={referralSettings.offerMessage}
+                  onChange={(e) => setReferralSettings(prev => ({ ...prev, offerMessage: e.target.value }))}
+                  required
+                  placeholder="e.g. Congratulations! You got an offer with this referral."
+                  className="w-full px-3 py-2 bg-[var(--bg-muted)] text-xs text-[var(--text-primary)] rounded-lg border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15 focus:bg-[var(--bg-surface)] placeholder:text-[var(--text-muted)] transition-all resize-none"
+                />
+              </div>
+
+              {/* Offer Description / Subtitle */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-[var(--text-primary)] flex items-center justify-between">
+                  <span>Secondary Description (Optional)</span>
+                  <span className="text-[10px] text-[var(--text-muted)] font-normal">Subtext / explainer</span>
+                </label>
+                <input
+                  type="text"
+                  value={referralSettings.offerDescription}
+                  onChange={(e) => setReferralSettings(prev => ({ ...prev, offerDescription: e.target.value }))}
+                  placeholder="e.g. Congratulations! You unlocked an exclusive offer with this referral."
+                  className="w-full h-8 px-3 bg-[var(--bg-muted)] text-xs text-[var(--text-primary)] rounded-lg border border-[var(--border)] focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15 focus:bg-[var(--bg-surface)] placeholder:text-[var(--text-muted)] transition-all"
+                />
+              </div>
+
+              {/* Live Preview Box */}
+              <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20 space-y-1">
+                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 size={12} />
+                  <span>Live App Preview</span>
+                </div>
+                <div className="p-2.5 rounded-md bg-[var(--bg-surface)] border border-emerald-500/15 shadow-2xs">
+                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                    "{referralSettings.offerMessage || 'Congratulations! You got an offer with this referral.'}"
+                  </p>
+                  {referralSettings.offerDescription && (
+                    <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                      {referralSettings.offerDescription}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Program Active Toggle */}
+              <div className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/30">
+                <div>
+                  <span className="text-xs font-semibold text-[var(--text-primary)] block">Referral Program Active</span>
+                  <span className="text-[10px] text-[var(--text-muted)]">Allow users to enter & validate referral codes</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={referralSettings.isActive}
+                    onChange={(e) => setReferralSettings(prev => ({ ...prev, isActive: e.target.checked }))}
+                    className="sr-only peer"
+                  />
+                  <div className="w-8 h-4.5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-brand"></div>
+                </label>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border)]">
+                <button
+                  type="button"
+                  onClick={() => setIsMessageModalOpen(false)}
+                  className="px-3 py-1.5 rounded-md text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingSettings}
+                  className="px-3.5 py-1.5 bg-brand hover:bg-brand-dark text-white rounded-md text-xs font-semibold transition-all duration-150 cursor-pointer shadow-xs active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {isSavingSettings ? (
+                    <>
+                      <RefreshCw size={12} className="animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check size={13} />
+                      <span>Save Changes</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

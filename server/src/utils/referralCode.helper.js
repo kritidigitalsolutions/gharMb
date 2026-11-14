@@ -217,11 +217,22 @@ async function validateReferralCode(code, currentUserId = null) {
 
   const referrer = resolution.referrer;
 
+  let offerMessage = 'Congratulations! You got an offer with this referral.';
+  try {
+    const ReferralSetting = require('../models/referral-setting.model');
+    const settings = await ReferralSetting.getSettings();
+    if (settings && settings.offerMessage) {
+      offerMessage = settings.offerMessage;
+    }
+  } catch {
+    // Fallback safely to default
+  }
+
   return {
     isValid: true,
     referrer,
     referralCode: resolution.matchedCode || referrer.referralCode || cleanCode,
-    message: `Referral code applied! You will both receive ₹250 reward. GharMB Admin will contact both users directly.`,
+    message: offerMessage,
   };
 }
 
