@@ -15,6 +15,7 @@ import {
   Copy,
   Check,
   Phone,
+  PhoneCall,
   Mail,
   MessageCircle,
   FileText,
@@ -399,10 +400,107 @@ const AgentManagement = () => {
           )}
         </div>
       ) : (
-        /* CLEAN TABLE VIEW (Full-Fit 100% Zero Horizontal Scroll) */
+        /* RESPONSIVE AGENT DIRECTORY: MOBILE CARDS + DESKTOP DATA TABLE */
         <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] overflow-hidden shadow-2xs">
-          <div className="w-full overflow-hidden">
-            <table className="w-full text-left border-collapse table-fixed">
+          
+          {/* ── MOBILE CARDS VIEW: (Visible on Mobile < md, Hidden on Desktop) ── */}
+          <div className="block md:hidden divide-y divide-[var(--border)]/70">
+            {filteredAgents.map((agent) => (
+              <div
+                key={agent._id}
+                onClick={() => setSelectedAgent(agent)}
+                className="p-3.5 sm:p-4 hover:bg-[var(--bg-muted)]/40 transition-colors cursor-pointer space-y-2.5"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] flex items-center justify-center font-bold text-xs text-[var(--text-primary)] shrink-0 overflow-hidden">
+                      {agent.avatar ? (
+                        <img src={agent.avatar} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{agent.name.slice(0, 2).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-xs text-[var(--text-primary)] truncate">
+                        {agent.name}
+                      </p>
+                      <p className="text-[11px] text-[var(--text-muted)] font-mono truncate">
+                        {agent.phone}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    {agent.verificationStatus === 'approved' || agent.isVerified ? (
+                      <Badge.Active size="xs">Verified</Badge.Active>
+                    ) : agent.verificationStatus === 'pending' ? (
+                      <Badge color="amber" variant="pastel" size="xs" dot pulse icon={<Clock size={10} className="shrink-0" />}>
+                        Pending
+                      </Badge>
+                    ) : agent.verificationStatus === 'rejected' ? (
+                      <Badge.Offline size="xs">Declined</Badge.Offline>
+                    ) : (
+                      <Badge color="slate" variant="pastel" size="xs">
+                        Unverified
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-[var(--text-muted)] pt-1">
+                  <div className="flex items-center gap-1 font-mono text-[11px]">
+                    <ShieldCheck size={12} className="text-brand shrink-0" />
+                    <span className="truncate">{agent.reraNumber || 'Not Provided'}</span>
+                  </div>
+                  <span>{agent.cityOfOperation || agent.city || 'India'} {agent.experience ? `• ${agent.experience} yrs` : ''}</span>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAgent(agent)}
+                    className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-[var(--bg-muted)] hover:bg-brand hover:text-white text-[var(--text-primary)] border border-[var(--border)] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-98"
+                  >
+                    <Eye size={13} />
+                    <span>Inspect</span>
+                  </button>
+                  {agent.phone && agent.phone !== 'N/A' && (
+                    <button
+                      type="button"
+                      onClick={() => setCallTarget(agent)}
+                      className="py-1.5 px-3 rounded-lg text-xs font-semibold bg-sky-500/10 hover:bg-sky-500 hover:text-white text-sky-600 dark:text-sky-400 border border-sky-500/20 transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-98"
+                    >
+                      <PhoneCall size={12} />
+                      <span>Call</span>
+                    </button>
+                  )}
+                  {agent.verificationStatus === 'pending' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateStatus(agent, 'approved')}
+                        className="py-1.5 px-3 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-98"
+                      >
+                        <Check size={12} strokeWidth={2.5} />
+                        <span>Approve</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRejectPrompt(agent)}
+                        className="py-1.5 px-3 rounded-lg text-xs font-semibold bg-rose-500/15 hover:bg-rose-600 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/25 transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-98"
+                      >
+                        <X size={12} strokeWidth={2.5} />
+                        <span>Decline</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── DESKTOP & TABLET DATA TABLE: (Hidden on Mobile, Visible on md+) ── */}
+          <div className="hidden md:block w-full overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left border-collapse table-fixed min-w-[780px]">
               <colgroup>
                 <col className="w-[24%]" />
                 <col className="w-[18%]" />

@@ -8,7 +8,7 @@ import {
   Search, Filter, Plus, ArrowRight, IndianRupee,
   Share2, ShieldCheck, UserCheck, ExternalLink, Calendar,
   Copy, Check, Trash2, X, Send, Eye, Edit2, CheckCircle,
-  RefreshCw, Phone, MessageSquare, Mail, AlertTriangle, Building
+  RefreshCw, Phone, MessageSquare, Mail, AlertTriangle, Building, AlertCircle
 } from 'lucide-react';
 
 const ReferenceWorkflow = () => {
@@ -617,8 +617,8 @@ const ReferenceWorkflow = () => {
         </div>
 
         {/* ─── DATA TABLE: 100% REAL DATA WITH BALANCED PROPORTIONS ─── */}
-        <div className="w-full overflow-hidden min-h-[220px]">
-          <table className="w-full text-left border-collapse table-fixed">
+        <div className="w-full overflow-x-auto custom-scrollbar min-h-[220px]">
+          <table className="w-full text-left border-collapse table-fixed min-w-[700px]">
             <colgroup>
               <col className="w-[10%]" />
               <col className="w-[16%]" />

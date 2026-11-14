@@ -570,7 +570,7 @@ const DashboardHome = () => {
       status: 'good',
       subtitle: 'Listing tiers & boost billing',
       path: '/admin/revenue',
-      hint: 'Open Revenue Analytics'
+      hint: 'Open Transactions'
     }
   ];
 

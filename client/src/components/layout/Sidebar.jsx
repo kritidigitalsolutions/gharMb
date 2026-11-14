@@ -230,11 +230,11 @@ const Sidebar = ({
           aliases: ['dashboard', 'home', 'kpi', 'stats', 'analytics', 'overview'],
         },
         {
-          name: 'Revenue',
+          name: 'Transactions',
           path: '/admin/revenue',
           icon: IndianRupee,
-          hint: 'Earnings, Tokens & Escrow',
-          aliases: ['revenue', 'finance', 'money', 'earnings', 'payments', 'escrow', 'wallet'],
+          hint: 'Payments & Token Deposits',
+          aliases: ['transactions', 'payments', 'token deposits', 'escrow', 'revenue', 'finance', 'money', 'wallet'],
         },
         {
           name: 'Reports',

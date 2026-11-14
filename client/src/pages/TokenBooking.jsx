@@ -1028,10 +1028,10 @@ export default function TokenBooking() {
           )}
         </div>
       ) : viewMode === 'table' ? (
-        /* Table View: Full-Fit 100% Zero Horizontal Scroll */
+        /* Table View: Responsive Scrollable Table */
         <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-2xs">
-          <div className="w-full overflow-hidden">
-            <table className="w-full text-left border-collapse table-fixed">
+          <div className="w-full overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left border-collapse table-fixed min-w-[850px]">
               <colgroup>
                 <col className="w-[13%]" />
                 <col className="w-[27%]" />

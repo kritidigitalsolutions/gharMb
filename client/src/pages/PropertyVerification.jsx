@@ -1396,14 +1396,14 @@ export default function PropertyVerification() {
       )}
 
       {/* ── 01. TOP HEADER & PIPELINE SWITCH ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border)]/70 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border-b border-[var(--border)]/70 pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-[var(--text-primary)]">
               Property Approvals
             </h1>
             {counts.pending > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+              <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
                 {counts.pending} Pending
               </span>
             )}
@@ -1414,8 +1414,8 @@ export default function PropertyVerification() {
         </div>
 
         {/* Pipeline Toggle (Properties vs Developer Projects Sliding Switch) */}
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          <div className="relative inline-flex items-center p-1 bg-[var(--bg-muted)]/80 rounded-full border border-[var(--border)] text-xs font-semibold select-none shadow-inner-xs">
+        <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
+          <div className="relative inline-flex items-center p-1 bg-[var(--bg-muted)]/80 rounded-full border border-[var(--border)] text-xs font-semibold select-none shadow-inner-xs max-w-full overflow-x-auto no-scrollbar">
             {/* Sliding Pill Indicator */}
             <span
               className={`absolute top-1 bottom-1 rounded-full shadow-xs transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none ${
@@ -1432,7 +1432,7 @@ export default function PropertyVerification() {
               ref={(el) => { pipelineTabRefs.current['properties'] = el; }}
               type="button"
               onClick={() => { setActivePipeline('properties'); setSelectedItem(null); }}
-              className={`relative z-10 px-3.5 py-1.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              className={`relative z-10 px-3 sm:px-3.5 py-1.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap text-xs ${
                 activePipeline === 'properties'
                   ? 'text-[#064e3b] dark:text-[#6ee7b7] font-bold'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] font-medium'
@@ -1453,7 +1453,7 @@ export default function PropertyVerification() {
               ref={(el) => { pipelineTabRefs.current['projects'] = el; }}
               type="button"
               onClick={() => { setActivePipeline('projects'); setSelectedItem(null); }}
-              className={`relative z-10 px-3.5 py-1.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              className={`relative z-10 px-3 sm:px-3.5 py-1.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap text-xs ${
                 activePipeline === 'projects'
                   ? 'text-[#4c1d95] dark:text-[#ddd6fe] font-bold'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] font-medium'
@@ -1475,7 +1475,7 @@ export default function PropertyVerification() {
             type="button"
             onClick={() => fetchData(true)}
             disabled={isRefreshing || isLoading}
-            className="p-2 border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-xl transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+            className="p-2 border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-xl transition-all cursor-pointer shadow-2xs disabled:opacity-50 shrink-0"
             title="Refresh listings"
           >
             <RefreshCw size={14} className={isRefreshing ? 'animate-spin text-brand' : ''} />
@@ -1484,8 +1484,8 @@ export default function PropertyVerification() {
       </div>
 
       {/* ── 02. SLIDING STATUS TOGGLE SWITCH (Design System Pastel Palette) ── */}
-      <div className="flex items-center overflow-x-auto scrollbar-none py-1 border-b border-[var(--border)]/60">
-        <div className="relative inline-flex items-center p-1 bg-[var(--bg-muted)]/80 rounded-full border border-[var(--border)] text-xs font-semibold select-none shadow-inner-xs">
+      <div className="flex items-center overflow-x-auto scrollbar-none py-1 border-b border-[var(--border)]/60 -mx-1 sm:mx-0 px-1 sm:px-0">
+        <div className="relative inline-flex items-center p-1 bg-[var(--bg-muted)]/80 rounded-full border border-[var(--border)] text-xs font-semibold select-none shadow-inner-xs min-w-max">
           {/* Sliding Pill Indicator */}
           <span
             className={`absolute top-1 bottom-1 rounded-full shadow-xs transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none ${activeStatusTab.activeBg}`}
@@ -1528,9 +1528,9 @@ export default function PropertyVerification() {
       </div>
 
       {/* ── 03. TOOLBAR: SEARCH & CATEGORY PILLS ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[var(--bg-surface)] p-3 rounded-2xl border border-[var(--border)] shadow-2xs">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[var(--bg-surface)] p-2.5 sm:p-3 rounded-2xl border border-[var(--border)] shadow-2xs">
         {/* Search Input */}
-        <div className="relative flex-1 max-w-md">
+        <div className="relative w-full md:max-w-md">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
           <input
             type="text"
@@ -1551,7 +1551,7 @@ export default function PropertyVerification() {
         </div>
 
         {/* Category Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5">
           {['ALL', 'Residential', 'Commercial', 'Land'].map((cat) => (
             <button
               key={cat}
@@ -1611,10 +1611,148 @@ export default function PropertyVerification() {
           )}
         </div>
       ) : (
-        /* ── TABLE VIEW (Full-Fit Zero Cutoff, Perfectly Organized Actions) ── */
+        /* ── RESPONSIVE LISTING DISPLAY: MOBILE CARDS + DESKTOP DATA TABLE ── */
         <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-2xs">
-          <div className="w-full overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse table-fixed min-w-[1080px]">
+          
+          {/* ── MOBILE CARDS VIEW: (Visible on Mobile < md, Hidden on Desktop) ── */}
+          <div className="block md:hidden divide-y divide-[var(--border)]/70">
+            {filteredList.map((item) => {
+              return (
+                <div
+                  key={item._id}
+                  onClick={() => openReviewDrawer(item)}
+                  className="p-3.5 sm:p-4 hover:bg-[var(--bg-muted)]/40 transition-colors cursor-pointer space-y-3"
+                >
+                  {/* Top Bar: ID + Badges + Live Status */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                      <span className="font-mono text-[11px] font-bold text-[var(--text-secondary)] bg-[var(--bg-muted)] px-2 py-0.5 rounded-md border border-[var(--border)]/60">
+                        {item.id}
+                      </span>
+                      {item.listingFor?.toLowerCase() === 'rent' ? (
+                        <Badge.ForRent size="xs" variant="pastel" className="h-[19px] text-[9.5px]">Rent</Badge.ForRent>
+                      ) : (
+                        <Badge.ForSale size="xs" variant="pastel" className="h-[19px] text-[9.5px]">Sale</Badge.ForSale>
+                      )}
+                      <Badge.Category
+                        type={item.category || 'Residential'}
+                        size="xs"
+                        className="font-medium text-[9.5px] h-[19px] tracking-tight shadow-none"
+                      />
+                    </div>
+                    <div className="shrink-0">
+                      {getStatusBadge(item.status, 'xs')}
+                    </div>
+                  </div>
+
+                  {/* Title & Specifications */}
+                  <div>
+                    <h3
+                      className="font-semibold text-sm text-[var(--text-primary)] hover:text-brand transition-colors line-clamp-2 leading-snug"
+                      title={item.title}
+                    >
+                      {item.title}
+                    </h3>
+                    {[item.bhk, item.area].filter(Boolean).length > 0 && (
+                      <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] mt-1 font-medium">
+                        <span>{[item.bhk, item.area].filter(Boolean).join(' · ')}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Location & Price Strip */}
+                  <div className="flex items-center justify-between gap-3 pt-1">
+                    <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] min-w-0">
+                      <MapPin size={13} className="text-brand shrink-0 opacity-80" />
+                      <span className="truncate">{item.locality ? `${item.locality}, ${item.city}` : item.city}</span>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="font-bold text-sm text-[var(--text-primary)] block leading-tight">
+                        {item.price}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Owner/Seller & Submitted Date */}
+                  <div className="flex items-center justify-between gap-2 text-xs pt-2 border-t border-[var(--border)]/50 text-[var(--text-muted)]">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="font-medium text-[var(--text-primary)] truncate">{item.ownerName}</span>
+                      <span className="font-mono text-[11px] text-[var(--text-muted)] truncate">({item.ownerPhone})</span>
+                    </div>
+                    <span className="text-[11px] shrink-0 text-[var(--text-muted)]">{item.submittedDate}</span>
+                  </div>
+
+                  {/* Action Buttons Row */}
+                  <div className="flex items-center gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => openReviewDrawer(item)}
+                      className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-[var(--bg-muted)] hover:bg-brand hover:text-white text-[var(--text-primary)] border border-[var(--border)] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-98"
+                    >
+                      <Eye size={13} />
+                      <span>Review Details</span>
+                    </button>
+
+                    {item.status !== 'Approved' && item.status !== 'Sold' && (
+                      <button
+                        type="button"
+                        onClick={() => handleApproveClick(item)}
+                        disabled={isSubmittingAction}
+                        className="py-1.5 px-3 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-98 disabled:opacity-50"
+                        title="Approve & Publish Live"
+                      >
+                        <Check size={13} strokeWidth={2.5} />
+                        <span>Approve</span>
+                      </button>
+                    )}
+
+                    {item.status === 'Approved' && !item.isSold && (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleSold(item, true)}
+                        disabled={isSubmittingAction}
+                        className="py-1.5 px-3 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white transition-all cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-98 disabled:opacity-50"
+                        title="Mark as Sold Out"
+                      >
+                        <Tag size={13} strokeWidth={2.2} />
+                        <span>Mark Sold</span>
+                      </button>
+                    )}
+
+                    {(item.status === 'Sold' || item.isSold) && (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleSold(item, false)}
+                        disabled={isSubmittingAction}
+                        className="py-1.5 px-3 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-98 disabled:opacity-50"
+                        title="Relist as Available"
+                      >
+                        <RotateCcw size={13} />
+                        <span>Relist</span>
+                      </button>
+                    )}
+
+                    {item.status !== 'Rejected' && item.status !== 'Sold' && (
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedItem(item); setShowRejectModal(true); }}
+                        disabled={isSubmittingAction}
+                        className="py-1.5 px-3 rounded-lg text-xs font-semibold bg-rose-500/15 hover:bg-rose-600 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/25 transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-98 disabled:opacity-50"
+                        title="Reject Listing"
+                      >
+                        <X size={13} strokeWidth={2.5} />
+                        <span>Reject</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ── DESKTOP & TABLET DATA TABLE: (Hidden on Mobile, Visible on md+) ── */}
+          <div className="hidden md:block w-full overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left border-collapse table-fixed min-w-[960px]">
               <colgroup>
                 <col className="w-[18%]" />
                 <col className="w-[9%]" />
@@ -1858,7 +1996,7 @@ export default function PropertyVerification() {
               </tbody>
             </table>
           </div>
-          <div className="px-3.5 py-2 border-t border-[var(--border)] bg-[var(--bg-muted)]/20 flex items-center justify-between text-[11px] text-[var(--text-muted)] select-none">
+          <div className="px-3.5 py-2 border-t border-[var(--border)] bg-[var(--bg-muted)]/20 flex flex-col sm:flex-row items-center justify-between gap-1 text-[11px] text-[var(--text-muted)] select-none">
             <span>Showing <span className="font-semibold text-[var(--text-primary)]">{filteredList.length}</span> of {activeList.length} listings</span>
             <span>{activePipeline === 'properties' ? 'Properties moderation queue' : 'Developer projects queue'}</span>
           </div>
@@ -1878,26 +2016,26 @@ export default function PropertyVerification() {
           <div className="relative w-full max-w-2xl bg-[var(--bg-surface)] h-full shadow-2xl flex flex-col z-10 border-l border-[var(--border)] animate-in slide-in-from-right duration-250">
             
             {/* ── Drawer Header ── */}
-            <div className="p-4 border-b border-[var(--border)] flex items-center justify-between shrink-0 bg-[var(--bg-surface)]">
-              <div className="flex items-center gap-2 min-w-0">
-                <Badge color="brand" variant="soft" size="sm">
+            <div className="p-3 sm:p-4 border-b border-[var(--border)] flex items-center justify-between gap-2 shrink-0 bg-[var(--bg-surface)]">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <Badge color="brand" variant="soft" size="sm" className="shrink-0 font-mono">
                   {selectedItem.id}
                 </Badge>
-                <h2 className="font-bold text-base text-[var(--text-primary)] truncate">
+                <h2 className="font-bold text-sm sm:text-base text-[var(--text-primary)] truncate" title={selectedItem.title}>
                   {selectedItem.title}
                 </h2>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 {selectedItem.status !== 'Approved' && (
                   <button
                     type="button"
                     onClick={() => handleApproveClick(selectedItem)}
                     disabled={isSubmittingAction}
-                    className="h-7 px-3 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                    className="h-7 sm:h-8 px-2.5 sm:px-3 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1 transition-all active:scale-95 disabled:opacity-50"
                   >
                     <Check size={13} strokeWidth={2.5} />
-                    <span>Approve & Set Commission</span>
+                    <span>Approve<span className="hidden sm:inline"> & Set Commission</span></span>
                   </button>
                 )}
 
@@ -1906,7 +2044,7 @@ export default function PropertyVerification() {
                     type="button"
                     onClick={() => setShowRejectModal(true)}
                     disabled={isSubmittingAction}
-                    className="h-7 px-3 rounded-full text-xs font-semibold bg-red-500/12 text-red-700 dark:text-red-400 hover:bg-red-500 hover:text-white border border-red-500/25 cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                    className="h-7 sm:h-8 px-2.5 sm:px-3 rounded-full text-xs font-semibold bg-red-500/12 text-red-700 dark:text-red-400 hover:bg-red-500 hover:text-white border border-red-500/25 cursor-pointer flex items-center gap-1 transition-all active:scale-95 disabled:opacity-50"
                   >
                     <X size={13} strokeWidth={2.5} />
                     <span>Reject</span>
@@ -1916,7 +2054,7 @@ export default function PropertyVerification() {
                 <button
                   type="button"
                   onClick={() => setIsDrawerOpen(false)}
-                  className="w-7 h-7 flex items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                  className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
                 >
                   <X size={16} />
                 </button>
@@ -1924,7 +2062,7 @@ export default function PropertyVerification() {
             </div>
 
             {/* ── Drawer Navigation Tabs ── */}
-            <div className="flex items-center gap-4 px-4 border-b border-[var(--border)]/70 text-xs font-bold text-[var(--text-muted)] bg-[var(--bg-muted)]/30 shrink-0">
+            <div className="flex items-center gap-3 sm:gap-4 px-3 sm:px-4 border-b border-[var(--border)]/70 text-xs font-bold text-[var(--text-muted)] bg-[var(--bg-muted)]/30 shrink-0 overflow-x-auto no-scrollbar">
               <button
                 type="button"
                 onClick={() => setActiveDrawerTab('overview')}
@@ -2577,28 +2715,28 @@ export default function PropertyVerification() {
             </div>
 
             {/* ── Drawer Footer Actions ── */}
-            <div className="p-4 border-t border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-between shrink-0">
+            <div className="p-3.5 sm:p-4 border-t border-[var(--border)] bg-[var(--bg-surface)] flex flex-wrap items-center justify-between gap-2.5 shrink-0">
               <button
                 type="button"
                 onClick={() => setShowDeleteModal(true)}
-                className="h-8 px-3.5 rounded-full text-xs font-semibold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500 hover:text-white border border-red-500/25 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                className="h-8 px-3 rounded-full text-xs font-semibold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500 hover:text-white border border-red-500/25 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
               >
                 <Trash2 size={13} />
-                <span>Delete Listing</span>
+                <span>Delete</span>
               </button>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {/* 1-Click Instant Mark as Sold Out */}
                 {selectedItem.status === 'Approved' && !selectedItem.isSold && (
                   <button
                     type="button"
                     onClick={() => handleToggleSold(selectedItem, true)}
                     disabled={isSubmittingAction}
-                    className="h-8 px-3.5 rounded-full text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                    className="h-8 px-3 sm:px-3.5 rounded-full text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
                     title="Instantly mark this listing as Sold Out"
                   >
                     <Tag size={13} strokeWidth={2.2} />
-                    <span>Mark as Sold Out</span>
+                    <span>Mark Sold</span>
                   </button>
                 )}
 
@@ -2608,11 +2746,11 @@ export default function PropertyVerification() {
                     type="button"
                     onClick={() => handleToggleSold(selectedItem, false)}
                     disabled={isSubmittingAction}
-                    className="h-8 px-3.5 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                    className="h-8 px-3 sm:px-3.5 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
                     title="Relist listing as available on GharMB"
                   >
                     <RotateCcw size={13} />
-                    <span>Relist as Available</span>
+                    <span>Relist</span>
                   </button>
                 )}
 
@@ -2621,10 +2759,10 @@ export default function PropertyVerification() {
                     type="button"
                     onClick={() => handleApproveClick(selectedItem)}
                     disabled={isSubmittingAction}
-                    className="h-8 px-4 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                    className="h-8 px-3.5 sm:px-4 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
                   >
                     <Check size={13} strokeWidth={2.5} />
-                    <span>Approve & Set Commission</span>
+                    <span>Approve<span className="hidden sm:inline"> & Set Commission</span></span>
                   </button>
                 )}
               </div>
@@ -2637,7 +2775,7 @@ export default function PropertyVerification() {
       {showRejectModal && selectedItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50 backdrop-blur-xs" onClick={() => setShowRejectModal(false)} />
-          <div className="relative w-full max-w-md bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-5 z-10 space-y-4 animate-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-md bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-4 sm:p-5 z-10 space-y-4 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
               <div>
                 <h3 className="text-base font-bold text-[var(--text-primary)]">Reject Property Listing</h3>
@@ -2749,7 +2887,7 @@ export default function PropertyVerification() {
       {showMarkSoldModal && selectedItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50 backdrop-blur-xs" onClick={() => setShowMarkSoldModal(false)} />
-          <div className="relative w-full max-w-md bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-5 z-10 space-y-4 animate-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-md bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-4 sm:p-5 z-10 space-y-4 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
               <div>
                 <h3 className="text-base font-bold text-[var(--text-primary)]">Mark Property as Sold</h3>
@@ -2831,7 +2969,7 @@ export default function PropertyVerification() {
       {showConfirmSaleModal && selectedItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50 backdrop-blur-xs" onClick={() => setShowConfirmSaleModal(false)} />
-          <div className="relative w-full max-w-md bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-5 z-10 space-y-4 animate-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-md bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-4 sm:p-5 z-10 space-y-4 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
               <div>
                 <h3 className="text-base font-bold text-[var(--text-primary)]">

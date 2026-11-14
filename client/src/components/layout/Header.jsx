@@ -80,7 +80,10 @@ const ROUTE_PAGE_NAMES = {
   '/admin/services-catalog': 'Service Catalog',
   '/admin/tokens': 'Token Bookings',
   '/admin/references': 'Referral Network',
-  '/admin/revenue': 'Revenue & Finance',
+  '/admin/revenue': 'Transactions',
+  '/admin/transactions': 'Transactions',
+  '/admin/payments': 'Transactions',
+  '/admin/escrow': 'Transactions',
   '/admin/reports': 'Reports & Export',
   '/admin/insights': 'Market Insights',
   '/admin/insights/categories': 'Insight Categories',
@@ -165,7 +168,7 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
     // Overview & Finance
     { title: 'Dashboard Overview', category: 'Overview', path: '/admin', icon: LayoutDashboard, desc: 'System overview & live metrics', keywords: 'dashboard home analytics metrics overview stats' },
     { title: 'Reports & Export', category: 'Finance', path: '/admin/reports', icon: BarChart3, desc: 'Exportable CSV, Excel & performance reports', keywords: 'reports export csv excel analytics download' },
-    { title: 'Revenue & Finance', category: 'Finance', path: '/admin/revenue', icon: IndianRupee, desc: 'Platform revenues, token fees & escrow', keywords: 'revenue money finance payments earnings payouts' },
+    { title: 'Transactions', category: 'Finance', path: '/admin/revenue', icon: IndianRupee, desc: 'Buyer token payments, deposits & refunds', keywords: 'transactions payments token deposits escrow revenue money' },
 
     // Services
     { title: 'Services Hub', category: 'Services', path: '/admin/services', icon: Briefcase, desc: 'Home loans, interior design & legal services', keywords: 'services loans interiors legal assistance hub' },

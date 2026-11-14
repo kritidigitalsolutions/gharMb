@@ -619,8 +619,8 @@ export default function WebInquiries() {
             )}
           </div>
         ) : (
-          <div className="w-full overflow-hidden">
-            <table className="w-full text-left border-collapse table-fixed">
+          <div className="w-full overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left border-collapse table-fixed min-w-[850px]">
               <colgroup>
                 <col className="w-[4%]" />
                 <col className="w-[18%]" />
