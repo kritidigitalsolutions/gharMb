@@ -285,6 +285,7 @@ export default function PropertyVerification() {
       saleConfirmationDueDate: p.saleConfirmationDueDate || null,
       isPendingSaleConfirmation: isPendingSale,
       submittedDate: p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+      createdAt: p.createdAt,
       images: pureImages,
       videos: allVideos,
       gallery,
@@ -382,6 +383,7 @@ export default function PropertyVerification() {
       isSold: Boolean(p.isSold),
       saleStatus: p.saleStatus || (p.isSold ? 'sold' : 'available'),
       submittedDate: p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+      createdAt: p.createdAt,
       images: pureImages,
       videos: allVideos,
       gallery,
@@ -437,6 +439,42 @@ export default function PropertyVerification() {
     fetchData();
   }, []);
 
+  // ── 🛡️ Helper to detect developer/builder listings (Pipeline Separation & 0% Commission Rule) ──
+  const checkIsBuilder = (item) => {
+    if (!item) return false;
+    if (item.itemType === 'project') return true;
+    const role = String(
+      item.userRole ||
+      item.ownerRole ||
+      item.postedByRole ||
+      item.listingAs ||
+      item.owner?.role ||
+      ''
+    ).toLowerCase();
+    return role.includes('builder') || role.includes('developer');
+  };
+
+  // Separate properties into regular (Owner & Agent) and Developer inventory
+  const developerProperties = useMemo(() => {
+    return properties.filter(p => checkIsBuilder(p));
+  }, [properties]);
+
+  const regularProperties = useMemo(() => {
+    return properties.filter(p => !checkIsBuilder(p));
+  }, [properties]);
+
+  // Combined developer pipeline: builder township projects + all developer inventory properties
+  const developerProjectsList = useMemo(() => {
+    return [...developerProperties, ...projects].sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+  }, [developerProperties, projects]);
+
+  // Active list determination (Properties = Owner/Agent, Developer Projects = Builder projects & properties)
+  const activeList = activePipeline === 'properties' ? regularProperties : developerProjectsList;
+
   // Handle direct navigation via URL params (from notifications/search/leads deep-links)
   useEffect(() => {
     const q = searchParams.get('search') || searchParams.get('q');
@@ -464,9 +502,9 @@ export default function PropertyVerification() {
         );
       };
 
-      // 1. Look in properties first
-      if (properties.length > 0) {
-        const foundProp = properties.find(isMatch);
+      // 1. Look in regular properties first
+      if (regularProperties.length > 0) {
+        const foundProp = regularProperties.find(isMatch);
         if (foundProp) {
           setActivePipeline('properties');
           setSelectedItem(foundProp);
@@ -476,9 +514,9 @@ export default function PropertyVerification() {
         }
       }
 
-      // 2. Look in projects if not found in properties
-      if (projects.length > 0) {
-        const foundProj = projects.find(isMatch);
+      // 2. Look in developer projects if not found in regular properties
+      if (developerProjectsList.length > 0) {
+        const foundProj = developerProjectsList.find(isMatch);
         if (foundProj) {
           setActivePipeline('projects');
           setSelectedItem(foundProj);
@@ -487,7 +525,7 @@ export default function PropertyVerification() {
         }
       }
     }
-  }, [searchParams, properties, projects]);
+  }, [searchParams, regularProperties, developerProjectsList]);
 
   // Keyboard navigation for Lightbox
   useEffect(() => {
@@ -507,9 +545,6 @@ export default function PropertyVerification() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [lightboxOpen, selectedItem]);
-
-  // Active list determination
-  const activeList = activePipeline === 'properties' ? properties : projects;
 
   // Real-time metric counts across active pipeline
   const counts = useMemo(() => {
@@ -621,7 +656,7 @@ export default function PropertyVerification() {
       window.removeEventListener('resize', updatePipelineIndicator);
       clearTimeout(timeout);
     };
-  }, [activePipeline, properties.length, projects.length]);
+  }, [activePipeline, regularProperties.length, developerProjectsList.length]);
 
 
 
@@ -708,14 +743,6 @@ export default function PropertyVerification() {
     } finally {
       setIsSubmittingAction(false);
     }
-  };
-
-  // ── 🛡️ Helper to detect developer/builder listings (0% Platform Commission Rule) ──
-  const checkIsBuilder = (item) => {
-    if (!item) return false;
-    if (item.itemType === 'project') return true;
-    const role = (item.userRole || item.ownerRole || item.postedByRole || item.listingAs || '').toLowerCase();
-    return role.includes('builder') || role.includes('developer');
   };
 
   // ── 📊 Real-time Live Financial Calculations for Commission & Discount Modal ──
@@ -1445,7 +1472,7 @@ export default function PropertyVerification() {
                   ? 'bg-[#064e3b]/15 text-[#064e3b] dark:bg-[#6ee7b7]/25 dark:text-[#6ee7b7]'
                   : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]'
               }`}>
-                {properties.length}
+                {regularProperties.length}
               </span>
             </button>
 
@@ -1466,7 +1493,7 @@ export default function PropertyVerification() {
                   ? 'bg-[#4c1d95]/15 text-[#4c1d95] dark:bg-[#ddd6fe]/25 dark:text-[#ddd6fe]'
                   : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]'
               }`}>
-                {projects.length}
+                {developerProjectsList.length}
               </span>
             </button>
           </div>
@@ -1752,17 +1779,17 @@ export default function PropertyVerification() {
 
           {/* ── DESKTOP & TABLET DATA TABLE: (Hidden on Mobile, Visible on md+) ── */}
           <div className="hidden md:block w-full overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse table-fixed min-w-[960px]">
+            <table className="w-full text-left border-collapse table-fixed">
               <colgroup>
-                <col className="w-[18%]" />
-                <col className="w-[9%]" />
+                <col className="w-[17%]" />
+                <col className="w-[7%]" />
+                <col className="w-[12%]" />
                 <col className="w-[13%]" />
-                <col className="w-[10%]" />
-                <col className="w-[6%]" />
-                <col className="w-[13%]" />
-                <col className="w-[9%]" />
+                <col className="w-[5%]" />
+                <col className="w-[12%]" />
                 <col className="w-[8%]" />
-                <col className="w-[14%]" />
+                <col className="w-[8%]" />
+                <col className="w-[18%]" />
               </colgroup>
               <thead className="bg-[var(--bg-muted)]/40 text-[var(--text-muted)] uppercase text-[9.5px] font-semibold tracking-wider border-b border-[var(--border)] select-none">
                 <tr>
@@ -1774,7 +1801,7 @@ export default function PropertyVerification() {
                   <th className="py-2.5 px-3">Seller / Owner</th>
                   <th className="py-2.5 px-3">Submitted</th>
                   <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3.5 text-right">Actions</th>
+                  <th className="py-2.5 px-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]/60 text-xs">
@@ -1858,8 +1885,8 @@ export default function PropertyVerification() {
                           {item.price}
                         </span>
                         {item.commissionDiscount?.enabled && item.commissionDiscount?.discountAmount > 0 && (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 mt-1 cursor-help" title={`Admin Commission Discount: -${formatCurrency(item.commissionDiscount.discountAmount)} (100% borne by Admin)`}>
-                            <Sparkles size={8} /> -{formatCurrency(item.commissionDiscount.discountAmount)} Comm. Disc
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 mt-1 cursor-help max-w-full truncate" title={`Admin Commission Discount: -${formatCurrency(item.commissionDiscount.discountAmount)} (100% borne by Admin)`}>
+                            <Sparkles size={8} className="shrink-0" /> -{formatCurrency(item.commissionDiscount.discountAmount)} Disc
                           </span>
                         )}
                       </td>
@@ -1896,15 +1923,15 @@ export default function PropertyVerification() {
                       </td>
 
                       {/* Actions (Icon-Only Minimalist Buttons with Perfect Right Spacing) */}
-                      <td className="py-2.5 px-3.5 align-middle text-right whitespace-nowrap">
-                        <div className="inline-flex items-center justify-end gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-2.5 px-2 align-middle text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
                             onClick={() => openReviewDrawer(item)}
-                            className="w-6.5 h-6.5 rounded-lg flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                            className="w-6 h-6 rounded-lg flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
                             title="Review & Audit Details"
                           >
-                            <Eye size={12} />
+                            <Eye size={11} />
                           </button>
 
                           {item.status !== 'Approved' && item.status !== 'Sold' && (
@@ -1912,7 +1939,7 @@ export default function PropertyVerification() {
                               type="button"
                               onClick={() => handleApproveClick(item)}
                               disabled={isSubmittingAction}
-                              className="w-6.5 h-6.5 rounded-lg flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                              className="w-6 h-6 rounded-lg flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
                               title="Approve & Set Commission Discount"
                             >
                               <Check size={11} strokeWidth={2.5} />
@@ -1925,14 +1952,14 @@ export default function PropertyVerification() {
                               type="button"
                               onClick={() => openApprovalAndCommissionModal(item, false)}
                               disabled={isSubmittingAction}
-                              className={`w-6.5 h-6.5 rounded-lg flex items-center justify-center transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50 ${
+                              className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50 ${
                                 item.commissionDiscount?.enabled && item.commissionDiscount?.discountAmount > 0
                                   ? 'bg-emerald-500/15 hover:bg-emerald-600 text-emerald-700 dark:text-emerald-300 hover:text-white border border-emerald-500/30'
                                   : 'bg-purple-500/10 hover:bg-purple-600 text-purple-700 dark:text-purple-400 hover:text-white border border-purple-500/20'
                               }`}
                               title={item.commissionDiscount?.enabled ? 'Edit Commission Discount (Currently Active)' : 'Add Commission Discount'}
                             >
-                              <Percent size={11} strokeWidth={2.5} />
+                              <Percent size={10} strokeWidth={2.5} />
                             </button>
                           )}
 
@@ -1941,14 +1968,14 @@ export default function PropertyVerification() {
                             type="button"
                             onClick={() => openScoreModal(item)}
                             disabled={isSubmittingAction}
-                            className={`w-6.5 h-6.5 rounded-lg flex items-center justify-center transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50 ${
+                            className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50 ${
                               item.investmentScore?.overall > 0
                                 ? 'bg-amber-500/15 hover:bg-amber-600 text-amber-700 dark:text-amber-300 hover:text-white border border-amber-500/30'
                                 : 'bg-amber-500/10 hover:bg-amber-500 text-amber-700 dark:text-amber-400 hover:text-white border border-amber-500/20'
                             }`}
                             title={item.investmentScore?.overall > 0 ? `Investment Score: ${Number(item.investmentScore.overall).toFixed(1)}/10 (${item.investmentScore.grade})` : 'Curate Investment Score'}
                           >
-                            <TrendingUp size={11} strokeWidth={2.2} />
+                            <TrendingUp size={10} strokeWidth={2.2} />
                           </button>
 
                           {/* Quick 1-Click Sold Out button for approved listings */}
@@ -1957,10 +1984,10 @@ export default function PropertyVerification() {
                               type="button"
                               onClick={() => handleToggleSold(item, true)}
                               disabled={isSubmittingAction}
-                              className="w-6.5 h-6.5 rounded-lg flex items-center justify-center bg-amber-500/10 hover:bg-amber-500 text-amber-700 dark:text-amber-400 hover:text-white border border-amber-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                              className="w-6 h-6 rounded-lg flex items-center justify-center bg-amber-500/10 hover:bg-amber-500 text-amber-700 dark:text-amber-400 hover:text-white border border-amber-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
                               title="Mark as Sold Out (Off-Market)"
                             >
-                              <Tag size={11} strokeWidth={2.2} />
+                              <Tag size={10} strokeWidth={2.2} />
                             </button>
                           )}
 
@@ -1970,10 +1997,10 @@ export default function PropertyVerification() {
                               type="button"
                               onClick={() => handleToggleSold(item, false)}
                               disabled={isSubmittingAction}
-                              className="w-6.5 h-6.5 rounded-lg flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                              className="w-6 h-6 rounded-lg flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
                               title="Relist as Available"
                             >
-                              <RotateCcw size={11} />
+                              <RotateCcw size={10} />
                             </button>
                           )}
 
@@ -1982,10 +2009,10 @@ export default function PropertyVerification() {
                               type="button"
                               onClick={() => { setSelectedItem(item); setShowRejectModal(true); }}
                               disabled={isSubmittingAction}
-                              className="w-6.5 h-6.5 rounded-lg flex items-center justify-center bg-rose-500/10 hover:bg-rose-500 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                              className="w-6 h-6 rounded-lg flex items-center justify-center bg-rose-500/10 hover:bg-rose-500 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
                               title="Reject Listing"
                             >
-                              <X size={11} strokeWidth={2.5} />
+                              <X size={10} strokeWidth={2.5} />
                             </button>
                           )}
                         </div>
@@ -1998,7 +2025,7 @@ export default function PropertyVerification() {
           </div>
           <div className="px-3.5 py-2 border-t border-[var(--border)] bg-[var(--bg-muted)]/20 flex flex-col sm:flex-row items-center justify-between gap-1 text-[11px] text-[var(--text-muted)] select-none">
             <span>Showing <span className="font-semibold text-[var(--text-primary)]">{filteredList.length}</span> of {activeList.length} listings</span>
-            <span>{activePipeline === 'properties' ? 'Properties moderation queue' : 'Developer projects queue'}</span>
+            <span>{activePipeline === 'properties' ? 'Owner & Agent properties moderation queue' : 'Developer projects & builder inventory queue'}</span>
           </div>
         </div>
       )}
