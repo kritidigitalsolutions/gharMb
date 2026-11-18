@@ -104,7 +104,9 @@ const LegalSettings = () => {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: { levels: [1, 2, 3] }
+        heading: { levels: [1, 2, 3] },
+        link: false,
+        underline: false,
       }),
       Underline,
       LinkExtension.configure({ openOnClick: false }),

@@ -100,7 +100,9 @@ export const signInWithFirebaseEmail = async (email, password) => {
       uid: user.uid,
     };
   } catch (error) {
-    console.error("Firebase Email Sign-In Error:", error);
+    if (error.code !== "auth/invalid-credential" && error.code !== "auth/user-not-found" && error.code !== "auth/wrong-password") {
+      console.warn("Firebase Email Sign-In notice:", error?.message || error);
+    }
 
     let message = "Email sign-in failed.";
     if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {

@@ -131,6 +131,8 @@ const InsightsEditor = () => {
           color: '#FF5A3C',
           width: 2,
         },
+        link: false,
+        underline: false,
       }),
       Underline,
       LinkExtension.configure({

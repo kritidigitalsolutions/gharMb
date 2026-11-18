@@ -12,7 +12,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import API, { isTokenExpired, clearAuthSession } from "../../api/api";
-import { signInWithFirebaseEmail, sendFirebasePasswordReset } from "../../config/firebase";
+import { sendFirebasePasswordReset } from "../../config/firebase";
 import AnimatedGradientBackground from "../../components/common/AnimatedGradientBackground";
 import { InteractiveHoverButton } from "../../components/ui/interactive-hover-button";
 
@@ -123,25 +123,10 @@ const Login = () => {
         return;
       }
 
-      // 1. Fast attempt with Firebase Email Login Service
-      let firebaseToken = null;
-      try {
-        const fbResult = await Promise.race([
-          signInWithFirebaseEmail(cleanEmail, password),
-          new Promise((resolve) => setTimeout(() => resolve(null), 2000))
-        ]);
-        if (fbResult && fbResult.success && fbResult.idToken) {
-          firebaseToken = fbResult.idToken;
-        }
-      } catch (fbErr) {
-        console.warn("Firebase Email Login notice:", fbErr?.message || fbErr);
-      }
-
-      // 2. Strict backend verification
+      // 1. Primary secure authentication via Backend API & MongoDB
       const response = await API.post('/admin/auth/login', {
         email: cleanEmail,
-        password,
-        firebaseToken
+        password
       });
 
       const token = response?.data?.token || response?.data?.data?.token;
