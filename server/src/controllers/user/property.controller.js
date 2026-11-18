@@ -237,12 +237,18 @@ const enrichPropertyWithSellerRole = (propertyDoc, fallbackOwner = null, userCoo
 
   // Multiple BHK configurations metadata: BHK, Price, Carpet Area, and Floor Plan Image
   obj.bhkConfigurations = Array.isArray(obj.bhkConfigurations)
-    ? obj.bhkConfigurations.map(b => ({
-        bhk: b.bhk || b.bhkType || '',
-        price: Number(b.price) || 0,
-        carpetArea: b.carpetArea !== undefined && b.carpetArea !== null && !isNaN(Number(b.carpetArea)) ? Number(b.carpetArea) : null,
-        planImage: b.planImage || b.planImageUrl || b.floorPlan || null,
-      }))
+    ? obj.bhkConfigurations.map(b => {
+        const plan = b.planImage || b.planImageUrl || b.floorPlan || b.floorPlanUrl || b.pdfUrl || b.planPdf || null;
+        return {
+          bhk: b.bhk || b.bhkType || '',
+          bhkType: b.bhk || b.bhkType || '',
+          price: Number(b.price) || 0,
+          carpetArea: b.carpetArea !== undefined && b.carpetArea !== null && !isNaN(Number(b.carpetArea)) ? Number(b.carpetArea) : null,
+          planImage: plan,
+          floorPlan: plan,
+          floorPlanUrl: plan,
+        };
+      })
     : [];
   obj.hasMultipleBhk = obj.bhkConfigurations.length > 0;
   if (obj.hasMultipleBhk) {
@@ -1439,13 +1445,16 @@ exports.createProperty = async (req, res, next) => {
     }
     if (Array.isArray(bhkConfigs) && bhkConfigs.length > 0) {
       propertyData.bhkConfigurations = bhkConfigs
-        .map((item) => ({
-          bhk: item.bhk || item.bhkType || '',
-          bhkType: item.bhk || item.bhkType || '',
-          price: Number(item.price) || 0,
-          carpetArea: item.carpetArea !== undefined && item.carpetArea !== null && !isNaN(Number(item.carpetArea)) ? Number(item.carpetArea) : null,
-          planImage: item.planImage ? String(item.planImage).trim() : (item.planImageUrl ? String(item.planImageUrl).trim() : (item.floorPlan ? String(item.floorPlan).trim() : null)),
-        }))
+        .map((item) => {
+          const plan = item.planImage ? String(item.planImage).trim() : (item.planImageUrl ? String(item.planImageUrl).trim() : (item.floorPlan ? String(item.floorPlan).trim() : (item.floorPlanUrl ? String(item.floorPlanUrl).trim() : (item.pdfUrl ? String(item.pdfUrl).trim() : (item.planPdf ? String(item.planPdf).trim() : null)))));
+          return {
+            bhk: item.bhk || item.bhkType || '',
+            bhkType: item.bhk || item.bhkType || '',
+            price: Number(item.price) || 0,
+            carpetArea: item.carpetArea !== undefined && item.carpetArea !== null && !isNaN(Number(item.carpetArea)) ? Number(item.carpetArea) : null,
+            planImage: plan,
+          };
+        })
         .filter((b) => b.bhk && b.price > 0);
 
       const validPrices = propertyData.bhkConfigurations
@@ -2003,13 +2012,16 @@ exports.updateProperty = async (req, res, next) => {
       }
       if (Array.isArray(configs)) {
         updateFields.bhkConfigurations = configs
-          .map((item) => ({
-            bhk: item.bhk || item.bhkType || '',
-            bhkType: item.bhk || item.bhkType || '',
-            price: Number(item.price) || 0,
-            carpetArea: item.carpetArea !== undefined && item.carpetArea !== null && !isNaN(Number(item.carpetArea)) ? Number(item.carpetArea) : null,
-            planImage: item.planImage ? String(item.planImage).trim() : (item.planImageUrl ? String(item.planImageUrl).trim() : (item.floorPlan ? String(item.floorPlan).trim() : null)),
-          }))
+          .map((item) => {
+            const plan = item.planImage ? String(item.planImage).trim() : (item.planImageUrl ? String(item.planImageUrl).trim() : (item.floorPlan ? String(item.floorPlan).trim() : (item.floorPlanUrl ? String(item.floorPlanUrl).trim() : (item.pdfUrl ? String(item.pdfUrl).trim() : (item.planPdf ? String(item.planPdf).trim() : null)))));
+            return {
+              bhk: item.bhk || item.bhkType || '',
+              bhkType: item.bhk || item.bhkType || '',
+              price: Number(item.price) || 0,
+              carpetArea: item.carpetArea !== undefined && item.carpetArea !== null && !isNaN(Number(item.carpetArea)) ? Number(item.carpetArea) : null,
+              planImage: plan,
+            };
+          })
           .filter((b) => b.bhk && b.price > 0);
       } else {
         updateFields.bhkConfigurations = [];

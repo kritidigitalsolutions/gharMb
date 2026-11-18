@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import AdminLoader from '../components/common/AdminLoader';
 import {
   Plus, Search, Edit, Trash2, CheckCircle2, AlertCircle, RefreshCw,
-  Link as LinkIcon, X, Grid, List, UploadCloud, Check, Eye, MousePointerClick
+  Link as LinkIcon, X, Grid, List, UploadCloud, Check, Eye, MousePointerClick,
+  ArrowUp, ArrowDown
 } from 'lucide-react';
 import API from '../api/api';
 import { compressImage } from '../utils/imageCompressor';
@@ -160,6 +161,57 @@ const BannerManagement = () => {
     }
   };
 
+  // Calculate next available sequence number for a placement position
+  const getNextSortOrderForPosition = (pos) => {
+    const inPos = banners.filter(b => b.position === pos);
+    if (inPos.length === 0) return 1;
+    const maxOrder = Math.max(...inPos.map(b => Number(b.sortOrder) || 0));
+    return maxOrder + 1;
+  };
+
+  // Open Create Modal with auto-assigned next priority
+  const openCreateModal = () => {
+    const defaultPos = placementFilter !== 'all' ? placementFilter : 'home_top';
+    const nextOrder = getNextSortOrderForPosition(defaultPos);
+    setModalState({
+      ...defaultForm,
+      open: true,
+      position: defaultPos,
+      sortOrder: nextOrder,
+    });
+  };
+
+  // 1-Click Sequence Reorder (Move Up / Move Down within position)
+  const handleMoveOrder = async (banner, direction) => {
+    const positionBanners = banners
+      .filter(b => b.position === banner.position)
+      .sort((a, b) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0));
+
+    const currentIndex = positionBanners.findIndex(b => b._id === banner._id);
+    if (currentIndex === -1) return;
+
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= positionBanners.length) return;
+
+    const targetBanner = positionBanners[targetIndex];
+    const currentOrder = Number(banner.sortOrder) || (currentIndex + 1);
+    const targetOrder = Number(targetBanner.sortOrder) || (targetIndex + 1);
+
+    const items = [
+      { id: banner._id, sortOrder: targetOrder === currentOrder ? (direction === 'up' ? currentOrder - 1 : currentOrder + 1) : targetOrder },
+      { id: targetBanner._id, sortOrder: currentOrder },
+    ];
+
+    try {
+      await API.put('/admin/banners/reorder', { items });
+      triggerToast('Banner sequence updated');
+      fetchBanners();
+    } catch (err) {
+      console.error('Failed to reorder banner:', err);
+      triggerToast('Failed to update banner order', 'error');
+    }
+  };
+
   // Open Edit Modal
   const openEditModal = (banner) => {
     setModalState({
@@ -286,7 +338,7 @@ const BannerManagement = () => {
 
           <button
             type="button"
-            onClick={() => setModalState({ ...defaultForm, open: true })}
+            onClick={openCreateModal}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand text-white text-xs font-semibold hover:bg-brand-dark transition-all cursor-pointer shadow-2xs"
           >
             <Plus size={14} />
@@ -410,7 +462,7 @@ const BannerManagement = () => {
           </div>
           <button
             type="button"
-            onClick={() => setModalState({ ...defaultForm, open: true })}
+            onClick={openCreateModal}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand text-white text-xs font-semibold cursor-pointer"
           >
             <Plus size={14} />
@@ -529,11 +581,12 @@ const BannerManagement = () => {
             <table className="w-full text-left text-xs border-collapse table-fixed min-w-[700px]">
               <colgroup>
                 <col className="w-[4%]" />
-                <col className="w-[12%]" />
-                <col className="w-[34%]" />
-                <col className="w-[18%]" />
-                <col className="w-[12%]" />
                 <col className="w-[10%]" />
+                <col className="w-[28%]" />
+                <col className="w-[16%]" />
+                <col className="w-[14%]" />
+                <col className="w-[10%]" />
+                <col className="w-[8%]" />
                 <col className="w-[10%]" />
               </colgroup>
               <thead className="bg-[var(--bg-muted)]/50 border-b border-[var(--border)] text-[var(--text-muted)] font-semibold text-[11px]">
@@ -549,6 +602,7 @@ const BannerManagement = () => {
                   <th className="py-2 px-3 align-middle">Banner</th>
                   <th className="py-2 px-3 align-middle">Title & Target</th>
                   <th className="py-2 px-3 align-middle">Placement</th>
+                  <th className="py-2 px-3 align-middle">Order / Priority</th>
                   <th className="py-2 px-3 align-middle">Views / Clicks</th>
                   <th className="py-2 px-3 align-middle text-center">Status</th>
                   <th className="py-2 px-3 align-middle text-right">Actions</th>
@@ -586,6 +640,31 @@ const BannerManagement = () => {
                         <Badge color="purple" variant="pastel" size="xs">
                           {getPlacementLabel(banner.position)}
                         </Badge>
+                      </td>
+                      <td className="py-1.5 px-3 align-middle min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-bold text-[11px] px-1.5 py-0.5 rounded bg-[var(--bg-muted)] border border-[var(--border)] text-[var(--text-primary)]">
+                            Seq #{banner.sortOrder ?? 1}
+                          </span>
+                          <div className="inline-flex flex-col gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveOrder(banner, 'up')}
+                              className="p-0.5 rounded hover:bg-amber-100 hover:text-amber-800 text-[var(--text-muted)] transition-colors cursor-pointer"
+                              title="Move Up"
+                            >
+                              <ArrowUp size={10} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveOrder(banner, 'down')}
+                              className="p-0.5 rounded hover:bg-amber-100 hover:text-amber-800 text-[var(--text-muted)] transition-colors cursor-pointer"
+                              title="Move Down"
+                            >
+                              <ArrowDown size={10} />
+                            </button>
+                          </div>
+                        </div>
                       </td>
                       <td className="py-1.5 px-3 align-middle min-w-0">
                         <span className="text-[11px] text-[var(--text-muted)] truncate block font-mono">
@@ -797,7 +876,14 @@ const BannerManagement = () => {
                   <label className="text-xs font-semibold text-[var(--text-primary)]">Placement Position *</label>
                   <select
                     value={modalState.position}
-                    onChange={(e) => setModalState(prev => ({ ...prev, position: e.target.value }))}
+                    onChange={(e) => {
+                      const newPos = e.target.value;
+                      setModalState(prev => ({
+                        ...prev,
+                        position: newPos,
+                        sortOrder: prev.mode === 'create' ? getNextSortOrderForPosition(newPos) : prev.sortOrder,
+                      }));
+                    }}
                     className="w-full px-2.5 py-2 rounded-lg text-xs bg-[var(--bg-muted)]/40 border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-brand cursor-pointer"
                   >
                     {PLACEMENT_OPTIONS.filter(p => p.id !== 'all').map(p => (
@@ -810,12 +896,15 @@ const BannerManagement = () => {
                   <label className="text-xs font-semibold text-[var(--text-primary)]">Order / Priority</label>
                   <input
                     type="number"
-                    min="0"
-                    placeholder="0"
+                    min="1"
+                    placeholder="1"
                     value={modalState.sortOrder}
-                    onChange={(e) => setModalState(prev => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))}
+                    onChange={(e) => setModalState(prev => ({ ...prev, sortOrder: parseInt(e.target.value) || 1 }))}
                     className="w-full px-2.5 py-2 rounded-lg text-xs bg-[var(--bg-muted)]/40 border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-brand"
                   />
+                  <p className="text-[10px] text-[var(--text-muted)] mt-0.5 truncate" title={`Next available: #${getNextSortOrderForPosition(modalState.position)}`}>
+                    Next in {getPlacementLabel(modalState.position)}: <strong>#{getNextSortOrderForPosition(modalState.position)}</strong>
+                  </p>
                 </div>
               </div>
 

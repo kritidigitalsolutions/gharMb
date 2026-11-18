@@ -166,6 +166,7 @@ router.delete('/clear', favoriteController.clearFavorites);
  *       200:
  *         description: Item removed from wishlist
  */
+router.post('/:id', favoriteController.toggleFavorite);
 router.delete('/:id', favoriteController.removeFavorite);
 
 module.exports = router;

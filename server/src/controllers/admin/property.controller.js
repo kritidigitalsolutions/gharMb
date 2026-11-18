@@ -250,13 +250,20 @@ exports.getAllProperties = async (req, res, next) => {
         saleConfirmedAt: obj.saleConfirmedAt || null,
         isPendingSaleConfirmation: obj.saleStatus === 'marked_as_sold',
         saleNotes: obj.saleNotes || '',
-        // Multiple BHK configurations (ONLY BHK and its custom Price)
+        // Multiple BHK configurations (BHK, custom Price, Carpet Area, and Floor Plan Image/PDF)
         bhkConfigurations: Array.isArray(obj.bhkConfigurations)
-          ? obj.bhkConfigurations.map((b) => ({
-              bhk: b.bhk || b.bhkType || '',
-              bhkType: b.bhk || b.bhkType || '',
-              price: Number(b.price) || 0,
-            }))
+          ? obj.bhkConfigurations.map((b) => {
+              const plan = b.planImage || b.planImageUrl || b.floorPlan || b.floorPlanUrl || b.pdfUrl || b.planPdf || null;
+              return {
+                bhk: b.bhk || b.bhkType || '',
+                bhkType: b.bhk || b.bhkType || '',
+                price: Number(b.price) || 0,
+                carpetArea: b.carpetArea !== undefined && b.carpetArea !== null && !isNaN(Number(b.carpetArea)) ? Number(b.carpetArea) : null,
+                planImage: plan,
+                floorPlan: plan,
+                floorPlanUrl: plan,
+              };
+            })
           : [],
         hasMultipleBhk: Array.isArray(obj.bhkConfigurations) && obj.bhkConfigurations.length > 0,
       };
@@ -610,7 +617,7 @@ exports.updateProperty = async (req, res, next) => {
       updateFields.securityDepositDuration = undefined;
     }
 
-    // Handle multiple BHK configurations: ONLY BHK and its Price
+    // Handle multiple BHK configurations: BHK, Price, Carpet Area, and Floor Plan Image/PDF
     if (updateFields.bhkConfigurations !== undefined) {
       let configs = updateFields.bhkConfigurations;
       if (typeof configs === 'string') {
@@ -622,11 +629,18 @@ exports.updateProperty = async (req, res, next) => {
       }
       if (Array.isArray(configs)) {
         updateFields.bhkConfigurations = configs
-          .map((item) => ({
-            bhk: item.bhk || item.bhkType || '',
-            bhkType: item.bhk || item.bhkType || '',
-            price: Number(item.price) || 0,
-          }))
+          .map((item) => {
+            const plan = item.planImage ? String(item.planImage).trim() : (item.planImageUrl ? String(item.planImageUrl).trim() : (item.floorPlan ? String(item.floorPlan).trim() : (item.floorPlanUrl ? String(item.floorPlanUrl).trim() : (item.pdfUrl ? String(item.pdfUrl).trim() : (item.planPdf ? String(item.planPdf).trim() : null)))));
+            return {
+              bhk: item.bhk || item.bhkType || '',
+              bhkType: item.bhk || item.bhkType || '',
+              price: Number(item.price) || 0,
+              carpetArea: item.carpetArea !== undefined && item.carpetArea !== null && !isNaN(Number(item.carpetArea)) ? Number(item.carpetArea) : null,
+              planImage: plan,
+              floorPlan: plan,
+              floorPlanUrl: plan,
+            };
+          })
           .filter((b) => b.bhk && b.price > 0);
       } else {
         updateFields.bhkConfigurations = [];

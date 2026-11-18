@@ -43,9 +43,16 @@ favoriteSchema.pre('validate', function () {
   }
 });
 
-// Composite unique indexes to prevent duplicate bookmarks
-favoriteSchema.index({ user: 1, property: 1 }, { unique: true, sparse: true });
-favoriteSchema.index({ user: 1, project: 1 }, { unique: true, sparse: true });
+// Composite unique indexes with partialFilterExpression to safely allow multiple wishlisted items
+// Each user can bookmark a property only once, and a project only once
+favoriteSchema.index(
+  { user: 1, property: 1 },
+  { unique: true, partialFilterExpression: { property: { $exists: true, $type: 'objectId' } } }
+);
+favoriteSchema.index(
+  { user: 1, project: 1 },
+  { unique: true, partialFilterExpression: { project: { $exists: true, $type: 'objectId' } } }
+);
 
 const Favorite = mongoose.model('Favorite', favoriteSchema);
 

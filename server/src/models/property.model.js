@@ -657,7 +657,7 @@ propertySchema.pre('validate', function () {
         bhkType: bhkVal,
         price: Number(item.price) || 0,
         carpetArea: item.carpetArea !== undefined && item.carpetArea !== null && !isNaN(Number(item.carpetArea)) ? Number(item.carpetArea) : null,
-        planImage: item.planImage ? String(item.planImage).trim() : (item.floorPlan ? String(item.floorPlan).trim() : null),
+        planImage: item.planImage ? String(item.planImage).trim() : (item.planImageUrl ? String(item.planImageUrl).trim() : (item.floorPlan ? String(item.floorPlan).trim() : (item.floorPlanUrl ? String(item.floorPlanUrl).trim() : (item.pdfUrl ? String(item.pdfUrl).trim() : (item.planPdf ? String(item.planPdf).trim() : null))))),
       };
     });
 

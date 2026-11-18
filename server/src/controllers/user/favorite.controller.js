@@ -125,10 +125,20 @@ exports.getMyFavorites = async (req, res, next) => {
 // @access  Private (All authenticated users)
 exports.toggleFavorite = async (req, res, next) => {
   try {
-    const propertyId = req.body.propertyId || req.body.property || (!req.body.projectId && req.body.id);
-    const projectId = req.body.projectId || req.body.project;
+    const rawPropertyId =
+      req.body?.propertyId ||
+      req.body?.property_id ||
+      req.body?.property ||
+      req.params?.propertyId ||
+      (!req.body?.projectId && !req.body?.project_id && (req.body?.id || req.params?.id));
 
-    if (!propertyId && !projectId) {
+    const rawProjectId =
+      req.body?.projectId ||
+      req.body?.project_id ||
+      req.body?.project ||
+      req.params?.projectId;
+
+    if (!rawPropertyId && !rawProjectId) {
       return res.status(400).json({
         status: 'fail',
         success: false,
@@ -136,16 +146,17 @@ exports.toggleFavorite = async (req, res, next) => {
       });
     }
 
-    if (propertyId) {
-      if (!isValidId(propertyId)) {
-        return res.status(400).json({
-          status: 'fail',
-          success: false,
-          message: 'Invalid property ID format.',
-        });
+    if (rawPropertyId) {
+      let property = null;
+      if (isValidId(rawPropertyId)) {
+        property = await Property.findById(rawPropertyId);
+      }
+      if (!property) {
+        property =
+          (await Property.findOne({ submissionId: rawPropertyId })) ||
+          (await Property.findOne({ submissionId: `#${String(rawPropertyId).replace(/^#/, '')}` }));
       }
 
-      const property = await Property.findById(propertyId);
       if (!property) {
         return res.status(404).json({
           status: 'fail',
@@ -154,6 +165,7 @@ exports.toggleFavorite = async (req, res, next) => {
         });
       }
 
+      const propertyId = property._id;
       const existingFavorite = await Favorite.findOne({
         user: req.user._id,
         property: propertyId,
@@ -203,16 +215,17 @@ exports.toggleFavorite = async (req, res, next) => {
       }
     }
 
-    if (projectId) {
-      if (!isValidId(projectId)) {
-        return res.status(400).json({
-          status: 'fail',
-          success: false,
-          message: 'Invalid project ID format.',
-        });
+    if (rawProjectId) {
+      let project = null;
+      if (isValidId(rawProjectId)) {
+        project = await Project.findById(rawProjectId);
+      }
+      if (!project) {
+        project =
+          (await Project.findOne({ submissionId: rawProjectId })) ||
+          (await Project.findOne({ submissionId: `#${String(rawProjectId).replace(/^#/, '')}` }));
       }
 
-      const project = await Project.findById(projectId);
       if (!project) {
         return res.status(404).json({
           status: 'fail',
@@ -221,6 +234,7 @@ exports.toggleFavorite = async (req, res, next) => {
         });
       }
 
+      const projectId = project._id;
       const existingFavorite = await Favorite.findOne({
         user: req.user._id,
         project: projectId,
@@ -267,10 +281,20 @@ exports.toggleFavorite = async (req, res, next) => {
 // @access  Private (All authenticated users)
 exports.addToFavorites = async (req, res, next) => {
   try {
-    const propertyId = req.body.propertyId || req.body.property || (!req.body.projectId && req.body.id);
-    const projectId = req.body.projectId || req.body.project;
+    const rawPropertyId =
+      req.body?.propertyId ||
+      req.body?.property_id ||
+      req.body?.property ||
+      req.params?.propertyId ||
+      (!req.body?.projectId && !req.body?.project_id && (req.body?.id || req.params?.id));
 
-    if (!propertyId && !projectId) {
+    const rawProjectId =
+      req.body?.projectId ||
+      req.body?.project_id ||
+      req.body?.project ||
+      req.params?.projectId;
+
+    if (!rawPropertyId && !rawProjectId) {
       return res.status(400).json({
         status: 'fail',
         success: false,
@@ -278,16 +302,17 @@ exports.addToFavorites = async (req, res, next) => {
       });
     }
 
-    if (propertyId) {
-      if (!isValidId(propertyId)) {
-        return res.status(400).json({
-          status: 'fail',
-          success: false,
-          message: 'Invalid property ID format.',
-        });
+    if (rawPropertyId) {
+      let property = null;
+      if (isValidId(rawPropertyId)) {
+        property = await Property.findById(rawPropertyId);
+      }
+      if (!property) {
+        property =
+          (await Property.findOne({ submissionId: rawPropertyId })) ||
+          (await Property.findOne({ submissionId: `#${String(rawPropertyId).replace(/^#/, '')}` }));
       }
 
-      const property = await Property.findById(propertyId);
       if (!property) {
         return res.status(404).json({
           status: 'fail',
@@ -296,6 +321,7 @@ exports.addToFavorites = async (req, res, next) => {
         });
       }
 
+      const propertyId = property._id;
       const existingFavorite = await Favorite.findOne({
         user: req.user._id,
         property: propertyId,
@@ -338,16 +364,17 @@ exports.addToFavorites = async (req, res, next) => {
       });
     }
 
-    if (projectId) {
-      if (!isValidId(projectId)) {
-        return res.status(400).json({
-          status: 'fail',
-          success: false,
-          message: 'Invalid project ID format.',
-        });
+    if (rawProjectId) {
+      let project = null;
+      if (isValidId(rawProjectId)) {
+        project = await Project.findById(rawProjectId);
+      }
+      if (!project) {
+        project =
+          (await Project.findOne({ submissionId: rawProjectId })) ||
+          (await Project.findOne({ submissionId: `#${String(rawProjectId).replace(/^#/, '')}` }));
       }
 
-      const project = await Project.findById(projectId);
       if (!project) {
         return res.status(404).json({
           status: 'fail',
@@ -356,6 +383,7 @@ exports.addToFavorites = async (req, res, next) => {
         });
       }
 
+      const projectId = project._id;
       const existingFavorite = await Favorite.findOne({
         user: req.user._id,
         project: projectId,

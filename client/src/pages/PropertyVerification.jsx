@@ -20,6 +20,7 @@ import {
   Eye,
   Check,
   ExternalLink,
+  Download,
   Phone,
   Mail,
   Copy,
@@ -181,12 +182,6 @@ export default function PropertyVerification() {
 
     const pureImages = rawImages.filter(u => !isVideoUrl(u));
     const allVideos = [...rawVideos, ...rawImages.filter(u => isVideoUrl(u))];
-    const gallery = Array.isArray(p.gallery) && p.gallery.length > 0
-      ? p.gallery
-      : [
-          ...pureImages.map(url => ({ url, type: 'image' })),
-          ...allVideos.map(url => ({ url, type: 'video' }))
-        ];
 
     const carpet = Number(p.carpetArea) || 0;
     const priceNum = Number(p.price) || 0;
@@ -194,17 +189,40 @@ export default function PropertyVerification() {
       ? `₹${Math.round(priceNum / carpet).toLocaleString('en-IN')}/sq.ft`
       : null;
 
-    // Multiple BHK Configurations: BHK, Price, Carpet Area, and Floor Plan Image
+    // Multiple BHK Configurations: BHK, Price, Carpet Area, and Floor Plan Image/PDF
     const bhkConfigurations = Array.isArray(p.bhkConfigurations)
       ? p.bhkConfigurations
-          .map((b) => ({
-            bhk: b.bhk || b.bhkType || '',
-            price: Number(b.price) || 0,
-            carpetArea: b.carpetArea ? Number(b.carpetArea) : null,
-            planImage: b.planImage || b.planImageUrl || b.floorPlan || null,
-          }))
+          .map((b) => {
+            const plan = b.planImage || b.planImageUrl || b.floorPlan || b.floorPlanUrl || b.pdfUrl || b.planPdf || null;
+            const isPdf = typeof plan === 'string' && (plan.toLowerCase().includes('.pdf') || plan.toLowerCase().includes('application/pdf'));
+            return {
+              bhk: b.bhk || b.bhkType || '',
+              price: Number(b.price) || 0,
+              carpetArea: b.carpetArea ? Number(b.carpetArea) : null,
+              planImage: plan,
+              floorPlan: plan,
+              isPdf,
+            };
+          })
           .filter((b) => b.bhk && b.price > 0)
       : [];
+
+    const bhkFloorPlans = bhkConfigurations
+      .filter((b) => Boolean(b.planImage))
+      .map((b) => ({
+        url: b.planImage,
+        type: b.isPdf ? 'pdf' : 'image',
+        label: `${b.bhk} Floor Plan`,
+        bhk: b.bhk,
+      }));
+
+    const gallery = Array.isArray(p.gallery) && p.gallery.length > 0
+      ? p.gallery
+      : [
+          ...pureImages.map(url => ({ url, type: 'image' })),
+          ...allVideos.map(url => ({ url, type: 'video' })),
+          ...bhkFloorPlans,
+        ];
 
     let priceDisplay = formatCurrency(p.price);
     if (bhkConfigurations.length > 1) {
@@ -2353,9 +2371,26 @@ export default function PropertyVerification() {
                                 href={bhkItem.planImage}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:underline mt-1 pt-1.5 border-t border-[var(--border)]"
+                                className={`inline-flex items-center justify-between gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-lg border mt-1.5 transition-all shadow-2xs ${
+                                  bhkItem.isPdf || String(bhkItem.planImage).toLowerCase().includes('.pdf')
+                                    ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                                    : 'bg-brand/10 hover:bg-brand/20 text-brand border-brand/25'
+                                }`}
                               >
-                                <span>📐 View Plan</span>
+                                <span className="flex items-center gap-1.5 truncate">
+                                  {bhkItem.isPdf || String(bhkItem.planImage).toLowerCase().includes('.pdf') ? (
+                                    <>
+                                      <FileText size={12} className="shrink-0 text-rose-600 dark:text-rose-400" />
+                                      <span className="truncate">View Floor Plan (PDF)</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span>📐</span>
+                                      <span className="truncate">View Floor Plan</span>
+                                    </>
+                                  )}
+                                </span>
+                                <ExternalLink size={10} className="shrink-0 opacity-70" />
                               </a>
                             )}
                           </div>
@@ -2651,7 +2686,14 @@ export default function PropertyVerification() {
                       {selectedItem.gallery.map((media, idx) => (
                         <div
                           key={idx}
-                          onClick={() => { setActiveLightboxIndex(idx); setLightboxOpen(true); }}
+                          onClick={() => {
+                            if (media.type === 'pdf') {
+                              window.open(media.url, '_blank', 'noopener,noreferrer');
+                            } else {
+                              setActiveLightboxIndex(idx);
+                              setLightboxOpen(true);
+                            }
+                          }}
                           className="relative h-28 rounded-xl overflow-hidden bg-[var(--bg-muted)] border border-[var(--border)] cursor-pointer group"
                         >
                           {media.type === 'video' ? (
@@ -2666,12 +2708,26 @@ export default function PropertyVerification() {
                                 <Film size={10} /> Video
                               </span>
                             </div>
+                          ) : media.type === 'pdf' ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center p-2.5 bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/20 text-center transition-colors">
+                              <div className="w-9 h-9 rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                                <FileText size={20} />
+                              </div>
+                              <span className="text-[11px] font-bold text-[var(--text-primary)] truncate max-w-full">
+                                {media.label || 'Floor Plan (PDF)'}
+                              </span>
+                              <span className="text-[9.5px] text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-0.5 mt-0.5">
+                                Open PDF <ExternalLink size={9} />
+                              </span>
+                            </div>
                           ) : (
                             <SmoothImage src={media.url} alt={`Media ${idx}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                           )}
-                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                            <Maximize2 size={16} />
-                          </div>
+                          {media.type !== 'pdf' && (
+                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                              <Maximize2 size={16} />
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -2736,6 +2792,35 @@ export default function PropertyVerification() {
                         </div>
                       );
                     })}
+
+                    {/* BHK Floor Plan Documents uploaded by Developer */}
+                    {selectedItem.bhkConfigurations?.filter((b) => Boolean(b.planImage)).map((bhk, idx) => (
+                      <div
+                        key={`bhk-doc-${idx}`}
+                        className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <FileText size={16} className={bhk.isPdf || String(bhk.planImage).toLowerCase().includes('.pdf') ? 'text-rose-500' : 'text-brand'} />
+                          <div>
+                            <span className="font-semibold text-[var(--text-primary)] block">
+                              Floor Plan — {bhk.bhk}
+                            </span>
+                            <span className="text-[10px] text-[var(--text-muted)]">
+                              {bhk.isPdf || String(bhk.planImage).toLowerCase().includes('.pdf') ? 'PDF Document' : 'Image Layout'}{bhk.carpetArea ? ` • ${bhk.carpetArea.toLocaleString('en-IN')} sqft` : ''}
+                            </span>
+                          </div>
+                        </div>
+                        <a
+                          href={bhk.planImage}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2.5 py-1 rounded-lg bg-brand/10 hover:bg-brand/20 text-brand font-bold text-[11px] flex items-center gap-1 transition-colors"
+                        >
+                          <span>View Plan</span>
+                          <ExternalLink size={11} />
+                        </a>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -3707,31 +3792,76 @@ export default function PropertyVerification() {
       {lightboxOpen && selectedItem && (
         <div className="fixed inset-0 z-[60] bg-black/95 flex flex-col justify-between p-4 select-none">
           <div className="flex items-center justify-between text-white shrink-0">
-            <span className="text-xs font-mono font-bold">
-              {activeLightboxIndex + 1} / {selectedItem.gallery?.length || 1}
-            </span>
-            <button
-              type="button"
-              onClick={() => setLightboxOpen(false)}
-              className="p-2 text-white/70 hover:text-white rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
-            >
-              <X size={20} />
-            </button>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-mono font-bold bg-white/10 px-2.5 py-1 rounded-md">
+                {activeLightboxIndex + 1} / {selectedItem.gallery?.length || 1}
+              </span>
+              {selectedItem.gallery?.[activeLightboxIndex]?.type === 'video' && (
+                <span className="text-[11px] font-bold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                  <Film size={12} /> Video Walkthrough
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {selectedItem.gallery?.[activeLightboxIndex]?.url && (
+                <>
+                  <a
+                    href={selectedItem.gallery[activeLightboxIndex].url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 text-xs font-bold text-white bg-white/10 hover:bg-white/20 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+                    title="Open in new browser tab / player"
+                  >
+                    <span>Open in New Tab</span>
+                    <ExternalLink size={13} />
+                  </a>
+                  <a
+                    href={selectedItem.gallery[activeLightboxIndex].url}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 text-white/80 hover:text-white rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
+                    title="Download Media File"
+                  >
+                    <Download size={18} />
+                  </a>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => setLightboxOpen(false)}
+                className="p-2 text-white/70 hover:text-white rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
           </div>
 
-          <div className="flex-1 flex items-center justify-center relative min-h-0">
+          <div className="flex-1 flex flex-col items-center justify-center relative min-h-0 my-2">
             {selectedItem.gallery?.[activeLightboxIndex]?.type === 'video' ? (
-              <video
-                src={selectedItem.gallery[activeLightboxIndex].url}
-                controls
-                autoPlay
-                className="max-h-[80vh] max-w-[90vw] object-contain rounded-xl"
-              />
+              <div className="w-full max-w-4xl max-h-[75vh] flex flex-col items-center justify-center">
+                <video
+                  key={selectedItem.gallery[activeLightboxIndex].url}
+                  src={selectedItem.gallery[activeLightboxIndex].url}
+                  controls
+                  autoPlay
+                  playsInline
+                  preload="auto"
+                  className="w-full max-h-[68vh] object-contain rounded-2xl bg-black/90 shadow-2xl border border-white/10"
+                />
+                <div className="mt-2.5 px-3 py-1.5 rounded-xl bg-white/10 border border-white/15 text-[11px] text-white/80 flex items-center gap-2 text-center max-w-xl">
+                  <Info size={14} className="text-amber-400 shrink-0" />
+                  <span>
+                    Mobile video playback: If video visual is dark due to mobile HEVC/H.265 codec, click <strong>Open in New Tab</strong> to view with full visuals.
+                  </span>
+                </div>
+              </div>
             ) : (
               <img
                 src={selectedItem.gallery?.[activeLightboxIndex]?.url}
                 alt="Preview"
-                className="max-h-[80vh] max-w-[90vw] object-contain rounded-xl"
+                className="max-h-[80vh] max-w-[90vw] object-contain rounded-xl shadow-2xl"
               />
             )}
 

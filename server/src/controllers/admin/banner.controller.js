@@ -125,8 +125,24 @@ exports.createBanner = async (req, res, next) => {
     if (bannerData.isActive !== undefined) {
       bannerData.isActive = bannerData.isActive === 'true' || bannerData.isActive === true;
     }
-    if (bannerData.sortOrder !== undefined) {
-      bannerData.sortOrder = Number(bannerData.sortOrder) || 0;
+
+    // Auto-calculate sortOrder / Priority sequence per position
+    const targetPosition = bannerData.position || 'home_top';
+    const highestBanner = await Banner.findOne({ position: targetPosition })
+      .sort({ sortOrder: -1 })
+      .select('sortOrder');
+    const nextOrder = (highestBanner?.sortOrder || 0) + 1;
+
+    let requestedOrder = bannerData.sortOrder !== undefined && bannerData.sortOrder !== '' ? Number(bannerData.sortOrder) : undefined;
+    if (requestedOrder === undefined || isNaN(requestedOrder) || requestedOrder <= 0) {
+      bannerData.sortOrder = nextOrder;
+    } else {
+      // If user specified an existing order (or lower), shift conflicting banners in the same position
+      await Banner.updateMany(
+        { position: targetPosition, sortOrder: { $gte: requestedOrder } },
+        { $inc: { sortOrder: 1 } }
+      );
+      bannerData.sortOrder = requestedOrder;
     }
 
     // Sanitize dates to prevent Mongoose CastError on empty strings
@@ -186,8 +202,45 @@ exports.updateBanner = async (req, res, next) => {
     if (bannerData.isActive !== undefined) {
       bannerData.isActive = bannerData.isActive === 'true' || bannerData.isActive === true;
     }
-    if (bannerData.sortOrder !== undefined) {
-      bannerData.sortOrder = Number(bannerData.sortOrder) || 0;
+
+    const existingBanner = await Banner.findById(req.params.id);
+    if (!existingBanner) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'Banner not found.',
+      });
+    }
+
+    const newPosition = bannerData.position || existingBanner.position;
+    const oldPosition = existingBanner.position;
+
+    if (bannerData.sortOrder !== undefined && bannerData.sortOrder !== '') {
+      const newOrder = Number(bannerData.sortOrder) || 1;
+      const oldOrder = existingBanner.sortOrder || 1;
+
+      // If position or sortOrder changed, re-sequence conflicting banners in that position
+      if (newPosition !== oldPosition) {
+        // Shift banners down in new position
+        await Banner.updateMany(
+          { _id: { $ne: existingBanner._id }, position: newPosition, sortOrder: { $gte: newOrder } },
+          { $inc: { sortOrder: 1 } }
+        );
+      } else if (newOrder !== oldOrder) {
+        if (newOrder < oldOrder) {
+          // Moved up: shift intermediate banners down
+          await Banner.updateMany(
+            { _id: { $ne: existingBanner._id }, position: newPosition, sortOrder: { $gte: newOrder, $lt: oldOrder } },
+            { $inc: { sortOrder: 1 } }
+          );
+        } else {
+          // Moved down: shift intermediate banners up
+          await Banner.updateMany(
+            { _id: { $ne: existingBanner._id }, position: newPosition, sortOrder: { $gt: oldOrder, $lte: newOrder } },
+            { $inc: { sortOrder: -1 } }
+          );
+        }
+      }
+      bannerData.sortOrder = newOrder;
     }
 
     // Sanitize dates to prevent Mongoose CastError on empty strings
