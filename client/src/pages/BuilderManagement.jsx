@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import AdminLoader from '../components/common/AdminLoader';
 import SmoothImage from '../components/common/SmoothImage';
 import API, { getMediaUrl } from '../api/api';
@@ -60,6 +60,7 @@ const PRESET_REJECT_REASONS = [
 export default function BuilderManagement() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   // ── 01. Module Pipeline State ('builders' | 'projects') ───────────────────
   const [activeTab, setActiveTab] = useState(() => {
@@ -72,8 +73,10 @@ export default function BuilderManagement() {
   // ── 02. Data States ───────────────────────────────────────────────────────
   const [builders, setBuilders] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [properties, setProperties] = useState([]);
   const [isLoadingBuilders, setIsLoadingBuilders] = useState(true);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [isLoadingProperties, setIsLoadingProperties] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState('Just now');
   const lastSyncTimestampRef = useRef(Date.now());
@@ -82,6 +85,9 @@ export default function BuilderManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'Pending' | 'Approved' | 'Suspended'
   const [secondaryFilter, setSecondaryFilter] = useState('ALL'); // Builders: 'ALL'|'RERA_DOC'|'ISO'|'HIGH_TRUST' ; Projects: 'ALL'|'RESIDENTIAL'|'COMMERCIAL'|'READY'|'UNDER_CONST'
+  const [selectedBuilderFilter, setSelectedBuilderFilter] = useState('ALL'); // 'ALL' | builderId
+  const [inventoryTypeFilter, setInventoryTypeFilter] = useState('ALL'); // 'ALL' | 'PROJECTS' | 'PROPERTIES'
+  const [drawerInventoryType, setDrawerInventoryType] = useState('ALL'); // 'ALL' | 'PROJECTS' | 'PROPERTIES'
   const [viewMode, setViewMode] = useState(() => {
     try {
       return localStorage.getItem('builders_projects_view') || 'table';
@@ -157,6 +163,14 @@ export default function BuilderManagement() {
   };
 
   const getDocumentUrl = (url) => getMediaUrl(url);
+
+  const formatCurrency = (amount) => {
+    if (!amount || isNaN(amount)) return 'Price on Request';
+    const num = Number(amount);
+    if (num >= 10000000) return `₹${(num / 10000000).toFixed(2).replace(/\.00$/, '')} Cr`;
+    if (num >= 100000) return `₹${(num / 100000).toFixed(2).replace(/\.00$/, '')} L`;
+    return `₹${num.toLocaleString('en-IN')}`;
+  };
 
   const getRelativeTime = (dateString) => {
     if (!dateString) return 'Recent';
@@ -246,13 +260,35 @@ export default function BuilderManagement() {
     }
   }, []);
 
-  const fetchProjects = useCallback(async () => {
+  const fetchInventory = useCallback(async () => {
     setIsLoadingProjects(true);
+    setIsLoadingProperties(true);
     try {
-      const response = await API.get('/admin/projects');
-      const data = response.data;
-      if (data?.status === 'success' && data.data?.projects) {
-        const mapped = data.data.projects.map((p) => {
+      const [projRes, propRes] = await Promise.allSettled([
+        API.get('/admin/projects', { params: { limit: 1000 } }),
+        API.get('/admin/properties', { params: { limit: 1000 } })
+      ]);
+
+      const isVideoUrl = (url) => {
+        if (!url || typeof url !== 'string') return false;
+        try {
+          const decoded = decodeURIComponent(url).toLowerCase();
+          const clean = decoded.split('?')[0];
+          return (
+            /\.(mp4|webm|mov|m4v|mkv|avi|3gp)$/i.test(clean) ||
+            decoded.includes('/video/') ||
+            decoded.includes('/videos/') ||
+            decoded.includes('video/mp4') ||
+            decoded.includes('format=mp4') ||
+            decoded.includes('contenttype=video')
+          );
+        } catch (_) {
+          return /\.(mp4|webm|mov|m4v|mkv|avi|3gp)/i.test(url) || url.toLowerCase().includes('video');
+        }
+      };
+
+      if (projRes.status === 'fulfilled' && projRes.value?.data?.status === 'success' && projRes.value.data.data?.projects) {
+        const mapped = projRes.value.data.data.projects.map((p) => {
           let status = 'Draft';
           if (p.isSold) status = 'Sold';
           else if (p.approvalStatus === 'approved') status = 'Published';
@@ -272,23 +308,6 @@ export default function BuilderManagement() {
 
           const rawPhotos = Array.isArray(p.projectPhotos) ? p.projectPhotos : [];
           const rawVideos = Array.isArray(p.projectVideos) ? p.projectVideos : [];
-          const isVideoUrl = (url) => {
-            if (!url || typeof url !== 'string') return false;
-            try {
-              const decoded = decodeURIComponent(url).toLowerCase();
-              const clean = decoded.split('?')[0];
-              return (
-                /\.(mp4|webm|mov|m4v|mkv|avi|3gp)$/i.test(clean) ||
-                decoded.includes('/video/') ||
-                decoded.includes('/videos/') ||
-                decoded.includes('video/mp4') ||
-                decoded.includes('format=mp4') ||
-                decoded.includes('contenttype=video')
-              );
-            } catch (_) {
-              return /\.(mp4|webm|mov|m4v|mkv|avi|3gp)/i.test(url) || url.toLowerCase().includes('video');
-            }
-          };
           const photos = rawPhotos.filter(u => !isVideoUrl(u));
           const videos = [...rawVideos, ...rawPhotos.filter(u => isVideoUrl(u))];
           const gallery = Array.isArray(p.gallery) && p.gallery.length > 0
@@ -298,12 +317,21 @@ export default function BuilderManagement() {
                 ...videos.map(url => ({ url: getDocumentUrl(url), type: 'video' })),
               ];
 
+          const firstBhk = Array.isArray(p.bhkConfigurations) && p.bhkConfigurations.length > 0 ? p.bhkConfigurations[0] : null;
+          const priceDisplay = firstBhk?.minPrice > 0
+            ? `${formatCurrency(firstBhk.minPrice)} onwards`
+            : p.price > 0
+            ? formatCurrency(p.price)
+            : 'Price on Request';
+
           return {
             id: p.submissionId || `PRJ-${p._id.slice(-4).toUpperCase()}`,
             _id: p._id,
             title: p.projectName || 'Untitled Project',
             builder: p.developerName || p.developer?.companyName || p.developer?.name || 'Developer Entity',
+            developerId: p.developer?._id || p.developer || null,
             developerEmail: p.developer?.email || '',
+            developerPhone: p.developer?.phone || '',
             location: `${p.locality ? p.locality + ', ' : ''}${p.city || 'India'}`,
             city: p.city || 'India',
             score: invScore.overall || (p.approvalStatus === 'approved' ? 9.2 : 7.0),
@@ -322,7 +350,10 @@ export default function BuilderManagement() {
               : (p.reraProjectNumber ? [{ name: 'Phase 1', reraNumber: p.reraProjectNumber }] : []),
             reraNumber: (Array.isArray(p.reraNumbers) && p.reraNumbers[0]?.reraNumber) || (typeof p.reraNumbers?.[0] === 'string' ? p.reraNumbers[0] : '') || p.reraProjectNumber || 'Pending',
             possessionDate: p.possessionDate || 'Dec 2026',
-            description: p.shortDescription || p.description || 'Residential/Commercial developer project development.',
+            description: p.description || p.shortDescription || 'Residential/Commercial developer project development.',
+            price: firstBhk?.minPrice || p.price || 0,
+            priceDisplay,
+            itemType: 'project',
             photos: photos.map(getDocumentUrl),
             videos: videos.map(getDocumentUrl),
             gallery,
@@ -335,25 +366,89 @@ export default function BuilderManagement() {
         });
         setProjects(mapped);
       }
+
+      if (propRes.status === 'fulfilled' && propRes.value?.data?.status === 'success') {
+        const rawProps = propRes.value.data.data?.properties || [];
+        const mappedProps = rawProps.map((p) => {
+          let status = 'Draft';
+          if (p.isSold) status = 'Sold';
+          else if (p.approvalStatus === 'approved') status = 'Published';
+          else if (p.approvalStatus === 'rejected') status = 'Archived';
+          else status = 'Pending';
+
+          const rawImages = Array.isArray(p.images) && p.images.length > 0 ? p.images : (Array.isArray(p.photos) ? p.photos : []);
+          const rawVideos = Array.isArray(p.videos) ? p.videos : (Array.isArray(p.propertyVideos) ? p.propertyVideos : []);
+          const pureImages = rawImages.filter(u => !isVideoUrl(u));
+          const allVideos = [...rawVideos, ...rawImages.filter(u => isVideoUrl(u))];
+          const gallery = Array.isArray(p.gallery) && p.gallery.length > 0
+            ? p.gallery
+            : [
+                ...pureImages.map(url => ({ url: getDocumentUrl(url), type: 'image' })),
+                ...allVideos.map(url => ({ url: getDocumentUrl(url), type: 'video' })),
+              ];
+
+          const devId = p.owner?._id || p.owner || null;
+          const devName = p.owner?.companyName || p.owner?.name || p.ownerName || 'Builder Entity';
+
+          return {
+            id: p.customPropertyId || (p._id ? `#GBM-${String(p._id).slice(-4).toUpperCase()}` : 'PROP'),
+            _id: p._id,
+            title: p.title || 'Untitled Property',
+            builder: devName,
+            developerId: devId,
+            developerEmail: p.owner?.email || '',
+            developerPhone: p.owner?.phone || '',
+            location: `${p.locality ? p.locality + ', ' : ''}${p.city || 'India'}`,
+            city: p.city || 'India',
+            score: p.investmentScore?.overall || 7.0,
+            investmentScore: p.investmentScore || { overall: 7.0, grade: 'B', metrics: {} },
+            status,
+            approvalStatus: p.approvalStatus || 'pending',
+            units: p.bedrooms ? `${p.bedrooms} BHK` : `${p.carpetArea || p.builtUpArea || 0} sq.ft`,
+            totalUnits: 1,
+            stage: p.possessionDate ? `Possession: ${p.possessionDate}` : 'Ready to Move',
+            category: p.category || 'Residential',
+            propertyType: p.propertyType || 'Apartment',
+            price: p.price || 0,
+            priceDisplay: p.price ? formatCurrency(p.price) : 'Price on Request',
+            itemType: 'property',
+            photos: pureImages.map(getDocumentUrl),
+            videos: allVideos.map(getDocumentUrl),
+            gallery,
+            description: p.description || '',
+            userRole: p.userRole || p.owner?.role || '',
+            postedByRole: p.postedByRole || '',
+            listingAs: p.listingAs || '',
+            reraNumber: p.reraNumber || '',
+            createdAt: p.createdAt,
+            updatedAt: p.updatedAt,
+            rejectionReason: p.rejectionReason || '',
+            isSold: Boolean(p.isSold),
+            saleStatus: p.saleStatus || (p.isSold ? 'sold' : 'available'),
+          };
+        });
+        setProperties(mappedProps);
+      }
     } catch (err) {
-      console.error('Error fetching projects:', err);
+      console.error('Error fetching inventory:', err);
     } finally {
       setIsLoadingProjects(false);
+      setIsLoadingProperties(false);
     }
   }, []);
 
   const refreshAllData = useCallback(async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchBuilders(), fetchProjects()]);
+    await Promise.all([fetchBuilders(), fetchInventory()]);
     lastSyncTimestampRef.current = Date.now();
     setLastSyncTime('Just now');
     setIsRefreshing(false);
     showToast('Inventory & builder records synchronized!', 'info');
-  }, [fetchBuilders, fetchProjects]);
+  }, [fetchBuilders, fetchInventory]);
 
   useEffect(() => {
     fetchBuilders();
-    fetchProjects();
+    fetchInventory();
 
     const interval = setInterval(() => {
       const diffSecs = Math.floor((Date.now() - lastSyncTimestampRef.current) / 1000);
@@ -362,7 +457,7 @@ export default function BuilderManagement() {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [fetchBuilders, fetchProjects]);
+  }, [fetchBuilders, fetchInventory]);
 
   // ── 08. Counts & Computed Metrics ─────────────────────────────────────────
   const builderCounts = useMemo(() => {
@@ -373,13 +468,74 @@ export default function BuilderManagement() {
     return { total, pending, approved, suspended };
   }, [builders]);
 
+  const allBuilderProperties = useMemo(() => {
+    const builderIds = new Set(builders.map(b => String(b._id)));
+    const builderNames = new Set(builders.map(b => String(b.companyName || b.name || '').trim().toLowerCase()).filter(Boolean));
+
+    return properties.filter((p) => {
+      if (p.developerId && builderIds.has(String(p.developerId))) return true;
+      if (p.builder && builderNames.has(String(p.builder).trim().toLowerCase())) return true;
+      const role = String(p.userRole || p.postedByRole || '').toLowerCase();
+      if (role.includes('builder') || role.includes('developer')) return true;
+      const listingAs = String(p.listingAs || '').toLowerCase();
+      if (listingAs.includes('builder') || listingAs.includes('developer')) return true;
+      return false;
+    });
+  }, [properties, builders]);
+
+  const allInventoryItems = useMemo(() => {
+    return [...projects, ...allBuilderProperties];
+  }, [projects, allBuilderProperties]);
+
+  const getBuilderListings = useCallback((builder) => {
+    if (!builder) return { properties: [], projects: [], all: [] };
+    const bId = String(builder._id || '');
+    const bName = String(builder.companyName || builder.name || '').trim().toLowerCase();
+    const bEmail = String(builder.email || '').trim().toLowerCase();
+
+    // 1. Projects matching this builder
+    const matchedProjects = projects.filter((pj) => {
+      const pjDevId = String(pj.developerId || '');
+      if (pjDevId && pjDevId === bId) return true;
+      if (pj.developerEmail && bEmail && pj.developerEmail.toLowerCase() === bEmail) return true;
+      if (pj.builder && bName && pj.builder.toLowerCase() === bName) return true;
+      return false;
+    });
+
+    // 2. Properties matching this builder
+    const matchedProperties = properties.filter((pr) => {
+      const prOwnerId = String(pr.developerId || '');
+      if (prOwnerId && prOwnerId === bId) return true;
+      if (pr.developerEmail && bEmail && pr.developerEmail.toLowerCase() === bEmail) return true;
+      if (pr.builder && bName && pr.builder.toLowerCase() === bName) return true;
+      return false;
+    });
+
+    return {
+      properties: matchedProperties,
+      projects: matchedProjects,
+      all: [...matchedProjects, ...matchedProperties],
+    };
+  }, [projects, properties]);
+
+  const selectedBuilderListings = useMemo(() => {
+    return getBuilderListings(selectedBuilder);
+  }, [selectedBuilder, getBuilderListings]);
+
+  const displayedDrawerListings = useMemo(() => {
+    if (!selectedBuilderListings) return [];
+    if (drawerInventoryType === 'PROJECTS') return selectedBuilderListings.projects;
+    if (drawerInventoryType === 'PROPERTIES') return selectedBuilderListings.properties;
+    return selectedBuilderListings.all;
+  }, [selectedBuilderListings, drawerInventoryType]);
+
   const projectCounts = useMemo(() => {
-    const total = projects.length;
-    const pending = projects.filter(p => p.status === 'Draft' || p.status === 'Pending').length;
-    const approved = projects.filter(p => p.status === 'Published' || p.status === 'Approved').length;
-    const suspended = projects.filter(p => p.status === 'Archived' || p.status === 'Suspended' || p.status === 'Rejected').length;
+    const total = allInventoryItems.length;
+    const pending = allInventoryItems.filter(p => p.status === 'Draft' || p.status === 'Pending' || p.approvalStatus === 'pending').length;
+    const approved = allInventoryItems.filter(p => p.status === 'Published' || p.status === 'Approved' || p.approvalStatus === 'approved').length;
+    const suspended = allInventoryItems.filter(p => p.status === 'Archived' || p.status === 'Suspended' || p.status === 'Rejected' || p.approvalStatus === 'rejected').length;
     return { total, pending, approved, suspended };
-  }, [projects]);
+  }, [allInventoryItems]);
 
   const currentCounts = activeTab === 'builders' ? builderCounts : projectCounts;
 
@@ -488,7 +644,7 @@ export default function BuilderManagement() {
       window.removeEventListener('resize', updateModuleIndicator);
       clearTimeout(t);
     };
-  }, [activeTab, builders.length, projects.length]);
+  }, [activeTab, builders.length, allInventoryItems.length]);
 
   useEffect(() => {
     const updateStatusIndicator = () => {
@@ -564,11 +720,27 @@ export default function BuilderManagement() {
   }, [builders, statusFilter, secondaryFilter, searchQuery]);
 
   const filteredProjects = useMemo(() => {
-    return projects.filter((p) => {
+    return allInventoryItems.filter((p) => {
+      // Filter by inventory type (All | Projects | Properties)
+      if (inventoryTypeFilter === 'PROJECTS' && p.itemType !== 'project') return false;
+      if (inventoryTypeFilter === 'PROPERTIES' && p.itemType !== 'property') return false;
+
+      // Filter by selected builder
+      if (selectedBuilderFilter !== 'ALL') {
+        const targetBuilder = builders.find(b => String(b._id) === String(selectedBuilderFilter));
+        if (targetBuilder) {
+          const bId = String(targetBuilder._id);
+          const bName = String(targetBuilder.companyName || targetBuilder.name || '').trim().toLowerCase();
+          const matchId = String(p.developerId || '') === bId;
+          const matchName = String(p.builder || '').trim().toLowerCase() === bName;
+          if (!matchId && !matchName) return false;
+        }
+      }
+
       if (statusFilter !== 'All') {
-        if (statusFilter === 'Pending' && p.status !== 'Draft' && p.status !== 'Pending') return false;
-        if (statusFilter === 'Approved' && p.status !== 'Published' && p.status !== 'Approved') return false;
-        if (statusFilter === 'Suspended' && p.status !== 'Archived' && p.status !== 'Suspended') return false;
+        if (statusFilter === 'Pending' && p.status !== 'Draft' && p.status !== 'Pending' && p.approvalStatus !== 'pending') return false;
+        if (statusFilter === 'Approved' && p.status !== 'Published' && p.status !== 'Approved' && p.approvalStatus !== 'approved') return false;
+        if (statusFilter === 'Suspended' && p.status !== 'Archived' && p.status !== 'Suspended' && p.status !== 'Rejected' && p.approvalStatus !== 'rejected') return false;
       }
 
       if (secondaryFilter !== 'ALL') {
@@ -591,7 +763,7 @@ export default function BuilderManagement() {
       }
       return true;
     });
-  }, [projects, statusFilter, secondaryFilter, searchQuery]);
+  }, [allInventoryItems, inventoryTypeFilter, selectedBuilderFilter, builders, statusFilter, secondaryFilter, searchQuery]);
 
   // ── 12. Actions (Builder & Project Statuses) ───────────────────────────────
   const updateBuilderStatus = async (builder, newStatus, reason = '') => {
@@ -942,6 +1114,7 @@ export default function BuilderManagement() {
                 setActiveTab('projects');
                 setStatusFilter('All');
                 setSecondaryFilter('ALL');
+                setSelectedBuilderFilter('ALL');
                 setSelectedBuilder(null);
                 setSelectedProject(null);
               }}
@@ -952,13 +1125,13 @@ export default function BuilderManagement() {
               }`}
             >
               <Layers size={13} className="shrink-0" />
-              <span>Builder Projects</span>
+              <span>Builder Projects & Properties</span>
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold transition-colors ${
                 activeTab === 'projects'
                   ? 'bg-[#4c1d95]/15 text-[#4c1d95] dark:bg-[#ddd6fe]/25 dark:text-[#ddd6fe]'
                   : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]'
               }`}>
-                {projects.length}
+                {allInventoryItems.length}
               </span>
             </button>
           </div>
@@ -1195,27 +1368,65 @@ export default function BuilderManagement() {
               </button>
             ))
           ) : (
-            [
-              { key: 'ALL', label: 'All Types' },
-              { key: 'RESIDENTIAL', label: 'Residential' },
-              { key: 'COMMERCIAL', label: 'Commercial' },
-              { key: 'UNDER_CONST', label: 'Under Construction' },
-              { key: 'READY', label: 'Ready to Move' },
-              { key: 'NEW_LAUNCH', label: 'New Launch' },
-            ].map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setSecondaryFilter(f.key)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  secondaryFilter === f.key
-                    ? 'bg-[var(--text-primary)] text-[var(--bg-surface)] shadow-2xs'
-                    : 'bg-[var(--bg-muted)]/70 text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                }`}
+            <>
+              {/* Type Switcher: All, Projects, Properties */}
+              <div className="flex items-center p-0.5 bg-[var(--bg-muted)] rounded-xl border border-[var(--border)] shrink-0">
+                {[
+                  { key: 'ALL', label: `All (${allInventoryItems.length})` },
+                  { key: 'PROJECTS', label: `Projects (${projects.length})` },
+                  { key: 'PROPERTIES', label: `Properties (${allBuilderProperties.length})` },
+                ].map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setInventoryTypeFilter(t.key)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                      inventoryTypeFilter === t.key
+                        ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Filter by Specific Builder */}
+              <select
+                value={selectedBuilderFilter}
+                onChange={(e) => setSelectedBuilderFilter(e.target.value)}
+                className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--bg-muted)]/70 border border-[var(--border)] text-[var(--text-primary)] outline-none cursor-pointer max-w-[180px] shrink-0"
               >
-                {f.label}
-              </button>
-            ))
+                <option value="ALL">All Builders ({builders.length})</option>
+                {builders.map((b) => (
+                  <option key={b._id} value={b._id}>
+                    {b.companyName || b.name}
+                  </option>
+                ))}
+              </select>
+
+              {[
+                { key: 'ALL', label: 'All Categories' },
+                { key: 'RESIDENTIAL', label: 'Residential' },
+                { key: 'COMMERCIAL', label: 'Commercial' },
+                { key: 'UNDER_CONST', label: 'Under Construction' },
+                { key: 'READY', label: 'Ready to Move' },
+                { key: 'NEW_LAUNCH', label: 'New Launch' },
+              ].map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setSecondaryFilter(f.key)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    secondaryFilter === f.key
+                      ? 'bg-[var(--text-primary)] text-[var(--bg-surface)] shadow-2xs'
+                      : 'bg-[var(--bg-muted)]/70 text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </>
           )}
 
           <div className="h-5 w-[1px] bg-[var(--border)] mx-1" />
@@ -1296,25 +1507,27 @@ export default function BuilderManagement() {
           /* Table View: Responsive Scrollable Table */
           <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-2xs">
             <div className="w-full overflow-x-auto custom-scrollbar">
-              <table className="w-full text-left border-collapse table-fixed min-w-[900px]">
+              <table className="w-full text-left border-collapse table-fixed min-w-[860px]">
                 <colgroup>
-                  <col className="w-[28%]" />
-                  <col className="w-[17%]" />
-                  <col className="w-[15%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[10%]" />
+                  <col className="w-[22%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[11%]" />
                   <col className="w-[10%]" />
                   <col className="w-[8%]" />
+                  <col className="w-[9%]" />
                 </colgroup>
-                <thead className="bg-[var(--bg-muted)]/40 text-[var(--text-muted)] uppercase text-[9.5px] font-semibold tracking-wider border-b border-[var(--border)] select-none">
+                <thead className="bg-[var(--bg-muted)]/40 text-[var(--text-muted)] uppercase text-[9.5px] font-bold tracking-wider border-b border-[var(--border)] select-none whitespace-nowrap">
                   <tr>
-                    <th className="py-2 px-3">Company / Legal Entity</th>
-                    <th className="py-2 px-3">RERA License</th>
-                    <th className="py-2 px-3">Verification Proofs</th>
-                    <th className="py-2 px-3">Experience</th>
-                    <th className="py-2 px-3 text-center">Trust Rating</th>
-                    <th className="py-2 px-3">Status</th>
-                    <th className="py-2 pl-2 pr-3.5 text-right">Actions</th>
+                    <th className="py-2.5 px-3.5 text-left">Company / Legal Entity</th>
+                    <th className="py-2.5 px-3 text-left">RERA License</th>
+                    <th className="py-2.5 px-3 text-left">Portfolio & Listings</th>
+                    <th className="py-2.5 px-3 text-left">Verification Proofs</th>
+                    <th className="py-2.5 px-3 text-left">Experience</th>
+                    <th className="py-2.5 px-3 text-left">Trust Rating</th>
+                    <th className="py-2.5 px-3 text-left">Status</th>
+                    <th className="py-2.5 pl-2 pr-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border)]/60 text-xs">
@@ -1325,20 +1538,20 @@ export default function BuilderManagement() {
                       className="hover:bg-[var(--bg-muted)]/35 transition-colors cursor-pointer group"
                     >
                       {/* Column 1: Company Logo / Name */}
-                      <td className="py-1.5 px-3 align-middle overflow-hidden">
+                      <td className="py-2.5 px-3.5 align-middle overflow-hidden">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div className="relative w-8 h-8 rounded-lg overflow-hidden bg-[var(--bg-muted)] shrink-0 border border-[var(--border)] flex items-center justify-center">
                             {b.builderDocs?.companyLogo ? (
                               <SmoothImage src={b.builderDocs.companyLogo} alt={b.name} className="w-full h-full object-cover" />
                             ) : (
-                              <div className="w-full h-full bg-gradient-to-br from-brand/20 to-orange-500/20 text-brand font-black text-xs flex items-center justify-center">
+                              <div className="w-full h-full bg-brand/15 text-brand font-black text-xs flex items-center justify-center">
                                 {b.name.slice(0, 2).toUpperCase()}
                               </div>
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate" title={b.name}>
+                              <span className="font-bold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate" title={b.name}>
                                 {b.name}
                               </span>
                               {b.isIsoCertified && (
@@ -1347,7 +1560,7 @@ export default function BuilderManagement() {
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-1.5 text-[10.5px] text-[var(--text-muted)] truncate font-mono mt-0.5 leading-tight">
+                            <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)] truncate font-mono mt-0.5 leading-tight">
                               <span className="text-brand font-semibold">{b.id}</span>
                               <span className="text-[var(--border)] font-sans">•</span>
                               <span className="font-sans truncate flex items-center gap-0.5">
@@ -1359,22 +1572,22 @@ export default function BuilderManagement() {
                       </td>
 
                       {/* Column 2: RERA License */}
-                      <td className="py-1.5 px-3 align-middle overflow-hidden">
-                        <div className="min-w-0">
+                      <td className="py-2.5 px-3 align-middle overflow-hidden">
+                        <div className="min-w-0 flex flex-col justify-center">
                           <div className="flex items-center gap-1 font-mono font-semibold text-xs text-[var(--text-primary)] truncate">
                             <span className="truncate">{b.rera}</span>
                             {b.rera && b.rera !== 'Pending Check' && (
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); copyToClipboard(b.rera, 'RERA Number'); }}
-                                className="text-[var(--text-muted)] hover:text-brand p-0.5 cursor-pointer shrink-0"
+                                className="text-[var(--text-muted)] hover:text-brand p-0.5 cursor-pointer shrink-0 transition-colors"
                                 title="Copy RERA"
                               >
                                 <Copy size={10} />
                               </button>
                             )}
                           </div>
-                          <div className="mt-0.5">
+                          <div className="mt-1">
                             {b.hasReraDoc ? (
                               <button
                                 type="button"
@@ -1382,7 +1595,7 @@ export default function BuilderManagement() {
                                   e.stopPropagation();
                                   openDocumentPreview(b.builderDocs.reraCertificate, `RERA Certificate - ${b.name}`);
                                 }}
-                                className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-[#52c99b]/20 hover:bg-[#52c99b]/35 px-1.5 py-0.2 rounded transition-all cursor-pointer"
+                                className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-1.5 py-0.5 rounded-md transition-all cursor-pointer"
                               >
                                 <FileCheck size={10} /> View Cert
                               </button>
@@ -1395,9 +1608,48 @@ export default function BuilderManagement() {
                         </div>
                       </td>
 
-                      {/* Column 3: Verification Proofs */}
-                      <td className="py-1.5 px-3 align-middle overflow-hidden">
-                        <div className="min-w-0 flex flex-col gap-0.5">
+                      {/* Column 3: Portfolio & Listings */}
+                      <td className="py-2.5 px-3 align-middle overflow-hidden">
+                        {(() => {
+                          const listings = getBuilderListings(b);
+                          const totalCount = listings.all.length;
+                          const propCount = listings.properties.length;
+                          const projCount = listings.projects.length;
+
+                          return (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedBuilder(b);
+                                setBuilderDrawerTab('properties');
+                              }}
+                              className="text-left group/btn cursor-pointer py-0.5 block w-fit"
+                              title="Click to view all properties & projects of this builder"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold border transition-all ${
+                                  totalCount > 0
+                                    ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20 group-hover/btn:bg-blue-600 group-hover/btn:text-white group-hover/btn:border-blue-600'
+                                    : 'bg-[var(--bg-muted)] text-[var(--text-muted)] border-[var(--border)]'
+                                }`}>
+                                  <Building2 size={11} className="shrink-0" />
+                                  <span>{totalCount > 0 ? `${totalCount} Listed` : '0 Listings'}</span>
+                                </span>
+                              </div>
+                              <div className="text-[9.5px] text-[var(--text-muted)] mt-1 flex items-center gap-1 whitespace-nowrap">
+                                <span>{propCount} Props</span>
+                                <span>•</span>
+                                <span>{projCount} Projs</span>
+                              </div>
+                            </button>
+                          );
+                        })()}
+                      </td>
+
+                      {/* Column 4: Verification Proofs */}
+                      <td className="py-2.5 px-3 align-middle overflow-hidden">
+                        <div className="min-w-0 flex flex-col justify-center">
                           {b.hasPanDoc ? (
                             <button
                               type="button"
@@ -1405,49 +1657,64 @@ export default function BuilderManagement() {
                                 e.stopPropagation();
                                 openDocumentPreview(b.builderDocs.panCard, `PAN Card - ${b.name}`);
                               }}
-                              className="inline-flex items-center gap-1 text-[10px] font-bold text-[#075985] dark:text-[#7dd3fc] bg-[#bae6fd]/30 hover:bg-[#bae6fd]/50 px-1.5 py-0.2 rounded transition-all cursor-pointer w-fit"
+                              className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-700 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 px-1.5 py-0.5 rounded-md transition-all cursor-pointer w-fit"
                             >
                               <FileText size={10} /> PAN Card
                             </button>
                           ) : (
                             <span className="text-[9.5px] text-[var(--text-muted)] italic">No PAN Upload</span>
                           )}
-                          <span className="text-[9.5px] text-[var(--text-muted)] font-mono truncate">
+                          <span className="text-[9.5px] text-[var(--text-muted)] font-mono truncate mt-1">
                             GST: {b.gstin !== 'Pending Submission' ? b.gstin : 'None'}
                           </span>
                         </div>
                       </td>
 
-                      {/* Column 4: Experience */}
-                      <td className="py-1.5 px-3 align-middle whitespace-nowrap overflow-hidden">
-                        <span className="font-semibold text-xs text-[var(--text-primary)] block leading-tight">
-                          {b.yearsInBusinessText}
-                        </span>
-                        <span className="text-[10px] text-[var(--text-muted)] block mt-0.5">
-                          {b.delivered} units built
-                        </span>
+                      {/* Column 5: Experience */}
+                      <td className="py-2.5 px-3 align-middle whitespace-nowrap overflow-hidden">
+                        <div className="min-w-0 flex flex-col justify-center">
+                          <span className="font-semibold text-xs text-[var(--text-primary)] block leading-tight">
+                            {b.yearsInBusinessText}
+                          </span>
+                          <span className="text-[9.5px] text-[var(--text-muted)] block mt-1">
+                            {b.delivered} units built
+                          </span>
+                        </div>
                       </td>
 
-                      {/* Column 5: Trust Rating */}
-                      <td className="py-1.5 px-3 align-middle text-center whitespace-nowrap">
-                        {getTrustBadge(b.trust, 'xs')}
+                      {/* Column 6: Trust Rating */}
+                      <td className="py-2.5 px-3 align-middle whitespace-nowrap">
+                        <div className="flex items-center">
+                          {getTrustBadge(b.trust, 'xs')}
+                        </div>
                       </td>
 
-                      {/* Column 6: Status */}
-                      <td className="py-1.5 px-3 align-middle whitespace-nowrap">
-                        {getBuilderStatusBadge(b.status, 'xs')}
+                      {/* Column 7: Status */}
+                      <td className="py-2.5 px-3 align-middle whitespace-nowrap">
+                        <div className="flex items-center">
+                          {getBuilderStatusBadge(b.status, 'xs')}
+                        </div>
                       </td>
 
-                      {/* Column 7: Actions */}
-                      <td className="py-1.5 pl-2 pr-3.5 align-middle text-right whitespace-nowrap">
-                        <div className="inline-flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                      {/* Column 8: Actions */}
+                      <td className="py-2.5 pl-2 pr-3.5 align-middle text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
                             onClick={() => { setSelectedBuilder(b); setBuilderDrawerTab('overview'); }}
-                            className="w-6 h-6 rounded-md flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                            className="w-7 h-7 rounded-lg flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
                             title="Inspect & Review Details"
                           >
                             <Eye size={12} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => { setSelectedBuilder(b); setBuilderDrawerTab('properties'); }}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-500/10 hover:bg-blue-600 text-blue-700 dark:text-blue-400 hover:text-white border border-blue-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                            title="View Builder's Properties & Projects"
+                          >
+                            <Building2 size={12} />
                           </button>
 
                           {b.status !== 'Approved' && (
@@ -1455,10 +1722,10 @@ export default function BuilderManagement() {
                               type="button"
                               onClick={() => updateBuilderStatus(b, 'Approved')}
                               disabled={isSubmittingAction}
-                              className="w-6 h-6 rounded-md flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                              className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-600 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
                               title="Approve & Authorize License"
                             >
-                              <Check size={11} strokeWidth={2.5} />
+                              <Check size={12} strokeWidth={2.5} />
                             </button>
                           )}
 
@@ -1467,10 +1734,10 @@ export default function BuilderManagement() {
                               type="button"
                               onClick={() => setRejectPrompt({ item: b, type: 'builder' })}
                               disabled={isSubmittingAction}
-                              className="w-6 h-6 rounded-md flex items-center justify-center bg-rose-500/10 hover:bg-rose-500 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                              className="w-7 h-7 rounded-lg flex items-center justify-center bg-rose-500/10 hover:bg-rose-600 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
                               title="Reject or Suspend Builder"
                             >
-                              <Ban size={11} strokeWidth={2.5} />
+                              <Ban size={12} strokeWidth={2.5} />
                             </button>
                           )}
                         </div>
@@ -1488,62 +1755,90 @@ export default function BuilderManagement() {
         ) : (
           /* Grid View: Clean, Interactive Cards */
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3.5">
-            {filteredBuilders.map((b) => (
-              <div
-                key={b._id}
-                onClick={() => { setSelectedBuilder(b); setBuilderDrawerTab('overview'); }}
-                className="bg-[var(--bg-surface)] border border-[var(--border)] hover:border-brand/40 rounded-2xl p-4 shadow-2xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
-              >
-                <div>
-                  {/* Card Header */}
-                  <div className="flex items-start justify-between gap-2.5">
-                    <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-[var(--bg-muted)] shrink-0 border border-[var(--border)] flex items-center justify-center">
-                      {b.builderDocs?.companyLogo ? (
-                        <SmoothImage src={b.builderDocs.companyLogo} alt={b.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-brand/20 to-orange-500/20 text-brand font-black text-sm flex items-center justify-center">
-                          {b.name.slice(0, 2).toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                    {getBuilderStatusBadge(b.status, 'xs')}
-                  </div>
+            {filteredBuilders.map((b) => {
+              const bListings = getBuilderListings(b);
+              const totalCount = bListings.all.length;
+              const propCount = bListings.properties.length;
+              const projCount = bListings.projects.length;
 
-                  {/* Company Info */}
-                  <div className="mt-3">
-                    <h3 className="font-bold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate" title={b.name}>
-                      {b.name}
-                    </h3>
-                    <p className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">{b.id}</p>
-                    <p className="text-[11px] text-[var(--text-muted)] flex items-center gap-1 mt-1 truncate">
-                      <MapPin size={11} className="shrink-0 text-brand" /> {b.cityOfOperation}
-                    </p>
-                  </div>
-
-                  {/* Key Metrics Matrix */}
-                  <div className="grid grid-cols-2 gap-1.5 mt-3 pt-3 border-t border-[var(--border)]/60 text-[10px]">
-                    <div className="p-2 rounded-xl bg-[var(--bg-muted)]/50">
-                      <span className="text-[var(--text-muted)] block text-[9px] uppercase">Experience</span>
-                      <strong className="text-[var(--text-primary)]">{b.yearsInBusinessText}</strong>
+              return (
+                <div
+                  key={b._id}
+                  onClick={() => { setSelectedBuilder(b); setBuilderDrawerTab('overview'); }}
+                  className="bg-[var(--bg-surface)] border border-[var(--border)] hover:border-brand/40 rounded-2xl p-4 shadow-2xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
+                >
+                  <div>
+                    {/* Card Header */}
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-[var(--bg-muted)] shrink-0 border border-[var(--border)] flex items-center justify-center">
+                        {b.builderDocs?.companyLogo ? (
+                          <SmoothImage src={b.builderDocs.companyLogo} alt={b.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-brand/15 text-brand font-black text-sm flex items-center justify-center">
+                            {b.name.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      {getBuilderStatusBadge(b.status, 'xs')}
                     </div>
-                    <div className="p-2 rounded-xl bg-[var(--bg-muted)]/50">
-                      <span className="text-[var(--text-muted)] block text-[9px] uppercase">Delivered</span>
-                      <strong className="text-[var(--text-primary)]">{b.delivered} units</strong>
-                    </div>
-                  </div>
 
-                  {/* Proofs & Trust */}
-                  <div className="flex items-center justify-between gap-1 mt-2.5">
-                    {b.hasReraDoc ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-[#52c99b]/20 px-2 py-0.5 rounded-full">
-                        <FileCheck size={10} /> RERA Cert
+                    {/* Company Info */}
+                    <div className="mt-3">
+                      <h3 className="font-bold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate" title={b.name}>
+                        {b.name}
+                      </h3>
+                      <p className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">{b.id}</p>
+                      <p className="text-[11px] text-[var(--text-muted)] flex items-center gap-1 mt-1 truncate">
+                        <MapPin size={11} className="shrink-0 text-brand" /> {b.cityOfOperation}
+                      </p>
+                    </div>
+
+                    {/* Portfolio & Listings Badge */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedBuilder(b);
+                        setBuilderDrawerTab('properties');
+                      }}
+                      className="w-full mt-2.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-muted)]/70 hover:bg-brand/10 border border-[var(--border)] hover:border-brand/30 transition-all flex items-center justify-between text-left group/badge cursor-pointer"
+                      title="View builder's properties and projects"
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Building2 size={12} className="text-brand shrink-0" />
+                        <span className="text-[11px] font-semibold text-[var(--text-primary)] group-hover/badge:text-brand truncate">
+                          {totalCount > 0 ? `${totalCount} Listed` : 'No Listings'}
+                        </span>
+                      </div>
+                      <span className="text-[9.5px] font-medium text-[var(--text-muted)] shrink-0">
+                        {propCount} Props • {projCount} Projs
                       </span>
-                    ) : (
-                      <span className="text-[9.5px] text-amber-700 dark:text-amber-400">No RERA File</span>
-                    )}
-                    {getTrustBadge(b.trust, 'xs')}
+                    </button>
+
+                    {/* Key Metrics Matrix */}
+                    <div className="grid grid-cols-2 gap-1.5 mt-2.5 pt-2.5 border-t border-[var(--border)]/60 text-[10px]">
+                      <div className="p-2 rounded-xl bg-[var(--bg-muted)]/50">
+                        <span className="text-[var(--text-muted)] block text-[9px] uppercase">Experience</span>
+                        <strong className="text-[var(--text-primary)]">{b.yearsInBusinessText}</strong>
+                      </div>
+                      <div className="p-2 rounded-xl bg-[var(--bg-muted)]/50">
+                        <span className="text-[var(--text-muted)] block text-[9px] uppercase">Delivered</span>
+                        <strong className="text-[var(--text-primary)]">{b.delivered} units</strong>
+                      </div>
+                    </div>
+
+                    {/* Proofs & Trust */}
+                    <div className="flex items-center justify-between gap-1 mt-2.5">
+                      {b.hasReraDoc ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-[#52c99b]/20 px-2 py-0.5 rounded-full">
+                          <FileCheck size={10} /> RERA Cert
+                        </span>
+                      ) : (
+                        <span className="text-[9.5px] text-amber-700 dark:text-amber-400">No RERA File</span>
+                      )}
+                      {getTrustBadge(b.trust, 'xs')}
+                    </div>
                   </div>
-                </div>
 
                 {/* Card Footer Actions */}
                 <div className="mt-4 pt-3 border-t border-[var(--border)] flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
@@ -1566,8 +1861,9 @@ export default function BuilderManagement() {
                   )}
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
+        </div>
         )
       ) : (
         /* ======================== PROJECTS VIEW ======================== */
@@ -1611,14 +1907,14 @@ export default function BuilderManagement() {
                   <col className="w-[12%]" />
                   <col className="w-[10%]" />
                 </colgroup>
-                <thead className="bg-[var(--bg-muted)]/40 text-[var(--text-muted)] uppercase text-[9.5px] font-semibold tracking-wider border-b border-[var(--border)] select-none">
+                <thead className="bg-[var(--bg-muted)]/40 text-[var(--text-muted)] uppercase text-[9.5px] font-bold tracking-wider border-b border-[var(--border)] select-none whitespace-nowrap">
                   <tr>
-                    <th className="py-2 px-3">Project Title / ID</th>
-                    <th className="py-2 px-3">Location</th>
-                    <th className="py-2 px-3">Inventory & Stage</th>
-                    <th className="py-2 px-3">Investment Score</th>
-                    <th className="py-2 px-3">Status</th>
-                    <th className="py-2 pl-2 pr-3.5 text-right">Actions</th>
+                    <th className="py-2.5 px-3.5 text-left">Project Title / ID</th>
+                    <th className="py-2.5 px-3.5 text-left">Location</th>
+                    <th className="py-2.5 px-3.5 text-left">Inventory & Stage</th>
+                    <th className="py-2.5 px-3.5 text-left">Investment Score</th>
+                    <th className="py-2.5 px-3.5 text-left">Status</th>
+                    <th className="py-2.5 pl-2 pr-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border)]/60 text-xs">
@@ -1632,7 +1928,7 @@ export default function BuilderManagement() {
                         className="hover:bg-[var(--bg-muted)]/35 transition-colors cursor-pointer group"
                       >
                         {/* Column 1: Thumbnail & Project Info */}
-                        <td className="py-1.5 px-3 align-middle overflow-hidden">
+                        <td className="py-2.5 px-3.5 align-middle overflow-hidden">
                           <div className="flex items-center gap-2.5 min-w-0">
                             <div className="relative w-8 h-8 rounded-lg overflow-hidden bg-[var(--bg-muted)] shrink-0 border border-[var(--border)]">
                               {heroImage ? (
@@ -1664,20 +1960,20 @@ export default function BuilderManagement() {
                         </td>
 
                         {/* Column 2: Location */}
-                        <td className="py-1.5 px-3 align-middle overflow-hidden">
+                        <td className="py-2.5 px-3.5 align-middle overflow-hidden">
                           <div className="min-w-0">
                             <div className="flex items-center gap-1 text-xs font-medium text-[var(--text-primary)] truncate">
                               <MapPin size={11} className="text-brand shrink-0 opacity-80" />
                               <span className="truncate">{p.location}</span>
                             </div>
                             <span className="text-[10px] text-[var(--text-muted)] block pl-3.5 truncate leading-tight mt-0.5 font-mono">
-                              RERA: {p.reraNumber}
+                              RERA: {p.reraNumber || 'N/A'}
                             </span>
                           </div>
                         </td>
 
                         {/* Column 3: Inventory & Stage */}
-                        <td className="py-1.5 px-3 align-middle whitespace-nowrap overflow-hidden">
+                        <td className="py-2.5 px-3.5 align-middle whitespace-nowrap overflow-hidden">
                           <span className="font-semibold text-xs text-[var(--text-primary)] block leading-tight">
                             {p.units}
                           </span>
@@ -1687,7 +1983,7 @@ export default function BuilderManagement() {
                         </td>
 
                         {/* Column 4: Investment Score */}
-                        <td className="py-1.5 px-3 align-middle whitespace-nowrap overflow-hidden">
+                        <td className="py-2.5 px-3.5 align-middle whitespace-nowrap overflow-hidden">
                           <div
                             onClick={(e) => { e.stopPropagation(); openScoreModal(p); }}
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#52c99b]/20 text-[#064e3b] dark:bg-[#1a4a38] dark:text-[#6ee7b7] border border-[#52c99b]/30 hover:scale-105 transition-transform cursor-pointer"
@@ -1700,17 +1996,17 @@ export default function BuilderManagement() {
                         </td>
 
                         {/* Column 5: Status */}
-                        <td className="py-1.5 px-3 align-middle whitespace-nowrap">
+                        <td className="py-2.5 px-3.5 align-middle whitespace-nowrap">
                           {getProjectStatusBadge(p.status, 'xs')}
                         </td>
 
                         {/* Column 6: Actions */}
-                        <td className="py-1.5 pl-2 pr-3.5 align-middle text-right whitespace-nowrap">
-                          <div className="inline-flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                        <td className="py-2.5 pl-2 pr-3.5 align-middle text-right whitespace-nowrap">
+                          <div className="inline-flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               onClick={() => { setSelectedProject(p); setProjectDrawerTab('overview'); }}
-                              className="w-6 h-6 rounded-md flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                              className="w-7 h-7 rounded-lg flex items-center justify-center bg-[var(--bg-muted)]/70 hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
                               title="Inspect Project"
                             >
                               <Eye size={12} />
@@ -1719,7 +2015,7 @@ export default function BuilderManagement() {
                             <button
                               type="button"
                               onClick={() => openScoreModal(p)}
-                              className="w-6 h-6 rounded-md flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                              className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-600 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
                               title="Edit Investment Score"
                             >
                               <Sparkles size={11} />
@@ -1731,7 +2027,7 @@ export default function BuilderManagement() {
                                 type="button"
                                 onClick={() => toggleProjectSoldStatus(p, true)}
                                 disabled={isSubmittingAction}
-                                className="w-6 h-6 rounded-md flex items-center justify-center bg-amber-500/10 hover:bg-amber-500 text-amber-700 dark:text-amber-400 hover:text-white border border-amber-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                                className="w-7 h-7 rounded-lg flex items-center justify-center bg-amber-500/10 hover:bg-amber-600 text-amber-700 dark:text-amber-400 hover:text-white border border-amber-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
                                 title="Mark Project as Sold Out"
                               >
                                 <Tag size={11} strokeWidth={2.2} />
@@ -1743,7 +2039,7 @@ export default function BuilderManagement() {
                                 type="button"
                                 onClick={() => toggleProjectSoldStatus(p, false)}
                                 disabled={isSubmittingAction}
-                                className="w-6 h-6 rounded-md flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                                className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-600 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
                                 title="Relist Project as Available"
                               >
                                 <RotateCcw size={11} />
@@ -1755,7 +2051,7 @@ export default function BuilderManagement() {
                                 type="button"
                                 onClick={() => updateProjectStatus(p, 'Published')}
                                 disabled={isSubmittingAction}
-                                className="w-6 h-6 rounded-md flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                                className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-600 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
                                 title="Publish Project Live"
                               >
                                 <Check size={11} strokeWidth={2.5} />
@@ -1767,7 +2063,7 @@ export default function BuilderManagement() {
                                 type="button"
                                 onClick={() => setRejectPrompt({ item: p, type: 'project' })}
                                 disabled={isSubmittingAction}
-                                className="w-6 h-6 rounded-md flex items-center justify-center bg-rose-500/10 hover:bg-rose-500 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                                className="w-7 h-7 rounded-lg flex items-center justify-center bg-rose-500/10 hover:bg-rose-600 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
                                 title="Suspend or Archive Project"
                               >
                                 <Ban size={11} strokeWidth={2.5} />
@@ -1875,7 +2171,7 @@ export default function BuilderManagement() {
                   {selectedBuilder.builderDocs?.companyLogo ? (
                     <img src={selectedBuilder.builderDocs.companyLogo} alt={selectedBuilder.name} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-brand/20 to-orange-500/20 text-brand font-black text-sm flex items-center justify-center">
+                    <div className="w-full h-full bg-brand/15 text-brand font-black text-sm flex items-center justify-center">
                       {selectedBuilder.name.slice(0, 2).toUpperCase()}
                     </div>
                   )}
@@ -1905,9 +2201,13 @@ export default function BuilderManagement() {
             </div>
 
             {/* Drawer Tabs */}
-            <div className="flex items-center gap-6 px-5 border-b border-[var(--border)] text-xs font-bold select-none">
+            <div className="flex items-center gap-5 px-5 border-b border-[var(--border)] text-xs font-bold select-none overflow-x-auto">
               {[
                 { key: 'overview', label: 'Company Overview' },
+                {
+                  key: 'properties',
+                  label: `Properties & Projects (${selectedBuilderListings?.all?.length || 0})`
+                },
                 { key: 'docs', label: 'RERA & Verification Proofs' },
                 { key: 'credentials', label: 'Contact & Account Admin' }
               ].map((tab) => (
@@ -1915,7 +2215,7 @@ export default function BuilderManagement() {
                   key={tab.key}
                   type="button"
                   onClick={() => setBuilderDrawerTab(tab.key)}
-                  className={`py-2.5 border-b-2 transition-all cursor-pointer ${
+                  className={`py-2.5 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
                     builderDrawerTab === tab.key
                       ? 'border-brand text-brand'
                       : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
@@ -1996,6 +2296,144 @@ export default function BuilderManagement() {
                       />
                     </div>
                   </div>
+                </div>
+              )}
+
+              {builderDrawerTab === 'properties' && (
+                <div className="space-y-4">
+                  {/* Sub-Filter Type Pills */}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center p-0.5 bg-[var(--bg-muted)] rounded-xl border border-[var(--border)] text-xs">
+                      {[
+                        { key: 'ALL', label: `All (${selectedBuilderListings?.all?.length || 0})` },
+                        { key: 'PROPERTIES', label: `Properties (${selectedBuilderListings?.properties?.length || 0})` },
+                        { key: 'PROJECTS', label: `Projects (${selectedBuilderListings?.projects?.length || 0})` }
+                      ].map((sub) => (
+                        <button
+                          key={sub.key}
+                          type="button"
+                          onClick={() => setDrawerInventoryType(sub.key)}
+                          className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                            drawerInventoryType === sub.key
+                              ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold'
+                              : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                          }`}
+                        >
+                          {sub.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <span className="text-[11px] text-[var(--text-muted)] font-medium">
+                      Showing {displayedDrawerListings.length} items
+                    </span>
+                  </div>
+
+                  {/* Listings List or Empty State */}
+                  {displayedDrawerListings.length === 0 ? (
+                    <div className="py-12 px-4 text-center rounded-2xl bg-[var(--bg-muted)]/30 border border-dashed border-[var(--border)]">
+                      <div className="w-12 h-12 rounded-xl bg-[var(--bg-muted)] flex items-center justify-center mx-auto text-[var(--text-muted)] mb-3">
+                        <Building2 size={22} />
+                      </div>
+                      <h4 className="text-sm font-bold text-[var(--text-primary)]">No Listings Found</h4>
+                      <p className="text-xs text-[var(--text-muted)] mt-1 max-w-xs mx-auto">
+                        This builder has not submitted any properties or developer projects matching this filter.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {displayedDrawerListings.map((item) => (
+                        <div
+                          key={item._id || item.id}
+                          className="p-3.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-brand/40 transition-all shadow-2xs space-y-3 group"
+                        >
+                          <div className="flex items-start gap-3">
+                            {/* Media Thumbnail */}
+                            <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-[var(--bg-muted)] shrink-0 border border-[var(--border)]">
+                              {item.photos?.[0] ? (
+                                <SmoothImage src={item.photos[0]} alt={item.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)]">
+                                  {item.itemType === 'project' ? <Building size={22} /> : <Home size={22} />}
+                                </div>
+                              )}
+                              <span
+                                className={`absolute bottom-1 left-1 text-[8px] font-bold px-1.5 py-0.2 rounded uppercase tracking-wider ${
+                                  item.itemType === 'project'
+                                    ? 'bg-purple-600 text-white'
+                                    : 'bg-brand text-white'
+                                }`}
+                              >
+                                {item.itemType === 'project' ? 'Project' : 'Property'}
+                              </span>
+                            </div>
+
+                            {/* Details */}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-mono text-[10.5px] font-bold text-brand">{item.id}</span>
+                                {item.itemType === 'project'
+                                  ? getProjectStatusBadge(item.status, 'xs')
+                                  : getBuilderStatusBadge(
+                                      item.approvalStatus === 'approved'
+                                        ? 'Approved'
+                                        : item.approvalStatus === 'rejected'
+                                        ? 'Rejected'
+                                        : 'Pending',
+                                      'xs'
+                                    )}
+                              </div>
+                              <h4 className="text-xs font-bold text-[var(--text-primary)] group-hover:text-brand transition-colors truncate mt-0.5" title={item.title}>
+                                {item.title}
+                              </h4>
+                              <div className="flex items-center gap-1 text-[11px] text-[var(--text-muted)] mt-0.5 truncate">
+                                <MapPin size={11} className="text-brand shrink-0" />
+                                <span className="truncate">{item.location}</span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                  {item.priceDisplay || (item.price ? formatCurrency(item.price) : 'Price on Request')}
+                                </span>
+                                <span className="text-[10px] text-[var(--text-muted)]">• {item.units}</span>
+                                {item.stage && (
+                                  <span className="text-[10px] text-[var(--text-muted)] truncate">• {item.stage}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Footer Actions */}
+                          <div className="pt-2.5 border-t border-[var(--border)] flex items-center justify-between gap-2">
+                            <span className="text-[10px] text-[var(--text-muted)]">
+                              {item.category} • {item.propertyType || 'Residential'}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => navigate(`/admin/verification?search=${encodeURIComponent(item.id || item.title)}`)}
+                                className="px-2.5 py-1 rounded-lg bg-brand/10 hover:bg-brand text-brand hover:text-white text-[11px] font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                                title="Review and moderate in Approvals console"
+                              >
+                                <ShieldCheck size={12} />
+                                <span>Review in Approvals</span>
+                              </button>
+                              {item.itemType === 'project' && (
+                                <button
+                                  type="button"
+                                  onClick={() => { setSelectedProject(item); setProjectDrawerTab('overview'); }}
+                                  className="px-2.5 py-1 rounded-lg bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-secondary)] text-[11px] font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                                  title="Inspect project details"
+                                >
+                                  <Eye size={12} />
+                                  <span>Inspect</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -2410,7 +2848,7 @@ export default function BuilderManagement() {
               {projectDrawerTab === 'investment' && (
                 <div className="space-y-4">
                   {/* Score Ribbon */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 to-transparent border border-emerald-500/25 flex items-center justify-between">
+                  <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between">
                     <div>
                       <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
                         GharMB Investment Rating
@@ -2682,7 +3120,7 @@ export default function BuilderManagement() {
             </div>
 
             {/* Calculated Overall Preview */}
-            <div className="p-3.5 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/25 rounded-xl flex items-center justify-between">
+            <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl flex items-center justify-between">
               <div>
                 <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
                   Calculated Overall Score

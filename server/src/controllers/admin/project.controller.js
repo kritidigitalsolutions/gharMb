@@ -281,7 +281,8 @@ exports.createProject = async (req, res, next) => {
       projectStatus: projectStatus || 'Under Construction',
       totalUnits: Number(totalUnits) || 0,
       possessionDate: possessionDate || 'Dec 2026',
-      shortDescription: shortDescription || '',
+      shortDescription: shortDescription || req.body.description || '',
+      description: req.body.description || shortDescription || '',
       projectPhotos: Array.isArray(req.body.projectPhotos) ? req.body.projectPhotos : (Array.isArray(req.body.images) ? req.body.images : []),
       projectVideos: Array.isArray(req.body.projectVideos) ? req.body.projectVideos : (Array.isArray(req.body.videos) ? req.body.videos : []),
       approvalStatus: approvalStatus || 'approved',
@@ -333,16 +334,44 @@ exports.updateProject = async (req, res, next) => {
       projectVideos,
       images,
       videos,
+      possessionDate,
+      reraProjectNumber,
+      reraNumber,
+      amenities,
+      developerPhone,
+      developerEmail,
     } = req.body;
 
     if (projectName || title) project.projectName = projectName || title;
-    if (description) project.description = description;
-    if (shortDescription) project.shortDescription = shortDescription;
-    if (city) project.city = city;
+    if (description !== undefined) {
+      project.description = String(description || '').trim();
+      if (!project.shortDescription) project.shortDescription = project.description;
+    }
+    if (shortDescription !== undefined) {
+      project.shortDescription = String(shortDescription || '').trim();
+      if (!project.description) project.description = project.shortDescription;
+    }
+    if (city !== undefined) project.city = city;
     if (locality !== undefined) project.locality = locality;
     if (fullAddress !== undefined) project.fullAddress = fullAddress;
     if (pincode !== undefined) project.pincode = pincode;
     if (projectType) project.projectType = projectType;
+    if (possessionDate !== undefined) project.possessionDate = String(possessionDate).trim();
+    if (reraProjectNumber || reraNumber) {
+      const rNum = String(reraProjectNumber || reraNumber).trim();
+      project.reraProjectNumber = rNum;
+      if (rNum) {
+        project.reraNumbers = [{ name: 'Phase 1', reraNumber: rNum }];
+      }
+    }
+    if (amenities !== undefined) {
+      project.amenities = Array.isArray(amenities)
+        ? amenities
+        : String(amenities)
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+    }
     if (projectStatus) {
       const lower = String(projectStatus).toLowerCase().trim();
       if (lower === 'ready to move') project.projectStatus = 'Ready to Move';
@@ -353,6 +382,19 @@ exports.updateProject = async (req, res, next) => {
     if (towers !== undefined) project.towers = Number(towers);
     if (floors !== undefined) project.floors = String(floors);
     if (totalUnits !== undefined) project.totalUnits = Number(totalUnits);
+
+    // Update developer user record if developer is populated and details are provided
+    if (project.developer && (developerName || developerPhone || developerEmail)) {
+      const devUpdate = {};
+      if (developerName) devUpdate.companyName = developerName.trim();
+      if (developerPhone) devUpdate.phone = developerPhone.trim();
+      if (developerEmail) devUpdate.email = developerEmail.trim();
+      try {
+        await User.findByIdAndUpdate(project.developer, devUpdate);
+      } catch (dErr) {
+        console.warn('Could not update developer contact info:', dErr.message);
+      }
+    }
     if (projectPhotos !== undefined) project.projectPhotos = Array.isArray(projectPhotos) ? projectPhotos : [];
     else if (images !== undefined) project.projectPhotos = Array.isArray(images) ? images : [];
     if (projectVideos !== undefined) project.projectVideos = Array.isArray(projectVideos) ? projectVideos : [];
@@ -376,12 +418,13 @@ exports.updateProject = async (req, res, next) => {
     }
 
     await project.save();
+    const populated = await Project.findById(project._id).populate('developer', 'name companyName email phone');
 
     res.status(200).json({
       status: 'success',
       message: 'Developer project updated successfully.',
       data: {
-        project,
+        project: populated || project,
       },
     });
   } catch (error) {

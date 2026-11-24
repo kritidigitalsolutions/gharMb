@@ -543,6 +543,68 @@ exports.updateProperty = async (req, res, next) => {
     }
 
     const updateFields = { ...req.body };
+    delete updateFields._id;
+    delete updateFields.id;
+    delete updateFields.__v;
+    delete updateFields.createdAt;
+    delete updateFields.updatedAt;
+
+    // Update referenced owner user profile if specified
+    if (property.owner && (updateFields.ownerName || updateFields.ownerPhone || updateFields.ownerEmail || updateFields.companyName)) {
+      const userUpdate = {};
+      if (updateFields.ownerName) userUpdate.name = String(updateFields.ownerName).trim();
+      if (updateFields.ownerPhone) userUpdate.phone = String(updateFields.ownerPhone).trim();
+      if (updateFields.ownerEmail) userUpdate.email = String(updateFields.ownerEmail).trim();
+      if (updateFields.companyName) userUpdate.companyName = String(updateFields.companyName).trim();
+      try {
+        await User.findByIdAndUpdate(property.owner, userUpdate);
+      } catch (uErr) {
+        console.warn('Could not update property owner profile:', uErr.message);
+      }
+      delete updateFields.ownerName;
+      delete updateFields.ownerPhone;
+      delete updateFields.ownerEmail;
+      delete updateFields.companyName;
+    }
+
+    // Normalize description
+    if (updateFields.description !== undefined) {
+      updateFields.description = String(updateFields.description || '').trim();
+    }
+
+    // Normalize RERA number & registration array
+    if (updateFields.reraNumber !== undefined) {
+      const rNum = String(updateFields.reraNumber || '').trim();
+      updateFields.reraNumber = rNum;
+      if (rNum) {
+        updateFields.reraNumbers = [{ name: 'Phase 1', reraNumber: rNum }];
+      }
+    }
+
+    // Normalize amenities
+    if (typeof updateFields.amenities === 'string') {
+      updateFields.amenities = updateFields.amenities
+        .split(',')
+        .map((a) => a.trim())
+        .filter(Boolean);
+    }
+
+    // Normalize media files (photos & videos)
+    if (updateFields.images !== undefined) {
+      updateFields.images = Array.isArray(updateFields.images) ? updateFields.images.filter(Boolean) : [];
+    }
+    if (updateFields.videos !== undefined) {
+      updateFields.videos = Array.isArray(updateFields.videos) ? updateFields.videos.filter(Boolean) : [];
+      updateFields.propertyVideos = updateFields.videos;
+    }
+
+    // Number sanitization
+    if (updateFields.price !== undefined) updateFields.price = Number(updateFields.price) || 0;
+    if (updateFields.securityDeposit !== undefined) updateFields.securityDeposit = Number(updateFields.securityDeposit) || 0;
+    if (updateFields.maintenanceCharges !== undefined) updateFields.maintenanceCharges = Number(updateFields.maintenanceCharges) || 0;
+    if (updateFields.carpetArea !== undefined && updateFields.carpetArea !== '') updateFields.carpetArea = Number(updateFields.carpetArea);
+    if (updateFields.builtUpArea !== undefined && updateFields.builtUpArea !== '') updateFields.builtUpArea = Number(updateFields.builtUpArea);
+
     if (req.body.possessionDate !== undefined) {
       updateFields.possessionDate = normalizePossessionDate(req.body.possessionDate);
     }
@@ -668,7 +730,7 @@ exports.updateProperty = async (req, res, next) => {
     const updatedProperty = await Property.findByIdAndUpdate(req.params.id, updateFields, {
       new: true,
       runValidators: true,
-    }).populate('owner', 'name email phone role isVerified');
+    }).populate('owner', 'name email phone role isVerified companyName');
 
     res.status(200).json({
       status: 'success',

@@ -1315,6 +1315,7 @@ exports.createProperty = async (req, res, next) => {
     const propertyData = {
       ...req.body,
       ...installmentData,
+      description: req.body.description !== undefined ? String(req.body.description || '').trim() : '',
       listingAs: normalizedListingAs,
       userRole: normalizedUserRole,
       postedByRole: normalizedPostedByRole,
@@ -1924,6 +1925,9 @@ exports.updateProperty = async (req, res, next) => {
     }
 
     const updateFields = { ...req.body };
+    if (updateFields.description !== undefined) {
+      updateFields.description = String(updateFields.description || '').trim();
+    }
     if (req.body.possessionDate !== undefined) {
       updateFields.possessionDate = normalizePossessionDate(req.body.possessionDate);
     }
