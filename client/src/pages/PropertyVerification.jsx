@@ -43,7 +43,11 @@ import {
   SlidersHorizontal,
   Info,
   TrendingUp,
-  Star
+  Star,
+  Pencil,
+  Upload,
+  Plus,
+  Image as ImageIcon
 } from 'lucide-react';
 
 const QUICK_REJECTION_REASONS = [
@@ -103,6 +107,55 @@ export default function PropertyVerification() {
   const [isEditingPossession, setIsEditingPossession] = useState(false);
   const [newPossessionDate, setNewPossessionDate] = useState('');
   const [isSavingPossession, setIsSavingPossession] = useState(false);
+
+  // ── ✏️ Review Drawer In-Page Live Edit States ──
+  const [isDrawerEditing, setIsDrawerEditing] = useState(false);
+  const [drawerEditForm, setDrawerEditForm] = useState(null);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [mediaUrlInput, setMediaUrlInput] = useState('');
+  const galleryFileInputRef = useRef(null);
+
+  // ── ✏️ Edit Listing Info Modal States ──
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTargetItem, setEditTargetItem] = useState(null);
+  const [isSavingListing, setIsSavingListing] = useState(false);
+  const [activeEditTab, setActiveEditTab] = useState('basic'); // 'basic' | 'pricing' | 'location' | 'specs' | 'legal' | 'seller'
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    category: 'Residential',
+    listingFor: 'Sale',
+    propertyType: 'Apartment',
+    price: 0,
+    securityDeposit: 0,
+    maintenanceCharges: 0,
+    locality: '',
+    city: '',
+    fullAddress: '',
+    pincode: '',
+    bedrooms: '',
+    bathrooms: '',
+    carpetArea: '',
+    builtUpArea: '',
+    floorNo: '',
+    totalFloors: '',
+    furnishing: 'Unfurnished',
+    facingDirection: '',
+    parking: '',
+    availableFrom: '',
+    possessionDate: '',
+    reraNumber: '',
+    ocReceived: false,
+    ccReceived: false,
+    description: '',
+    amenities: '',
+    ownerName: '',
+    ownerPhone: '',
+    ownerEmail: '',
+    listingAs: 'Owner',
+    totalUnits: '',
+    floors: '',
+    towers: '',
+  });
 
   // ── 💎 Admin Commission & Platform Discount Approval Modal States ──
   const [showCommissionModal, setShowCommissionModal] = useState(false);
@@ -312,6 +365,37 @@ export default function PropertyVerification() {
       description: p.description || '',
       itemType: 'property',
       rawPrice: priceNum,
+      rawTitle: p.title || '',
+      rawCategory: p.category || 'Residential',
+      rawPropertyType: p.propertyType || 'Apartment',
+      rawListingFor: p.listingFor || 'Sale',
+      rawCity: p.city || '',
+      rawLocality: p.locality || '',
+      rawFullAddress: p.fullAddress || '',
+      rawPincode: p.pincode || '',
+      rawBedrooms: p.bedrooms || '',
+      rawBathrooms: p.bathrooms || '',
+      rawCarpetArea: p.carpetArea || '',
+      rawBuiltUpArea: p.builtUpArea || '',
+      rawFloorNo: p.floorNo || '',
+      rawTotalFloors: p.totalFloors || '',
+      rawFurnishing: p.furnishing || 'Unfurnished',
+      rawFacingDirection: p.facingDirection || '',
+      rawParking: p.parking || '',
+      rawAvailableFrom: p.availableFrom || '',
+      rawPossessionDate: p.possessionDate || '',
+      rawSecurityDeposit: p.securityDeposit || 0,
+      rawMaintenanceCharges: p.maintenanceCharges || 0,
+      rawDescription: p.description || '',
+      rawAmenities: Array.isArray(p.amenities) ? p.amenities : [],
+      rawReraNumber: p.reraNumber || (Array.isArray(p.reraNumbers) && p.reraNumbers[0]?.reraNumber) || '',
+      rawOcReceived: Boolean(p.ocReceived),
+      rawCcReceived: Boolean(p.ccReceived),
+      rawOwnerName: p.owner?.companyName || p.owner?.name || '',
+      rawOwnerPhone: p.owner?.phone || '',
+      rawOwnerEmail: p.owner?.email || '',
+      rawListingAs: p.listingAs || '',
+      _raw: p,
       adminCommission: p.adminCommission || { type: 'percentage', rate: 2, amount: Math.round((priceNum * 2) / 100) },
       commissionDiscount: p.commissionDiscount || {
         enabled: false,
@@ -405,8 +489,28 @@ export default function PropertyVerification() {
       images: pureImages,
       videos: allVideos,
       gallery,
-      description: p.shortDescription || p.description || '',
+      description: p.description || p.shortDescription || '',
       itemType: 'project',
+      rawPrice: firstBhk?.minPrice || p.price || 0,
+      rawTitle: p.projectName || '',
+      rawCategory: p.projectType || 'Residential',
+      rawPropertyType: 'RERA Project',
+      rawListingFor: 'Sale',
+      rawCity: p.location?.city || p.city || '',
+      rawLocality: p.location?.locality || p.locality || '',
+      rawFullAddress: p.location?.address || p.fullAddress || '',
+      rawPincode: p.location?.pincode || p.pincode || '',
+      rawPossessionDate: p.possessionDate || '',
+      rawReraNumber: p.reraProjectNumber || p.reraRegistrationNumber || p.reraNumber || '',
+      rawTotalUnits: p.totalUnits || '',
+      rawFloors: p.floors || '',
+      rawTowers: p.towers || '',
+      rawDescription: p.description || p.shortDescription || '',
+      rawAmenities: Array.isArray(p.amenities) ? p.amenities : [],
+      rawOwnerName: p.developerName || p.developer?.companyName || p.developer?.name || '',
+      rawOwnerPhone: p.developer?.phone || '',
+      rawOwnerEmail: p.developer?.email || '',
+      _raw: p,
       investmentScore: p.investmentScore || {
         overall: 0,
         grade: 'Not Rated',
@@ -1112,6 +1216,461 @@ export default function PropertyVerification() {
     }
   };
 
+  // ── ✏️ Edit Approval Listing Handlers ──
+  const openEditModal = (item) => {
+    if (!item) return;
+    setEditTargetItem(item);
+    setActiveEditTab('basic');
+    setEditFormData({
+      title: item.rawTitle || item.title || '',
+      category: item.rawCategory || item.category || 'Residential',
+      listingFor: item.rawListingFor || item.listingFor || 'Sale',
+      propertyType: item.rawPropertyType || item.propertyType || 'Apartment',
+      price: item.rawPrice !== undefined && item.rawPrice !== null ? item.rawPrice : (item.priceVal || 0),
+      securityDeposit: item.rawSecurityDeposit || 0,
+      maintenanceCharges: item.rawMaintenanceCharges || 0,
+      locality: item.rawLocality || item.locality || '',
+      city: item.rawCity || item.city || '',
+      fullAddress: item.rawFullAddress || item.fullAddress || '',
+      pincode: item.rawPincode || item.pincode || '',
+      bedrooms: item.rawBedrooms || (item.bhk ? String(item.bhk).replace(/[^0-9]/g, '') : '') || '',
+      bathrooms: item.rawBathrooms || (item.bathrooms ? String(item.bathrooms).replace(/[^0-9]/g, '') : '') || '',
+      carpetArea: item.rawCarpetArea || (item.carpetArea ? String(item.carpetArea).replace(/[^0-9.]/g, '') : '') || '',
+      builtUpArea: item.rawBuiltUpArea || (item.area ? String(item.area).replace(/[^0-9.]/g, '') : '') || '',
+      floorNo: item.rawFloorNo || '',
+      totalFloors: item.rawTotalFloors || '',
+      furnishing: item.rawFurnishing || item.furnishing || 'Unfurnished',
+      facingDirection: item.rawFacingDirection || (item.facing ? String(item.facing).replace(' Facing', '') : '') || '',
+      parking: item.rawParking || item.parking || '',
+      availableFrom: item.rawAvailableFrom || '',
+      possessionDate: item.rawPossessionDate || item.possessionDate || '',
+      reraNumber: item.rawReraNumber || item.reraNumber || '',
+      ocReceived: item.rawOcReceived ?? item.ocReceived ?? false,
+      ccReceived: item.rawCcReceived ?? item.ccReceived ?? false,
+      description: item.rawDescription || item.description || '',
+      amenities: Array.isArray(item.rawAmenities)
+        ? item.rawAmenities.join(', ')
+        : Array.isArray(item.amenities)
+        ? item.amenities.join(', ')
+        : '',
+      ownerName: item.rawOwnerName || item.ownerName || '',
+      ownerPhone: item.rawOwnerPhone && item.rawOwnerPhone !== 'N/A' ? item.rawOwnerPhone : (item.ownerPhone !== 'N/A' ? item.ownerPhone : ''),
+      ownerEmail: item.rawOwnerEmail && item.rawOwnerEmail !== 'N/A' ? item.rawOwnerEmail : (item.ownerEmail !== 'N/A' ? item.ownerEmail : ''),
+      listingAs: item.rawListingAs || item.listingAs || item.ownerRole || 'Owner',
+      totalUnits: item.rawTotalUnits || '',
+      floors: item.rawFloors || '',
+      towers: item.rawTowers || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveListingEdit = async (e) => {
+    if (e) e.preventDefault();
+    if (!editTargetItem) return;
+    setIsSavingListing(true);
+
+    try {
+      const isProject = editTargetItem.itemType === 'project';
+      const endpoint = isProject
+        ? `/admin/projects/${editTargetItem._id}`
+        : `/admin/properties/${editTargetItem._id}`;
+
+      const payload = isProject
+        ? {
+            projectName: editFormData.title,
+            title: editFormData.title,
+            projectType: editFormData.category,
+            city: editFormData.city,
+            locality: editFormData.locality,
+            fullAddress: editFormData.fullAddress,
+            pincode: editFormData.pincode,
+            possessionDate: editFormData.possessionDate,
+            reraProjectNumber: editFormData.reraNumber,
+            reraNumber: editFormData.reraNumber,
+            description: editFormData.description,
+            amenities: editFormData.amenities
+              ? editFormData.amenities.split(',').map((s) => s.trim()).filter(Boolean)
+              : [],
+            developerName: editFormData.ownerName,
+            developerPhone: editFormData.ownerPhone,
+            developerEmail: editFormData.ownerEmail,
+            totalUnits: editFormData.totalUnits ? Number(editFormData.totalUnits) : undefined,
+            floors: editFormData.floors,
+            towers: editFormData.towers ? Number(editFormData.towers) : undefined,
+          }
+        : {
+            title: editFormData.title,
+            category: editFormData.category,
+            listingFor: editFormData.listingFor,
+            propertyType: editFormData.propertyType,
+            price: Number(editFormData.price) || 0,
+            securityDeposit: Number(editFormData.securityDeposit) || 0,
+            maintenanceCharges: Number(editFormData.maintenanceCharges) || 0,
+            city: editFormData.city,
+            locality: editFormData.locality,
+            fullAddress: editFormData.fullAddress,
+            pincode: editFormData.pincode,
+            bedrooms: editFormData.bedrooms,
+            bathrooms: editFormData.bathrooms,
+            carpetArea: editFormData.carpetArea !== '' ? Number(editFormData.carpetArea) : undefined,
+            builtUpArea: editFormData.builtUpArea !== '' ? Number(editFormData.builtUpArea) : undefined,
+            floorNo: editFormData.floorNo,
+            totalFloors: editFormData.totalFloors,
+            furnishing: editFormData.furnishing,
+            facingDirection: editFormData.facingDirection,
+            parking: editFormData.parking,
+            availableFrom: editFormData.availableFrom,
+            possessionDate: editFormData.possessionDate,
+            reraNumber: editFormData.reraNumber,
+            ocReceived: Boolean(editFormData.ocReceived),
+            ccReceived: Boolean(editFormData.ccReceived),
+            description: editFormData.description,
+            amenities: editFormData.amenities
+              ? editFormData.amenities.split(',').map((s) => s.trim()).filter(Boolean)
+              : [],
+            ownerName: editFormData.ownerName,
+            ownerPhone: editFormData.ownerPhone,
+            ownerEmail: editFormData.ownerEmail,
+            listingAs: editFormData.listingAs,
+          };
+
+      const res = await API.put(endpoint, payload);
+
+      if (res.data?.status === 'success') {
+        showToast('Listing information updated successfully!', 'success');
+        setShowEditModal(false);
+
+        // Fetch fresh data from backend
+        await fetchData(true);
+
+        // If drawer is viewing this item, refresh its UI representation
+        if (selectedItem && (String(selectedItem._id) === String(editTargetItem._id) || String(selectedItem.id) === String(editTargetItem.id))) {
+          const updatedRaw = res.data.data?.property || res.data.data?.project;
+          if (updatedRaw) {
+            const mapped = isProject ? mapProjectToUi(updatedRaw) : mapPropertyToUi(updatedRaw);
+            setSelectedItem(mapped);
+          }
+        }
+
+        window.dispatchEvent(new CustomEvent('admin-data-sync'));
+      } else {
+        showToast(res.data?.message || 'Failed to update listing.', 'error');
+      }
+    } catch (err) {
+      console.error('Error updating listing info:', err);
+      showToast(err?.response?.data?.message || 'Error updating listing info on server.', 'error');
+    } finally {
+      setIsSavingListing(false);
+    }
+  };
+
+  const initializeDrawerForm = (item) => {
+    if (!item) return;
+    const itemGallery = Array.isArray(item.gallery) ? [...item.gallery] : [];
+    const itemImages = Array.isArray(item.images)
+      ? [...item.images]
+      : itemGallery.filter((m) => m.type !== 'video' && m.type !== 'pdf').map((m) => m.url);
+    const itemVideos = Array.isArray(item.videos)
+      ? [...item.videos]
+      : itemGallery.filter((m) => m.type === 'video').map((m) => m.url);
+
+    setDrawerEditForm({
+      title: item.rawTitle || item.title || '',
+      category: item.rawCategory || item.category || 'Residential',
+      listingFor: item.rawListingFor || item.listingFor || 'Sale',
+      propertyType: item.rawPropertyType || item.propertyType || 'Apartment',
+      price: item.rawPrice !== undefined && item.rawPrice !== null ? item.rawPrice : (item.priceVal || 0),
+      securityDeposit: item.rawSecurityDeposit || 0,
+      maintenanceCharges: item.rawMaintenanceCharges || 0,
+      locality: item.rawLocality || item.locality || '',
+      city: item.rawCity || item.city || '',
+      fullAddress: item.rawFullAddress || item.fullAddress || '',
+      pincode: item.rawPincode || item.pincode || '',
+      bedrooms: item.rawBedrooms || (item.bhk ? String(item.bhk).replace(/[^0-9]/g, '') : '') || '',
+      bathrooms: item.rawBathrooms || (item.bathrooms ? String(item.bathrooms).replace(/[^0-9]/g, '') : '') || '',
+      carpetArea: item.rawCarpetArea || (item.carpetArea ? String(item.carpetArea).replace(/[^0-9.]/g, '') : '') || '',
+      builtUpArea: item.rawBuiltUpArea || (item.area ? String(item.area).replace(/[^0-9.]/g, '') : '') || '',
+      floorNo: item.rawFloorNo || '',
+      totalFloors: item.rawTotalFloors || '',
+      furnishing: item.rawFurnishing || item.furnishing || 'Unfurnished',
+      facingDirection: item.rawFacingDirection || (item.facing ? String(item.facing).replace(' Facing', '') : '') || '',
+      parking: item.rawParking || item.parking || '',
+      availableFrom: item.rawAvailableFrom || '',
+      possessionDate: item.rawPossessionDate || item.possessionDate || '',
+      reraNumber: item.rawReraNumber || item.reraNumber || '',
+      ocReceived: item.rawOcReceived ?? item.ocReceived ?? false,
+      ccReceived: item.rawCcReceived ?? item.ccReceived ?? false,
+      description: item.rawDescription || item.description || '',
+      amenities: Array.isArray(item.rawAmenities)
+        ? item.rawAmenities.join(', ')
+        : Array.isArray(item.amenities)
+        ? item.amenities.join(', ')
+        : '',
+      ownerName: item.rawOwnerName || item.ownerName || '',
+      ownerPhone: item.rawOwnerPhone && item.rawOwnerPhone !== 'N/A' ? item.rawOwnerPhone : (item.ownerPhone !== 'N/A' ? item.ownerPhone : ''),
+      ownerEmail: item.rawOwnerEmail && item.rawOwnerEmail !== 'N/A' ? item.rawOwnerEmail : (item.ownerEmail !== 'N/A' ? item.ownerEmail : ''),
+      listingAs: item.rawListingAs || item.listingAs || item.ownerRole || 'Owner',
+      totalUnits: item.rawTotalUnits || '',
+      floors: item.rawFloors || '',
+      towers: item.rawTowers || '',
+      gallery: itemGallery,
+      images: itemImages,
+      videos: itemVideos,
+    });
+  };
+
+  const handleFileUpload = async (files, isDrawer = true) => {
+    if (!files || files.length === 0) return;
+    setIsUploadingMedia(true);
+    try {
+      const formData = new FormData();
+      Array.from(files).forEach((file) => {
+        formData.append('files', file);
+      });
+
+      const res = await API.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const rawUrls =
+        res.data?.data?.urls ||
+        res.data?.urls ||
+        res.data?.data?.files?.map((f) => f.url || f.fileUrl) ||
+        [];
+      if (rawUrls.length === 0 && res.data?.data?.fileUrl) {
+        rawUrls.push(res.data.data.fileUrl);
+      }
+      if (rawUrls.length === 0 && res.data?.data?.url) {
+        rawUrls.push(res.data.data.url);
+      }
+
+      if (rawUrls.length > 0) {
+        const newMediaItems = rawUrls.map((url) => ({
+          url,
+          type: isVideoUrl(url) ? 'video' : 'image',
+        }));
+
+        const updater = (prev) => {
+          if (!prev) return prev;
+          const currentImages = Array.isArray(prev.images) ? [...prev.images] : [];
+          const currentVideos = Array.isArray(prev.videos) ? [...prev.videos] : [];
+          const currentGallery = Array.isArray(prev.gallery) ? [...prev.gallery] : [];
+
+          newMediaItems.forEach((m) => {
+            currentGallery.push(m);
+            if (m.type === 'video') currentVideos.push(m.url);
+            else currentImages.push(m.url);
+          });
+
+          return {
+            ...prev,
+            images: currentImages,
+            videos: currentVideos,
+            gallery: currentGallery,
+          };
+        };
+
+        if (isDrawer) {
+          setDrawerEditForm(updater);
+        }
+        setEditFormData(updater);
+
+        showToast(`${rawUrls.length} file(s) uploaded successfully! Click "Save All Changes" to commit.`, 'success');
+      } else {
+        showToast('Upload finished, but no URLs returned.', 'info');
+      }
+    } catch (err) {
+      console.error('File upload error:', err);
+      showToast(err?.response?.data?.message || 'Failed to upload media files.', 'error');
+    } finally {
+      setIsUploadingMedia(false);
+      if (galleryFileInputRef.current) galleryFileInputRef.current.value = '';
+    }
+  };
+
+  const handleAddMediaUrl = (inputUrl, isDrawer = true) => {
+    if (!inputUrl || !inputUrl.trim()) return;
+    const url = inputUrl.trim();
+    const type = isVideoUrl(url) ? 'video' : 'image';
+
+    const updater = (prev) => {
+      if (!prev) return prev;
+      const currentImages = Array.isArray(prev.images) ? [...prev.images] : [];
+      const currentVideos = Array.isArray(prev.videos) ? [...prev.videos] : [];
+      const currentGallery = Array.isArray(prev.gallery) ? [...prev.gallery] : [];
+
+      currentGallery.push({ url, type });
+      if (type === 'video') currentVideos.push(url);
+      else currentImages.push(url);
+
+      return {
+        ...prev,
+        images: currentImages,
+        videos: currentVideos,
+        gallery: currentGallery,
+      };
+    };
+
+    if (isDrawer) setDrawerEditForm(updater);
+    setEditFormData(updater);
+    setMediaUrlInput('');
+    showToast('Media item added! Click "Save All Changes" to commit.', 'success');
+  };
+
+  const handleDeleteMediaItem = (indexToDelete, isDrawer = true) => {
+    const updater = (prev) => {
+      if (!prev) return prev;
+      const currentGallery = Array.isArray(prev.gallery) ? [...prev.gallery] : [];
+      if (indexToDelete < 0 || indexToDelete >= currentGallery.length) return prev;
+
+      currentGallery.splice(indexToDelete, 1);
+      const currentImages = currentGallery.filter((m) => m.type !== 'video' && m.type !== 'pdf').map((m) => m.url);
+      const currentVideos = currentGallery.filter((m) => m.type === 'video').map((m) => m.url);
+
+      return {
+        ...prev,
+        gallery: currentGallery,
+        images: currentImages,
+        videos: currentVideos,
+      };
+    };
+
+    if (isDrawer) setDrawerEditForm(updater);
+    setEditFormData(updater);
+    showToast('Media item removed. Click "Save All Changes" to apply.', 'info');
+  };
+
+  const handleSetPrimaryMedia = (indexToPrimary, isDrawer = true) => {
+    const updater = (prev) => {
+      if (!prev) return prev;
+      const currentGallery = Array.isArray(prev.gallery) ? [...prev.gallery] : [];
+      if (indexToPrimary <= 0 || indexToPrimary >= currentGallery.length) return prev;
+
+      const [selected] = currentGallery.splice(indexToPrimary, 1);
+      currentGallery.unshift(selected);
+
+      const currentImages = currentGallery.filter((m) => m.type !== 'video' && m.type !== 'pdf').map((m) => m.url);
+      const currentVideos = currentGallery.filter((m) => m.type === 'video').map((m) => m.url);
+
+      return {
+        ...prev,
+        gallery: currentGallery,
+        images: currentImages,
+        videos: currentVideos,
+      };
+    };
+
+    if (isDrawer) setDrawerEditForm(updater);
+    setEditFormData(updater);
+    showToast('Primary photo updated! Click "Save All Changes" to commit.', 'success');
+  };
+
+  const handleSaveDrawerEdit = async () => {
+    if (!selectedItem || !drawerEditForm) return;
+    setIsSavingListing(true);
+
+    try {
+      const isProject = selectedItem.itemType === 'project';
+      const endpoint = isProject
+        ? `/admin/projects/${selectedItem._id}`
+        : `/admin/properties/${selectedItem._id}`;
+
+      const payload = isProject
+        ? {
+            projectName: drawerEditForm.title,
+            title: drawerEditForm.title,
+            projectType: drawerEditForm.category,
+            city: drawerEditForm.city,
+            locality: drawerEditForm.locality,
+            fullAddress: drawerEditForm.fullAddress,
+            pincode: drawerEditForm.pincode,
+            possessionDate: drawerEditForm.possessionDate,
+            reraProjectNumber: drawerEditForm.reraNumber,
+            reraNumber: drawerEditForm.reraNumber,
+            description: drawerEditForm.description,
+            amenities: drawerEditForm.amenities
+              ? (Array.isArray(drawerEditForm.amenities)
+                  ? drawerEditForm.amenities
+                  : drawerEditForm.amenities.split(',').map((s) => s.trim()).filter(Boolean))
+              : [],
+            developerName: drawerEditForm.ownerName,
+            developerPhone: drawerEditForm.ownerPhone,
+            developerEmail: drawerEditForm.ownerEmail,
+            totalUnits: drawerEditForm.totalUnits ? Number(drawerEditForm.totalUnits) : undefined,
+            floors: drawerEditForm.floors,
+            towers: drawerEditForm.towers ? Number(drawerEditForm.towers) : undefined,
+            projectPhotos: drawerEditForm.images || [],
+            projectVideos: drawerEditForm.videos || [],
+            images: drawerEditForm.images || [],
+            videos: drawerEditForm.videos || [],
+          }
+        : {
+            title: drawerEditForm.title,
+            category: drawerEditForm.category,
+            listingFor: drawerEditForm.listingFor,
+            propertyType: drawerEditForm.propertyType,
+            price: Number(drawerEditForm.price) || 0,
+            securityDeposit: Number(drawerEditForm.securityDeposit) || 0,
+            maintenanceCharges: Number(drawerEditForm.maintenanceCharges) || 0,
+            city: drawerEditForm.city,
+            locality: drawerEditForm.locality,
+            fullAddress: drawerEditForm.fullAddress,
+            pincode: drawerEditForm.pincode,
+            bedrooms: drawerEditForm.bedrooms,
+            bathrooms: drawerEditForm.bathrooms,
+            carpetArea: drawerEditForm.carpetArea !== '' ? Number(drawerEditForm.carpetArea) : undefined,
+            builtUpArea: drawerEditForm.builtUpArea !== '' ? Number(drawerEditForm.builtUpArea) : undefined,
+            floorNo: drawerEditForm.floorNo,
+            totalFloors: drawerEditForm.totalFloors,
+            furnishing: drawerEditForm.furnishing,
+            facingDirection: drawerEditForm.facingDirection,
+            parking: drawerEditForm.parking,
+            availableFrom: drawerEditForm.availableFrom,
+            possessionDate: drawerEditForm.possessionDate,
+            reraNumber: drawerEditForm.reraNumber,
+            ocReceived: Boolean(drawerEditForm.ocReceived),
+            ccReceived: Boolean(drawerEditForm.ccReceived),
+            description: drawerEditForm.description,
+            amenities: drawerEditForm.amenities
+              ? (Array.isArray(drawerEditForm.amenities)
+                  ? drawerEditForm.amenities
+                  : drawerEditForm.amenities.split(',').map((s) => s.trim()).filter(Boolean))
+              : [],
+            ownerName: drawerEditForm.ownerName,
+            ownerPhone: drawerEditForm.ownerPhone,
+            ownerEmail: drawerEditForm.ownerEmail,
+            listingAs: drawerEditForm.listingAs,
+            images: drawerEditForm.images || [],
+            videos: drawerEditForm.videos || [],
+          };
+
+      const res = await API.put(endpoint, payload);
+
+      if (res.data?.status === 'success') {
+        showToast('All listing details & media updated successfully!', 'success');
+        setIsDrawerEditing(false);
+
+        await fetchData(true);
+
+        const updatedRaw = res.data.data?.property || res.data.data?.project;
+        if (updatedRaw) {
+          const mapped = isProject ? mapProjectToUi(updatedRaw) : mapPropertyToUi(updatedRaw);
+          setSelectedItem(mapped);
+          initializeDrawerForm(mapped);
+        }
+
+        window.dispatchEvent(new CustomEvent('admin-data-sync'));
+      } else {
+        showToast(res.data?.message || 'Failed to update listing.', 'error');
+      }
+    } catch (err) {
+      console.error('Error saving listing in drawer:', err);
+      showToast(err?.response?.data?.message || 'Error updating listing on server.', 'error');
+    } finally {
+      setIsSavingListing(false);
+    }
+  };
+
   // Permanently Delete Listing
   const handleDeleteListing = async () => {
     if (!selectedItem) return;
@@ -1342,10 +1901,12 @@ export default function PropertyVerification() {
     }
   };
 
-  const openReviewDrawer = (item) => {
+  const openReviewDrawer = (item, startInEditMode = false) => {
     setSelectedItem(item);
     setActiveDrawerTab('overview');
     setIsDrawerOpen(true);
+    setIsDrawerEditing(Boolean(startInEditMode));
+    initializeDrawerForm(item);
   };
 
   const getStatusBadge = (status, size = 'xs') => {
@@ -1738,6 +2299,16 @@ export default function PropertyVerification() {
                       <span>Review Details</span>
                     </button>
 
+                    <button
+                      type="button"
+                      onClick={() => openReviewDrawer(item, true)}
+                      className="py-1.5 px-2.5 rounded-lg text-xs font-semibold bg-blue-500/10 hover:bg-blue-600 text-blue-700 dark:text-blue-300 hover:text-white border border-blue-500/25 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-98"
+                      title="Edit Listing & Media on this page"
+                    >
+                      <Pencil size={12} strokeWidth={2.2} />
+                      <span>Edit</span>
+                    </button>
+
                     {item.status !== 'Approved' && item.status !== 'Sold' && (
                       <button
                         type="button"
@@ -1952,6 +2523,15 @@ export default function PropertyVerification() {
                             <Eye size={11} />
                           </button>
 
+                          <button
+                            type="button"
+                            onClick={() => openReviewDrawer(item, true)}
+                            className="w-6 h-6 rounded-lg flex items-center justify-center bg-blue-500/10 hover:bg-blue-600 text-blue-700 dark:text-blue-400 hover:text-white border border-blue-500/20 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                            title="Edit Listing & Media on this page"
+                          >
+                            <Pencil size={10} strokeWidth={2.2} />
+                          </button>
+
                           {item.status !== 'Approved' && item.status !== 'Sold' && (
                             <button
                               type="button"
@@ -2098,6 +2678,27 @@ export default function PropertyVerification() {
 
                 <button
                   type="button"
+                  onClick={() => {
+                    if (!isDrawerEditing) {
+                      initializeDrawerForm(selectedItem);
+                      setIsDrawerEditing(true);
+                    } else {
+                      setIsDrawerEditing(false);
+                    }
+                  }}
+                  className={`h-7 sm:h-8 px-2.5 sm:px-3 rounded-full text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 ${
+                    isDrawerEditing
+                      ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-xs'
+                      : 'bg-blue-500/12 text-blue-700 dark:text-blue-400 hover:bg-blue-600 hover:text-white border border-blue-500/25'
+                  }`}
+                  title={isDrawerEditing ? 'Exit Live Edit Mode' : 'Edit Listing & Media on this page'}
+                >
+                  <Pencil size={12} strokeWidth={2.2} />
+                  <span>{isDrawerEditing ? 'Exit Edit' : 'Edit Listing & Media'}</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setIsDrawerOpen(false)}
                   className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
                 >
@@ -2126,7 +2727,7 @@ export default function PropertyVerification() {
               >
                 <span>Media Gallery</span>
                 <span className="px-1.5 rounded-full text-[10px] bg-[var(--bg-muted)]">
-                  {selectedItem.gallery?.length || 0}
+                  {(isDrawerEditing && drawerEditForm ? drawerEditForm.gallery?.length : selectedItem.gallery?.length) || 0}
                 </span>
               </button>
               <button
@@ -2192,7 +2793,358 @@ export default function PropertyVerification() {
                 </div>
               )}
 
+              {/* ── 🌟 LIVE IN-PAGE EDIT MODE ALERT BANNER ── */}
+              {isDrawerEditing && drawerEditForm && (
+                <div className="p-3.5 rounded-xl bg-slate-900 text-white text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-slate-800 shadow-sm animate-in fade-in">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-slate-800 text-blue-400 flex items-center justify-center shrink-0 border border-slate-700">
+                      <Pencil size={15} />
+                    </div>
+                    <div>
+                      <strong className="block font-semibold text-white">In-Page Live Edit Mode</strong>
+                      <span className="text-[11px] text-slate-300">
+                        Editing {selectedItem.title} ({selectedItem.id}). Switch between tabs to edit specs, location, and manage photos/videos.
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setIsDrawerEditing(false)}
+                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-[11px] transition-colors border border-slate-700 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveDrawerEdit}
+                      disabled={isSavingListing}
+                      className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-[11px] shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                    >
+                      <Check size={13} strokeWidth={2.5} />
+                      <span>{isSavingListing ? 'Saving...' : 'Save All Changes'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {activeDrawerTab === 'overview' && (
+                isDrawerEditing && drawerEditForm ? (
+                  <div className="space-y-4 animate-in fade-in duration-200">
+                    {/* Basic Info Box */}
+                    <div className="p-4 rounded-2xl bg-[var(--bg-muted)]/40 border border-[var(--border)] space-y-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-[var(--text-muted)] block mb-1">
+                          Listing Title <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={drawerEditForm.title}
+                          onChange={(e) => setDrawerEditForm({ ...drawerEditForm, title: e.target.value })}
+                          className="w-full h-8 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs font-bold text-[var(--text-primary)] focus:border-brand focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <div>
+                          <label className="text-[10.5px] font-semibold text-[var(--text-muted)] block mb-1">Category</label>
+                          <select
+                            value={drawerEditForm.category}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, category: e.target.value })}
+                            className="w-full h-8 px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:border-brand focus:outline-none"
+                          >
+                            <option value="Residential">Residential</option>
+                            <option value="Commercial">Commercial</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10.5px] font-semibold text-[var(--text-muted)] block mb-1">Listing For</label>
+                          <select
+                            value={drawerEditForm.listingFor}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, listingFor: e.target.value })}
+                            className="w-full h-8 px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:border-brand focus:outline-none"
+                          >
+                            <option value="Sale">Sale</option>
+                            <option value="Rent">Rent</option>
+                            <option value="Lease">Lease</option>
+                            <option value="PG">PG</option>
+                            <option value="Resale">Resale</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10.5px] font-semibold text-[var(--text-muted)] block mb-1">Property Type</label>
+                          <input
+                            type="text"
+                            value={drawerEditForm.propertyType}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, propertyType: e.target.value })}
+                            className="w-full h-8 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:border-brand focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                        <div>
+                          <label className="text-[10.5px] font-semibold text-[var(--text-muted)] block mb-1">Price (₹)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={drawerEditForm.price}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, price: e.target.value })}
+                            className="w-full h-8 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs font-mono font-bold text-[var(--text-primary)] focus:border-brand focus:outline-none"
+                          />
+                          {Number(drawerEditForm.price) > 0 && (
+                            <span className="text-[10px] text-brand font-bold mt-0.5 block">
+                              Formatted: {formatCurrency(Number(drawerEditForm.price))}
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <label className="text-[10.5px] font-semibold text-[var(--text-muted)] block mb-1">Expected Possession Date</label>
+                          <input
+                            type="text"
+                            value={drawerEditForm.possessionDate}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, possessionDate: e.target.value })}
+                            placeholder="e.g. Ready to Move, Dec 2026"
+                            className="w-full h-8 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:border-brand focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Specs Card */}
+                    <div className="p-4 rounded-2xl bg-[var(--bg-muted)]/40 border border-[var(--border)] space-y-3">
+                      <h4 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Specifications</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        <div>
+                          <label className="text-[10px] text-[var(--text-muted)] block mb-1">BHK / Bedrooms</label>
+                          <input
+                            type="text"
+                            value={drawerEditForm.bedrooms}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, bedrooms: e.target.value })}
+                            placeholder="e.g. 2"
+                            className="w-full h-7 px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[var(--text-muted)] block mb-1">Bathrooms</label>
+                          <input
+                            type="text"
+                            value={drawerEditForm.bathrooms}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, bathrooms: e.target.value })}
+                            placeholder="e.g. 2"
+                            className="w-full h-7 px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[var(--text-muted)] block mb-1">Carpet Area (sqft)</label>
+                          <input
+                            type="number"
+                            value={drawerEditForm.carpetArea}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, carpetArea: e.target.value })}
+                            className="w-full h-7 px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[var(--text-muted)] block mb-1">Built-up (sqft)</label>
+                          <input
+                            type="number"
+                            value={drawerEditForm.builtUpArea}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, builtUpArea: e.target.value })}
+                            className="w-full h-7 px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        <div>
+                          <label className="text-[10px] text-[var(--text-muted)] block mb-1">Furnishing</label>
+                          <select
+                            value={drawerEditForm.furnishing}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, furnishing: e.target.value })}
+                            className="w-full h-7 px-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs"
+                          >
+                            <option value="Unfurnished">Unfurnished</option>
+                            <option value="Semi-furnished">Semi-furnished</option>
+                            <option value="Fully-furnished">Fully-furnished</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[var(--text-muted)] block mb-1">Facing</label>
+                          <select
+                            value={drawerEditForm.facingDirection}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, facingDirection: e.target.value })}
+                            className="w-full h-7 px-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs"
+                          >
+                            <option value="">Select Direction</option>
+                            <option value="East">East</option>
+                            <option value="West">West</option>
+                            <option value="North">North</option>
+                            <option value="South">South</option>
+                            <option value="North-East">North-East</option>
+                            <option value="North-West">North-West</option>
+                            <option value="South-East">South-East</option>
+                            <option value="South-West">South-West</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[var(--text-muted)] block mb-1">Floor No</label>
+                          <input
+                            type="text"
+                            value={drawerEditForm.floorNo}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, floorNo: e.target.value })}
+                            className="w-full h-7 px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[var(--text-muted)] block mb-1">Total Floors</label>
+                          <input
+                            type="text"
+                            value={drawerEditForm.totalFloors}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, totalFloors: e.target.value })}
+                            className="w-full h-7 px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-[var(--text-muted)] block mb-1">Parking</label>
+                        <input
+                          type="text"
+                          value={drawerEditForm.parking}
+                          onChange={(e) => setDrawerEditForm({ ...drawerEditForm, parking: e.target.value })}
+                          placeholder="e.g. 1 Covered, Open"
+                          className="w-full h-7 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Location Card */}
+                    <div className="p-4 rounded-2xl bg-[var(--bg-muted)]/40 border border-[var(--border)] space-y-2.5">
+                      <h4 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Location & Address</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="text-[10px] text-[var(--text-muted)] block mb-1">Locality / Landmark</label>
+                          <input
+                            type="text"
+                            value={drawerEditForm.locality}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, locality: e.target.value })}
+                            className="w-full h-7 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[var(--text-muted)] block mb-1">City</label>
+                          <input
+                            type="text"
+                            value={drawerEditForm.city}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, city: e.target.value })}
+                            className="w-full h-7 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] text-[var(--text-muted)] block mb-1">Full Address</label>
+                          <input
+                            type="text"
+                            value={drawerEditForm.fullAddress}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, fullAddress: e.target.value })}
+                            className="w-full h-7 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[var(--text-muted)] block mb-1">Pincode</label>
+                          <input
+                            type="text"
+                            value={drawerEditForm.pincode}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, pincode: e.target.value })}
+                            className="w-full h-7 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Amenities & Description */}
+                    <div className="p-4 rounded-2xl bg-[var(--bg-muted)]/40 border border-[var(--border)] space-y-2.5">
+                      <div>
+                        <label className="text-[10.5px] font-bold text-[var(--text-muted)] block mb-1">Amenities (comma separated)</label>
+                        <input
+                          type="text"
+                          value={drawerEditForm.amenities}
+                          onChange={(e) => setDrawerEditForm({ ...drawerEditForm, amenities: e.target.value })}
+                          className="w-full h-7 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10.5px] font-bold text-[var(--text-muted)] block">
+                            Property / Project Description
+                          </label>
+                          <span className="text-[10px] text-[var(--text-muted)]">
+                            {(drawerEditForm.description || '').length} characters
+                          </span>
+                        </div>
+                        <textarea
+                          rows={4}
+                          value={drawerEditForm.description}
+                          onChange={(e) => setDrawerEditForm({ ...drawerEditForm, description: e.target.value })}
+                          placeholder="Write key selling points, highlights, nearby landmarks, society specifications, interior details, etc..."
+                          className="w-full p-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs leading-relaxed focus:outline-none focus:ring-1 focus:ring-brand"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Seller Profile */}
+                    <div className="p-4 rounded-2xl bg-[var(--bg-muted)]/40 border border-[var(--border)] space-y-2.5">
+                      <h4 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Seller & Owner Profile</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="text-[10px] text-[var(--text-muted)] block mb-1">Owner / Developer Name</label>
+                          <input
+                            type="text"
+                            value={drawerEditForm.ownerName}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, ownerName: e.target.value })}
+                            className="w-full h-7 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[var(--text-muted)] block mb-1">Role / Listed As</label>
+                          <select
+                            value={drawerEditForm.listingAs}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, listingAs: e.target.value })}
+                            className="w-full h-7 px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs"
+                          >
+                            <option value="Owner">Owner</option>
+                            <option value="Agent / Broker">Agent / Broker</option>
+                            <option value="Developer / Builder">Developer / Builder</option>
+                            <option value="Builder">Builder</option>
+                            <option value="Agent">Agent</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="text-[10px] text-[var(--text-muted)] block mb-1">Phone</label>
+                          <input
+                            type="text"
+                            value={drawerEditForm.ownerPhone}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, ownerPhone: e.target.value })}
+                            className="w-full h-7 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[var(--text-muted)] block mb-1">Email</label>
+                          <input
+                            type="email"
+                            value={drawerEditForm.ownerEmail}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, ownerEmail: e.target.value })}
+                            className="w-full h-7 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
                 <div className="space-y-5">
                   {/* Price & Summary Header Box */}
                   <div className="p-4 rounded-2xl bg-[var(--bg-muted)]/50 border border-[var(--border)] flex items-center justify-between">
@@ -2221,7 +3173,7 @@ export default function PropertyVerification() {
 
                   {/* ── Admin Commission & Commission Discount Section (Overview Card) ── */}
                   {selectedItem.itemType === 'property' && (
-                    <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-500/5 via-[var(--bg-muted)]/40 to-emerald-500/5 border border-[var(--border)] space-y-3">
+                    <div className="p-4 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)] space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
@@ -2275,7 +3227,7 @@ export default function PropertyVerification() {
                   )}
 
                   {/* ── Admin Curated Investment Score Card (Drawer Overview) ── */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/5 via-[var(--bg-muted)]/40 to-emerald-500/5 border border-[var(--border)] space-y-3">
+                  <div className="p-4 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)] space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
@@ -2654,36 +3606,128 @@ export default function PropertyVerification() {
                   )}
 
                   {/* Description */}
-                  {selectedItem.description && (
-                    <div>
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2.5">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
                         Listing Description
                       </h3>
-                      <div className="p-3.5 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)]/60 text-xs text-[var(--text-secondary)] leading-relaxed whitespace-pre-line">
-                        {selectedItem.description}
-                      </div>
+                      {!isDrawerEditing && (
+                        <button
+                          type="button"
+                          onClick={() => setIsDrawerEditing(true)}
+                          className="text-[11px] font-semibold text-brand hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Pencil size={11} />
+                          {selectedItem.description ? 'Edit Description' : 'Add Description'}
+                        </button>
+                      )}
                     </div>
-                  )}
+                    <div className="p-3.5 rounded-xl bg-[var(--bg-muted)]/30 border border-[var(--border)]/60 text-xs text-[var(--text-secondary)] leading-relaxed whitespace-pre-line">
+                      {selectedItem.description ? (
+                        selectedItem.description
+                      ) : (
+                        <div className="flex items-center justify-between text-[var(--text-muted)] italic py-1">
+                          <span>No description provided yet by user.</span>
+                          <button
+                            type="button"
+                            onClick={() => setIsDrawerEditing(true)}
+                            className="not-italic text-xs font-semibold text-brand hover:underline cursor-pointer"
+                          >
+                            + Add Description
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
+                )
               )}
 
               {/* ── GALLERY TAB ── */}
               {activeDrawerTab === 'gallery' && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-[var(--text-primary)]">
-                      All Uploaded Photos & Videos ({selectedItem.gallery?.length || 0})
-                    </span>
-                    <span className="text-[var(--text-muted)]">Click on any photo to preview full size</span>
+                  {/* Top Media Management Bar */}
+                  <div className="p-3.5 rounded-2xl bg-[var(--bg-muted)]/40 border border-[var(--border)] space-y-3">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs text-[var(--text-primary)]">
+                            Listing Media ({((isDrawerEditing && drawerEditForm ? drawerEditForm.gallery : selectedItem.gallery)?.length) || 0})
+                          </span>
+                          <span className="text-[10px] text-[var(--text-muted)] bg-[var(--bg-surface)] px-2 py-0.5 rounded-full border border-[var(--border)]">
+                            Photos & Videos
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-[var(--text-muted)] block mt-0.5">
+                          Upload, add CDN links, delete, or set the primary cover photo for this approval.
+                        </span>
+                      </div>
+
+                      {/* Hidden File Input */}
+                      <input
+                        ref={galleryFileInputRef}
+                        type="file"
+                        multiple
+                        accept="image/*,video/*"
+                        className="hidden"
+                        onChange={(e) => handleFileUpload(e.target.files, isDrawerEditing)}
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => galleryFileInputRef.current?.click()}
+                        disabled={isUploadingMedia}
+                        className="h-8 px-3.5 rounded-xl bg-brand hover:bg-brand/90 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95 disabled:opacity-50 shrink-0"
+                      >
+                        <Upload size={13} />
+                        <span>{isUploadingMedia ? 'Uploading...' : 'Upload Photos / Videos'}</span>
+                      </button>
+                    </div>
+
+                    {/* Quick Add by URL input */}
+                    <div className="flex items-center gap-2 pt-1 border-t border-[var(--border)]/60">
+                      <input
+                        type="text"
+                        value={mediaUrlInput}
+                        onChange={(e) => setMediaUrlInput(e.target.value)}
+                        placeholder="Or paste direct image / video URL (https://...)..."
+                        className="h-8 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs flex-1 text-[var(--text-primary)] focus:outline-none focus:border-brand"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddMediaUrl(mediaUrlInput, isDrawerEditing);
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleAddMediaUrl(mediaUrlInput, isDrawerEditing)}
+                        className="h-8 px-3 rounded-lg bg-[var(--bg-surface)] hover:bg-brand hover:text-white border border-[var(--border)] text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                      >
+                        <Plus size={13} />
+                        <span>Add URL</span>
+                      </button>
+                    </div>
+
+                    {/* Upload progress banner */}
+                    {isUploadingMedia && (
+                      <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/25 text-blue-700 dark:text-blue-300 text-xs flex items-center gap-2 animate-pulse">
+                        <RefreshCw size={14} className="animate-spin text-blue-600" />
+                        <span>Uploading files to storage and attaching to listing...</span>
+                      </div>
+                    )}
                   </div>
 
-                  {selectedItem.gallery?.length === 0 ? (
-                    <div className="p-12 text-center text-xs text-[var(--text-muted)] bg-[var(--bg-muted)]/30 rounded-2xl border border-[var(--border)]">
-                      No media files uploaded for this listing.
+                  {/* Media Grid */}
+                  {((isDrawerEditing && drawerEditForm ? drawerEditForm.gallery : selectedItem.gallery)?.length || 0) === 0 ? (
+                    <div className="p-10 text-center text-xs text-[var(--text-muted)] bg-[var(--bg-muted)]/20 rounded-2xl border-2 border-dashed border-[var(--border)] space-y-2">
+                      <ImageIcon size={32} className="mx-auto text-[var(--text-muted)] opacity-50" />
+                      <p className="font-semibold text-[var(--text-primary)]">No media files attached to this listing yet.</p>
+                      <p className="text-[11px]">Use the upload button or paste an image/video URL above to add media.</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                      {selectedItem.gallery.map((media, idx) => (
+                      {((isDrawerEditing && drawerEditForm ? drawerEditForm.gallery : selectedItem.gallery) || []).map((media, idx) => (
                         <div
                           key={idx}
                           onClick={() => {
@@ -2694,8 +3738,40 @@ export default function PropertyVerification() {
                               setLightboxOpen(true);
                             }
                           }}
-                          className="relative h-28 rounded-xl overflow-hidden bg-[var(--bg-muted)] border border-[var(--border)] cursor-pointer group"
+                          className="relative h-28 rounded-xl overflow-hidden bg-[var(--bg-muted)] border border-[var(--border)] cursor-pointer group shadow-2xs"
                         >
+                          {/* Top-Left: Primary badge or Set Primary button */}
+                          {idx === 0 ? (
+                            <span className="absolute top-1.5 left-1.5 z-20 bg-amber-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm flex items-center gap-0.5 select-none">
+                              <Star size={9} fill="white" /> Primary
+                            </span>
+                          ) : media.type !== 'video' && media.type !== 'pdf' ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSetPrimaryMedia(idx, isDrawerEditing);
+                              }}
+                              title="Set as primary cover photo"
+                              className="absolute top-1.5 left-1.5 z-20 w-6 h-6 rounded-lg bg-black/60 hover:bg-amber-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer shadow-sm"
+                            >
+                              <Star size={11} />
+                            </button>
+                          ) : null}
+
+                          {/* Top-Right: Delete button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteMediaItem(idx, isDrawerEditing);
+                            }}
+                            title="Remove this photo / video"
+                            className="absolute top-1.5 right-1.5 z-20 w-6 h-6 rounded-lg bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer shadow-sm"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+
                           {media.type === 'video' ? (
                             <div className="w-full h-full flex items-center justify-center bg-black/90 text-white relative">
                               <video src={media.url} className="w-full h-full object-cover opacity-60" preload="metadata" muted />
@@ -2723,13 +3799,23 @@ export default function PropertyVerification() {
                           ) : (
                             <SmoothImage src={media.url} alt={`Media ${idx}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                           )}
+
                           {media.type !== 'pdf' && (
-                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white pointer-events-none">
                               <Maximize2 size={16} />
                             </div>
                           )}
                         </div>
                       ))}
+
+                      {/* Add more media quick card */}
+                      <div
+                        onClick={() => galleryFileInputRef.current?.click()}
+                        className="relative h-28 rounded-xl border-2 border-dashed border-[var(--border)] hover:border-brand/70 hover:bg-brand/5 flex flex-col items-center justify-center text-[var(--text-muted)] hover:text-brand cursor-pointer transition-all select-none"
+                      >
+                        <Upload size={18} />
+                        <span className="text-[11px] font-bold mt-1.5">+ Upload Media</span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2738,21 +3824,76 @@ export default function PropertyVerification() {
               {/* ── LEGAL & DOCS TAB ── */}
               {activeDrawerTab === 'docs' && (
                 <div className="space-y-4">
-                  <div className="p-3.5 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)]/60 text-xs flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] text-[var(--text-muted)] font-bold block uppercase">
-                        RERA Registration Number
-                      </span>
-                      <strong className="text-sm text-[var(--text-primary)] font-mono">
-                        {selectedItem.reraNumber || 'Not Provided / Exempt'}
-                      </strong>
+                  {isDrawerEditing && drawerEditForm ? (
+                    <div className="p-4 rounded-2xl bg-[var(--bg-muted)]/40 border border-[var(--border)] space-y-3.5 animate-in fade-in duration-200">
+                      <div>
+                        <label className="text-[11px] font-bold text-[var(--text-muted)] block mb-1">
+                          RERA Registration Number
+                        </label>
+                        <input
+                          type="text"
+                          value={drawerEditForm.reraNumber}
+                          onChange={(e) => setDrawerEditForm({ ...drawerEditForm, reraNumber: e.target.value })}
+                          placeholder="e.g. P51800012345 or NA"
+                          className="w-full h-8 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs font-mono font-bold text-[var(--text-primary)] focus:outline-none focus:border-brand"
+                        />
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-2.5">
+                        <span className="text-xs font-bold text-[var(--text-primary)] block">Statutory Clearances</span>
+
+                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={drawerEditForm.ocReceived}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, ocReceived: e.target.checked })}
+                            className="w-4 h-4 rounded text-brand focus:ring-brand accent-brand cursor-pointer"
+                          />
+                          <div>
+                            <span className="text-xs font-semibold text-[var(--text-primary)] block">
+                              Occupancy Certificate (OC) Received
+                            </span>
+                            <span className="text-[10px] text-[var(--text-muted)]">
+                              Local municipal authority occupancy clearance.
+                            </span>
+                          </div>
+                        </label>
+
+                        <label className="flex items-center gap-2.5 cursor-pointer select-none pt-2 border-t border-[var(--border)]/60">
+                          <input
+                            type="checkbox"
+                            checked={drawerEditForm.ccReceived}
+                            onChange={(e) => setDrawerEditForm({ ...drawerEditForm, ccReceived: e.target.checked })}
+                            className="w-4 h-4 rounded text-brand focus:ring-brand accent-brand cursor-pointer"
+                          />
+                          <div>
+                            <span className="text-xs font-semibold text-[var(--text-primary)] block">
+                              Completion Certificate (CC) Received
+                            </span>
+                            <span className="text-[10px] text-[var(--text-muted)]">
+                              Certifies structural completion of building.
+                            </span>
+                          </div>
+                        </label>
+                      </div>
                     </div>
-                    {selectedItem.reraNumber && (
-                      <Badge color="emerald" variant="pastel" size="xs" icon={<Check size={10} strokeWidth={2.8} className="shrink-0" />}>
-                        Provided
-                      </Badge>
-                    )}
-                  </div>
+                  ) : (
+                    <div className="p-3.5 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)]/60 text-xs flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-[var(--text-muted)] font-bold block uppercase">
+                          RERA Registration Number
+                        </span>
+                        <strong className="text-sm text-[var(--text-primary)] font-mono">
+                          {selectedItem.reraNumber || 'Not Provided / Exempt'}
+                        </strong>
+                      </div>
+                      {selectedItem.reraNumber && (
+                        <Badge color="emerald" variant="pastel" size="xs" icon={<Check size={10} strokeWidth={2.8} className="shrink-0" />}>
+                          Provided
+                        </Badge>
+                      )}
+                    </div>
+                  )}
 
                   <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] pt-2">
                     Verification Documents Checklist
@@ -2827,58 +3968,94 @@ export default function PropertyVerification() {
             </div>
 
             {/* ── Drawer Footer Actions ── */}
-            <div className="p-3.5 sm:p-4 border-t border-[var(--border)] bg-[var(--bg-surface)] flex flex-wrap items-center justify-between gap-2.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowDeleteModal(true)}
-                className="h-8 px-3 rounded-full text-xs font-semibold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500 hover:text-white border border-red-500/25 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
-              >
-                <Trash2 size={13} />
-                <span>Delete</span>
-              </button>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* 1-Click Instant Mark as Sold Out */}
-                {selectedItem.status === 'Approved' && !selectedItem.isSold && (
-                  <button
-                    type="button"
-                    onClick={() => handleToggleSold(selectedItem, true)}
-                    disabled={isSubmittingAction}
-                    className="h-8 px-3 sm:px-3.5 rounded-full text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
-                    title="Instantly mark this listing as Sold Out"
-                  >
-                    <Tag size={13} strokeWidth={2.2} />
-                    <span>Mark Sold</span>
-                  </button>
-                )}
-
-                {/* 1-Click Instant Relist as Available */}
-                {(selectedItem.status === 'Sold' || selectedItem.isSold) && (
-                  <button
-                    type="button"
-                    onClick={() => handleToggleSold(selectedItem, false)}
-                    disabled={isSubmittingAction}
-                    className="h-8 px-3 sm:px-3.5 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
-                    title="Relist listing as available on GharMB"
-                  >
-                    <RotateCcw size={13} />
-                    <span>Relist</span>
-                  </button>
-                )}
-
-                {selectedItem.status !== 'Approved' && selectedItem.status !== 'Sold' && (
-                  <button
-                    type="button"
-                    onClick={() => handleApproveClick(selectedItem)}
-                    disabled={isSubmittingAction}
-                    className="h-8 px-3.5 sm:px-4 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
-                  >
-                    <Check size={13} strokeWidth={2.5} />
-                    <span>Approve<span className="hidden sm:inline"> & Set Commission</span></span>
-                  </button>
-                )}
+            {isDrawerEditing ? (
+              <div className="p-3.5 sm:p-4 border-t border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-between gap-3 shrink-0 shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => setIsDrawerEditing(false)}
+                  disabled={isSavingListing}
+                  className="h-9 px-4 rounded-xl border border-[var(--border)] hover:bg-[var(--bg-muted)] text-[var(--text-secondary)] font-semibold text-xs transition-colors cursor-pointer"
+                >
+                  Cancel Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveDrawerEdit}
+                  disabled={isSavingListing}
+                  className="h-9 px-5 sm:px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md flex items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50"
+                >
+                  <Check size={15} strokeWidth={2.5} />
+                  <span>{isSavingListing ? 'Saving Changes & Media...' : 'Save All Changes & Media'}</span>
+                </button>
               </div>
-            </div>
+            ) : (
+              <div className="p-3.5 sm:p-4 border-t border-[var(--border)] bg-[var(--bg-surface)] flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(true)}
+                  className="h-8 px-3 rounded-full text-xs font-semibold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500 hover:text-white border border-red-500/25 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                >
+                  <Trash2 size={13} />
+                  <span>Delete</span>
+                </button>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* 1-Click Instant Live Edit on this page */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      initializeDrawerForm(selectedItem);
+                      setIsDrawerEditing(true);
+                    }}
+                    className="h-8 px-3 sm:px-3.5 rounded-full text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-95"
+                    title="Live edit listing details and media directly on this page"
+                  >
+                    <Pencil size={13} strokeWidth={2.2} />
+                    <span>Edit Listing & Media</span>
+                  </button>
+
+                  {/* 1-Click Instant Mark as Sold Out */}
+                  {selectedItem.status === 'Approved' && !selectedItem.isSold && (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSold(selectedItem, true)}
+                      disabled={isSubmittingAction}
+                      className="h-8 px-3 sm:px-3.5 rounded-full text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                      title="Instantly mark this listing as Sold Out"
+                    >
+                      <Tag size={13} strokeWidth={2.2} />
+                      <span>Mark Sold</span>
+                    </button>
+                  )}
+
+                  {/* 1-Click Instant Relist as Available */}
+                  {(selectedItem.status === 'Sold' || selectedItem.isSold) && (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSold(selectedItem, false)}
+                      disabled={isSubmittingAction}
+                      className="h-8 px-3 sm:px-3.5 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                      title="Relist listing as available on GharMB"
+                    >
+                      <RotateCcw size={13} />
+                      <span>Relist</span>
+                    </button>
+                  )}
+
+                  {selectedItem.status !== 'Approved' && selectedItem.status !== 'Sold' && (
+                    <button
+                      type="button"
+                      onClick={() => handleApproveClick(selectedItem)}
+                      disabled={isSubmittingAction}
+                      className="h-8 px-3.5 sm:px-4 rounded-full text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      <Check size={13} strokeWidth={2.5} />
+                      <span>Approve<span className="hidden sm:inline"> & Set Commission</span></span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -3172,7 +4349,7 @@ export default function PropertyVerification() {
             {/* Modal Header */}
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between shrink-0 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center shadow-sm shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm shrink-0">
                   <BadgePercent size={18} />
                 </div>
                 <div className="min-w-0">
@@ -3472,7 +4649,7 @@ export default function PropertyVerification() {
                   </div>
 
               {/* ── 3. LIVE FINANCIAL IMPACT BREAKDOWN ── */}
-              <div className="p-4 rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white shadow-inner space-y-2.5">
+              <div className="p-4 rounded-xl bg-slate-900 text-white shadow-inner space-y-2.5 border border-slate-800">
                 <div className="flex items-center justify-between border-b border-white/10 pb-2">
                   <span className="font-bold text-[11px] text-white/80 uppercase tracking-wider flex items-center gap-1.5">
                     <Sparkles size={13} className="text-amber-400" />
@@ -3599,7 +4776,7 @@ export default function PropertyVerification() {
             {/* Header */}
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between shrink-0 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-400 text-white flex items-center justify-center shadow-sm shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm shrink-0">
                   <TrendingUp size={18} />
                 </div>
                 <div className="min-w-0">
@@ -3624,7 +4801,7 @@ export default function PropertyVerification() {
             <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1 text-xs">
               
               {/* Overall Score Highlight Banner */}
-              <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-teal-500/10 border border-emerald-500/20 flex items-center justify-between">
+              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-500/20 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
                     Calculated Overall Investment Score
@@ -3782,6 +4959,623 @@ export default function PropertyVerification() {
               >
                 <Check size={14} strokeWidth={2.5} />
                 <span>{isSavingScore ? 'Saving Score...' : 'Save Investment Score'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 07E. ADMIN EDIT APPROVAL LISTING MODAL ── */}
+      {showEditModal && editTargetItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-200"
+            onClick={() => !isSavingListing && setShowEditModal(false)}
+          />
+
+          <div className="relative w-full max-w-2xl bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl z-10 animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between shrink-0 bg-[var(--bg-surface)]">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                  <Pencil size={16} />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] truncate">
+                    Edit Approval Listing Details
+                  </h3>
+                  <p className="text-[11px] text-[var(--text-muted)] truncate">
+                    {editTargetItem.title} • <span className="font-mono">{editTargetItem.id}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isSavingListing && setShowEditModal(false)}
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Navigation Tabs */}
+            <div className="flex items-center gap-2 px-5 border-b border-[var(--border)]/70 text-xs font-semibold text-[var(--text-muted)] bg-[var(--bg-muted)]/25 shrink-0 overflow-x-auto no-scrollbar">
+              {[
+                { id: 'basic', label: 'Basic & Pricing' },
+                { id: 'location', label: 'Location' },
+                { id: 'specs', label: 'Specs & Features' },
+                { id: 'legal', label: 'Legal & Clearances' },
+                { id: 'seller', label: 'Seller & Description' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveEditTab(tab.id)}
+                  className={`py-2.5 px-2 border-b-2 transition-colors cursor-pointer whitespace-nowrap text-xs ${
+                    activeEditTab === tab.id
+                      ? 'border-brand text-brand font-bold'
+                      : 'border-transparent hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <form onSubmit={handleSaveListingEdit} className="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1 text-xs">
+              {/* TAB 1: Basic & Pricing */}
+              {activeEditTab === 'basic' && (
+                <div className="space-y-3.5">
+                  <div>
+                    <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                      Listing Title <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editFormData.title}
+                      onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                      placeholder="e.g. 2 BHK Luxury Apartment in Mira Road"
+                      className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Category
+                      </label>
+                      <select
+                        value={editFormData.category}
+                        onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value })}
+                        className="w-full h-8 px-2.5 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                      >
+                        <option value="Residential">Residential</option>
+                        <option value="Commercial">Commercial</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Listing For
+                      </label>
+                      <select
+                        value={editFormData.listingFor}
+                        onChange={(e) => setEditFormData({ ...editFormData, listingFor: e.target.value })}
+                        className="w-full h-8 px-2.5 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                      >
+                        <option value="Sale">Sale</option>
+                        <option value="Rent">Rent</option>
+                        <option value="Lease">Lease</option>
+                        <option value="PG">PG</option>
+                        <option value="Resale">Resale</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Property Type
+                      </label>
+                      <input
+                        type="text"
+                        value={editFormData.propertyType}
+                        onChange={(e) => setEditFormData({ ...editFormData, propertyType: e.target.value })}
+                        placeholder="Apartment, Villa, Shop..."
+                        className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Price (₹) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        required
+                        value={editFormData.price}
+                        onChange={(e) => setEditFormData({ ...editFormData, price: e.target.value })}
+                        placeholder="e.g. 5000000"
+                        className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-mono font-semibold"
+                      />
+                      {Number(editFormData.price) > 0 && (
+                        <span className="text-[10px] text-[var(--text-muted)] mt-1 block">
+                          Preview: {formatCurrency(Number(editFormData.price))}
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Expected Possession Date
+                      </label>
+                      <input
+                        type="text"
+                        value={editFormData.possessionDate}
+                        onChange={(e) => setEditFormData({ ...editFormData, possessionDate: e.target.value })}
+                        placeholder="e.g. Ready to Move, Dec 2026, Immediate"
+                        className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  {editFormData.listingFor !== 'Sale' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)]">
+                      <div>
+                        <label className="text-[10.5px] text-[var(--text-muted)] block mb-1 font-medium">
+                          Security Deposit (₹)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={editFormData.securityDeposit}
+                          onChange={(e) => setEditFormData({ ...editFormData, securityDeposit: e.target.value })}
+                          className="w-full h-7 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10.5px] text-[var(--text-muted)] block mb-1 font-medium">
+                          Maintenance (₹/mo)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={editFormData.maintenanceCharges}
+                          onChange={(e) => setEditFormData({ ...editFormData, maintenanceCharges: e.target.value })}
+                          className="w-full h-7 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10.5px] text-[var(--text-muted)] block mb-1 font-medium">
+                          Available From
+                        </label>
+                        <input
+                          type="text"
+                          value={editFormData.availableFrom}
+                          onChange={(e) => setEditFormData({ ...editFormData, availableFrom: e.target.value })}
+                          placeholder="Immediate, 15 Days..."
+                          className="w-full h-7 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 2: Location */}
+              {activeEditTab === 'location' && (
+                <div className="space-y-3.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Locality / Area <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editFormData.locality}
+                        onChange={(e) => setEditFormData({ ...editFormData, locality: e.target.value })}
+                        placeholder="e.g. Mira Road East, Sector 57"
+                        className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        City <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editFormData.city}
+                        onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
+                        placeholder="e.g. Mumbai, Gurugram, Agra"
+                        className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                      Full Address
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={editFormData.fullAddress}
+                      onChange={(e) => setEditFormData({ ...editFormData, fullAddress: e.target.value })}
+                      placeholder="Street address, building number, landmark..."
+                      className="w-full p-2.5 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand custom-scrollbar leading-relaxed"
+                    />
+                  </div>
+
+                  <div className="w-full sm:w-1/2">
+                    <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                      Pincode
+                    </label>
+                    <input
+                      type="text"
+                      value={editFormData.pincode}
+                      onChange={(e) => setEditFormData({ ...editFormData, pincode: e.target.value })}
+                      placeholder="e.g. 401107"
+                      className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-mono font-medium"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: Specs & Features */}
+              {activeEditTab === 'specs' && (
+                <div className="space-y-3.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Bedrooms / BHK
+                      </label>
+                      <input
+                        type="text"
+                        value={editFormData.bedrooms}
+                        onChange={(e) => setEditFormData({ ...editFormData, bedrooms: e.target.value })}
+                        placeholder="e.g. 2 or 3"
+                        className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Bathrooms
+                      </label>
+                      <input
+                        type="text"
+                        value={editFormData.bathrooms}
+                        onChange={(e) => setEditFormData({ ...editFormData, bathrooms: e.target.value })}
+                        placeholder="e.g. 2"
+                        className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Carpet Area (sqft)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editFormData.carpetArea}
+                        onChange={(e) => setEditFormData({ ...editFormData, carpetArea: e.target.value })}
+                        placeholder="e.g. 650"
+                        className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-mono font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Built-up (sqft)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editFormData.builtUpArea}
+                        onChange={(e) => setEditFormData({ ...editFormData, builtUpArea: e.target.value })}
+                        placeholder="e.g. 850"
+                        className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-mono font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Floor No
+                      </label>
+                      <input
+                        type="text"
+                        value={editFormData.floorNo}
+                        onChange={(e) => setEditFormData({ ...editFormData, floorNo: e.target.value })}
+                        placeholder="e.g. 4"
+                        className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Total Floors
+                      </label>
+                      <input
+                        type="text"
+                        value={editFormData.totalFloors}
+                        onChange={(e) => setEditFormData({ ...editFormData, totalFloors: e.target.value })}
+                        placeholder="e.g. 14"
+                        className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Furnishing
+                      </label>
+                      <select
+                        value={editFormData.furnishing}
+                        onChange={(e) => setEditFormData({ ...editFormData, furnishing: e.target.value })}
+                        className="w-full h-8 px-2.5 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                      >
+                        <option value="Unfurnished">Unfurnished</option>
+                        <option value="Semi-furnished">Semi-furnished</option>
+                        <option value="Fully-furnished">Fully-furnished</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Facing
+                      </label>
+                      <select
+                        value={editFormData.facingDirection}
+                        onChange={(e) => setEditFormData({ ...editFormData, facingDirection: e.target.value })}
+                        className="w-full h-8 px-2.5 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                      >
+                        <option value="">Select Direction</option>
+                        <option value="East">East</option>
+                        <option value="West">West</option>
+                        <option value="North">North</option>
+                        <option value="South">South</option>
+                        <option value="North-East">North-East</option>
+                        <option value="North-West">North-West</option>
+                        <option value="South-East">South-East</option>
+                        <option value="South-West">South-West</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Parking
+                      </label>
+                      <input
+                        type="text"
+                        value={editFormData.parking}
+                        onChange={(e) => setEditFormData({ ...editFormData, parking: e.target.value })}
+                        placeholder="e.g. 1 Covered, Open"
+                        className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Amenities (comma separated)
+                      </label>
+                      <input
+                        type="text"
+                        value={editFormData.amenities}
+                        onChange={(e) => setEditFormData({ ...editFormData, amenities: e.target.value })}
+                        placeholder="Gym, Swimming Pool, Lift, Security, Club House"
+                        className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  {editTargetItem.itemType === 'project' && (
+                    <div className="grid grid-cols-3 gap-3 p-3 rounded-xl bg-[var(--bg-muted)]/30 border border-[var(--border)]">
+                      <div>
+                        <label className="text-[10.5px] text-[var(--text-muted)] block mb-1 font-medium">
+                          Total Units
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={editFormData.totalUnits}
+                          onChange={(e) => setEditFormData({ ...editFormData, totalUnits: e.target.value })}
+                          className="w-full h-7 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text-primary)]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10.5px] text-[var(--text-muted)] block mb-1 font-medium">
+                          Towers
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={editFormData.towers}
+                          onChange={(e) => setEditFormData({ ...editFormData, towers: e.target.value })}
+                          className="w-full h-7 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text-primary)]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10.5px] text-[var(--text-muted)] block mb-1 font-medium">
+                          Floors Structure
+                        </label>
+                        <input
+                          type="text"
+                          value={editFormData.floors}
+                          onChange={(e) => setEditFormData({ ...editFormData, floors: e.target.value })}
+                          placeholder="e.g. G + 14"
+                          className="w-full h-7 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text-primary)]"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 4: Legal & Clearances */}
+              {activeEditTab === 'legal' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                      RERA Registration Number
+                    </label>
+                    <input
+                      type="text"
+                      value={editFormData.reraNumber}
+                      onChange={(e) => setEditFormData({ ...editFormData, reraNumber: e.target.value })}
+                      placeholder="e.g. P51800012345 or NA"
+                      className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-mono font-medium"
+                    />
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-[var(--bg-muted)]/30 border border-[var(--border)] space-y-3">
+                    <span className="text-xs font-bold text-[var(--text-primary)] block">
+                      Statutory Approvals & Compliance
+                    </span>
+
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={editFormData.ocReceived}
+                        onChange={(e) => setEditFormData({ ...editFormData, ocReceived: e.target.checked })}
+                        className="w-4 h-4 rounded text-brand focus:ring-brand accent-brand cursor-pointer"
+                      />
+                      <div>
+                        <span className="text-xs font-semibold text-[var(--text-primary)] block">
+                          Occupancy Certificate (OC) Received
+                        </span>
+                        <span className="text-[10.5px] text-[var(--text-muted)]">
+                          Specifies that local municipal authority has cleared the unit for lawful residence.
+                        </span>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none pt-2 border-t border-[var(--border)]/60">
+                      <input
+                        type="checkbox"
+                        checked={editFormData.ccReceived}
+                        onChange={(e) => setEditFormData({ ...editFormData, ccReceived: e.target.checked })}
+                        className="w-4 h-4 rounded text-brand focus:ring-brand accent-brand cursor-pointer"
+                      />
+                      <div>
+                        <span className="text-xs font-semibold text-[var(--text-primary)] block">
+                          Completion Certificate (CC) Received
+                        </span>
+                        <span className="text-[10.5px] text-[var(--text-muted)]">
+                          Certifies entire structural build conforms to approved architectural blueprint.
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 5: Seller & Description */}
+              {activeEditTab === 'seller' && (
+                <div className="space-y-3.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Seller / Owner Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editFormData.ownerName}
+                        onChange={(e) => setEditFormData({ ...editFormData, ownerName: e.target.value })}
+                        placeholder="Owner or Company Name"
+                        className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Seller Role / Listed As
+                      </label>
+                      <select
+                        value={editFormData.listingAs}
+                        onChange={(e) => setEditFormData({ ...editFormData, listingAs: e.target.value })}
+                        className="w-full h-8 px-2.5 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                      >
+                        <option value="Owner">Owner</option>
+                        <option value="Agent / Broker">Agent / Broker</option>
+                        <option value="Developer / Builder">Developer / Builder</option>
+                        <option value="Builder">Builder</option>
+                        <option value="Agent">Agent</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Contact Phone
+                      </label>
+                      <input
+                        type="text"
+                        value={editFormData.ownerPhone}
+                        onChange={(e) => setEditFormData({ ...editFormData, ownerPhone: e.target.value })}
+                        placeholder="+91..."
+                        className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-mono font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                        Contact Email
+                      </label>
+                      <input
+                        type="email"
+                        value={editFormData.ownerEmail}
+                        onChange={(e) => setEditFormData({ ...editFormData, ownerEmail: e.target.value })}
+                        placeholder="seller@example.com"
+                        className="w-full h-8 px-3 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-semibold">
+                      Property Description
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={editFormData.description}
+                      onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                      placeholder="Detailed overview of the listing, features, highlights..."
+                      className="w-full p-2.5 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand custom-scrollbar leading-relaxed"
+                    />
+                  </div>
+                </div>
+              )}
+            </form>
+
+            {/* Modal Actions Footer */}
+            <div className="px-5 py-3.5 border-t border-[var(--border)] bg-[var(--bg-muted)]/30 flex items-center justify-between gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                disabled={isSavingListing}
+                className="h-8 px-4 rounded-xl border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-semibold text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveListingEdit}
+                disabled={isSavingListing}
+                className="h-8 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+              >
+                <Check size={14} strokeWidth={2.5} />
+                <span>{isSavingListing ? 'Saving Changes...' : 'Save & Update Listing'}</span>
               </button>
             </div>
           </div>

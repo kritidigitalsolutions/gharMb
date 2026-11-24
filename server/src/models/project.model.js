@@ -115,6 +115,10 @@ const projectSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    description: {
+      type: String,
+      trim: true,
+    },
 
     // Step 2: BHK & Pricing (Project Highlights & Configurations)
     totalUnits: {

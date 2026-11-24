@@ -267,6 +267,8 @@ exports.createProject = async (req, res, next) => {
 
     const projectData = {
       ...req.body,
+      description: req.body.description !== undefined ? String(req.body.description).trim() : (req.body.shortDescription ? String(req.body.shortDescription).trim() : ''),
+      shortDescription: req.body.shortDescription !== undefined ? String(req.body.shortDescription).trim() : (req.body.description ? String(req.body.description).trim() : ''),
       projectStatus: normalizedProjectStatus,
       developer: user._id,
       developerName: req.body.developerName || user.companyName || user.name,
@@ -516,6 +518,19 @@ exports.updateProject = async (req, res, next) => {
       if (lowerStatus === 'ready to move') updateFields.projectStatus = 'Ready to Move';
       else if (lowerStatus === 'new launch') updateFields.projectStatus = 'New Launch';
       else updateFields.projectStatus = 'Under Construction';
+    }
+
+    if (updateFields.description !== undefined) {
+      updateFields.description = String(updateFields.description || '').trim();
+      if (!updateFields.shortDescription) {
+        updateFields.shortDescription = updateFields.description;
+      }
+    }
+    if (updateFields.shortDescription !== undefined) {
+      updateFields.shortDescription = String(updateFields.shortDescription || '').trim();
+      if (!updateFields.description) {
+        updateFields.description = updateFields.shortDescription;
+      }
     }
 
     delete updateFields.ownershipType;
