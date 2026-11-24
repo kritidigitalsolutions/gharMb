@@ -601,6 +601,11 @@ export default function PropertyVerification() {
   useEffect(() => {
     const q = searchParams.get('search') || searchParams.get('q');
     const targetId = searchParams.get('id') || searchParams.get('propertyId');
+    const pipelineParam = searchParams.get('pipeline') || searchParams.get('tab');
+
+    if (pipelineParam === 'projects' || pipelineParam === 'properties') {
+      setActivePipeline(pipelineParam);
+    }
 
     if (q) setSearchQuery(q);
 
@@ -614,34 +619,51 @@ export default function PropertyVerification() {
         const subId = String(item.submissionId || '').toLowerCase();
         const title = String(item.title || item.projectName || '').toLowerCase();
 
-        return (
+        if (
           itemId === cleanTarget ||
           displayId === cleanTarget ||
           subId === cleanTarget ||
           (subId && (subId.includes(cleanTarget) || cleanTarget.includes(subId))) ||
           (displayId && (displayId.includes(cleanTarget) || cleanTarget.includes(displayId))) ||
           title === cleanTarget
-        );
+        ) {
+          return true;
+        }
+
+        // Match normalized code or suffix (e.g. 81FC from #GBM-81FC or PROP-81FC)
+        const normTarget = cleanTarget.replace(/^(#|gbm-|prop-|prj-)/g, '').trim();
+        if (normTarget && normTarget.length >= 3) {
+          if (itemId.endsWith(normTarget) || itemId.includes(normTarget)) return true;
+          if (displayId.replace(/^(#|gbm-|prop-|prj-)/g, '').includes(normTarget)) return true;
+          if (subId.includes(normTarget)) return true;
+        }
+
+        return false;
       };
 
-      // 1. Look in regular properties first
-      if (regularProperties.length > 0) {
-        const foundProp = regularProperties.find(isMatch);
-        if (foundProp) {
-          setActivePipeline('properties');
-          setSelectedItem(foundProp);
+      // Check prioritized pipeline first if specified
+      const preferProjects = pipelineParam === 'projects';
+      const firstCheck = preferProjects ? developerProjectsList : regularProperties;
+      const secondCheck = preferProjects ? regularProperties : developerProjectsList;
+      const firstPipeline = preferProjects ? 'projects' : 'properties';
+      const secondPipeline = preferProjects ? 'properties' : 'projects';
+
+      if (firstCheck.length > 0) {
+        const found = firstCheck.find(isMatch);
+        if (found) {
+          setActivePipeline(firstPipeline);
+          setSelectedItem(found);
           setIsDrawerOpen(true);
           setActiveDrawerTab('overview');
           return;
         }
       }
 
-      // 2. Look in developer projects if not found in regular properties
-      if (developerProjectsList.length > 0) {
-        const foundProj = developerProjectsList.find(isMatch);
-        if (foundProj) {
-          setActivePipeline('projects');
-          setSelectedItem(foundProj);
+      if (secondCheck.length > 0) {
+        const found = secondCheck.find(isMatch);
+        if (found) {
+          setActivePipeline(secondPipeline);
+          setSelectedItem(found);
           setIsDrawerOpen(true);
           setActiveDrawerTab('overview');
         }
@@ -788,9 +810,12 @@ export default function PropertyVerification() {
       // 1. Search Query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
+        const normQ = q.replace(/^(#|gbm-|prop-|prj-)/g, '').trim();
         const matches =
           item.title.toLowerCase().includes(q) ||
           item.id.toLowerCase().includes(q) ||
+          (normQ && normQ.length >= 3 && item.id.toLowerCase().includes(normQ)) ||
+          (normQ && normQ.length >= 3 && String(item._id || '').toLowerCase().includes(normQ)) ||
           item.location.toLowerCase().includes(q) ||
           item.city.toLowerCase().includes(q) ||
           item.ownerName.toLowerCase().includes(q) ||

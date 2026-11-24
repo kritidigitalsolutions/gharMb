@@ -194,6 +194,21 @@ export default function BuilderManagement() {
     }
   };
 
+  const formatCleanAddress = (raw) => {
+    if (!raw || typeof raw !== 'string') return 'Registered Corporate Address';
+    const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
+    const seen = new Set();
+    const cleaned = [];
+    for (const part of parts) {
+      const key = part.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        cleaned.push(part);
+      }
+    }
+    return cleaned.length > 0 ? cleaned.join(', ') : raw;
+  };
+
   // ── 07. Data Fetching ─────────────────────────────────────────────────────
   const fetchBuilders = useCallback(async () => {
     setIsLoadingBuilders(true);
@@ -986,6 +1001,14 @@ export default function BuilderManagement() {
     setLightboxDoc({ url, title, type });
   };
 
+  const handleOpenListing = (item) => {
+    if (!item) return;
+    const targetId = item._id || item.id;
+    const query = item.title || (item.id ? item.id.replace('#', '') : '');
+    const pipeline = item.itemType === 'project' ? 'projects' : 'properties';
+    navigate(`/admin/verification?id=${encodeURIComponent(targetId)}&search=${encodeURIComponent(query)}&pipeline=${pipeline}`);
+  };
+
   // ── 15. Semantic Badge Helpers (BADGES_UI_DESIGN_SYSTEM.md Spec) ───────────
   const getBuilderStatusBadge = (status, size = 'xs') => {
     switch (status) {
@@ -1346,7 +1369,7 @@ export default function BuilderManagement() {
         </div>
 
         {/* Secondary Category Filters & View Switcher */}
-        <div className="flex items-center gap-2 overflow-x-auto">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
           {activeTab === 'builders' ? (
             [
               { key: 'ALL', label: 'All Builders' },
@@ -2163,11 +2186,11 @@ export default function BuilderManagement() {
       {/* ── 08. BUILDER REVIEW & AUDIT DRAWER (Slide-Over Panel) ── */}
       {selectedBuilder && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-end">
-          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] h-full max-w-xl w-full shadow-2xl border-l border-[var(--border)] flex flex-col justify-between animate-slide-left">
+          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] h-full max-w-xl sm:max-w-2xl w-full shadow-2xl border-l border-[var(--border)] flex flex-col justify-between animate-slide-left">
             {/* Drawer Top Header */}
             <div className="p-5 border-b border-[var(--border)] flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-[var(--bg-muted)] shrink-0 border border-[var(--border)] flex items-center justify-center">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-[var(--bg-muted)] shrink-0 border border-[var(--border)] flex items-center justify-center">
                   {selectedBuilder.builderDocs?.companyLogo ? (
                     <img src={selectedBuilder.builderDocs.companyLogo} alt={selectedBuilder.name} className="w-full h-full object-cover" />
                   ) : (
@@ -2176,16 +2199,16 @@ export default function BuilderManagement() {
                     </div>
                   )}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs font-bold text-brand">{selectedBuilder.id}</span>
                     {getBuilderStatusBadge(selectedBuilder.status, 'xs')}
                   </div>
-                  <h2 className="text-base font-bold text-[var(--text-primary)] mt-0.5">
+                  <h2 className="text-base font-bold text-[var(--text-primary)] mt-0.5 truncate" title={selectedBuilder.companyName}>
                     {selectedBuilder.companyName}
                   </h2>
-                  <p className="text-[11px] text-[var(--text-muted)] flex items-center gap-1 mt-0.5">
-                    <MapPin size={11} className="text-brand" /> {selectedBuilder.cityOfOperation} • Applied {getRelativeTime(selectedBuilder.createdAt)}
+                  <p className="text-[11px] text-[var(--text-muted)] flex items-center gap-1 mt-0.5 truncate">
+                    <MapPin size={11} className="text-brand shrink-0" /> <span className="truncate">{selectedBuilder.cityOfOperation}</span> • Applied {getRelativeTime(selectedBuilder.createdAt)}
                   </p>
                 </div>
               </div>
@@ -2193,7 +2216,7 @@ export default function BuilderManagement() {
               <button
                 type="button"
                 onClick={() => setSelectedBuilder(null)}
-                className="p-1.5 rounded-xl bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
+                className="p-1.5 rounded-xl bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all cursor-pointer shrink-0"
                 title="Close Drawer"
               >
                 <X size={16} />
@@ -2201,29 +2224,43 @@ export default function BuilderManagement() {
             </div>
 
             {/* Drawer Tabs */}
-            <div className="flex items-center gap-5 px-5 border-b border-[var(--border)] text-xs font-bold select-none overflow-x-auto">
+            <div className="grid grid-cols-4 px-3 border-b border-[var(--border)] text-xs font-semibold select-none bg-[var(--bg-muted)]/15">
               {[
-                { key: 'overview', label: 'Company Overview' },
+                { key: 'overview', label: 'Overview', icon: Building2 },
                 {
                   key: 'properties',
-                  label: `Properties & Projects (${selectedBuilderListings?.all?.length || 0})`
+                  label: 'Projects',
+                  count: selectedBuilderListings?.all?.length || 0,
+                  icon: Layers
                 },
-                { key: 'docs', label: 'RERA & Verification Proofs' },
-                { key: 'credentials', label: 'Contact & Account Admin' }
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setBuilderDrawerTab(tab.key)}
-                  className={`py-2.5 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-                    builderDrawerTab === tab.key
-                      ? 'border-brand text-brand'
-                      : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+                { key: 'docs', label: 'Documents', icon: FileCheck },
+                { key: 'credentials', label: 'Admin', icon: ShieldCheck }
+              ].map((tab) => {
+                const IconComponent = tab.icon;
+                const isActive = builderDrawerTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setBuilderDrawerTab(tab.key)}
+                    className={`py-3 px-1 border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 text-center truncate ${
+                      isActive
+                        ? 'border-brand text-brand font-bold bg-brand/[0.04]'
+                        : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border)]'
+                    }`}
+                  >
+                    <IconComponent size={14} className={isActive ? 'text-brand shrink-0' : 'text-[var(--text-muted)] shrink-0'} />
+                    <span className="truncate">{tab.label}</span>
+                    {typeof tab.count === 'number' && (
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold shrink-0 ${
+                        isActive ? 'bg-brand/15 text-brand' : 'bg-[var(--bg-muted)] text-[var(--text-muted)]'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Drawer Scrollable Content */}
@@ -2245,53 +2282,196 @@ export default function BuilderManagement() {
                 <div className="space-y-4">
                   {/* Credentials Cards */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
-                    <div className="p-2.5 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)]">
-                      <span className="text-[9px] text-[var(--text-muted)] uppercase block">Experience</span>
-                      <strong className="text-xs text-[var(--text-primary)] mt-0.5 block">{selectedBuilder.yearsInBusinessText}</strong>
+                    {/* Experience */}
+                    <div className="p-3 rounded-2xl bg-[var(--bg-muted)]/35 border border-[var(--border)] flex flex-col justify-between min-h-[76px] transition-all hover:border-brand/40">
+                      <div className="flex items-center justify-between text-[var(--text-muted)]">
+                        <span className="text-[9.5px] font-bold uppercase tracking-wider">Experience</span>
+                        <Clock size={13} className="text-brand/70" />
+                      </div>
+                      <div className="mt-2">
+                        <strong className="text-xs sm:text-sm font-bold text-[var(--text-primary)] block truncate">
+                          {selectedBuilder.yearsInBusinessText}
+                        </strong>
+                      </div>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)]">
-                      <span className="text-[9px] text-[var(--text-muted)] uppercase block">Delivered</span>
-                      <strong className="text-xs text-[var(--text-primary)] mt-0.5 block">{selectedBuilder.delivered} Projects</strong>
+
+                    {/* Delivered */}
+                    <div className="p-3 rounded-2xl bg-[var(--bg-muted)]/35 border border-[var(--border)] flex flex-col justify-between min-h-[76px] transition-all hover:border-brand/40">
+                      <div className="flex items-center justify-between text-[var(--text-muted)]">
+                        <span className="text-[9.5px] font-bold uppercase tracking-wider">Delivered</span>
+                        <Building2 size={13} className="text-brand/70" />
+                      </div>
+                      <div className="mt-2">
+                        <strong className="text-xs sm:text-sm font-bold text-[var(--text-primary)] block truncate">
+                          {selectedBuilder.delivered} Projects
+                        </strong>
+                      </div>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)]">
-                      <span className="text-[9px] text-[var(--text-muted)] uppercase block">ISO Certified</span>
-                      <strong className={`text-xs mt-0.5 block ${selectedBuilder.isIsoCertified ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--text-muted)]'}`}>
-                        {selectedBuilder.isIsoCertified ? '✓ Certified' : 'No'}
-                      </strong>
+
+                    {/* ISO Certified */}
+                    <div className="p-3 rounded-2xl bg-[var(--bg-muted)]/35 border border-[var(--border)] flex flex-col justify-between min-h-[76px] transition-all hover:border-brand/40">
+                      <div className="flex items-center justify-between text-[var(--text-muted)]">
+                        <span className="text-[9.5px] font-bold uppercase tracking-wider">ISO Certified</span>
+                        <Award size={13} className={selectedBuilder.isIsoCertified ? 'text-emerald-500' : 'text-[var(--text-muted)]'} />
+                      </div>
+                      <div className="mt-2">
+                        {selectedBuilder.isIsoCertified ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 size={13} /> ISO Compliant
+                          </span>
+                        ) : (
+                          <span className="text-xs font-semibold text-[var(--text-muted)]">
+                            Not Certified
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)]">
-                      <span className="text-[9px] text-[var(--text-muted)] uppercase block">Risk Rating</span>
-                      <strong className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5 block">{selectedBuilder.internalRiskRating}</strong>
+
+                    {/* Risk Rating */}
+                    <div className="p-3 rounded-2xl bg-[var(--bg-muted)]/35 border border-[var(--border)] flex flex-col justify-between min-h-[76px] transition-all hover:border-brand/40">
+                      <div className="flex items-center justify-between text-[var(--text-muted)]">
+                        <span className="text-[9.5px] font-bold uppercase tracking-wider">Risk Rating</span>
+                        <ShieldCheck size={13} className={
+                          selectedBuilder.status === 'Approved'
+                            ? 'text-emerald-500'
+                            : selectedBuilder.status === 'Pending'
+                            ? 'text-amber-500'
+                            : 'text-rose-500'
+                        } />
+                      </div>
+                      <div className="mt-2">
+                        {(() => {
+                          const raw = selectedBuilder.internalRiskRating || 'Tier-1 A+';
+                          const isApproved = selectedBuilder.status === 'Approved' || raw.includes('Tier-1');
+                          const isPending = selectedBuilder.status === 'Pending' || raw.includes('Tier-2');
+                          const mainText = raw.replace(/\s*\(.*?\)/, '').trim();
+                          const subBadge = raw.match(/\((.*?)\)/)?.[1] || (isApproved ? 'Verified' : isPending ? 'Audit' : 'Watchlist');
+
+                          return (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={`text-xs font-bold ${
+                                isApproved
+                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                  : isPending
+                                  ? 'text-amber-600 dark:text-amber-400'
+                                  : 'text-rose-600 dark:text-rose-400'
+                              }`}>
+                                {mainText}
+                              </span>
+                              <span className={`text-[8.5px] font-bold px-1.5 py-0.2 rounded-full uppercase ${
+                                isApproved
+                                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
+                                  : isPending
+                                  ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
+                                  : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20'
+                              }`}>
+                                {subBadge}
+                              </span>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
                   </div>
 
                   {/* Corporate Address */}
-                  <div className="p-3.5 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)] text-xs space-y-1">
-                    <span className="text-[10px] font-bold uppercase text-[var(--text-muted)] block">Registered Corporate Office</span>
-                    <p className="text-xs font-medium text-[var(--text-primary)] leading-relaxed">
-                      {selectedBuilder.corporateAddress}
-                    </p>
+                  <div className="p-4 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-brand/10 text-brand flex items-center justify-center shrink-0 mt-0.5">
+                          <MapPin size={16} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                              Registered Corporate Office
+                            </span>
+                            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                              HQ Verified
+                            </span>
+                          </div>
+                          <p className="text-xs font-medium text-[var(--text-primary)] leading-relaxed mt-1">
+                            {formatCleanAddress(selectedBuilder.corporateAddress)}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(selectedBuilder.corporateAddress, 'Corporate Address')}
+                        className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-brand hover:bg-[var(--bg-muted)] transition-colors shrink-0 cursor-pointer"
+                        title="Copy Address"
+                      >
+                        <Copy size={13} />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Bio */}
                   {selectedBuilder.bio && (
-                    <div className="p-3.5 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)] text-xs space-y-1">
-                      <span className="text-[10px] font-bold uppercase text-[var(--text-muted)] block">Company Overview</span>
-                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                    <div className="p-4 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)] space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <FileText size={14} className="text-brand" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                          Company Overview
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed pl-5">
                         {selectedBuilder.bio}
                       </p>
                     </div>
                   )}
 
                   {/* Trust Rating Bar */}
-                  <div className="p-3.5 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)] text-xs space-y-2">
+                  <div className="p-4 rounded-2xl bg-[var(--bg-muted)]/30 border border-[var(--border)] space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase text-[var(--text-muted)]">Trust Score Assessment</span>
-                      <span className="font-bold text-xs text-[var(--text-primary)]">{selectedBuilder.trust}%</span>
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                          selectedBuilder.trust >= 80
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                            : selectedBuilder.trust >= 50
+                            ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                            : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                        }`}>
+                          <ShieldCheck size={16} />
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] block">
+                            Trust Score Assessment
+                          </span>
+                          <span className="text-xs font-semibold text-[var(--text-secondary)]">
+                            {selectedBuilder.trust >= 90
+                              ? 'Tier-1 Elite • High Reliability'
+                              : selectedBuilder.trust >= 70
+                              ? 'Good Standing • Compliant Developer'
+                              : selectedBuilder.trust >= 50
+                              ? 'Moderate Audit • Standard Verification'
+                              : 'High Risk • Review Required'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-base font-black ${
+                          selectedBuilder.trust >= 80
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : selectedBuilder.trust >= 50
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-rose-600 dark:text-rose-400'
+                        }`}>
+                          {selectedBuilder.trust}%
+                        </span>
+                        <span className="text-[10px] text-[var(--text-muted)] block font-medium">Confidence</span>
+                      </div>
                     </div>
+
                     <div className="w-full h-2 rounded-full bg-[var(--border)] overflow-hidden">
                       <div
-                        className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          selectedBuilder.trust >= 80
+                            ? 'bg-emerald-500'
+                            : selectedBuilder.trust >= 50
+                            ? 'bg-amber-500'
+                            : 'bg-rose-500'
+                        }`}
                         style={{ width: `${selectedBuilder.trust}%` }}
                       />
                     </div>
@@ -2345,13 +2525,15 @@ export default function BuilderManagement() {
                       {displayedDrawerListings.map((item) => (
                         <div
                           key={item._id || item.id}
-                          className="p-3.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-brand/40 transition-all shadow-2xs space-y-3 group"
+                          onClick={() => handleOpenListing(item)}
+                          className="p-3.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-brand/60 hover:shadow-md transition-all shadow-2xs space-y-3 group cursor-pointer"
+                          title={`Click to view ${item.itemType === 'project' ? 'project' : 'property'} details in Approvals`}
                         >
                           <div className="flex items-start gap-3">
                             {/* Media Thumbnail */}
                             <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-[var(--bg-muted)] shrink-0 border border-[var(--border)]">
                               {item.photos?.[0] ? (
-                                <SmoothImage src={item.photos[0]} alt={item.title} className="w-full h-full object-cover" />
+                                <SmoothImage src={item.photos[0]} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)]">
                                   {item.itemType === 'project' ? <Building size={22} /> : <Home size={22} />}
@@ -2371,7 +2553,10 @@ export default function BuilderManagement() {
                             {/* Details */}
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="font-mono text-[10.5px] font-bold text-brand">{item.id}</span>
+                                <span className="font-mono text-[10.5px] font-bold text-brand flex items-center gap-1">
+                                  {item.id}
+                                  <ExternalLink size={10} className="opacity-0 group-hover:opacity-100 transition-opacity text-brand shrink-0" />
+                                </span>
                                 {item.itemType === 'project'
                                   ? getProjectStatusBadge(item.status, 'xs')
                                   : getBuilderStatusBadge(
@@ -2407,10 +2592,10 @@ export default function BuilderManagement() {
                             <span className="text-[10px] text-[var(--text-muted)]">
                               {item.category} • {item.propertyType || 'Residential'}
                             </span>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                               <button
                                 type="button"
-                                onClick={() => navigate(`/admin/verification?search=${encodeURIComponent(item.id || item.title)}`)}
+                                onClick={() => handleOpenListing(item)}
                                 className="px-2.5 py-1 rounded-lg bg-brand/10 hover:bg-brand text-brand hover:text-white text-[11px] font-bold transition-colors flex items-center gap-1 cursor-pointer"
                                 title="Review and moderate in Approvals console"
                               >
@@ -2659,7 +2844,7 @@ export default function BuilderManagement() {
       {/* ── 09. PROJECT REVIEW & MODERATION DRAWER (Slide-Over Panel) ── */}
       {selectedProject && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-end">
-          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] h-full max-w-xl w-full shadow-2xl border-l border-[var(--border)] flex flex-col justify-between animate-slide-left">
+          <div className="bg-[var(--bg-surface)] text-[var(--text-primary)] h-full max-w-xl sm:max-w-2xl w-full shadow-2xl border-l border-[var(--border)] flex flex-col justify-between animate-slide-left">
             {/* Drawer Top Header */}
             <div className="p-5 border-b border-[var(--border)] flex items-start justify-between gap-3">
               <div>
@@ -2667,18 +2852,18 @@ export default function BuilderManagement() {
                   <span className="font-mono text-xs font-bold text-brand">{selectedProject.id}</span>
                   {getProjectStatusBadge(selectedProject.status, 'xs')}
                 </div>
-                <h2 className="text-base font-bold text-[var(--text-primary)] mt-0.5">
+                <h2 className="text-base font-bold text-[var(--text-primary)] mt-0.5 truncate" title={selectedProject.title}>
                   {selectedProject.title}
                 </h2>
-                <p className="text-[11px] text-[var(--text-muted)] flex items-center gap-1 mt-0.5">
-                  <Building2 size={11} className="text-brand" /> {selectedProject.builder} • {selectedProject.location}
+                <p className="text-[11px] text-[var(--text-muted)] flex items-center gap-1 mt-0.5 truncate">
+                  <Building2 size={11} className="text-brand shrink-0" /> <span className="truncate">{selectedProject.builder}</span> • {selectedProject.location}
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setSelectedProject(null)}
-                className="p-1.5 rounded-xl bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
+                className="p-1.5 rounded-xl bg-[var(--bg-muted)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all cursor-pointer shrink-0"
                 title="Close Drawer"
               >
                 <X size={16} />
@@ -2686,25 +2871,42 @@ export default function BuilderManagement() {
             </div>
 
             {/* Drawer Tabs */}
-            <div className="flex items-center gap-6 px-5 border-b border-[var(--border)] text-xs font-bold select-none">
+            <div className="grid grid-cols-3 px-3 border-b border-[var(--border)] text-xs font-semibold select-none bg-[var(--bg-muted)]/15">
               {[
-                { key: 'overview', label: 'Project Overview' },
-                { key: 'gallery', label: `Gallery (${selectedProject.gallery?.length || 0})` },
-                { key: 'investment', label: 'Investment Score' }
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setProjectDrawerTab(tab.key)}
-                  className={`py-2.5 border-b-2 transition-all cursor-pointer ${
-                    projectDrawerTab === tab.key
-                      ? 'border-brand text-brand'
-                      : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+                { key: 'overview', label: 'Overview', icon: Building2 },
+                {
+                  key: 'gallery',
+                  label: 'Media Gallery',
+                  count: selectedProject.gallery?.length || 0,
+                  icon: Film
+                },
+                { key: 'investment', label: 'Score & ROI', icon: Sparkles }
+              ].map((tab) => {
+                const IconComponent = tab.icon;
+                const isActive = projectDrawerTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setProjectDrawerTab(tab.key)}
+                    className={`py-3 px-1 border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 text-center truncate ${
+                      isActive
+                        ? 'border-brand text-brand font-bold bg-brand/[0.04]'
+                        : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border)]'
+                    }`}
+                  >
+                    <IconComponent size={14} className={isActive ? 'text-brand shrink-0' : 'text-[var(--text-muted)] shrink-0'} />
+                    <span className="truncate">{tab.label}</span>
+                    {typeof tab.count === 'number' && (
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold shrink-0 ${
+                        isActive ? 'bg-brand/15 text-brand' : 'bg-[var(--bg-muted)] text-[var(--text-muted)]'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Drawer Scrollable Content */}
@@ -2712,18 +2914,39 @@ export default function BuilderManagement() {
               {projectDrawerTab === 'overview' && (
                 <div className="space-y-4">
                   {/* Key Metrics */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
-                    <div className="p-2.5 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)]">
-                      <span className="text-[9px] text-[var(--text-muted)] uppercase block">Total Units</span>
-                      <strong className="text-xs text-[var(--text-primary)] mt-0.5 block">{selectedProject.units}</strong>
+                  <div className="grid grid-cols-3 gap-2.5 text-xs">
+                    <div className="p-3 rounded-2xl bg-[var(--bg-muted)]/35 border border-[var(--border)] flex flex-col justify-between min-h-[76px] transition-all hover:border-brand/40">
+                      <div className="flex items-center justify-between text-[var(--text-muted)]">
+                        <span className="text-[9.5px] font-bold uppercase tracking-wider">Total Units</span>
+                        <Building size={13} className="text-brand/70" />
+                      </div>
+                      <div className="mt-2">
+                        <strong className="text-xs sm:text-sm font-bold text-[var(--text-primary)] block truncate">
+                          {selectedProject.units}
+                        </strong>
+                      </div>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)]">
-                      <span className="text-[9px] text-[var(--text-muted)] uppercase block">Stage</span>
-                      <strong className="text-xs text-[var(--text-primary)] mt-0.5 block">{selectedProject.stage}</strong>
+                    <div className="p-3 rounded-2xl bg-[var(--bg-muted)]/35 border border-[var(--border)] flex flex-col justify-between min-h-[76px] transition-all hover:border-brand/40">
+                      <div className="flex items-center justify-between text-[var(--text-muted)]">
+                        <span className="text-[9.5px] font-bold uppercase tracking-wider">Stage</span>
+                        <Layers size={13} className="text-brand/70" />
+                      </div>
+                      <div className="mt-2">
+                        <strong className="text-xs sm:text-sm font-bold text-[var(--text-primary)] block truncate">
+                          {selectedProject.stage}
+                        </strong>
+                      </div>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[var(--bg-muted)]/40 border border-[var(--border)]">
-                      <span className="text-[9px] text-[var(--text-muted)] uppercase block">Possession</span>
-                      <strong className="text-xs text-[var(--text-primary)] mt-0.5 block">{selectedProject.possessionDate}</strong>
+                    <div className="p-3 rounded-2xl bg-[var(--bg-muted)]/35 border border-[var(--border)] flex flex-col justify-between min-h-[76px] transition-all hover:border-brand/40">
+                      <div className="flex items-center justify-between text-[var(--text-muted)]">
+                        <span className="text-[9.5px] font-bold uppercase tracking-wider">Possession</span>
+                        <Clock size={13} className="text-brand/70" />
+                      </div>
+                      <div className="mt-2">
+                        <strong className="text-xs sm:text-sm font-bold text-[var(--text-primary)] block truncate">
+                          {selectedProject.possessionDate}
+                        </strong>
+                      </div>
                     </div>
                   </div>
 
