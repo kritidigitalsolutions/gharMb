@@ -82,6 +82,12 @@ const commercialSpaceSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    // Optional private note from user visible ONLY to Admin
+    adminNote: {
+      type: String,
+      trim: true,
+      default: '',
+    },
 
     // ─── Location ─────────────────────────────────────────────────────────────
     city: {

@@ -499,7 +499,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Rohan Sharma\",\n  \"email\": \"rohan@gmail.com\",\n  \"phone\": \"9876543210\",\n  \"phoneVerificationToken\": \"{{googlePhoneVerificationToken}}\",\n  \"registrationToken\": \"{{googleRegistrationToken}}\",\n  \"role\": \"buyer\",\n  \"address\": \"Flat 302, Palm Greens, Sector 62, Noida\"\n}"
+                  "raw": "{\n  \"name\": \"Rohan Sharma\",\n  \"email\": \"rohan@gmail.com\",\n  \"phone\": \"9876543210\",\n  \"phoneVerificationToken\": \"{{googlePhoneVerificationToken}}\",\n  \"registrationToken\": \"{{googleRegistrationToken}}\",\n  \"role\": \"buyer\",\n  \"adminNote\": \"Optional note for admin: Client wants to buy within next quarter.\",\n  \"address\": \"Flat 302, Palm Greens, Sector 62, Noida\"\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/user/auth/google/register",
@@ -1194,7 +1194,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"title\": \"Luxurious 3 BHK Apartment in Sector 62\",\n  \"description\": \"Spacious 3 bedroom apartment with modular kitchen, corner balcony with park view, and covered parking.\",\n  \"listingFor\": \"sale\",\n  \"category\": \"residential\",\n  \"propertyType\": \"apartment\",\n  \"price\": 8500000,\n  \"carpetArea\": 1650,\n  \"builtUpArea\": 1950,\n  \"bedrooms\": 3,\n  \"bathrooms\": 3,\n  \"balconies\": 2,\n  \"furnishingStatus\": \"semi-furnished\",\n  \"possessionStatus\": \"ready-to-move\",\n  \"address\": \"Flat 402, Tower 4, Express Greens\",\n  \"city\": \"Noida\",\n  \"state\": \"Uttar Pradesh\",\n  \"pincode\": \"201301\",\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [\n      77.391,\n      28.5355\n    ]\n  },\n  \"amenities\": [\n    \"Gymnasium\",\n    \"Swimming Pool\",\n    \"24/7 Power Backup\",\n    \"Clubhouse\",\n    \"Security\"\n  ],\n  \"vastuCompliant\": true,\n  \"keyHandover\": true,\n  \"openToAllBuyers\": true,\n  \"loanAssistanceNeeded\": true,\n  \"allowInstallments\": true,\n  \"installmentDetails\": {\n    \"downPaymentAmount\": 1700000,\n    \"downPaymentPercentage\": 20,\n    \"numberOfInstallments\": 24,\n    \"installmentFrequency\": \"Monthly\",\n    \"installmentAmount\": 283333,\n    \"interestRate\": 0,\n    \"installmentDurationMonths\": 24,\n    \"gracePeriodDays\": 10,\n    \"termsAndConditions\": \"Possession handed over on 50% milestone payment; registry on full clearance.\"\n  }\n}"
+                  "raw": "{\n  \"title\": \"Luxurious 3 BHK Apartment in Sector 62\",\n  \"description\": \"Spacious 3 bedroom apartment with modular kitchen, corner balcony with park view, and covered parking.\",\n  \"adminNote\": \"Optional note for admin: Owner preferred time for verification calls is afternoon.\",\n  \"listingFor\": \"sale\",\n  \"category\": \"residential\",\n  \"propertyType\": \"apartment\",\n  \"price\": 8500000,\n  \"carpetArea\": 1650,\n  \"builtUpArea\": 1950,\n  \"bedrooms\": 3,\n  \"bathrooms\": 3,\n  \"balconies\": 2,\n  \"furnishingStatus\": \"semi-furnished\",\n  \"possessionStatus\": \"ready-to-move\",\n  \"address\": \"Flat 402, Tower 4, Express Greens\",\n  \"city\": \"Noida\",\n  \"state\": \"Uttar Pradesh\",\n  \"pincode\": \"201301\",\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [\n      77.391,\n      28.5355\n    ]\n  },\n  \"amenities\": [\n    \"Gymnasium\",\n    \"Swimming Pool\",\n    \"24/7 Power Backup\",\n    \"Clubhouse\",\n    \"Security\"\n  ],\n  \"vastuCompliant\": true,\n  \"keyHandover\": true,\n  \"openToAllBuyers\": true,\n  \"loanAssistanceNeeded\": true,\n  \"allowInstallments\": true,\n  \"installmentDetails\": {\n    \"downPaymentAmount\": 1700000,\n    \"downPaymentPercentage\": 20,\n    \"numberOfInstallments\": 24,\n    \"installmentFrequency\": \"Monthly\",\n    \"installmentAmount\": 283333,\n    \"interestRate\": 0,\n    \"installmentDurationMonths\": 24,\n    \"gracePeriodDays\": 10,\n    \"termsAndConditions\": \"Possession handed over on 50% milestone payment; registry on full clearance.\"\n  }\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/properties",
@@ -1223,7 +1223,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"price\": 8200000,\n  \"keyHandover\": true,\n  \"furnishingStatus\": \"fully-furnished\",\n  \"description\": \"Price reduced! Beautiful 3 BHK apartment ready to move in with imported marble flooring.\"\n}"
+                  "raw": "{\n  \"price\": 8200000,\n  \"keyHandover\": true,\n  \"furnishingStatus\": \"fully-furnished\",\n  \"description\": \"Price reduced! Beautiful 3 BHK apartment ready to move in with imported marble flooring.\",\n  \"adminNote\": \"Updated note for admin: Seller is ready for fast clearance.\"\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/properties/{{propertyId}}",

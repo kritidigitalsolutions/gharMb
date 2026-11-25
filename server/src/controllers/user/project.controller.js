@@ -62,6 +62,7 @@ exports.getAllProjects = async (req, res, next) => {
 
     let enrichedProjects = projects.map((p) => {
       const obj = p.toObject ? p.toObject({ virtuals: true }) : { ...p };
+      delete obj.adminNote;
       if (!obj.investmentScore || !obj.investmentScore.metrics) {
         obj.investmentScore = {
           overall: Number(obj.investmentScore?.overall) || 0,
@@ -171,10 +172,15 @@ exports.getProjectDetails = async (req, res, next) => {
       };
     }
 
+    const projectObj = project.toObject ? project.toObject({ virtuals: true }) : { ...project };
+    if (!['admin', 'superadmin', 'super_admin'].includes((req.user?.role || '').toLowerCase())) {
+      delete projectObj.adminNote;
+    }
+
     res.status(200).json({
       status: 'success',
       data: {
-        project,
+        project: projectObj,
       },
     });
   } catch (error) {
@@ -265,8 +271,17 @@ exports.createProject = async (req, res, next) => {
       else normalizedProjectStatus = 'Under Construction';
     }
 
+    const rawAdminNote = req.body.adminNote !== undefined
+      ? req.body.adminNote
+      : (req.body.note !== undefined
+          ? req.body.note
+          : (req.body.noteForAdmin !== undefined
+              ? req.body.noteForAdmin
+              : req.body.privateNote));
+
     const projectData = {
       ...req.body,
+      adminNote: rawAdminNote !== undefined ? String(rawAdminNote || '').trim() : '',
       description: req.body.description !== undefined ? String(req.body.description).trim() : (req.body.shortDescription ? String(req.body.shortDescription).trim() : ''),
       shortDescription: req.body.shortDescription !== undefined ? String(req.body.shortDescription).trim() : (req.body.description ? String(req.body.description).trim() : ''),
       projectStatus: normalizedProjectStatus,
@@ -531,6 +546,23 @@ exports.updateProject = async (req, res, next) => {
       if (!updateFields.description) {
         updateFields.description = updateFields.shortDescription;
       }
+    }
+
+    if (
+      updateFields.adminNote !== undefined ||
+      updateFields.note !== undefined ||
+      updateFields.noteForAdmin !== undefined ||
+      updateFields.privateNote !== undefined
+    ) {
+      const rawNote =
+        updateFields.adminNote !== undefined
+          ? updateFields.adminNote
+          : (updateFields.note !== undefined
+              ? updateFields.note
+              : (updateFields.noteForAdmin !== undefined
+                  ? updateFields.noteForAdmin
+                  : updateFields.privateNote));
+      updateFields.adminNote = String(rawNote || '').trim();
     }
 
     delete updateFields.ownershipType;

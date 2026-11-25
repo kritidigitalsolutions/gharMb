@@ -109,7 +109,8 @@ const UserManagement = () => {
     phone: '',
     role: 'Buyer',
     status: 'Active',
-    isVerified: false
+    isVerified: false,
+    adminNote: '',
   });
 
   // Edit User Form State
@@ -121,6 +122,7 @@ const UserManagement = () => {
     role: 'Buyer',
     status: 'Active',
     isVerified: false,
+    adminNote: '',
     reraNumber: '',
     companyName: '',
     gstNumber: '',
@@ -391,13 +393,14 @@ const UserManagement = () => {
         phone: newUser.phone,
         role: mapUiToApiRole(newUser.role),
         status: newUser.status,
-        isVerified: newUser.isVerified
+        isVerified: newUser.isVerified,
+        adminNote: newUser.adminNote,
       });
       const data = response.data;
       if (data?.status === 'success') {
         setIsAddUserModalOpen(false);
         showToast(`User profile created successfully!`, 'success');
-        setNewUser({ name: '', email: '', phone: '', role: 'Buyer', status: 'Active', isVerified: false });
+        setNewUser({ name: '', email: '', phone: '', role: 'Buyer', status: 'Active', isVerified: false, adminNote: '' });
         await fetchUsers();
       } else {
         showToast(data?.message || 'Failed to create user profile.', 'error');
@@ -419,6 +422,7 @@ const UserManagement = () => {
       role: user.role || 'Buyer',
       status: user.status || 'Active',
       isVerified: isApproved,
+      adminNote: user.adminNote || '',
       reraNumber: user.reraNumber || '',
       companyName: user.companyName || '',
       gstNumber: user.gstNumber || '',
@@ -442,6 +446,7 @@ const UserManagement = () => {
         role: mapUiToApiRole(editUserData.role),
         status: editUserData.status,
         isVerified: editUserData.isVerified,
+        adminNote: editUserData.adminNote,
         reraNumber: editUserData.reraNumber,
         companyName: editUserData.companyName,
         gstNumber: editUserData.gstNumber,
@@ -1364,6 +1369,17 @@ const UserManagement = () => {
                         <span className="text-[var(--text-muted)]">Listings Count</span>
                         <span className="font-bold text-[var(--text-primary)]">{selectedUser.listings || 0} listings</span>
                       </div>
+                      {selectedUser.adminNote && (
+                        <div className="pt-2 border-t border-[var(--border)]/40">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">User Note for Admin</span>
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">Admin Only</span>
+                          </div>
+                          <div className="p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20 text-xs text-[var(--text-primary)] leading-relaxed whitespace-pre-line">
+                            {selectedUser.adminNote}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1677,6 +1693,23 @@ const UserManagement = () => {
                 </div>
               </div>
 
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-[var(--text-secondary)] flex items-center gap-1.5">
+                    <span>Admin Note (Optional)</span>
+                    <span className="px-1 py-0.2 rounded text-[9px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">Admin Only</span>
+                  </label>
+                  <span className="text-[10px] text-[var(--text-muted)]">{(newUser.adminNote || '').length} chars</span>
+                </div>
+                <textarea
+                  rows={2}
+                  value={newUser.adminNote || ''}
+                  onChange={(e) => setNewUser({ ...newUser, adminNote: e.target.value })}
+                  placeholder="Private note visible only to admin..."
+                  className="w-full p-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-xs outline-none focus:border-brand"
+                />
+              </div>
+
               <div className="flex items-center gap-2 py-1">
                 <input
                   type="checkbox"
@@ -1820,6 +1853,23 @@ const UserManagement = () => {
                   )}
                 </div>
               )}
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-[var(--text-secondary)] flex items-center gap-1.5">
+                    <span>Admin Note (Optional)</span>
+                    <span className="px-1 py-0.2 rounded text-[9px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">Admin Only</span>
+                  </label>
+                  <span className="text-[10px] text-[var(--text-muted)]">{(editUserData.adminNote || '').length} chars</span>
+                </div>
+                <textarea
+                  rows={2}
+                  value={editUserData.adminNote || ''}
+                  onChange={(e) => setEditUserData({ ...editUserData, adminNote: e.target.value })}
+                  placeholder="Private note visible only to admin..."
+                  className="w-full p-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-xs outline-none focus:border-brand"
+                />
+              </div>
 
               <div className="flex items-center gap-2 py-1">
                 <input

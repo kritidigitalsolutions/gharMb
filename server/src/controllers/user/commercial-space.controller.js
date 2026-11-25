@@ -104,6 +104,13 @@ const enrichCommercialSpaceWithSellerRole = (spaceDoc, fallbackOwner = null) => 
     };
   }
 
+  // ── 🔒 CONFIDENTIAL ADMIN NOTE PRIVACY GUARD ──────────────────────────────
+  const callerRole = (fallbackOwner?.role || '').toLowerCase();
+  const isViewerAdmin = ['admin', 'superadmin', 'super_admin'].includes(callerRole);
+  if (!isViewerAdmin) {
+    delete obj.adminNote;
+  }
+
   return obj;
 };
 
@@ -637,8 +644,17 @@ exports.createSpace = async (req, res, next) => {
       }
     }
 
+    const rawAdminNote = req.body.adminNote !== undefined
+      ? req.body.adminNote
+      : (req.body.note !== undefined
+          ? req.body.note
+          : (req.body.noteForAdmin !== undefined
+              ? req.body.noteForAdmin
+              : req.body.privateNote));
+
     const spaceData = {
       ...req.body,
+      adminNote: rawAdminNote !== undefined ? String(rawAdminNote || '').trim() : '',
       reraNumbers: uniqueReraNumbers,
       listingAs: normalizedListingAs,
       userRole: normalizedUserRole,
@@ -783,6 +799,22 @@ exports.updateSpace = async (req, res, next) => {
     }
 
     const updateFields = { ...req.body };
+    if (
+      updateFields.adminNote !== undefined ||
+      updateFields.note !== undefined ||
+      updateFields.noteForAdmin !== undefined ||
+      updateFields.privateNote !== undefined
+    ) {
+      const rawNote =
+        updateFields.adminNote !== undefined
+          ? updateFields.adminNote
+          : (updateFields.note !== undefined
+              ? updateFields.note
+              : (updateFields.noteForAdmin !== undefined
+                  ? updateFields.noteForAdmin
+                  : updateFields.privateNote));
+      updateFields.adminNote = String(rawNote || '').trim();
+    }
     const coordsProvided =
       updateFields.latitude !== undefined ||
       updateFields.longitude !== undefined ||
