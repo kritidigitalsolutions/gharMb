@@ -262,6 +262,7 @@ export default function BuilderManagement() {
             internalRiskRating: u.builderVerificationStatus === 'approved' ? 'Tier-1 A+ (Verified)' : u.builderVerificationStatus === 'pending' ? 'Tier-2 (Under Audit)' : 'High Watchlist',
             accountManager: 'Executive Admin',
             internalNotes: u.builderRejectionReason ? `Audit Note: ${u.builderRejectionReason}` : 'Company profile submitted for platform verification.',
+            adminNote: u.adminNote || '',
             createdAt: u.createdAt,
             updatedAt: u.updatedAt
           };
@@ -2779,6 +2780,18 @@ export default function BuilderManagement() {
                       <span className="text-[10px] font-bold uppercase text-[var(--text-muted)] block">Internal Audit Note</span>
                       <p className="text-xs text-[var(--text-secondary)] italic mt-1 leading-relaxed">
                         {selectedBuilder.internalNotes}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedBuilder.adminNote && (
+                    <div className="p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/20">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">User Note for Admin</span>
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">Admin Only</span>
+                      </div>
+                      <p className="text-xs text-[var(--text-primary)] leading-relaxed whitespace-pre-line">
+                        {selectedBuilder.adminNote}
                       </p>
                     </div>
                   )}

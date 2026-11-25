@@ -147,6 +147,7 @@ export default function PropertyVerification() {
     ocReceived: false,
     ccReceived: false,
     description: '',
+    adminNote: '',
     amenities: '',
     ownerName: '',
     ownerPhone: '',
@@ -363,6 +364,7 @@ export default function PropertyVerification() {
       propertyDocuments: p.propertyDocuments || {},
       documents: Array.isArray(p.documents) ? p.documents : [],
       description: p.description || '',
+      adminNote: p.adminNote || p.userNote || '',
       itemType: 'property',
       rawPrice: priceNum,
       rawTitle: p.title || '',
@@ -387,6 +389,7 @@ export default function PropertyVerification() {
       rawSecurityDeposit: p.securityDeposit || 0,
       rawMaintenanceCharges: p.maintenanceCharges || 0,
       rawDescription: p.description || '',
+      rawAdminNote: p.adminNote || p.userNote || '',
       rawAmenities: Array.isArray(p.amenities) ? p.amenities : [],
       rawReraNumber: p.reraNumber || (Array.isArray(p.reraNumbers) && p.reraNumbers[0]?.reraNumber) || '',
       rawOcReceived: Boolean(p.ocReceived),
@@ -490,6 +493,7 @@ export default function PropertyVerification() {
       videos: allVideos,
       gallery,
       description: p.description || p.shortDescription || '',
+      adminNote: p.adminNote || p.userNote || '',
       itemType: 'project',
       rawPrice: firstBhk?.minPrice || p.price || 0,
       rawTitle: p.projectName || '',
@@ -506,6 +510,7 @@ export default function PropertyVerification() {
       rawFloors: p.floors || '',
       rawTowers: p.towers || '',
       rawDescription: p.description || p.shortDescription || '',
+      rawAdminNote: p.adminNote || p.userNote || '',
       rawAmenities: Array.isArray(p.amenities) ? p.amenities : [],
       rawOwnerName: p.developerName || p.developer?.companyName || p.developer?.name || '',
       rawOwnerPhone: p.developer?.phone || '',
@@ -1273,6 +1278,7 @@ export default function PropertyVerification() {
       ocReceived: item.rawOcReceived ?? item.ocReceived ?? false,
       ccReceived: item.rawCcReceived ?? item.ccReceived ?? false,
       description: item.rawDescription || item.description || '',
+      adminNote: item.rawAdminNote || item.adminNote || '',
       amenities: Array.isArray(item.rawAmenities)
         ? item.rawAmenities.join(', ')
         : Array.isArray(item.amenities)
@@ -1313,6 +1319,7 @@ export default function PropertyVerification() {
             reraProjectNumber: editFormData.reraNumber,
             reraNumber: editFormData.reraNumber,
             description: editFormData.description,
+            adminNote: editFormData.adminNote,
             amenities: editFormData.amenities
               ? editFormData.amenities.split(',').map((s) => s.trim()).filter(Boolean)
               : [],
@@ -1350,6 +1357,7 @@ export default function PropertyVerification() {
             ocReceived: Boolean(editFormData.ocReceived),
             ccReceived: Boolean(editFormData.ccReceived),
             description: editFormData.description,
+            adminNote: editFormData.adminNote,
             amenities: editFormData.amenities
               ? editFormData.amenities.split(',').map((s) => s.trim()).filter(Boolean)
               : [],
@@ -1426,6 +1434,7 @@ export default function PropertyVerification() {
       ocReceived: item.rawOcReceived ?? item.ocReceived ?? false,
       ccReceived: item.rawCcReceived ?? item.ccReceived ?? false,
       description: item.rawDescription || item.description || '',
+      adminNote: item.rawAdminNote || item.adminNote || '',
       amenities: Array.isArray(item.rawAmenities)
         ? item.rawAmenities.join(', ')
         : Array.isArray(item.amenities)
@@ -1613,6 +1622,7 @@ export default function PropertyVerification() {
             reraProjectNumber: drawerEditForm.reraNumber,
             reraNumber: drawerEditForm.reraNumber,
             description: drawerEditForm.description,
+            adminNote: drawerEditForm.adminNote,
             amenities: drawerEditForm.amenities
               ? (Array.isArray(drawerEditForm.amenities)
                   ? drawerEditForm.amenities
@@ -1656,6 +1666,7 @@ export default function PropertyVerification() {
             ocReceived: Boolean(drawerEditForm.ocReceived),
             ccReceived: Boolean(drawerEditForm.ccReceived),
             description: drawerEditForm.description,
+            adminNote: drawerEditForm.adminNote,
             amenities: drawerEditForm.amenities
               ? (Array.isArray(drawerEditForm.amenities)
                   ? drawerEditForm.amenities
@@ -3117,6 +3128,24 @@ export default function PropertyVerification() {
                           className="w-full p-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs leading-relaxed focus:outline-none focus:ring-1 focus:ring-brand"
                         />
                       </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10.5px] font-bold text-[var(--text-muted)] flex items-center gap-1.5">
+                            <span>User Note for Admin (Optional & Private)</span>
+                            <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/15 text-amber-500 font-semibold border border-amber-500/20">Admin Only</span>
+                          </label>
+                          <span className="text-[10px] text-[var(--text-muted)]">
+                            {(drawerEditForm.adminNote || '').length} characters
+                          </span>
+                        </div>
+                        <textarea
+                          rows={3}
+                          value={drawerEditForm.adminNote || ''}
+                          onChange={(e) => setDrawerEditForm({ ...drawerEditForm, adminNote: e.target.value })}
+                          placeholder="Private user note uploaded during listing creation (visible only to admin)..."
+                          className="w-full p-2.5 rounded-lg bg-[var(--bg-surface)] border border-amber-500/30 text-xs leading-relaxed focus:outline-none focus:ring-1 focus:ring-brand"
+                        />
+                      </div>
                     </div>
 
                     {/* Seller Profile */}
@@ -3659,6 +3688,51 @@ export default function PropertyVerification() {
                             className="not-italic text-xs font-semibold text-brand hover:underline cursor-pointer"
                           >
                             + Add Description
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* User Private Note for Admin */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                          User Note for Admin
+                        </h3>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                          Admin Only
+                        </span>
+                      </div>
+                      {!isDrawerEditing && (
+                        <button
+                          type="button"
+                          onClick={() => setIsDrawerEditing(true)}
+                          className="text-[11px] font-semibold text-brand hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Pencil size={11} />
+                          {selectedItem.adminNote ? 'Edit Note' : 'Add Note'}
+                        </button>
+                      )}
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/20 text-xs text-[var(--text-secondary)] leading-relaxed whitespace-pre-line">
+                      {selectedItem.adminNote ? (
+                        <div>
+                          <p className="text-[var(--text-primary)] font-medium">{selectedItem.adminNote}</p>
+                          <p className="text-[10px] text-[var(--text-muted)] mt-1.5 flex items-center gap-1">
+                            🔒 Private user note submitted during listing creation. Visible only to Admin.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between text-[var(--text-muted)] italic py-1">
+                          <span>No private note submitted by user.</span>
+                          <button
+                            type="button"
+                            onClick={() => setIsDrawerEditing(true)}
+                            className="not-italic text-xs font-semibold text-brand hover:underline cursor-pointer"
+                          >
+                            + Add Note
                           </button>
                         </div>
                       )}
@@ -5576,6 +5650,25 @@ export default function PropertyVerification() {
                       onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
                       placeholder="Detailed overview of the listing, features, highlights..."
                       className="w-full p-2.5 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand custom-scrollbar leading-relaxed"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] text-[var(--text-muted)] font-semibold flex items-center gap-1.5">
+                        <span>User Note for Admin (Optional & Private)</span>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/15 text-amber-500 font-semibold border border-amber-500/20">Admin Only</span>
+                      </label>
+                      <span className="text-[10px] text-[var(--text-muted)]">
+                        {(editFormData.adminNote || '').length} characters
+                      </span>
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={editFormData.adminNote || ''}
+                      onChange={(e) => setEditFormData({ ...editFormData, adminNote: e.target.value })}
+                      placeholder="Private note from user or admin audit remarks (only visible to admin, hidden from all other users)..."
+                      className="w-full p-2.5 rounded-lg bg-[var(--bg-muted)] border border-amber-500/30 text-xs text-[var(--text-primary)] focus:outline-none focus:border-brand custom-scrollbar leading-relaxed"
                     />
                   </div>
                 </div>

@@ -121,6 +121,7 @@ const AgentManagement = () => {
             hasPhotoDoc: Boolean(photoDoc),
             avatar: photoDoc || u.avatar || '',
             listingsCount: u.listings || 0,
+            adminNote: u.adminNote || '',
             createdAt: u.createdAt,
             updatedAt: u.updatedAt
           };
@@ -934,6 +935,19 @@ const AgentManagement = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* User Note for Admin */}
+                {selectedAgent.adminNote && (
+                  <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">User Note for Admin</span>
+                      <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">Admin Only</span>
+                    </div>
+                    <p className="text-xs text-[var(--text-primary)] leading-relaxed whitespace-pre-line">
+                      {selectedAgent.adminNote}
+                    </p>
+                  </div>
+                )}
 
                 {/* Submitted Documents Inspection */}
                 <div className="space-y-2">

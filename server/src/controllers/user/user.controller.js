@@ -208,6 +208,17 @@ exports.updateMe = async (req, res, next) => {
       };
     }
 
+    const rawAdminNote = req.body.adminNote !== undefined
+      ? req.body.adminNote
+      : (req.body.note !== undefined
+          ? req.body.note
+          : (req.body.noteForAdmin !== undefined
+              ? req.body.noteForAdmin
+              : req.body.privateNote));
+    if (rawAdminNote !== undefined) {
+      updateData.adminNote = String(rawAdminNote || '').trim();
+    }
+
     // Check if basic info is now complete
     const effectivePhone = updateData.phone || req.user.phone;
     const effectiveAddress = updateData.address || req.user.address;
@@ -306,6 +317,17 @@ exports.registerAgent = async (req, res, next) => {
       agentVerificationStatus: 'pending',
       isVerified: false,
     };
+
+    const rawAgentAdminNote = req.body.adminNote !== undefined
+      ? req.body.adminNote
+      : (req.body.note !== undefined
+          ? req.body.note
+          : (req.body.noteForAdmin !== undefined
+              ? req.body.noteForAdmin
+              : req.body.privateNote));
+    if (rawAgentAdminNote !== undefined) {
+      updateData.adminNote = String(rawAgentAdminNote || '').trim();
+    }
 
     if (profilePhoto) {
       updateData.profilePicture = profilePhoto;
@@ -508,6 +530,17 @@ exports.registerDeveloper = async (req, res, next) => {
     if (bio !== undefined) updateData.bio = bio;
     if (unitsDelivered !== undefined) updateData.unitsDelivered = unitsDelivered;
     updateData.isIsoCertified = isIsoCertified;
+
+    const rawDevAdminNote = req.body.adminNote !== undefined
+      ? req.body.adminNote
+      : (req.body.note !== undefined
+          ? req.body.note
+          : (req.body.noteForAdmin !== undefined
+              ? req.body.noteForAdmin
+              : req.body.privateNote));
+    if (rawDevAdminNote !== undefined) {
+      updateData.adminNote = String(rawDevAdminNote || '').trim();
+    }
 
     // If submitForVerification is true, run complete validation
     if (submitForVerification) {

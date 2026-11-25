@@ -119,6 +119,12 @@ const projectSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    // Optional private note from user visible ONLY to Admin
+    adminNote: {
+      type: String,
+      trim: true,
+      default: '',
+    },
 
     // Step 2: BHK & Pricing (Project Highlights & Configurations)
     totalUnits: {

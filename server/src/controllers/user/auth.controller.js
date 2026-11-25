@@ -359,6 +359,14 @@ exports.registerUser = async (req, res, next) => {
       ? String(role).toLowerCase().trim()
       : undefined;
 
+    const rawAdminNote = req.body.adminNote !== undefined
+      ? req.body.adminNote
+      : (req.body.note !== undefined
+          ? req.body.note
+          : (req.body.noteForAdmin !== undefined
+              ? req.body.noteForAdmin
+              : req.body.privateNote));
+
     const newUser = await User.create({
       name: name.trim(),
       email: candidateEmail ? candidateEmail.toLowerCase().trim() : undefined,
@@ -373,6 +381,7 @@ exports.registerUser = async (req, res, next) => {
       isVerified: true,
       isBasicInfoCompleted: true,
       isOnboardingCompleted: Boolean(sanitizedRole),
+      adminNote: rawAdminNote !== undefined ? String(rawAdminNote || '').trim() : '',
       referredBy: referrerUser ? referrerUser._id : undefined,
       appliedReferralCode: sanitizedReferralCode || undefined,
     });
@@ -821,6 +830,17 @@ exports.updateProfile = async (req, res, next) => {
     if (intents) updateData.intents = intents;
     if (preferences) updateData.preferences = preferences;
     if (notificationSettings) updateData.notificationSettings = notificationSettings;
+
+    const rawAdminNoteUpdate = req.body.adminNote !== undefined
+      ? req.body.adminNote
+      : (req.body.note !== undefined
+          ? req.body.note
+          : (req.body.noteForAdmin !== undefined
+              ? req.body.noteForAdmin
+              : req.body.privateNote));
+    if (rawAdminNoteUpdate !== undefined) {
+      updateData.adminNote = String(rawAdminNoteUpdate || '').trim();
+    }
 
     // Mark onboarding as completed if role & intents are set
     if (role && intents) {
@@ -1511,6 +1531,14 @@ exports.googleRegister = async (req, res, next) => {
       ? String(role).toLowerCase().trim()
       : undefined;
 
+    const rawAdminNoteGoogle = req.body.adminNote !== undefined
+      ? req.body.adminNote
+      : (req.body.note !== undefined
+          ? req.body.note
+          : (req.body.noteForAdmin !== undefined
+              ? req.body.noteForAdmin
+              : req.body.privateNote));
+
     const newUser = await User.create({
       name: resolvedName.trim(),
       email: normalizedEmail,
@@ -1525,6 +1553,7 @@ exports.googleRegister = async (req, res, next) => {
       isVerified: true,
       isBasicInfoCompleted: true,
       isOnboardingCompleted: Boolean(sanitizedRole),
+      adminNote: rawAdminNoteGoogle !== undefined ? String(rawAdminNoteGoogle || '').trim() : '',
       referredBy: referrerUser ? referrerUser._id : undefined,
       appliedReferralCode: sanitizedReferralCode || undefined,
     });

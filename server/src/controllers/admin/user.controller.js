@@ -651,6 +651,17 @@ exports.updateUser = async (req, res, next) => {
     if (intents) updateData.intents = intents;
     if (preferences) updateData.preferences = preferences;
 
+    const rawAdminNote = req.body.adminNote !== undefined
+      ? req.body.adminNote
+      : (req.body.note !== undefined
+          ? req.body.note
+          : (req.body.noteForAdmin !== undefined
+              ? req.body.noteForAdmin
+              : req.body.privateNote));
+    if (rawAdminNote !== undefined) {
+      updateData.adminNote = String(rawAdminNote || '').trim();
+    }
+
     const updatedUser = await User.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
@@ -712,6 +723,14 @@ exports.createUser = async (req, res, next) => {
     else if (role === 'Builder') dbRole = 'builder';
     else dbRole = role.toLowerCase();
 
+    const rawCreateAdminNote = req.body.adminNote !== undefined
+      ? req.body.adminNote
+      : (req.body.note !== undefined
+          ? req.body.note
+          : (req.body.noteForAdmin !== undefined
+              ? req.body.noteForAdmin
+              : req.body.privateNote));
+
     const newUser = await User.create({
       name,
       email: email ? email.toLowerCase() : undefined,
@@ -719,6 +738,7 @@ exports.createUser = async (req, res, next) => {
       role: dbRole,
       status: status || 'Active',
       isVerified: !!isVerified,
+      adminNote: rawCreateAdminNote !== undefined ? String(rawCreateAdminNote || '').trim() : '',
       isOnboardingCompleted: true,
       companyName: req.body.companyName || name,
       gstNumber: req.body.gstNumber,

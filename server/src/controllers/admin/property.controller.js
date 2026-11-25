@@ -571,6 +571,23 @@ exports.updateProperty = async (req, res, next) => {
     if (updateFields.description !== undefined) {
       updateFields.description = String(updateFields.description || '').trim();
     }
+    // Normalize adminNote
+    if (
+      updateFields.adminNote !== undefined ||
+      updateFields.note !== undefined ||
+      updateFields.noteForAdmin !== undefined ||
+      updateFields.privateNote !== undefined
+    ) {
+      const rawNote =
+        updateFields.adminNote !== undefined
+          ? updateFields.adminNote
+          : (updateFields.note !== undefined
+              ? updateFields.note
+              : (updateFields.noteForAdmin !== undefined
+                  ? updateFields.noteForAdmin
+                  : updateFields.privateNote));
+      updateFields.adminNote = String(rawNote || '').trim();
+    }
 
     // Normalize RERA number & registration array
     if (updateFields.reraNumber !== undefined) {

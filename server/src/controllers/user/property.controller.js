@@ -457,6 +457,15 @@ const enrichPropertyWithSellerRole = (propertyDoc, fallbackOwner = null, userCoo
   obj.listingIntent = isRentListing ? 'Rent' : (isResaleListing ? 'Resale' : 'Sale');
   obj.displayListingFor = isRentListing ? 'Rent' : (isResaleListing ? 'Resale' : 'Sale');
 
+  // ── 🔒 CONFIDENTIAL ADMIN NOTE PRIVACY GUARD ──────────────────────────────
+  // The adminNote is strictly visible ONLY to platform admin.
+  // Never expose adminNote to public or other users.
+  const callerRole = (fallbackOwner?.role || '').toLowerCase();
+  const isViewerAdmin = ['admin', 'superadmin', 'super_admin'].includes(callerRole);
+  if (!isViewerAdmin) {
+    delete obj.adminNote;
+  }
+
   return obj;
 };
 
@@ -1084,7 +1093,10 @@ exports.getPropertyDetails = async (req, res, next) => {
 
     const ownership = checkPropertyOwnership(property, req.user, req.query);
 
-    const enrichedProperty = enrichPropertyWithSellerRole(property);
+    const enrichedProperty = enrichPropertyWithSellerRole(property, req.user);
+    if (!['admin', 'superadmin', 'super_admin'].includes((req.user?.role || '').toLowerCase())) {
+      delete enrichedProperty.adminNote;
+    }
     enrichedProperty.isOwner = isOwner;
     enrichedProperty.isSold = isSoldOut;
     enrichedProperty.isSoldOut = isSoldOut;
@@ -1312,10 +1324,19 @@ exports.createProperty = async (req, res, next) => {
     // 3. Prepare property data
     const installmentData = normalizeInstallmentData(req.body, req.body.price);
 
+    const rawAdminNote = req.body.adminNote !== undefined
+      ? req.body.adminNote
+      : (req.body.note !== undefined
+          ? req.body.note
+          : (req.body.noteForAdmin !== undefined
+              ? req.body.noteForAdmin
+              : req.body.privateNote));
+
     const propertyData = {
       ...req.body,
       ...installmentData,
       description: req.body.description !== undefined ? String(req.body.description || '').trim() : '',
+      adminNote: rawAdminNote !== undefined ? String(rawAdminNote || '').trim() : '',
       listingAs: normalizedListingAs,
       userRole: normalizedUserRole,
       postedByRole: normalizedPostedByRole,
@@ -1927,6 +1948,22 @@ exports.updateProperty = async (req, res, next) => {
     const updateFields = { ...req.body };
     if (updateFields.description !== undefined) {
       updateFields.description = String(updateFields.description || '').trim();
+    }
+    if (
+      updateFields.adminNote !== undefined ||
+      updateFields.note !== undefined ||
+      updateFields.noteForAdmin !== undefined ||
+      updateFields.privateNote !== undefined
+    ) {
+      const rawNote =
+        updateFields.adminNote !== undefined
+          ? updateFields.adminNote
+          : (updateFields.note !== undefined
+              ? updateFields.note
+              : (updateFields.noteForAdmin !== undefined
+                  ? updateFields.noteForAdmin
+                  : updateFields.privateNote));
+      updateFields.adminNote = String(rawNote || '').trim();
     }
     if (req.body.possessionDate !== undefined) {
       updateFields.possessionDate = normalizePossessionDate(req.body.possessionDate);

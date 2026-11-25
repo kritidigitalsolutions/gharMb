@@ -235,6 +235,12 @@ const userSchema = new mongoose.Schema(
       enum: ['local', 'google', 'facebook', 'mobile'],
       default: 'local',
     },
+    // Optional private note from user visible ONLY to Admin
+    adminNote: {
+      type: String,
+      trim: true,
+      default: '',
+    },
 
     // ── Refer & Earn Program Fields ──────────────────────────────────────
     referralCode: {
