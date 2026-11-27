@@ -130,6 +130,16 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    isLive: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    priority: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
     rating: {
       type: Number,
       default: 4.5,

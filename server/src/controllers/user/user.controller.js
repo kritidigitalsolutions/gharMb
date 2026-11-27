@@ -640,6 +640,7 @@ exports.getVerifiedDevelopers = async (req, res, next) => {
     const query = {
       role: 'builder',
       builderVerificationStatus: 'approved',
+      isLive: true,
     };
 
     if (city && city !== 'All India') {
@@ -647,7 +648,7 @@ exports.getVerifiedDevelopers = async (req, res, next) => {
     }
 
     const developers = await User.find(query).select(
-      'name companyName profilePicture builderDocs cityOfOperation yearsInBusiness rating reviewCount'
+      'name companyName profilePicture builderDocs cityOfOperation yearsInBusiness rating reviewCount isLive priority'
     );
 
     // Get project counts for all these developers
@@ -675,9 +676,18 @@ exports.getVerifiedDevelopers = async (req, res, next) => {
         yearsInBusiness: dev.yearsInBusiness || '',
         rating: dev.rating !== undefined ? dev.rating : 4.5,
         reviewCount: dev.reviewCount !== undefined ? dev.reviewCount : 120,
+        priority: Number(dev.priority) || 0,
         projectCount: pCount,
         projectCountDisplay: pCount > 0 ? `${pCount}+ projects` : '0 projects',
       };
+    });
+
+    // Sort priority-wise: developers with priority 1, 2, 3... come first, unranked (0) at bottom
+    formattedDevelopers.sort((a, b) => {
+      const pA = a.priority && a.priority > 0 ? a.priority : 999999;
+      const pB = b.priority && b.priority > 0 ? b.priority : 999999;
+      if (pA !== pB) return pA - pB;
+      return 0;
     });
 
     res.status(200).json({

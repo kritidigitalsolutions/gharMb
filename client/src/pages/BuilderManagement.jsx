@@ -88,6 +88,8 @@ export default function BuilderManagement() {
   const [selectedBuilderFilter, setSelectedBuilderFilter] = useState('ALL'); // 'ALL' | builderId
   const [inventoryTypeFilter, setInventoryTypeFilter] = useState('ALL'); // 'ALL' | 'PROJECTS' | 'PROPERTIES'
   const [drawerInventoryType, setDrawerInventoryType] = useState('ALL'); // 'ALL' | 'PROJECTS' | 'PROPERTIES'
+  const [togglingLiveId, setTogglingLiveId] = useState(null);
+  const [savingPriorityId, setSavingPriorityId] = useState(null);
   const [viewMode, setViewMode] = useState(() => {
     try {
       return localStorage.getItem('builders_projects_view') || 'table';
@@ -242,6 +244,8 @@ export default function BuilderManagement() {
             trust: u.builderVerificationStatus === 'approved' ? (u.rating ? Math.round(u.rating * 20) : 100) : u.builderVerificationStatus === 'pending' ? 55 : 30,
             status,
             builderVerificationStatus: u.builderVerificationStatus || 'pending',
+            isLive: Boolean(u.isLive),
+            priority: Number(u.priority) || 0,
             user: u.email || u.phone || 'N/A',
             email: u.email || 'N/A',
             phone: u.phone || 'N/A',
@@ -798,6 +802,7 @@ export default function BuilderManagement() {
             ...b,
             status: newStatus,
             builderVerificationStatus: bodyStatus,
+            isLive: Boolean(data?.data?.user?.isLive),
             trust: newStatus === 'Approved' ? 95 : 35
           } : b)
         );
@@ -807,6 +812,7 @@ export default function BuilderManagement() {
             ...prev,
             status: newStatus,
             builderVerificationStatus: bodyStatus,
+            isLive: Boolean(data?.data?.user?.isLive),
             trust: newStatus === 'Approved' ? 95 : 35
           }));
         }
@@ -815,7 +821,7 @@ export default function BuilderManagement() {
         setCustomRejectNote('');
         showToast(
           newStatus === 'Approved'
-            ? `🎉 Builder "${builder.companyName}" verified & authorized successfully!`
+            ? `🎉 Builder "${builder.companyName}" verified & authorized successfully! (Screen: OFF - grant permission to show on app screen).`
             : `Builder application updated to ${newStatus}.`,
           newStatus === 'Approved' ? 'success' : 'info'
         );
@@ -827,6 +833,71 @@ export default function BuilderManagement() {
       showToast(err?.response?.data?.message || 'Connection error updating builder status.', 'error');
     } finally {
       setIsSubmittingAction(false);
+    }
+  };
+
+  // ── 📱 Toggle Developer App Screen Visibility (Live / Off-Screen) ──
+  const handleToggleDeveloperLive = async (builder, e) => {
+    if (e) e.stopPropagation();
+    if (!builder) return;
+    if (builder.status !== 'Approved') {
+      showToast('Developer must be Approved before granting permission to show on the mobile app screen.', 'error');
+      return;
+    }
+
+    setTogglingLiveId(builder._id);
+    try {
+      const res = await API.patch(`/admin/users/${builder._id}/toggle-live`);
+      if (res.data?.status === 'success') {
+        const nextState = Boolean(res.data?.data?.isLive);
+        showToast(
+          nextState
+            ? `Permission granted: ${builder.companyName || builder.name} is now LIVE on the mobile app screen! 🚀`
+            : `Permission revoked: ${builder.companyName || builder.name} hidden from the mobile app screen.`,
+          nextState ? 'success' : 'info'
+        );
+
+        setBuilders((prev) =>
+          prev.map((b) => (b._id === builder._id ? { ...b, isLive: nextState } : b))
+        );
+        if (selectedBuilder?._id === builder._id) {
+          setSelectedBuilder((prev) => ({ ...prev, isLive: nextState }));
+        }
+      } else {
+        showToast(res.data?.message || 'Failed to toggle app screen visibility.', 'error');
+      }
+    } catch (err) {
+      showToast(err?.response?.data?.message || 'Failed to toggle mobile app screen visibility.', 'error');
+    } finally {
+      setTogglingLiveId(null);
+    }
+  };
+
+  // ── 🔢 Update Developer Display Priority / Rank (Auto-Shift & Exchange Enabled) ──
+  const handleSavePriority = async (builder, newPriority, inputEl = null) => {
+    if (!builder) return;
+    const priorityVal = Math.max(0, parseInt(newPriority, 10) || 0);
+
+    // If unchanged, do nothing
+    if (priorityVal === (builder.priority || 0)) return;
+
+    setSavingPriorityId(builder._id);
+    try {
+      const res = await API.patch(`/admin/users/${builder._id}/priority`, { priority: priorityVal });
+      if (res.data?.status === 'success') {
+        showToast(res.data?.message || `Priority rank updated to #${priorityVal}! 🎯`, 'success');
+        // Refresh all builders so that auto-shift (+1) or priority exchange updates across the entire table
+        await fetchBuilders();
+      } else {
+        showToast(res.data?.message || 'Failed to update priority.', 'error');
+        if (inputEl) inputEl.value = builder.priority || 0;
+      }
+    } catch (err) {
+      const errMsg = err?.response?.data?.message || 'Error updating priority rank on server.';
+      showToast(errMsg, 'error');
+      if (inputEl) inputEl.value = builder.priority || 0;
+    } finally {
+      setSavingPriorityId(null);
     }
   };
 
@@ -1533,14 +1604,15 @@ export default function BuilderManagement() {
             <div className="w-full overflow-x-auto custom-scrollbar">
               <table className="w-full text-left border-collapse table-fixed min-w-[860px]">
                 <colgroup>
-                  <col className="w-[22%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[12%]" />
                   <col className="w-[13%]" />
-                  <col className="w-[14%]" />
-                  <col className="w-[13%]" />
-                  <col className="w-[11%]" />
+                  <col className="w-[12%]" />
                   <col className="w-[10%]" />
-                  <col className="w-[8%]" />
                   <col className="w-[9%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[7%]" />
                 </colgroup>
                 <thead className="bg-[var(--bg-muted)]/40 text-[var(--text-muted)] uppercase text-[9.5px] font-bold tracking-wider border-b border-[var(--border)] select-none whitespace-nowrap">
                   <tr>
@@ -1551,6 +1623,7 @@ export default function BuilderManagement() {
                     <th className="py-2.5 px-3 text-left">Experience</th>
                     <th className="py-2.5 px-3 text-left">Trust Rating</th>
                     <th className="py-2.5 px-3 text-left">Status</th>
+                    <th className="py-2.5 px-2 text-center">Priority</th>
                     <th className="py-2.5 pl-2 pr-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -1713,14 +1786,62 @@ export default function BuilderManagement() {
                         </div>
                       </td>
 
-                      {/* Column 7: Status */}
+                      {/* Column 7: Status & App Screen Permission */}
                       <td className="py-2.5 px-3 align-middle whitespace-nowrap">
-                        <div className="flex items-center">
+                        <div className="flex flex-col gap-1 items-start">
                           {getBuilderStatusBadge(b.status, 'xs')}
+                          {b.status === 'Approved' && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleToggleDeveloperLive(b, e)}
+                              disabled={togglingLiveId === b._id}
+                              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8.5px] font-bold tracking-tight transition-all cursor-pointer border shadow-2xs ${
+                                b.isLive
+                                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500 hover:text-white'
+                                  : 'bg-zinc-500/15 text-zinc-600 dark:text-zinc-400 border-zinc-500/30 hover:bg-brand hover:text-white hover:border-brand'
+                              }`}
+                              title={b.isLive ? 'Live on app screen. Click to revoke permission.' : 'Off-screen (Permission not given). Click to give permission and make Live on App.'}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${b.isLive ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-400'}`} />
+                              <span>{togglingLiveId === b._id ? 'Updating...' : b.isLive ? 'Screen: ON' : 'Screen: OFF'}</span>
+                            </button>
+                          )}
                         </div>
                       </td>
 
-                      {/* Column 8: Actions */}
+                      {/* Column 8: App Priority / Rank */}
+                      <td className="py-2.5 px-2 align-middle text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="inline-flex items-center gap-1.5 justify-center">
+                          <input
+                            type="number"
+                            min="0"
+                            max="999"
+                            defaultValue={b.priority || 0}
+                            key={`prio-${b._id}-${b.priority}`}
+                            onBlur={(e) => {
+                              const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                              if (val !== (b.priority || 0)) {
+                                handleSavePriority(b, val, e.target);
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.target.blur();
+                              }
+                            }}
+                            disabled={savingPriorityId === b._id}
+                            className="w-12 h-6 text-center font-bold text-xs rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)] focus:border-brand focus:ring-1 focus:ring-brand shadow-2xs"
+                            title="Set Priority Rank on App (1 = Top position on mobile app screen)"
+                          />
+                          {b.priority > 0 && (
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/25">
+                              #{b.priority}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Column 9: Actions */}
                       <td className="py-2.5 pl-2 pr-3.5 align-middle text-right whitespace-nowrap">
                         <div className="inline-flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                           <button
@@ -1803,7 +1924,30 @@ export default function BuilderManagement() {
                           </div>
                         )}
                       </div>
-                      {getBuilderStatusBadge(b.status, 'xs')}
+                      <div className="flex items-center gap-1.5">
+                        {getBuilderStatusBadge(b.status, 'xs')}
+                        {b.status === 'Approved' && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleDeveloperLive(b, e)}
+                            disabled={togglingLiveId === b._id}
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8.5px] font-bold tracking-tight transition-all cursor-pointer border shadow-2xs ${
+                              b.isLive
+                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500 hover:text-white'
+                                : 'bg-zinc-500/15 text-zinc-600 dark:text-zinc-400 border-zinc-500/30 hover:bg-brand hover:text-white hover:border-brand'
+                            }`}
+                            title={b.isLive ? 'Live on app screen. Click to turn OFF.' : 'Off-screen. Click to give screen permission.'}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${b.isLive ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-400'}`} />
+                            <span>{togglingLiveId === b._id ? '...' : b.isLive ? 'Screen: ON' : 'Screen: OFF'}</span>
+                          </button>
+                        )}
+                        {b.priority > 0 && (
+                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/25" title={`App Display Priority Rank #${b.priority}`}>
+                            #{b.priority}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Company Info */}
@@ -2204,6 +2348,22 @@ export default function BuilderManagement() {
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs font-bold text-brand">{selectedBuilder.id}</span>
                     {getBuilderStatusBadge(selectedBuilder.status, 'xs')}
+                    {selectedBuilder.status === 'Approved' && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleToggleDeveloperLive(selectedBuilder, e)}
+                        disabled={togglingLiveId === selectedBuilder._id}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-tight transition-all cursor-pointer border shadow-2xs ${
+                          selectedBuilder.isLive
+                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500 hover:text-white'
+                            : 'bg-zinc-500/15 text-zinc-600 dark:text-zinc-400 border-zinc-500/30 hover:bg-brand hover:text-white hover:border-brand'
+                        }`}
+                        title={selectedBuilder.isLive ? 'Live on app screen. Click to revoke permission.' : 'Hidden from app screen. Click to grant screen permission.'}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${selectedBuilder.isLive ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-400'}`} />
+                        <span>{togglingLiveId === selectedBuilder._id ? 'Updating...' : selectedBuilder.isLive ? 'App Screen: ON (Live)' : 'App Screen: OFF (Permission Needed)'}</span>
+                      </button>
+                    )}
                   </div>
                   <h2 className="text-base font-bold text-[var(--text-primary)] mt-0.5 truncate" title={selectedBuilder.companyName}>
                     {selectedBuilder.companyName}
@@ -2282,7 +2442,7 @@ export default function BuilderManagement() {
               {builderDrawerTab === 'overview' && (
                 <div className="space-y-4">
                   {/* Credentials Cards */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 text-xs">
                     {/* Experience */}
                     <div className="p-3 rounded-2xl bg-[var(--bg-muted)]/35 border border-[var(--border)] flex flex-col justify-between min-h-[76px] transition-all hover:border-brand/40">
                       <div className="flex items-center justify-between text-[var(--text-muted)]">
@@ -2325,6 +2485,37 @@ export default function BuilderManagement() {
                             Not Certified
                           </span>
                         )}
+                      </div>
+                    </div>
+
+                    {/* App Priority Rank */}
+                    <div className="p-3 rounded-2xl bg-[var(--bg-muted)]/35 border border-[var(--border)] flex flex-col justify-between min-h-[76px] transition-all hover:border-brand/40">
+                      <div className="flex items-center justify-between text-[var(--text-muted)]">
+                        <span className="text-[9.5px] font-bold uppercase tracking-wider">App Priority</span>
+                        <span className="text-[9px] font-black text-amber-500">
+                          {selectedBuilder.priority > 0 ? `#${selectedBuilder.priority}` : 'Default'}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min="0"
+                          max="999"
+                          defaultValue={selectedBuilder.priority || 0}
+                          key={`drw-prio-${selectedBuilder._id}-${selectedBuilder.priority}`}
+                          onBlur={(e) => {
+                            const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                            if (val !== (selectedBuilder.priority || 0)) {
+                              handleSavePriority(selectedBuilder, val, e.target);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.target.blur();
+                          }}
+                          className="w-12 h-6 text-center font-bold text-xs rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)]"
+                          title="Priority Rank (1 = Top position on mobile app screen)"
+                        />
+                        <span className="text-[10px] text-[var(--text-muted)]">Rank</span>
                       </div>
                     </div>
 
@@ -2830,14 +3021,30 @@ export default function BuilderManagement() {
                     </button>
                   </>
                 ) : selectedBuilder.status === 'Approved' ? (
-                  <button
-                    type="button"
-                    onClick={() => setRejectPrompt({ item: selectedBuilder, type: 'builder' })}
-                    disabled={isSubmittingAction}
-                    className="h-8 px-3.5 rounded-full text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border border-rose-500/25 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    <Ban size={13} /> Suspend License
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => handleToggleDeveloperLive(selectedBuilder, e)}
+                      disabled={togglingLiveId === selectedBuilder._id}
+                      className={`h-8 px-3.5 rounded-full text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-all border shadow-2xs ${
+                        selectedBuilder.isLive
+                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500 hover:text-white'
+                          : 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-300 border-zinc-500/30 hover:bg-brand hover:text-white hover:border-brand'
+                      }`}
+                      title={selectedBuilder.isLive ? 'Click to hide developer from mobile app screen' : 'Click to give permission and make live on mobile app screen'}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${selectedBuilder.isLive ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-400'}`} />
+                      <span>{togglingLiveId === selectedBuilder._id ? 'Updating...' : selectedBuilder.isLive ? 'Screen: ON (Live)' : 'Screen: OFF (Permission Needed)'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRejectPrompt({ item: selectedBuilder, type: 'builder' })}
+                      disabled={isSubmittingAction}
+                      className="h-8 px-3.5 rounded-full text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border border-rose-500/25 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Ban size={13} /> Suspend License
+                    </button>
+                  </div>
                 ) : (
                   <button
                     type="button"

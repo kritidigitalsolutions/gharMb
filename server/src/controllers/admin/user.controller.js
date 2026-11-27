@@ -294,9 +294,19 @@ exports.verifyDeveloper = async (req, res, next) => {
       });
     }
 
+    let targetIsLive = false;
+    if (req.body.isLive !== undefined) {
+      targetIsLive = req.body.isLive === true || req.body.isLive === 'true';
+    } else if (rawStatus === 'approved') {
+      targetIsLive = req.body.publishToApp === true || req.body.publishToApp === 'true' || req.body.showOnApp === true;
+    } else if (rawStatus === 'rejected') {
+      targetIsLive = false;
+    }
+
     const updateData = {
       builderVerificationStatus: rawStatus,
       isVerified: rawStatus === 'approved',
+      isLive: targetIsLive,
     };
 
     if (rawStatus === 'approved') {
@@ -347,6 +357,166 @@ exports.verifyDeveloper = async (req, res, next) => {
       message: `Developer verification status updated to ${rawStatus}.`,
       data: {
         user,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Toggle developer/builder visibility permission on mobile app screen (Live / Hidden)
+// @route   PATCH /api/admin/users/:id/toggle-live
+// @access  Private (Admin only)
+exports.toggleDeveloperLive = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'No developer found with that ID.',
+      });
+    }
+
+    if (user.role !== 'builder' && user.builderVerificationStatus === 'unverified') {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'User is not registered as a builder or developer.',
+      });
+    }
+
+    if (user.builderVerificationStatus !== 'approved') {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Developer must be approved by admin before granting permission to show on the mobile app screen.',
+      });
+    }
+
+    let nextLiveState;
+    if (req.body && req.body.isLive !== undefined) {
+      nextLiveState = req.body.isLive === true || req.body.isLive === 'true';
+    } else {
+      nextLiveState = !user.isLive;
+    }
+
+    user.isLive = nextLiveState;
+    await user.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: nextLiveState
+        ? `Permission granted: ${user.companyName || user.name} is now LIVE on the mobile app screen! 🚀`
+        : `Permission revoked: ${user.companyName || user.name} hidden from the mobile app screen.`,
+      data: {
+        user,
+        isLive: user.isLive,
+        builderVerificationStatus: user.builderVerificationStatus,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update developer display priority with Auto-Shift (+1) or Priority Exchange (Swap)
+// @route   PATCH /api/admin/users/:id/priority
+// @access  Private (Admin only)
+exports.updateDeveloperPriority = async (req, res, next) => {
+  try {
+    const newPriority = parseInt(req.body.priority, 10);
+    if (isNaN(newPriority) || newPriority < 0) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Priority must be a non-negative number (e.g. 1 for Top Priority, 2, 3...).',
+      });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'No developer found with that ID.',
+      });
+    }
+
+    const oldPriority = Number(user.priority) || 0;
+    if (newPriority === oldPriority) {
+      return res.status(200).json({
+        status: 'success',
+        message: `Priority for ${user.companyName || user.name} is already ${newPriority}.`,
+        data: {
+          id: user._id,
+          priority: user.priority,
+        },
+      });
+    }
+
+    // If resetting to default (0)
+    if (newPriority === 0) {
+      user.priority = 0;
+      await user.save();
+      return res.status(200).json({
+        status: 'success',
+        message: `Priority for ${user.companyName || user.name} reset to default (0).`,
+        data: {
+          id: user._id,
+          priority: 0,
+        },
+      });
+    }
+
+    // Check if another developer already has this priority
+    const existingConflict = await User.findOne({
+      _id: { $ne: user._id },
+      role: 'builder',
+      priority: newPriority,
+    });
+
+    let actionMessage = '';
+
+    if (existingConflict) {
+      if (oldPriority > 0) {
+        // CASE 1: Both developers currently have active priorities -> EXCHANGE / SWAP!
+        existingConflict.priority = oldPriority;
+        await existingConflict.save();
+
+        user.priority = newPriority;
+        await user.save();
+
+        const otherName = existingConflict.companyName || existingConflict.name;
+        const currentName = user.companyName || user.name;
+        actionMessage = `Priority exchanged! ${currentName} is now #${newPriority} and ${otherName} is now #${oldPriority}. 🔄`;
+      } else {
+        // CASE 2: Developer was unranked (0) and takes a claimed priority -> AUTO-SHIFT (+1 ripple)!
+        // Shift all developers with priority >= newPriority by +1 in descending order
+        const developersToShift = await User.find({
+          _id: { $ne: user._id },
+          role: 'builder',
+          priority: { $gte: newPriority },
+        }).sort({ priority: -1 });
+
+        for (const dev of developersToShift) {
+          dev.priority = dev.priority + 1;
+          await dev.save();
+        }
+
+        user.priority = newPriority;
+        await user.save();
+
+        actionMessage = `Priority #${newPriority} assigned to ${user.companyName || user.name}. Existing developers auto-shifted (+1) successfully! ⚡`;
+      }
+    } else {
+      // CASE 3: No conflict, assign directly
+      user.priority = newPriority;
+      await user.save();
+      actionMessage = `Priority rank for ${user.companyName || user.name} set to #${newPriority}! 🎯`;
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: actionMessage,
+      data: {
+        id: user._id,
+        priority: user.priority,
       },
     });
   } catch (error) {

@@ -250,13 +250,13 @@ const Sidebar = ({
       group: 'Properties',
       items: [
         {
-          name: 'Approvals',
+          name: 'Property Approvals',
           path: '/admin/verification',
           icon: ShieldCheck,
           hint: 'Review & Verify Listings',
           badge: badgeCounts.pendingVerifications > 0 ? String(badgeCounts.pendingVerifications) : null,
           badgeColor: 'bg-amber-500 text-white',
-          aliases: ['approvals', 'verification', 'property verification', 'approve property', 'kyc', 'listings', 'verify', 'compliance'],
+          aliases: ['property approvals', 'approvals', 'verification', 'property verification', 'approve property', 'kyc', 'listings', 'verify', 'compliance'],
         },
         {
           name: 'Builders',
