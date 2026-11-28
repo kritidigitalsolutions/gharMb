@@ -906,16 +906,19 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
 
             {showNotifications && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)}></div>
-                <div className="absolute right-0 mt-2.5 w-80 sm:w-88 bg-white dark:bg-[#1a211c] border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl z-20 overflow-hidden animate-slide-down origin-top-right">
-                  <div className="px-4 py-3 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-slate-50/70 dark:bg-white/5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-xs text-slate-800 dark:text-white">Alerts & Logs</span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#133527] text-white">
+                <div
+                  className="fixed inset-0 z-40 bg-black/20 sm:bg-transparent backdrop-blur-[1px] sm:backdrop-blur-none transition-opacity"
+                  onClick={() => setShowNotifications(false)}
+                />
+                <div className="fixed inset-x-3 top-16 sm:inset-auto sm:absolute sm:right-0 sm:top-full sm:mt-2.5 sm:w-88 bg-white dark:bg-[#1a211c] border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl sm:shadow-xl z-50 overflow-hidden animate-slide-down sm:origin-top-right">
+                  <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-slate-50/70 dark:bg-white/5">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                      <span className="font-extrabold text-xs text-slate-800 dark:text-white truncate">Alerts & Logs</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#133527] text-white shrink-0">
                         {unreadNotificationsCount || 1} new
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                       {unreadNotificationsCount > 0 && (
                         <button onClick={handleClearNotifs} className="text-[10px] font-bold text-[#133527] dark:text-emerald-400 hover:underline cursor-pointer">
                           Clear All
@@ -931,10 +934,19 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
                       >
                         <ExternalLink size={13} />
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowNotifications(false)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer flex items-center justify-center ml-0.5"
+                        title="Close popup"
+                        aria-label="Close notifications"
+                      >
+                        <X size={14} />
+                      </button>
                     </div>
                   </div>
 
-                  <div className="divide-y divide-slate-100 dark:divide-white/5 max-h-84 overflow-y-auto custom-scrollbar">
+                  <div className="divide-y divide-slate-100 dark:divide-white/5 max-h-[calc(100vh-140px)] sm:max-h-84 overflow-y-auto custom-scrollbar">
                     {notifications.length === 0 ? (
                       <div className="p-7 text-center">
                         <div className="w-9 h-9 mx-auto mb-2 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
@@ -950,7 +962,7 @@ const Header = ({ toggleSidebar, title, isCollapsed = false, toggleCollapse }) =
                           <div
                             key={notif.id}
                             onClick={() => handleNotifClick(notif)}
-                            className={`p-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer flex gap-3 ${
+                            className={`p-3 sm:p-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer flex gap-2.5 sm:gap-3 ${
                               notif.isRead ? 'opacity-60' : 'bg-emerald-50/20 dark:bg-emerald-950/10'
                             }`}
                           >
