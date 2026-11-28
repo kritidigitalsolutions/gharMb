@@ -578,16 +578,16 @@ const BannerManagement = () => {
         /* Minimal Table View */
         <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] overflow-hidden">
           <div className="w-full overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left text-xs border-collapse table-fixed min-w-[700px]">
+            <table className="w-full text-left text-xs border-collapse table-fixed min-w-[850px]">
               <colgroup>
                 <col className="w-[4%]" />
                 <col className="w-[10%]" />
-                <col className="w-[28%]" />
-                <col className="w-[16%]" />
+                <col className="w-[24%]" />
+                <col className="w-[14%]" />
                 <col className="w-[14%]" />
                 <col className="w-[10%]" />
-                <col className="w-[8%]" />
-                <col className="w-[10%]" />
+                <col className="w-[12%]" />
+                <col className="w-[12%]" />
               </colgroup>
               <thead className="bg-[var(--bg-muted)]/50 border-b border-[var(--border)] text-[var(--text-muted)] font-semibold text-[11px]">
                 <tr>
@@ -604,8 +604,8 @@ const BannerManagement = () => {
                   <th className="py-2 px-3 align-middle">Placement</th>
                   <th className="py-2 px-3 align-middle">Order / Priority</th>
                   <th className="py-2 px-3 align-middle">Views / Clicks</th>
-                  <th className="py-2 px-3 align-middle text-center">Status</th>
-                  <th className="py-2 px-3 align-middle text-right">Actions</th>
+                  <th className="py-2 px-3 align-middle text-center whitespace-nowrap min-w-[85px]">Status</th>
+                  <th className="py-2 px-3 align-middle text-right whitespace-nowrap min-w-[85px]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">

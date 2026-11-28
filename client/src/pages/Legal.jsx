@@ -5,7 +5,7 @@ import {
   CheckCircle2, Undo, Redo, Heading2, Heading3, ListOrdered, Plus, Trash2,
   FileText, Eye, Sparkles, RefreshCw, Loader2,
   Columns2, Settings, Lock,
-  Quote, PenLine, Smartphone
+  Quote, PenLine, Smartphone, ChevronDown
 } from 'lucide-react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -611,118 +611,230 @@ const LegalSettings = () => {
       )}
 
       {/* ── 1. MINIMAL HEADER BAR ── */}
-      <div className="shrink-0 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 shadow-2xs">
-        {/* Left: Title & Tabs */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="flex items-center gap-1.5">
-            <h1 className="text-sm font-bold text-[var(--text-primary)] tracking-tight">Legal Policies</h1>
-            <Badge color="sky" variant="pastel" size="xs">Web & App</Badge>
-            {isRevalidating && <Loader2 size={11} className="animate-spin text-brand" />}
+      <div className="shrink-0 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl p-2.5 sm:px-3 sm:py-1.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+        
+        {/* ── MOBILE ROW 1: Title, View Switcher (Editor/Preview), Settings ── */}
+        <div className="flex sm:hidden items-center justify-between gap-2 w-full">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <h1 className="text-xs font-bold text-[var(--text-primary)] tracking-tight truncate">Legal Policies</h1>
+            <Badge color="sky" variant="pastel" size="2xs">Web & App</Badge>
+            {isRevalidating && <Loader2 size={11} className="animate-spin text-brand shrink-0" />}
           </div>
 
-          <div className="h-3.5 w-px bg-[var(--border)] hidden sm:block"></div>
+          <div className="flex items-center gap-1 shrink-0">
+            {/* View toggle (Editor / Preview) */}
+            <div className="inline-flex items-center p-0.5 bg-[var(--bg-muted)] rounded-lg border border-[var(--border)] text-xs">
+              <button
+                type="button"
+                onClick={() => setViewMode('editor')}
+                className={`px-2 py-0.5 rounded text-[10.5px] font-semibold transition-all cursor-pointer ${
+                  viewMode === 'editor' ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold' : 'text-[var(--text-muted)]'
+                }`}
+              >
+                Editor
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('preview')}
+                className={`px-2 py-0.5 rounded text-[10.5px] font-semibold transition-all cursor-pointer ${
+                  viewMode === 'preview' ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold' : 'text-[var(--text-muted)]'
+                }`}
+              >
+                Preview
+              </button>
+            </div>
 
-          {/* Segmented Pills */}
-          <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar">
-            {policies.map(p => {
-              const isSelected = !isCreatingNew && (activeSlug === p.slug || activeSlug === p.type);
-              return (
-                <button
-                  key={p._id || p.slug || p.type}
-                  type="button"
-                  onClick={() => selectPolicyBySlug(p.slug || p.type)}
-                  className={`h-7 px-2.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    isSelected
-                      ? 'bg-brand/10 text-brand font-bold border border-brand/20'
-                      : 'text-[var(--text-subtle)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] border border-transparent'
-                  }`}
-                >
-                  <FileText size={11} className={isSelected ? 'text-brand' : 'opacity-50'} />
-                  <span>{p.title}</span>
-                  {p.status === 'draft' ? (
-                    <Badge.Pending size="2xs">Draft</Badge.Pending>
-                  ) : (
-                    <Badge.Active size="2xs">Live</Badge.Active>
-                  )}
-                </button>
-              );
-            })}
-
-            {isCreatingNew && (
-              <span className="h-7 px-2.5 rounded-lg text-[11px] font-bold bg-brand/15 text-brand border border-brand/30 flex items-center">
-                New Policy
-              </span>
-            )}
-
+            {/* Policy Settings Button */}
             <button
               type="button"
-              onClick={handleStartAddNew}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-brand hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
-              title="Add Policy"
+              onClick={() => setShowSettingsModal(true)}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-brand bg-[var(--bg-muted)]/70 hover:bg-[var(--bg-muted)] transition-colors cursor-pointer border border-[var(--border)]"
+              title="Policy Settings"
             >
-              <Plus size={13} />
+              <Settings size={12} />
             </button>
           </div>
         </div>
 
-        {/* Right: Actions */}
-        <div className="flex items-center gap-1.5">
-          {/* View toggle */}
-          <div className="inline-flex items-center p-0.5 bg-[var(--bg-muted)] rounded-lg border border-[var(--border)] text-xs">
-            <button
-              type="button"
-              onClick={() => setViewMode('split')}
-              className={`w-6 h-6 flex items-center justify-center rounded-md transition-all cursor-pointer ${viewMode === 'split' ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
-              title="Split View (Side by Side)"
+        {/* ── MOBILE ROW 2: Policy Dropdown Selector + Add + Save Draft + Publish (ZERO SCROLL) ── */}
+        <div className="flex sm:hidden items-center gap-1.5 w-full">
+          {/* Policy Selector Dropdown (Takes remaining width, no scroll needed) */}
+          <div className="relative flex-1 min-w-0">
+            <select
+              value={isCreatingNew ? 'new' : (activeSlug || '')}
+              onChange={(e) => {
+                if (e.target.value === 'new') {
+                  handleStartAddNew();
+                } else {
+                  selectPolicyBySlug(e.target.value);
+                }
+              }}
+              className="w-full h-7.5 pl-2.5 pr-6 rounded-lg bg-[var(--bg-muted)] border border-[var(--border)] text-xs font-semibold text-[var(--text-primary)] outline-none focus:border-brand cursor-pointer appearance-none truncate"
             >
-              <Columns2 size={12} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('editor')}
-              className={`w-6 h-6 flex items-center justify-center rounded-md transition-all cursor-pointer ${viewMode === 'editor' ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
-              title="Editor Only"
-            >
-              <PenLine size={12} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('preview')}
-              className={`w-6 h-6 flex items-center justify-center rounded-md transition-all cursor-pointer ${viewMode === 'preview' ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
-              title="Preview Only"
-            >
-              <Eye size={12} />
-            </button>
+              {policies.map(p => (
+                <option key={p._id || p.slug || p.type} value={p.slug || p.type}>
+                  {p.title} ({p.status === 'draft' ? 'Draft' : 'Live'})
+                </option>
+              ))}
+              {isCreatingNew && (
+                <option value="new">+ New Policy (Drafting)</option>
+              )}
+            </select>
+            <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
           </div>
 
-          {/* Settings / Edit Details */}
+          {/* Quick Add Policy Button */}
           <button
             type="button"
-            onClick={() => setShowSettingsModal(true)}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-brand hover:bg-[var(--bg-muted)] transition-colors cursor-pointer border border-[var(--border)]"
-            title="Policy Settings & Details"
+            onClick={handleStartAddNew}
+            className="w-7.5 h-7.5 flex items-center justify-center rounded-lg text-brand bg-brand/10 border border-brand/20 hover:bg-brand/20 transition-colors shrink-0 cursor-pointer"
+            title="Create New Policy"
           >
-            <Settings size={12} />
+            <Plus size={13} />
           </button>
 
+          {/* Save Draft Button */}
           <button
             type="button"
             onClick={() => handleSave('draft')}
             disabled={isSaving}
-            className="h-7 px-2.5 bg-[var(--bg-muted)] hover:bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-subtle)] text-[11px] font-semibold rounded-lg transition-colors cursor-pointer"
+            className="h-7.5 px-2 bg-[var(--bg-muted)] hover:bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-subtle)] text-[11px] font-semibold rounded-lg transition-colors cursor-pointer shrink-0 disabled:opacity-50"
           >
-            Save Draft
+            Draft
           </button>
 
+          {/* Publish Button */}
           <button
             type="button"
             onClick={() => handleSave('published')}
             disabled={isSaving}
-            className="h-7 flex items-center gap-1.5 px-3 bg-brand hover:bg-brand-dark text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs cursor-pointer"
+            className="h-7.5 flex items-center gap-1 px-2.5 bg-brand hover:bg-brand-dark text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs cursor-pointer active:scale-95 disabled:opacity-50 shrink-0"
           >
             <Sparkles size={11} />
-            <span>{isSaving ? 'Publishing...' : 'Publish'}</span>
+            <span>{isSaving ? '...' : 'Publish'}</span>
           </button>
+        </div>
+
+        {/* ── DESKTOP TOOLBAR (Intact single row, shown only on sm: and up) ── */}
+        <div className="hidden sm:flex items-center justify-between gap-2.5 w-full">
+          {/* Left: Title & Segmented Pills */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-sm font-bold text-[var(--text-primary)] tracking-tight">Legal Policies</h1>
+              <Badge color="sky" variant="pastel" size="xs">Web & App</Badge>
+              {isRevalidating && <Loader2 size={11} className="animate-spin text-brand" />}
+            </div>
+
+            <div className="h-3.5 w-px bg-[var(--border)]"></div>
+
+            {/* Segmented Pills */}
+            <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar">
+              {policies.map(p => {
+                const isSelected = !isCreatingNew && (activeSlug === p.slug || activeSlug === p.type);
+                return (
+                  <button
+                    key={p._id || p.slug || p.type}
+                    type="button"
+                    onClick={() => selectPolicyBySlug(p.slug || p.type)}
+                    className={`h-7 px-2.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-brand/10 text-brand font-bold border border-brand/20'
+                        : 'text-[var(--text-subtle)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] border border-transparent'
+                    }`}
+                  >
+                    <FileText size={11} className={isSelected ? 'text-brand' : 'opacity-50'} />
+                    <span>{p.title}</span>
+                    {p.status === 'draft' ? (
+                      <Badge.Pending size="2xs">Draft</Badge.Pending>
+                    ) : (
+                      <Badge.Active size="2xs">Live</Badge.Active>
+                    )}
+                  </button>
+                );
+              })}
+
+              {isCreatingNew && (
+                <span className="h-7 px-2.5 rounded-lg text-[11px] font-bold bg-brand/15 text-brand border border-brand/30 flex items-center">
+                  New Policy
+                </span>
+              )}
+
+              <button
+                type="button"
+                onClick={handleStartAddNew}
+                className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-brand hover:bg-[var(--bg-muted)] transition-colors cursor-pointer"
+                title="Add Policy"
+              >
+                <Plus size={13} />
+              </button>
+            </div>
+          </div>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* View toggle */}
+            <div className="inline-flex items-center p-0.5 bg-[var(--bg-muted)] rounded-lg border border-[var(--border)] text-xs">
+              <button
+                type="button"
+                onClick={() => setViewMode('split')}
+                className={`w-6 h-6 flex items-center justify-center rounded-md transition-all cursor-pointer ${
+                  viewMode === 'split' ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
+                title="Split View (Side by Side)"
+              >
+                <Columns2 size={12} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('editor')}
+                className={`w-6 h-6 flex items-center justify-center rounded-md transition-all cursor-pointer ${
+                  viewMode === 'editor' ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
+                title="Editor Only"
+              >
+                <PenLine size={12} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('preview')}
+                className={`w-6 h-6 flex items-center justify-center rounded-md transition-all cursor-pointer ${
+                  viewMode === 'preview' ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
+                title="Preview Only"
+              >
+                <Eye size={12} />
+              </button>
+            </div>
+
+            {/* Settings */}
+            <button
+              type="button"
+              onClick={() => setShowSettingsModal(true)}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-brand hover:bg-[var(--bg-muted)] transition-colors cursor-pointer border border-[var(--border)]"
+              title="Policy Settings & Details"
+            >
+              <Settings size={12} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSave('draft')}
+              disabled={isSaving}
+              className="h-7 px-2.5 bg-[var(--bg-muted)] hover:bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-subtle)] text-[11px] font-semibold rounded-lg transition-colors cursor-pointer"
+            >
+              Save Draft
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSave('published')}
+              disabled={isSaving}
+              className="h-7 flex items-center gap-1.5 px-3 bg-brand hover:bg-brand-dark text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs cursor-pointer active:scale-95 disabled:opacity-50"
+            >
+              <Sparkles size={11} />
+              <span>{isSaving ? 'Publishing...' : 'Publish'}</span>
+            </button>
+          </div>
         </div>
       </div>
 

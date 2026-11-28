@@ -7,7 +7,7 @@ import {
   Calendar, User, AlertCircle, RefreshCw, Layers, CheckSquare,
   Square, X, Check, ArrowUpDown, ArrowUp, ArrowDown,
   ChevronLeft, ChevronRight, FileText, BookOpen, SlidersHorizontal,
-  RotateCcw, Sparkles
+  RotateCcw, Sparkles, List, LayoutGrid
 } from 'lucide-react';
 import API from '../api/api';
 import Badge from '../components/ui/Badge';
@@ -20,6 +20,22 @@ const InsightsManagement = () => {
   const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // View Mode: 'table' (List) vs 'grid' (Grid)
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      return localStorage.getItem('insights_view_mode') || 'table';
+    } catch {
+      return 'table';
+    }
+  });
+
+  const handleSetViewMode = (mode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('insights_view_mode', mode);
+    } catch {}
+  };
 
   // Selection & Bulk Operations
   const [selectedBlogIds, setSelectedBlogIds] = useState([]);
@@ -303,31 +319,57 @@ const InsightsManagement = () => {
 
       {/* Minimal Filter & Search Toolbar */}
       <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xs flex flex-col md:flex-row gap-2.5 items-stretch md:items-center justify-between">
-        {/* Search Input */}
-        <div className="relative flex-1 max-w-md">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by title, excerpt, tag..."
-            className="w-full pl-9 pr-8 h-8 text-xs rounded-lg bg-[var(--bg-muted)]/50 border border-[var(--border)] focus:bg-[var(--bg-surface)] focus:border-brand text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors outline-none"
-          />
-          {search && (
+        {/* Search Input & Mobile View Mode Switcher Row */}
+        <div className="flex items-center gap-2 flex-1 max-w-md">
+          <div className="relative flex-1">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by title, excerpt, tag..."
+              className="w-full pl-9 pr-8 h-8 text-xs rounded-lg bg-[var(--bg-muted)]/50 border border-[var(--border)] focus:bg-[var(--bg-surface)] focus:border-brand text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors outline-none"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+                title="Clear search"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
+          {/* Mobile View Switcher (Pinned right next to search, always accessible) */}
+          <div className="flex md:hidden items-center p-0.5 bg-[var(--bg-muted)]/90 rounded-lg border border-[var(--border)] shrink-0 shadow-2xs">
             <button
-              onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
-              title="Clear search"
+              type="button"
+              onClick={() => handleSetViewMode('table')}
+              className={`p-1.5 rounded-md text-xs transition-colors cursor-pointer ${
+                viewMode === 'table' ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+              title="List view"
             >
-              <X size={13} />
+              <List size={14} />
             </button>
-          )}
+            <button
+              type="button"
+              onClick={() => handleSetViewMode('grid')}
+              className={`p-1.5 rounded-md text-xs transition-colors cursor-pointer ${
+                viewMode === 'grid' ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+              title="Grid view"
+            >
+              <LayoutGrid size={14} />
+            </button>
+          </div>
         </div>
 
-        {/* Filter Controls */}
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* Filter Controls & Desktop View Switcher */}
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5 -mx-1 px-1">
           {/* Status filter pills */}
-          <div className="flex items-center p-0.5 bg-[var(--bg-muted)]/60 rounded-lg border border-[var(--border)] text-xs">
+          <div className="flex items-center p-0.5 bg-[var(--bg-muted)]/60 rounded-lg border border-[var(--border)] text-xs shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -381,7 +423,7 @@ const InsightsManagement = () => {
               setSelectedCategory(e.target.value);
               setCurrentPage(1);
             }}
-            className="h-8 px-2.5 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)] outline-none cursor-pointer hover:bg-[var(--bg-muted)] transition-colors"
+            className="h-8 px-2.5 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)] outline-none cursor-pointer hover:bg-[var(--bg-muted)] transition-colors shrink-0 max-w-[170px]"
           >
             <option value="">All Categories ({categories.length})</option>
             {categories.map((cat) => (
@@ -394,7 +436,7 @@ const InsightsManagement = () => {
           {/* Sort Direction Toggle */}
           <button
             onClick={() => setSortDirection(prev => (prev === 'desc' ? 'asc' : 'desc'))}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] transition-colors cursor-pointer shrink-0"
             title={`Sorting ${sortDirection === 'desc' ? 'Newest first' : 'Oldest first'}`}
           >
             <ArrowUpDown size={13} className="text-slate-500" />
@@ -405,7 +447,7 @@ const InsightsManagement = () => {
           {hasActiveFilters && (
             <button
               onClick={handleResetFilters}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer shrink-0"
               title="Reset all filters"
             >
               <RotateCcw size={12} />
@@ -417,10 +459,36 @@ const InsightsManagement = () => {
           <button
             onClick={fetchBlogs}
             title="Refresh articles"
-            className="p-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer shrink-0"
           >
             <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
           </button>
+
+          {/* Desktop View Switcher (Hidden on mobile < md) */}
+          <div className="hidden md:flex items-center p-0.5 bg-[var(--bg-muted)]/90 rounded-lg border border-[var(--border)] shrink-0 shadow-2xs ml-auto">
+            <button
+              type="button"
+              onClick={() => handleSetViewMode('table')}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                viewMode === 'table' ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+              title="List view"
+            >
+              <List size={13} />
+              <span>List</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetViewMode('grid')}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                viewMode === 'grid' ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+              title="Grid view"
+            >
+              <LayoutGrid size={13} />
+              <span>Grid</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -524,9 +592,120 @@ const InsightsManagement = () => {
               )}
             </div>
           </div>
-        ) : (
-          <div className="w-full overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse table-fixed min-w-[700px]">
+        ) : viewMode === 'table' ? (
+          <>
+            {/* ── COMPACT 2-LINE MOBILE LIST: (Plan A: High Density, Sleek & Clean List) ── */}
+            <div className="block md:hidden divide-y divide-[var(--border)]">
+              {blogs.map((blog) => {
+                const isSelected = selectedBlogIds.includes(blog._id);
+                const pubDate = formatDate(blog.publishedAt || blog.createdAt);
+
+                return (
+                  <div
+                    key={blog._id}
+                    className={`py-2 px-3 transition-colors duration-100 flex items-center gap-2.5 ${
+                      isSelected ? 'bg-brand/5 dark:bg-brand/10' : 'hover:bg-[var(--bg-muted)]/40'
+                    }`}
+                  >
+                    {/* Checkbox */}
+                    <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => handleToggleSelectOne(blog._id)}
+                        className="w-3.5 h-3.5 rounded accent-brand cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Center 2-Line Content */}
+                    <div className="min-w-0 flex-1">
+                      {/* Line 1: Title & Status */}
+                      <div className="flex items-center justify-between gap-2">
+                        <Link
+                          to={`/admin/insights/edit/${blog._id}`}
+                          className="font-semibold text-xs text-[var(--text-primary)] hover:text-brand truncate block transition-colors leading-tight"
+                          title={blog.title}
+                        >
+                          {blog.title}
+                        </Link>
+                        <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePublish(blog)}
+                            title="Click to toggle publish status"
+                            className="inline-flex cursor-pointer transition-transform active:scale-95"
+                          >
+                            {blog.isPublished ? (
+                              <Badge.Active size="xs">Published</Badge.Active>
+                            ) : (
+                              <Badge color="amber" variant="pastel" size="xs" dot>
+                                Draft
+                              </Badge>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Line 2: Meta Info (Category • Author • Views • Date) */}
+                      <div className="flex items-center gap-1.5 text-[10.5px] text-[var(--text-muted)] mt-1 truncate">
+                        <span className="font-medium text-purple-700 dark:text-purple-400 truncate max-w-[95px]">
+                          {blog.category?.name || 'Uncategorized'}
+                        </span>
+                        <span>•</span>
+                        <span className="truncate max-w-[70px]">{blog.author || 'Admin'}</span>
+                        <span>•</span>
+                        <span className="shrink-0 font-mono text-[10px] text-[var(--text-primary)] font-semibold">
+                          {Number(blog.views || 0).toLocaleString()} views
+                        </span>
+                        <span>•</span>
+                        <span className="shrink-0 font-mono text-[10px]">{pubDate || 'Draft'}</span>
+                      </div>
+                    </div>
+
+                    {/* Right: Quick Action Icons */}
+                    <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {blog.isPublished && (
+                        <a
+                          href={`${WEBPAGE_URL}/insights/${blog.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                          title="View on live website"
+                        >
+                          <ExternalLink size={11} />
+                        </a>
+                      )}
+                      <Link
+                        to={`/admin/insights/edit/${blog._id}`}
+                        className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                        title="Edit article"
+                      >
+                        <Edit size={11} />
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDeleteModal({
+                            open: true,
+                            blogId: blog._id,
+                            title: blog.title,
+                            isDeleting: false,
+                          })
+                        }
+                        className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-rose-600 hover:border-rose-300 dark:hover:border-rose-900/50 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                        title="Delete article"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ── DESKTOP DATA TABLE: (Hidden on Mobile < md, Visible on Desktop >= md) ── */}
+            <div className="hidden md:block w-full overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse table-fixed min-w-[700px]">
               <colgroup>
                 <col className="w-[3.5%]" />
                 <col className="w-[3.5%]" />
@@ -731,7 +910,151 @@ const InsightsManagement = () => {
               </tbody>
             </table>
           </div>
-        )}
+        </>
+      ) : (
+        /* ── GRID VIEW: (Modern Responsive Article Cards for both Mobile & Desktop) ── */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4 p-3 sm:p-4">
+          {blogs.map((blog) => {
+            const isSelected = selectedBlogIds.includes(blog._id);
+            const pubDate = formatDate(blog.publishedAt || blog.createdAt);
+            const hasImage = Boolean(blog.bannerImage && !failedImages[blog._id]);
+
+            return (
+              <div
+                key={blog._id}
+                className={`group rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] overflow-hidden shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col justify-between ${
+                  isSelected ? 'ring-2 ring-brand border-brand/50 bg-brand/5 dark:bg-brand/10' : 'hover:border-brand/40'
+                }`}
+              >
+                {/* Top: Card Banner Image with Badges Overlay */}
+                <div className="relative h-40 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                  {hasImage ? (
+                    <img
+                      src={blog.bannerImage}
+                      alt=""
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={() =>
+                        setFailedImages(prev => ({ ...prev, [blog._id]: true }))
+                      }
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-50 dark:bg-slate-800/80">
+                      <BookOpen size={24} className="opacity-50" />
+                    </div>
+                  )}
+
+                  {/* Gradient Overlay for Text Readability */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none" />
+
+                  {/* Top-Left: Checkbox & Category */}
+                  <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 z-10" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggleSelectOne(blog._id)}
+                      className="w-4 h-4 rounded accent-brand bg-white/90 cursor-pointer shadow-xs"
+                    />
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/90 dark:bg-slate-900/90 text-purple-700 dark:text-purple-300 shadow-xs backdrop-blur-xs">
+                      {blog.category?.name || 'Uncategorized'}
+                    </span>
+                  </div>
+
+                  {/* Top-Right: Status Toggle Button */}
+                  <div className="absolute top-2.5 right-2.5 z-10" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => handleTogglePublish(blog)}
+                      title="Click to toggle publish status"
+                      className="inline-flex cursor-pointer transition-transform active:scale-95 shadow-xs"
+                    >
+                      {blog.isPublished ? (
+                        <Badge.Active size="xs">Published</Badge.Active>
+                      ) : (
+                        <Badge color="amber" variant="pastel" size="xs" dot>
+                          Draft
+                        </Badge>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Bottom-Right: Views Pill */}
+                  <div className="absolute bottom-2 right-2.5 z-10 flex items-center gap-1 text-[10.5px] font-bold text-white bg-black/60 px-2 py-0.5 rounded-md backdrop-blur-xs">
+                    <Eye size={11} />
+                    <span>{Number(blog.views || 0).toLocaleString()}</span>
+                  </div>
+                </div>
+
+                {/* Center: Card Body (Title & Meta) */}
+                <div className="p-3 sm:p-3.5 flex-1 flex flex-col justify-between space-y-2">
+                  <div>
+                    <Link
+                      to={`/admin/insights/edit/${blog._id}`}
+                      className="font-bold text-xs sm:text-sm text-[var(--text-primary)] hover:text-brand line-clamp-2 transition-colors leading-snug"
+                      title={blog.title}
+                    >
+                      {blog.title}
+                    </Link>
+                    <p className="text-[10px] text-slate-400 font-mono mt-1 truncate">
+                      /{blog.slug}
+                    </p>
+                  </div>
+
+                  {/* Author & Published Date Strip */}
+                  <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)] pt-2 border-t border-[var(--border)]/60">
+                    <div className="flex items-center gap-1 truncate max-w-[130px]">
+                      <User size={11} className="text-slate-400 shrink-0" />
+                      <span className="truncate font-medium">{blog.author || 'Admin'}</span>
+                    </div>
+                    <span className="text-[10px] font-mono shrink-0">
+                      {pubDate || 'Draft'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bottom: Action Buttons */}
+                <div className="p-2 sm:px-3 bg-[var(--bg-muted)]/30 border-t border-[var(--border)] flex items-center justify-between gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  <Link
+                    to={`/admin/insights/edit/${blog._id}`}
+                    className="flex-1 h-7.5 px-2 rounded-lg text-xs font-semibold bg-[var(--bg-surface)] hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all flex items-center justify-center gap-1 shadow-2xs active:scale-95"
+                    title="Edit article"
+                  >
+                    <Edit size={11} />
+                    <span>Edit</span>
+                  </Link>
+
+                  {blog.isPublished && (
+                    <a
+                      href={`${WEBPAGE_URL}/insights/${blog.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-7.5 h-7.5 rounded-lg text-xs font-semibold bg-blue-500/10 hover:bg-blue-600 text-blue-700 dark:text-blue-400 hover:text-white border border-blue-500/20 transition-all flex items-center justify-center shadow-2xs active:scale-95 shrink-0"
+                      title="View on live website"
+                    >
+                      <ExternalLink size={12} />
+                    </a>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDeleteModal({
+                        open: true,
+                        blogId: blog._id,
+                        title: blog.title,
+                        isDeleting: false,
+                      })
+                    }
+                    className="w-7.5 h-7.5 rounded-lg text-xs font-semibold bg-rose-500/10 hover:bg-rose-600 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/20 transition-all cursor-pointer flex items-center justify-center shadow-2xs active:scale-95 shrink-0"
+                    title="Delete article"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
         {/* Minimal Footer with Pagination */}
         <div className="p-3 px-4 border-t border-[var(--border)] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">

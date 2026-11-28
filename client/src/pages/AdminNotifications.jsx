@@ -22,7 +22,9 @@ import {
   ChevronRight,
   ShieldCheck,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  List,
+  LayoutGrid
 } from 'lucide-react';
 
 const AdminNotifications = () => {
@@ -33,6 +35,22 @@ const AdminNotifications = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [sortOrder, setSortOrder] = useState('newest');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // View Mode: 'list' vs 'grid'
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      return localStorage.getItem('notifications_view_mode') || 'list';
+    } catch {
+      return 'list';
+    }
+  });
+
+  const handleSetViewMode = (mode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('notifications_view_mode', mode);
+    } catch {}
+  };
 
   // Data States
   const [notifications, setNotifications] = useState([]);
@@ -566,7 +584,7 @@ const AdminNotifications = () => {
       {/* Slim Filter Strip & Search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         {/* Category Segmented Tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-0.5 custom-scrollbar">
+        <div className="flex items-center gap-1 overflow-x-auto pb-0.5 custom-scrollbar no-scrollbar">
           {[
             { id: 'all', label: 'All', count: counts.total },
             { id: 'unread', label: 'Unread', count: counts.unread },
@@ -583,7 +601,7 @@ const AdminNotifications = () => {
                 type="button"
                 id={`tab-notifs-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
-                className={`h-7 px-2.5 rounded-lg text-[11px] font-medium flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                className={`h-7 px-2.5 rounded-lg text-[11px] font-medium flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   isActive
                     ? 'bg-[var(--text-primary)] text-[var(--bg-surface)] font-semibold shadow-xs'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)]'
@@ -604,9 +622,9 @@ const AdminNotifications = () => {
           })}
         </div>
 
-        {/* Compact Search & Sort */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <div className="relative">
+        {/* Compact Search, Sort & View Mode Switcher */}
+        <div className="flex items-center gap-1.5 w-full sm:w-auto shrink-0">
+          <div className="relative flex-1 sm:w-56">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
               type="text"
@@ -614,7 +632,7 @@ const AdminNotifications = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search alerts..."
-              className="w-48 sm:w-60 h-7 pl-7 pr-6 text-[11px] bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-hidden focus:ring-1 focus:ring-brand/50 transition-all"
+              className="w-full h-7 pl-7 pr-6 text-[11px] bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-hidden focus:ring-1 focus:ring-brand/50 transition-all"
             />
             {searchQuery && (
               <button
@@ -631,15 +649,45 @@ const AdminNotifications = () => {
             id="sort-notifs-select"
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
-            className="h-7 px-2 text-[11px] bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:outline-hidden cursor-pointer"
+            className="h-7 px-2 text-[11px] bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] focus:outline-hidden cursor-pointer shrink-0"
           >
             <option value="newest">Newest</option>
             <option value="oldest">Oldest</option>
           </select>
+
+          {/* View Switcher: List vs Grid */}
+          <div className="inline-flex items-center p-0.5 bg-[var(--bg-muted)] rounded-lg border border-[var(--border)] shrink-0 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => handleSetViewMode('list')}
+              className={`h-6 px-2 rounded-md text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+                viewMode === 'list'
+                  ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+              title="List View"
+            >
+              <List size={13} />
+              <span className="hidden sm:inline text-[11px]">List</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetViewMode('grid')}
+              className={`h-6 px-2 rounded-md text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+                viewMode === 'grid'
+                  ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+              title="Grid View"
+            >
+              <LayoutGrid size={13} />
+              <span className="hidden sm:inline text-[11px]">Grid</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Notifications List (Compact Height - ~44px per item) */}
+      {/* Notifications List / Grid Container */}
       {loading ? (
         <div className="py-12 flex flex-col items-center justify-center">
           <AdminLoader size="sm" />
@@ -653,7 +701,149 @@ const AdminNotifications = () => {
             {searchQuery || activeTab !== 'all' ? 'No alerts match your filter.' : 'All caught up!'}
           </p>
         </div>
+      ) : viewMode === 'grid' ? (
+        /* ── VIEW MODE 1: MODERN RESPONSIVE CARDS GRID ── */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          {filteredNotifications.map((notif) => {
+            const meta = getCategoryMeta(notif.type);
+            const client = getClientInfo(notif);
+            const isSelected = selectedNotif?._id === notif._id;
+            const isEnquiry = notif.type === 'enquiry';
+            const hasActionPending =
+              (notif.type === 'visit_booking' || notif.type === 'token_request') &&
+              (notif.metadata?.visitRequestId?.status === 'pending' ||
+                notif.metadata?.tokenRequestId?.status === 'pending');
+
+            return (
+              <div
+                key={notif._id}
+                id={`notif-grid-${notif._id}`}
+                onClick={() => setSelectedNotif(notif)}
+                className={`p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-brand/40 transition-all cursor-pointer flex flex-col justify-between gap-2.5 shadow-2xs group relative hover:shadow-xs ${
+                  isSelected ? 'ring-1 ring-brand border-brand/50 bg-brand/[0.03]' : ''
+                } ${!notif.isRead ? 'border-l-3 border-l-brand' : ''}`}
+              >
+                {/* Card Top: Category Icon, Badge, Timestamp & Unread */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <div className={`w-6 h-6 rounded-md border flex items-center justify-center shrink-0 ${meta.color}`}>
+                      {meta.icon}
+                    </div>
+                    <Badge color={meta.badgeColor} variant="pastel" size="2xs" className="shrink-0">
+                      {meta.label}
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[10px] text-[var(--text-muted)] font-medium">
+                      {formatTime(notif.createdAt)}
+                    </span>
+                    {!notif.isRead && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-brand shrink-0" title="Unread" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Card Middle: Title & Message preview */}
+                <div className="space-y-1 min-w-0 flex-1">
+                  <h4
+                    className={`text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors line-clamp-1 leading-snug ${
+                      notif.isRead ? 'font-medium' : 'font-bold'
+                    }`}
+                    title={notif.title}
+                  >
+                    {notif.title}
+                  </h4>
+                  <p className="text-[11px] text-[var(--text-muted)] line-clamp-2 leading-relaxed">
+                    {notif.message}
+                  </p>
+                </div>
+
+                {/* Card Bottom: Metadata and Direct Action Strip */}
+                <div
+                  className="pt-2 border-t border-[var(--border)]/70 flex items-center justify-between gap-1.5 text-xs"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Left: Direct actions or Client Name */}
+                  <div className="flex items-center gap-1 min-w-0 flex-1">
+                    {isEnquiry && (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/admin/enquiries')}
+                        className="h-5.5 px-2 text-[9.5px] font-semibold text-brand bg-brand/5 hover:bg-brand/10 border border-brand/20 rounded transition-colors flex items-center gap-1 shrink-0"
+                        title="Open Enquiries"
+                      >
+                        <ExternalLink size={9} />
+                        <span>Enquiries</span>
+                      </button>
+                    )}
+
+                    {hasActionPending && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => openActionPrompt(notif, 'accept', e)}
+                          className="h-5.5 px-2 text-[9.5px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded transition-colors cursor-pointer"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => openActionPrompt(notif, 'decline', e)}
+                          className="h-5.5 px-2 text-[9.5px] font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded transition-colors cursor-pointer"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    )}
+
+                    {client.name && !isEnquiry && !hasActionPending && (
+                      <span className="text-[10.5px] font-medium text-[var(--text-subtle)] truncate max-w-[120px]">
+                        {client.name}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Right: Read Toggle, Delete, Chevron */}
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => handleToggleRead(notif, e)}
+                      className={`p-1 rounded transition-colors cursor-pointer ${
+                        notif.isRead
+                          ? 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                          : 'text-brand hover:bg-brand/10'
+                      }`}
+                      title={notif.isRead ? 'Mark unread' : 'Mark read'}
+                    >
+                      <Check size={12} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteNotif(notif._id, e)}
+                      className="p-1 text-[var(--text-muted)] hover:text-rose-500 rounded transition-colors cursor-pointer"
+                      title="Delete"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedNotif(notif)}
+                      className="p-1 text-[var(--text-muted)] hover:text-brand rounded transition-colors cursor-pointer"
+                      title="View Details"
+                    >
+                      <ChevronRight size={13} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : (
+        /* ── VIEW MODE 2: HIGH-DENSITY SLEEK LIST ── */
         <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-xs overflow-hidden">
           <div className="divide-y divide-[var(--border)]">
             {filteredNotifications.map((notif) => {
@@ -671,11 +861,11 @@ const AdminNotifications = () => {
                   key={notif._id}
                   id={`notif-item-${notif._id}`}
                   onClick={() => setSelectedNotif(notif)}
-                  className={`py-2 px-3 hover:bg-[var(--bg-muted)]/50 transition-all cursor-pointer flex items-center justify-between gap-2.5 group ${
+                  className={`py-2 px-2.5 sm:px-3 hover:bg-[var(--bg-muted)]/50 transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2.5 group ${
                     isSelected ? 'bg-brand/5 dark:bg-brand/10' : ''
                   } ${!notif.isRead ? 'bg-brand/[0.02]' : ''}`}
                 >
-                  {/* Left: Unread dot + Compact Category Icon */}
+                  {/* Left: Unread dot + Compact Category Icon + Title + Badge */}
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     {/* Unread dot */}
                     <div className="w-1.5 flex justify-center shrink-0">
@@ -709,92 +899,108 @@ const AdminNotifications = () => {
                         </Badge>
                       </div>
 
-                      {/* Snippet truncate */}
-                      <span className="text-[11px] text-[var(--text-muted)] truncate max-w-md hidden md:inline">
+                      {/* Snippet truncate (Desktop) */}
+                      <span className="text-[11px] text-[var(--text-muted)] truncate max-w-md hidden sm:inline">
                         • {notif.message}
                       </span>
                     </div>
+
+                    {/* Mobile-only Timestamp on Top Row */}
+                    <span className="text-[10px] text-[var(--text-muted)] shrink-0 sm:hidden">
+                      {formatTime(notif.createdAt)}
+                    </span>
+                  </div>
+
+                  {/* Mobile message snippet underneath title */}
+                  <div className="text-[11px] text-[var(--text-muted)] truncate pl-8 sm:hidden">
+                    {notif.message}
                   </div>
 
                   {/* Right: Metadata & Actions */}
                   <div
-                    className="flex items-center gap-2 shrink-0"
+                    className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pl-8 sm:pl-0 pt-0.5 sm:pt-0"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {/* If enquiry, 1-click button to Enquiries */}
-                    {isEnquiry && (
+                    {/* Left side on mobile: Badges/Buttons (Enquiry/Accept/Decline/Client) */}
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {/* If enquiry, 1-click button to Enquiries */}
+                      {isEnquiry && (
+                        <button
+                          type="button"
+                          onClick={() => navigate('/admin/enquiries')}
+                          className="h-6 px-2 text-[10px] font-semibold text-brand bg-brand/5 hover:bg-brand/10 border border-brand/20 rounded-md transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                          title="Open Enquiries"
+                        >
+                          <ExternalLink size={10} />
+                          <span>Enquiries</span>
+                        </button>
+                      )}
+
+                      {/* Inline Accept/Decline */}
+                      {hasActionPending && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => openActionPrompt(notif, 'accept', e)}
+                            className="h-6 px-2 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-md transition-colors cursor-pointer"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => openActionPrompt(notif, 'decline', e)}
+                            className="h-6 px-2 text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-md transition-colors cursor-pointer"
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Client name if present */}
+                      {client.name && (
+                        <span className="text-[10px] text-[var(--text-muted)] max-w-[110px] truncate">
+                          {client.name}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Right side: Time (desktop), Read Toggle, Delete, Chevron */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {/* Timestamp (Desktop only, mobile shows in top row) */}
+                      <span className="text-[10px] text-[var(--text-muted)] w-14 text-right hidden sm:inline">
+                        {formatTime(notif.createdAt)}
+                      </span>
+
+                      {/* Read Toggle */}
                       <button
                         type="button"
-                        onClick={() => navigate('/admin/enquiries')}
-                        className="h-6 px-2 text-[10px] font-semibold text-brand bg-brand/5 hover:bg-brand/10 border border-brand/20 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
-                        title="Open Enquiries"
+                        onClick={(e) => handleToggleRead(notif, e)}
+                        className={`p-1.5 sm:p-1 rounded transition-colors cursor-pointer ${
+                          notif.isRead
+                            ? 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                            : 'text-brand hover:bg-brand/10'
+                        }`}
+                        title={notif.isRead ? 'Mark unread' : 'Mark read'}
                       >
-                        <ExternalLink size={10} />
-                        <span className="hidden sm:inline">Enquiries</span>
+                        <Check size={13} />
                       </button>
-                    )}
 
-                    {/* Inline Accept/Decline */}
-                    {hasActionPending && (
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={(e) => openActionPrompt(notif, 'accept', e)}
-                          className="h-6 px-2 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-md transition-colors cursor-pointer"
-                        >
-                          Accept
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => openActionPrompt(notif, 'decline', e)}
-                          className="h-6 px-2 text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-md transition-colors cursor-pointer"
-                        >
-                          Decline
-                        </button>
-                      </div>
-                    )}
+                      {/* Delete */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteNotif(notif._id, e)}
+                        className="p-1.5 sm:p-1 text-[var(--text-muted)] hover:text-rose-500 rounded transition-colors cursor-pointer"
+                        title="Delete"
+                      >
+                        <Trash2 size={13} />
+                      </button>
 
-                    {/* Client name if present */}
-                    {client.name && (
-                      <span className="text-[10px] text-[var(--text-muted)] hidden lg:inline max-w-[100px] truncate">
-                        {client.name}
-                      </span>
-                    )}
-
-                    {/* Timestamp */}
-                    <span className="text-[10px] text-[var(--text-muted)] w-14 text-right">
-                      {formatTime(notif.createdAt)}
-                    </span>
-
-                    {/* Read Toggle */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleToggleRead(notif, e)}
-                      className={`p-1 rounded transition-colors cursor-pointer ${
-                        notif.isRead
-                          ? 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                          : 'text-brand hover:bg-brand/10'
-                      }`}
-                      title={notif.isRead ? 'Mark unread' : 'Mark read'}
-                    >
-                      <Check size={13} />
-                    </button>
-
-                    {/* Delete */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleDeleteNotif(notif._id, e)}
-                      className="p-1 text-[var(--text-muted)] hover:text-rose-500 rounded transition-colors cursor-pointer"
-                      title="Delete"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-
-                    {/* Open Arrow */}
-                    <ChevronRight
-                      size={14}
-                      className="text-[var(--text-muted)] group-hover:text-brand group-hover:translate-x-0.5 transition-all"
-                    />
+                      {/* Open Arrow */}
+                      <ChevronRight
+                        size={14}
+                        className="text-[var(--text-muted)] group-hover:text-brand group-hover:translate-x-0.5 transition-all"
+                      />
+                    </div>
                   </div>
                 </div>
               );

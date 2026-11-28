@@ -694,14 +694,14 @@ export default function ContactManagement() {
                 </div>
 
                 {/* Hours & Response SLA Banner */}
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-brand/5 border border-brand/15 text-[11px]">
-                  <div className="flex items-center gap-1.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 p-2.5 rounded-lg bg-brand/5 border border-brand/15 text-[11px]">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <Clock size={12} className="text-brand shrink-0" />
-                    <span className="font-medium text-[var(--text-primary)] truncate">
+                    <span className="font-medium text-[var(--text-primary)] leading-tight">
                       {form.workingHours || 'Mon–Sat: 9 AM – 8 PM'}
                     </span>
                   </div>
-                  <span className="text-[10px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded shrink-0">
+                  <span className="text-[10px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded self-start sm:self-auto shrink-0">
                     {form.responseSLA || 'Replies in 15 mins'}
                   </span>
                 </div>

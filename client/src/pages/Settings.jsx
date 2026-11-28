@@ -202,9 +202,9 @@ const Settings = () => {
     <div className="space-y-5 pb-10 w-full">
       
       {/* ── Top Header Toolbar matching Core System ── */}
-      <div className="flex items-center justify-between gap-3 pt-1">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <h1 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight">
               Settings
             </h1>
@@ -223,7 +223,7 @@ const Settings = () => {
           type="button"
           onClick={handleSaveChanges}
           disabled={isSaving}
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold text-xs shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-60 disabled:pointer-events-none active:scale-95"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 sm:py-1.5 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold text-xs shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-60 disabled:pointer-events-none active:scale-95 shrink-0 whitespace-nowrap"
         >
           {isSaving ? (
             <>
@@ -269,15 +269,15 @@ const Settings = () => {
       )}
 
       {/* ── Main Unified Settings Card ── */}
-      <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl p-4 sm:p-5 shadow-2xs">
+      <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl p-3.5 sm:p-5 shadow-2xs">
         
         {/* Card Header matching Image 2 */}
-        <div className="flex items-center gap-2.5 pb-3.5 border-b border-[var(--border)]">
-          <div className="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center shrink-0 border border-brand/20">
+        <div className="flex items-start sm:items-center gap-2.5 pb-3.5 border-b border-[var(--border)]">
+          <div className="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center shrink-0 border border-brand/20 mt-0.5 sm:mt-0">
             <User size={15} />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <h2 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] tracking-tight">
                 Admin Account & Credentials
               </h2>
@@ -285,7 +285,7 @@ const Settings = () => {
                 Active Session
               </Badge>
             </div>
-            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+            <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">
               Update your login profile details and system passwords
             </p>
           </div>
@@ -295,7 +295,7 @@ const Settings = () => {
         <form onSubmit={handleSaveChanges} className="divide-y divide-[var(--border)]/70">
           
           {/* Row 1: Admin Full Name */}
-          <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-6">
+          <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-6">
             <div className="sm:w-1/2">
               <label htmlFor="name-input" className="block text-xs font-semibold text-[var(--text-primary)]">
                 Admin Full Name
@@ -312,13 +312,13 @@ const Settings = () => {
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Admin"
-                className="w-full sm:max-w-[280px] py-1.5 px-3 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/50 text-[var(--text-primary)] text-xs placeholder:text-[var(--text-muted)]/50 focus:border-brand focus:outline-hidden transition-all duration-150 font-medium"
+                className="w-full sm:max-w-[280px] py-2 sm:py-1.5 px-3 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/50 text-[var(--text-primary)] text-xs placeholder:text-[var(--text-muted)]/50 focus:border-brand focus:outline-hidden transition-all duration-150 font-medium"
               />
             </div>
           </div>
 
           {/* Row 2: Admin Email */}
-          <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-6">
+          <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-6">
             <div className="sm:w-1/2">
               <label htmlFor="email-input" className="block text-xs font-semibold text-[var(--text-primary)]">
                 Admin Email
@@ -335,13 +335,13 @@ const Settings = () => {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="admin@gharmb.com"
-                className="w-full sm:max-w-[280px] py-1.5 px-3 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/50 text-[var(--text-primary)] text-xs placeholder:text-[var(--text-muted)]/50 focus:border-brand focus:outline-hidden transition-all duration-150 font-medium"
+                className="w-full sm:max-w-[280px] py-2 sm:py-1.5 px-3 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/50 text-[var(--text-primary)] text-xs placeholder:text-[var(--text-muted)]/50 focus:border-brand focus:outline-hidden transition-all duration-150 font-medium"
               />
             </div>
           </div>
 
           {/* Row 3: Current Password */}
-          <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-6">
+          <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-6">
             <div className="sm:w-1/2">
               <label htmlFor="current-pw-input" className="block text-xs font-semibold text-[var(--text-primary)]">
                 Current Password
@@ -359,12 +359,12 @@ const Settings = () => {
                   value={formData.currentPassword}
                   onChange={handleChange}
                   placeholder="••••••••"
-                  className="w-full py-1.5 pl-3 pr-8 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/50 text-[var(--text-primary)] text-xs placeholder:text-[var(--text-muted)]/50 focus:border-brand focus:outline-hidden transition-all duration-150 font-medium"
+                  className="w-full py-2 sm:py-1.5 pl-3 pr-8 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/50 text-[var(--text-primary)] text-xs placeholder:text-[var(--text-muted)]/50 focus:border-brand focus:outline-hidden transition-all duration-150 font-medium"
                 />
                 <button
                   type="button"
                   onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] p-0.5 rounded transition-colors cursor-pointer"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1 rounded transition-colors cursor-pointer"
                   title={showCurrentPassword ? "Hide password" : "Show password"}
                 >
                   {showCurrentPassword ? <EyeOff size={13} /> : <Eye size={13} />}
@@ -374,7 +374,7 @@ const Settings = () => {
           </div>
 
           {/* Row 4: New Password */}
-          <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-6">
+          <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-6">
             <div className="sm:w-1/2">
               <label htmlFor="new-pw-input" className="block text-xs font-semibold text-[var(--text-primary)]">
                 New Password
@@ -392,12 +392,12 @@ const Settings = () => {
                   value={formData.newPassword}
                   onChange={handleChange}
                   placeholder="New password"
-                  className="w-full py-1.5 pl-3 pr-8 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/50 text-[var(--text-primary)] text-xs placeholder:text-[var(--text-muted)]/50 focus:border-brand focus:outline-hidden transition-all duration-150 font-medium"
+                  className="w-full py-2 sm:py-1.5 pl-3 pr-8 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/50 text-[var(--text-primary)] text-xs placeholder:text-[var(--text-muted)]/50 focus:border-brand focus:outline-hidden transition-all duration-150 font-medium"
                 />
                 <button
                   type="button"
                   onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] p-0.5 rounded transition-colors cursor-pointer"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1 rounded transition-colors cursor-pointer"
                   title={showNewPassword ? "Hide password" : "Show password"}
                 >
                   {showNewPassword ? <EyeOff size={13} /> : <Eye size={13} />}
@@ -407,7 +407,7 @@ const Settings = () => {
           </div>
 
           {/* Row 5: Confirm New Password */}
-          <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-6">
+          <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-6">
             <div className="sm:w-1/2">
               <label htmlFor="confirm-pw-input" className="block text-xs font-semibold text-[var(--text-primary)]">
                 Confirm New Password
@@ -425,12 +425,12 @@ const Settings = () => {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   placeholder="Confirm new password"
-                  className="w-full py-1.5 pl-3 pr-8 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/50 text-[var(--text-primary)] text-xs placeholder:text-[var(--text-muted)]/50 focus:border-brand focus:outline-hidden transition-all duration-150 font-medium"
+                  className="w-full py-2 sm:py-1.5 pl-3 pr-8 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/50 text-[var(--text-primary)] text-xs placeholder:text-[var(--text-muted)]/50 focus:border-brand focus:outline-hidden transition-all duration-150 font-medium"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] p-0.5 rounded transition-colors cursor-pointer"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1 rounded transition-colors cursor-pointer"
                   title={showConfirmPassword ? "Hide password" : "Show password"}
                 >
                   {showConfirmPassword ? <EyeOff size={13} /> : <Eye size={13} />}
@@ -439,10 +439,31 @@ const Settings = () => {
             </div>
           </div>
 
+          {/* Mobile Bottom Submit Button */}
+          <div className="pt-4 flex sm:hidden">
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-brand hover:bg-brand-dark text-white font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-60 cursor-pointer"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 size={14} className="animate-spin text-white" />
+                  <span>Saving Changes...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={14} />
+                  <span>Save Changes</span>
+                </>
+              )}
+            </button>
+          </div>
+
         </form>
 
         {/* ── Discreet Password Reset Email Row ── */}
-        <div className="mt-4 pt-3 border-t border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+        <div className="mt-4 pt-3 border-t border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
           <div>
             <span className="font-semibold text-xs text-[var(--text-primary)]">Forgot or prefer email reset?</span>
             <p className="text-[11px] text-[var(--text-muted)]">
@@ -453,7 +474,7 @@ const Settings = () => {
             type="button"
             onClick={handleSendResetLink}
             disabled={isSendingResetLink || countdown > 0}
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/60 hover:bg-[var(--bg-muted)] text-[var(--text-primary)] hover:text-brand font-medium text-xs transition-colors cursor-pointer disabled:opacity-50 self-start sm:self-auto"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 sm:py-1 rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]/60 hover:bg-[var(--bg-muted)] text-[var(--text-primary)] hover:text-brand font-medium text-xs transition-colors cursor-pointer disabled:opacity-50 shrink-0"
           >
             {isSendingResetLink ? (
               <>

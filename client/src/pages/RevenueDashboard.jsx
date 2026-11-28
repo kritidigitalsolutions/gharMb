@@ -808,15 +808,15 @@ const RevenueDashboard = () => {
       {viewMode === 'table' ? (
         <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-2xs">
           <div className="w-full overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse table-fixed min-w-[850px]">
+            <table className="w-full text-left border-collapse table-fixed min-w-[920px]">
               <colgroup>
-                <col className="w-[12%]" />
-                <col className="w-[17%]" />
-                <col className="w-[17%]" />
-                <col className="w-[23%]" />
+                <col className="w-[11%]" />
+                <col className="w-[16%]" />
+                <col className="w-[16%]" />
+                <col className="w-[21%]" />
+                <col className="w-[13%]" />
                 <col className="w-[13%]" />
                 <col className="w-[10%]" />
-                <col className="w-[8%]" />
               </colgroup>
               <thead className="bg-[var(--bg-muted)]/40 text-[var(--text-muted)] uppercase text-[9.5px] font-semibold tracking-wider border-b border-[var(--border)] select-none">
                 <tr>
@@ -826,7 +826,7 @@ const RevenueDashboard = () => {
                   <th className="py-2 px-3">Property Listing</th>
                   <th className="py-2 px-3">Financial Terms</th>
                   <th className="py-2 px-3 text-center">Escrow Status</th>
-                  <th className="py-2 pl-2 pr-3 text-right">Actions</th>
+                  <th className="py-2 pl-2 pr-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]/60 text-xs">
@@ -947,13 +947,15 @@ const RevenueDashboard = () => {
                         </td>
 
                         {/* Escrow Status Pill */}
-                        <td className="py-1.5 px-3 align-middle text-center whitespace-nowrap overflow-hidden">
-                          {getEscrowStatusBadge(t.status, 'xs')}
+                        <td className="py-1.5 px-2.5 align-middle text-center whitespace-nowrap">
+                          <div className="inline-flex items-center justify-center">
+                            {getEscrowStatusBadge(t.status, 'xs')}
+                          </div>
                         </td>
 
                         {/* Actions (Icon-Only Minimalist Buttons) */}
-                        <td className="py-1.5 pl-2 pr-3 align-middle text-right whitespace-nowrap">
-                          <div className="inline-flex items-center justify-end gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <td className="py-1.5 pl-2 pr-3.5 align-middle text-right whitespace-nowrap">
+                          <div className="inline-flex items-center justify-end gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               onClick={() => setSelectedTransaction(t)}

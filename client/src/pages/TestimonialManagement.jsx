@@ -482,7 +482,7 @@ const TestimonialManagement = () => {
       </div>
 
       {/* Unified Search & Minimal Filter Toolbar */}
-      <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] flex flex-col md:flex-row gap-3 items-center justify-between shadow-2xs">
+      <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] flex flex-col md:flex-row gap-2.5 items-stretch md:items-center justify-between shadow-2xs">
         {/* Search */}
         <div className="relative w-full md:w-80">
           <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -505,12 +505,12 @@ const TestimonialManagement = () => {
         </div>
 
         {/* Filter Controls & Sort */}
-        <div className="flex items-center gap-2 w-full md:w-auto flex-wrap justify-end">
+        <div className="flex items-center gap-1.5 w-full md:w-auto overflow-x-auto no-scrollbar justify-start md:justify-end">
           {/* Status Tabs / Segmented Control */}
-          <div className="inline-flex p-1 rounded-xl bg-[var(--bg-muted)] border border-[var(--border)]">
+          <div className="inline-flex p-0.5 rounded-xl bg-[var(--bg-muted)] border border-[var(--border)] shrink-0">
             <button
               onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                 statusFilter === 'all'
                   ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-2xs'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
@@ -520,7 +520,7 @@ const TestimonialManagement = () => {
             </button>
             <button
               onClick={() => setStatusFilter('active')}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                 statusFilter === 'active'
                   ? 'bg-[var(--bg-surface)] text-emerald-600 dark:text-emerald-400 shadow-2xs'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
@@ -530,7 +530,7 @@ const TestimonialManagement = () => {
             </button>
             <button
               onClick={() => setStatusFilter('inactive')}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                 statusFilter === 'inactive'
                   ? 'bg-[var(--bg-surface)] text-amber-600 dark:text-amber-400 shadow-2xs'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
@@ -544,7 +544,7 @@ const TestimonialManagement = () => {
           <select
             value={verifiedFilter}
             onChange={(e) => setVerifiedFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs rounded-xl bg-[var(--bg-muted)] border border-[var(--border)] text-[var(--text-primary)] outline-none cursor-pointer hover:bg-[var(--bg-surface)] transition-colors"
+            className="px-2.5 py-1.5 text-xs rounded-xl bg-[var(--bg-muted)] border border-[var(--border)] text-[var(--text-primary)] outline-none cursor-pointer hover:bg-[var(--bg-surface)] transition-colors shrink-0"
           >
             <option value="all">All Experiences</option>
             <option value="verified">Verified Only</option>
@@ -554,18 +554,18 @@ const TestimonialManagement = () => {
           {/* Sort Order */}
           <button
             onClick={() => setSortDirection(prev => (prev === 'desc' ? 'asc' : 'desc'))}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--text-primary)] transition-colors cursor-pointer shrink-0"
             title={`Sorting ${sortDirection === 'desc' ? 'Newest first' : 'Oldest first'}`}
           >
             <ArrowUpDown size={13} className="text-slate-500" />
-            <span>{sortDirection === 'desc' ? 'Newest' : 'Oldest'}</span>
+            <span className="hidden sm:inline">{sortDirection === 'desc' ? 'Newest' : 'Oldest'}</span>
           </button>
 
           {/* Reset Filters */}
           {hasActiveFilters && (
             <button
               onClick={handleResetFilters}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer shrink-0"
               title="Reset all filters"
             >
               <RotateCcw size={12} />
@@ -675,162 +675,94 @@ const TestimonialManagement = () => {
             </div>
           </div>
         ) : (
-          <div className="w-full overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse table-fixed min-w-[750px]">
-              <colgroup>
-                <col className="w-[4%]" />
-                <col className="w-[4%]" />
-                <col className="w-[24%]" />
-                <col className="w-[46%]" />
-                <col className="w-[12%]" />
-                <col className="w-[10%]" />
-              </colgroup>
-              <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--bg-muted)]/50 text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-                  {/* Select All */}
-                  <th className="py-2 px-2 text-center align-middle">
-                    <button
-                      type="button"
-                      onClick={handleToggleSelectAll}
-                      className="text-slate-400 hover:text-brand transition-colors cursor-pointer"
-                      title={isAllSelected ? 'Deselect all' : 'Select all'}
-                    >
-                      {isAllSelected ? (
-                        <CheckSquare size={14} className="text-brand" />
-                      ) : isSomeSelected ? (
-                        <div className="relative w-3.5 h-3.5 flex items-center justify-center text-brand">
-                          <Square size={14} />
-                          <div className="absolute w-2 h-0.5 bg-brand rounded-xs" />
-                        </div>
-                      ) : (
-                        <Square size={14} />
-                      )}
-                    </button>
-                  </th>
+          <div>
+            {/* MOBILE CARDS VIEW (< md screens) */}
+            <div className="block md:hidden divide-y divide-[var(--border)]">
+              {filteredTestimonials.map((t, index) => {
+                const isSelected = selectedIds.includes(t._id);
+                const avatarSrc = t.avatar ? getMediaUrl(t.avatar) : null;
+                const hasImgError = imageErrors[t._id];
 
-                  {/* S.No */}
-                  <th className="py-2 px-2 text-center align-middle">#</th>
-
-                  {/* Author */}
-                  <th className="py-2 px-3 align-middle">Author & Profile</th>
-
-                  {/* Story & Quote */}
-                  <th className="py-2 px-3 align-middle">Story & Highlights</th>
-
-                  {/* Status */}
-                  <th className="py-2 px-3 text-center align-middle">Status</th>
-
-                  {/* Actions */}
-                  <th className="py-2 px-3 text-right align-middle">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border)] text-xs">
-                {filteredTestimonials.map((t, index) => {
-                  const isSelected = selectedIds.includes(t._id);
-                  const avatarSrc = t.avatar ? getMediaUrl(t.avatar) : null;
-                  const hasImgError = imageErrors[t._id];
-
-                  return (
-                    <tr
-                      key={t._id}
-                      onClick={() => setPreviewTestimonial(t)}
-                      className={`group transition-colors cursor-pointer ${
-                        isSelected
-                          ? 'bg-brand/5 dark:bg-brand/10'
-                          : 'hover:bg-[var(--bg-muted)]/40'
-                      }`}
-                    >
-                      {/* Checkbox */}
-                      <td className="py-1.5 px-2 text-center align-middle" onClick={(e) => e.stopPropagation()}>
+                return (
+                  <div
+                    key={t._id}
+                    onClick={() => setPreviewTestimonial(t)}
+                    className={`p-3 transition-colors cursor-pointer space-y-2 ${
+                      isSelected
+                        ? 'bg-brand/5 dark:bg-brand/10'
+                        : 'hover:bg-[var(--bg-muted)]/30 active:bg-[var(--bg-muted)]/50'
+                    }`}
+                  >
+                    {/* Top Row: Checkbox + Avatar + Name & Role + 1-Click Status Badge */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {/* Checkbox */}
                         <button
                           type="button"
-                          onClick={() => handleToggleSelectOne(t._id)}
-                          className={`cursor-pointer transition-colors ${
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleSelectOne(t._id);
+                          }}
+                          className={`cursor-pointer transition-colors shrink-0 ${
                             isSelected ? 'text-brand' : 'text-slate-400 hover:text-[var(--text-primary)]'
                           }`}
                         >
-                          {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
+                          {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
                         </button>
-                      </td>
 
-                      {/* S.No */}
-                      <td className="py-1.5 px-2 text-center font-mono text-[11px] text-[var(--text-muted)] align-middle">
-                        {index + 1}
-                      </td>
+                        {/* Avatar */}
+                        <div className="relative shrink-0">
+                          {avatarSrc && !hasImgError ? (
+                            <img
+                              src={avatarSrc}
+                              alt={t.name}
+                              loading="lazy"
+                              decoding="async"
+                              onError={() => handleImageError(t._id)}
+                              className="w-8 h-8 rounded-full object-cover border border-[var(--border)] shadow-2xs"
+                            />
+                          ) : (
+                            <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${getAvatarGradient(t.name)} flex items-center justify-center font-bold text-xs tracking-wider shadow-2xs`}>
+                              {getInitials(t.name)}
+                            </div>
+                          )}
+                          {t.isVerified && (
+                            <div
+                              className="absolute -bottom-0.5 -right-0.5 bg-blue-500 text-white rounded-full p-0.5 shadow-2xs"
+                              title="Verified Buyer Experience"
+                            >
+                              <Check size={7} strokeWidth={3} />
+                            </div>
+                          )}
+                        </div>
 
-                      {/* Author */}
-                      <td className="py-1.5 px-3 align-middle min-w-0">
-                        <div className="flex items-center gap-2 min-w-0">
-                          {/* Avatar with fallback */}
-                          <div className="relative shrink-0">
-                            {avatarSrc && !hasImgError ? (
-                              <img
-                                src={avatarSrc}
-                                alt={t.name}
-                                loading="lazy"
-                                decoding="async"
-                                onError={() => handleImageError(t._id)}
-                                className="w-7 h-7 rounded-full object-cover border border-[var(--border)] shadow-2xs"
-                              />
-                            ) : (
-                              <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${getAvatarGradient(t.name)} flex items-center justify-center font-bold text-[10px] tracking-wider shadow-2xs`}>
-                                {getInitials(t.name)}
-                              </div>
-                            )}
-
-                            {t.isVerified && (
-                              <div
-                                className="absolute -bottom-0.5 -right-0.5 bg-blue-500 text-white rounded-full p-0.5 shadow-2xs"
-                                title="Verified Buyer Experience"
-                              >
-                                <Check size={7} strokeWidth={3} />
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="min-w-0 truncate">
-                            <span className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate block">
+                        {/* Name & Role */}
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-xs text-[var(--text-primary)] truncate">
                               {t.name}
                             </span>
-                            <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] truncate">
-                              <span className="truncate">{t.role || 'Homebuyer'}</span>
-                              {t.location && (
-                                <>
-                                  <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
-                                  <span className="flex items-center gap-0.5 truncate">
-                                    <MapPin size={9} className="shrink-0 text-slate-400" />
-                                    {t.location}
-                                  </span>
-                                </>
-                              )}
-                            </div>
+                            <span className="text-[10px] font-mono text-[var(--text-muted)] shrink-0">
+                              #{index + 1}
+                            </span>
                           </div>
-                        </div>
-                      </td>
-
-                      {/* Story & Quote */}
-                      <td className="py-1.5 px-3 align-middle min-w-0">
-                        <div className="min-w-0">
-                          <p className="text-xs text-[var(--text-primary)] truncate">
-                            "{t.quote}"
-                          </p>
-                          <div className="flex items-center gap-1.5 mt-0.5 truncate text-[10px] text-[var(--text-muted)]">
-                            {t.propertyType && (
-                              <Badge.Category size="xs" type={t.propertyType} icon={<Building2 size={9} className="shrink-0" />}>
-                                {t.propertyType}
-                              </Badge.Category>
-                            )}
-                            {t.journeyType && (
-                              <Badge color="brand" variant="pastel" size="xs" icon={<Sparkles size={9} className="shrink-0" />}>
-                                {t.journeyType}
-                              </Badge>
+                          <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] truncate">
+                            <span className="truncate">{t.role || 'Homebuyer'}</span>
+                            {t.location && (
+                              <>
+                                <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
+                                <span className="flex items-center gap-0.5 truncate">
+                                  <MapPin size={9} className="shrink-0 text-slate-400" />
+                                  {t.location}
+                                </span>
+                              </>
                             )}
                           </div>
                         </div>
-                      </td>
+                      </div>
 
-                      {/* Status & 1-Click Toggle */}
-                      <td className="py-1.5 px-3 text-center align-middle whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      {/* Status Badge Toggle */}
+                      <div onClick={(e) => e.stopPropagation()} className="shrink-0">
                         <button
                           type="button"
                           onClick={(e) => handleToggleStatus(t._id, t.isActive, e)}
@@ -839,8 +771,8 @@ const TestimonialManagement = () => {
                           title={`Click to ${t.isActive ? 'hide from website' : 'publish to website'}`}
                         >
                           {statusTogglingId === t._id ? (
-                            <Badge color="slate" variant="pastel" size="xs" icon={<RefreshCw size={10} className="animate-spin shrink-0 text-slate-500" />}>
-                              Updating...
+                            <Badge color="slate" variant="pastel" size="2xs" icon={<RefreshCw size={9} className="animate-spin text-slate-500" />}>
+                              ...
                             </Badge>
                           ) : t.isActive ? (
                             <Badge.Active size="xs">Active</Badge.Active>
@@ -848,47 +780,279 @@ const TestimonialManagement = () => {
                             <Badge.Offline size="xs">Hidden</Badge.Offline>
                           )}
                         </button>
-                      </td>
+                      </div>
+                    </div>
 
-                      {/* Actions */}
-                      <td className="py-1.5 px-3 text-right align-middle whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <div className="inline-flex items-center justify-end gap-1 shrink-0">
-                          {/* Quick Preview */}
+                    {/* Story & Quote preview */}
+                    <p className="text-xs text-[var(--text-primary)] leading-relaxed pl-6 line-clamp-2 italic">
+                      "{t.quote}"
+                    </p>
+
+                    {/* Bottom Row: Badges & Action Buttons */}
+                    <div className="flex items-center justify-between gap-2 pt-1 pl-6">
+                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                        {t.propertyType && (
+                          <Badge.Category size="2xs" type={t.propertyType} icon={<Building2 size={8} className="shrink-0" />}>
+                            {t.propertyType}
+                          </Badge.Category>
+                        )}
+                        {t.journeyType && (
+                          <Badge color="brand" variant="pastel" size="2xs" icon={<Sparkles size={8} className="shrink-0" />}>
+                            {t.journeyType}
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="inline-flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewTestimonial(t)}
+                          className="h-6 px-2 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs text-[11px] gap-1"
+                          title="Preview"
+                        >
+                          <Eye size={11} />
+                          <span>View</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => openEditModal(t, e)}
+                          className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                          title="Edit"
+                        >
+                          <Edit size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteModal({ open: true, id: t._id, name: t.name, isDeleting: false })}
+                          className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-rose-600 hover:border-rose-300 dark:hover:border-rose-900/50 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                          title="Delete"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* DESKTOP TABLE VIEW (hidden md:block) */}
+            <div className="hidden md:block w-full overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse table-fixed min-w-[750px]">
+                <colgroup>
+                  <col className="w-[4%]" />
+                  <col className="w-[4%]" />
+                  <col className="w-[24%]" />
+                  <col className="w-[46%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[10%]" />
+                </colgroup>
+                <thead>
+                  <tr className="border-b border-[var(--border)] bg-[var(--bg-muted)]/50 text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                    {/* Select All */}
+                    <th className="py-2 px-2 text-center align-middle">
+                      <button
+                        type="button"
+                        onClick={handleToggleSelectAll}
+                        className="text-slate-400 hover:text-brand transition-colors cursor-pointer"
+                        title={isAllSelected ? 'Deselect all' : 'Select all'}
+                      >
+                        {isAllSelected ? (
+                          <CheckSquare size={14} className="text-brand" />
+                        ) : isSomeSelected ? (
+                          <div className="relative w-3.5 h-3.5 flex items-center justify-center text-brand">
+                            <Square size={14} />
+                            <div className="absolute w-2 h-0.5 bg-brand rounded-xs" />
+                          </div>
+                        ) : (
+                          <Square size={14} />
+                        )}
+                      </button>
+                    </th>
+
+                    {/* S.No */}
+                    <th className="py-2 px-2 text-center align-middle">#</th>
+
+                    {/* Author */}
+                    <th className="py-2 px-3 align-middle">Author & Profile</th>
+
+                    {/* Story & Quote */}
+                    <th className="py-2 px-3 align-middle">Story & Highlights</th>
+
+                    {/* Status */}
+                    <th className="py-2 px-3 text-center align-middle">Status</th>
+
+                    {/* Actions */}
+                    <th className="py-2 px-3 text-right align-middle">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)] text-xs">
+                  {filteredTestimonials.map((t, index) => {
+                    const isSelected = selectedIds.includes(t._id);
+                    const avatarSrc = t.avatar ? getMediaUrl(t.avatar) : null;
+                    const hasImgError = imageErrors[t._id];
+
+                    return (
+                      <tr
+                        key={t._id}
+                        onClick={() => setPreviewTestimonial(t)}
+                        className={`group transition-colors cursor-pointer ${
+                          isSelected
+                            ? 'bg-brand/5 dark:bg-brand/10'
+                            : 'hover:bg-[var(--bg-muted)]/40'
+                        }`}
+                      >
+                        {/* Checkbox */}
+                        <td className="py-1.5 px-2 text-center align-middle" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
-                            onClick={() => setPreviewTestimonial(t)}
-                            className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-                            title="Quick preview card"
+                            onClick={() => handleToggleSelectOne(t._id)}
+                            className={`cursor-pointer transition-colors ${
+                              isSelected ? 'text-brand' : 'text-slate-400 hover:text-[var(--text-primary)]'
+                            }`}
                           >
-                            <Eye size={12} />
+                            {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
                           </button>
+                        </td>
 
-                          {/* Edit */}
+                        {/* S.No */}
+                        <td className="py-1.5 px-2 text-center font-mono text-[11px] text-[var(--text-muted)] align-middle">
+                          {index + 1}
+                        </td>
+
+                        {/* Author */}
+                        <td className="py-1.5 px-3 align-middle min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {/* Avatar with fallback */}
+                            <div className="relative shrink-0">
+                              {avatarSrc && !hasImgError ? (
+                                <img
+                                  src={avatarSrc}
+                                  alt={t.name}
+                                  loading="lazy"
+                                  decoding="async"
+                                  onError={() => handleImageError(t._id)}
+                                  className="w-7 h-7 rounded-full object-cover border border-[var(--border)] shadow-2xs"
+                                />
+                              ) : (
+                                <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${getAvatarGradient(t.name)} flex items-center justify-center font-bold text-[10px] tracking-wider shadow-2xs`}>
+                                  {getInitials(t.name)}
+                                </div>
+                              )}
+
+                              {t.isVerified && (
+                                <div
+                                  className="absolute -bottom-0.5 -right-0.5 bg-blue-500 text-white rounded-full p-0.5 shadow-2xs"
+                                  title="Verified Buyer Experience"
+                                >
+                                  <Check size={7} strokeWidth={3} />
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="min-w-0 truncate">
+                              <span className="font-semibold text-xs text-[var(--text-primary)] group-hover:text-brand transition-colors truncate block">
+                                {t.name}
+                              </span>
+                              <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] truncate">
+                                <span className="truncate">{t.role || 'Homebuyer'}</span>
+                                {t.location && (
+                                  <>
+                                    <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
+                                    <span className="flex items-center gap-0.5 truncate">
+                                      <MapPin size={9} className="shrink-0 text-slate-400" />
+                                      {t.location}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Story & Quote */}
+                        <td className="py-1.5 px-3 align-middle min-w-0">
+                          <div className="min-w-0">
+                            <p className="text-xs text-[var(--text-primary)] truncate">
+                              "{t.quote}"
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-0.5 truncate text-[10px] text-[var(--text-muted)]">
+                              {t.propertyType && (
+                                <Badge.Category size="xs" type={t.propertyType} icon={<Building2 size={9} className="shrink-0" />}>
+                                  {t.propertyType}
+                                </Badge.Category>
+                              )}
+                              {t.journeyType && (
+                                <Badge color="brand" variant="pastel" size="xs" icon={<Sparkles size={9} className="shrink-0" />}>
+                                  {t.journeyType}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Status & 1-Click Toggle */}
+                        <td className="py-1.5 px-3 text-center align-middle whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
-                            onClick={(e) => openEditModal(t, e)}
-                            className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-                            title="Edit story"
+                            onClick={(e) => handleToggleStatus(t._id, t.isActive, e)}
+                            disabled={statusTogglingId === t._id}
+                            className="inline-flex cursor-pointer transition-transform active:scale-95"
+                            title={`Click to ${t.isActive ? 'hide from website' : 'publish to website'}`}
                           >
-                            <Edit size={12} />
+                            {statusTogglingId === t._id ? (
+                              <Badge color="slate" variant="pastel" size="xs" icon={<RefreshCw size={10} className="animate-spin shrink-0 text-slate-500" />}>
+                                Updating...
+                              </Badge>
+                            ) : t.isActive ? (
+                              <Badge.Active size="xs">Active</Badge.Active>
+                            ) : (
+                              <Badge.Offline size="xs">Hidden</Badge.Offline>
+                            )}
                           </button>
+                        </td>
 
-                          {/* Delete */}
-                          <button
-                            type="button"
-                            onClick={() => setDeleteModal({ open: true, id: t._id, name: t.name, isDeleting: false })}
-                            className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-rose-600 hover:border-rose-300 dark:hover:border-rose-900/50 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-                            title="Delete story"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        {/* Actions */}
+                        <td className="py-1.5 px-3 text-right align-middle whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="inline-flex items-center justify-end gap-1 shrink-0">
+                            {/* Quick Preview */}
+                            <button
+                              type="button"
+                              onClick={() => setPreviewTestimonial(t)}
+                              className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                              title="Quick preview card"
+                            >
+                              <Eye size={12} />
+                            </button>
+
+                            {/* Edit */}
+                            <button
+                              type="button"
+                              onClick={(e) => openEditModal(t, e)}
+                              className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-brand hover:border-brand/40 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                              title="Edit story"
+                            >
+                              <Edit size={12} />
+                            </button>
+
+                            {/* Delete */}
+                            <button
+                              type="button"
+                              onClick={() => setDeleteModal({ open: true, id: t._id, name: t.name, isDeleting: false })}
+                              className="w-6 h-6 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-rose-600 hover:border-rose-300 dark:hover:border-rose-900/50 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                              title="Delete story"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

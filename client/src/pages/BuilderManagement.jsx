@@ -1244,7 +1244,7 @@ export default function BuilderManagement() {
       </div>
 
       {/* ── 03. 4 STANDARDIZED TOP-ACCENT KPI METRICS CARDS ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         {[
           {
             key: 'kpi_total',
@@ -1418,95 +1418,67 @@ export default function BuilderManagement() {
       </div>
 
       {/* ── 06. TOOLBAR: SEARCH, CATEGORY PILLS & VIEW SWITCHER ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[var(--bg-surface)] p-3 rounded-2xl border border-[var(--border)] shadow-2xs">
-        {/* Search Input */}
-        <div className="relative flex-1 max-w-md">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={activeTab === 'builders' ? 'Search by company, RERA, applicant, city...' : 'Search by project name, developer, locality...'}
-            className="w-full pl-9 pr-8 py-2 bg-[var(--bg-muted)]/60 hover:bg-[var(--bg-muted)] focus:bg-[var(--bg-surface)] border border-transparent focus:border-brand/40 text-xs font-medium rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all"
-          />
-          {searchQuery && (
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-3 bg-[var(--bg-surface)] p-2.5 sm:p-3 rounded-2xl border border-[var(--border)] shadow-2xs">
+        {/* Search Input Row + Mobile View Toggle */}
+        <div className="flex items-center gap-2 w-full md:w-auto md:flex-1 md:max-w-md">
+          <div className="relative flex-1">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={activeTab === 'builders' ? 'Search by company, RERA, applicant, city...' : 'Search by project name, developer, locality...'}
+              className="w-full pl-9 pr-8 py-2 bg-[var(--bg-muted)]/60 hover:bg-[var(--bg-muted)] focus:bg-[var(--bg-surface)] border border-transparent focus:border-brand/40 text-xs font-medium rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          {/* Mobile View Switcher (Pinned next to Search, never hidden by pill scroll) */}
+          <div className="flex md:hidden items-center p-0.5 bg-[var(--bg-muted)]/90 rounded-xl border border-[var(--border)] shrink-0 shadow-2xs">
             <button
               type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+              onClick={() => handleSetViewMode('table')}
+              className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'table'
+                  ? 'bg-[var(--bg-surface)] text-brand shadow-2xs'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+              title="Table view"
             >
-              <X size={12} />
+              <List size={14} />
             </button>
-          )}
+            <button
+              type="button"
+              onClick={() => handleSetViewMode('grid')}
+              className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'grid'
+                  ? 'bg-[var(--bg-surface)] text-brand shadow-2xs'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+              title="Grid view"
+            >
+              <LayoutGrid size={14} />
+            </button>
+          </div>
         </div>
 
-        {/* Secondary Category Filters & View Switcher */}
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
-          {activeTab === 'builders' ? (
-            [
-              { key: 'ALL', label: 'All Builders' },
-              { key: 'RERA_DOC', label: 'With RERA Doc' },
-              { key: 'ISO', label: 'ISO Certified' },
-              { key: 'HIGH_TRUST', label: 'Top Trust (80%+)' },
-            ].map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setSecondaryFilter(f.key)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  secondaryFilter === f.key
-                    ? 'bg-[var(--text-primary)] text-[var(--bg-surface)] shadow-2xs'
-                    : 'bg-[var(--bg-muted)]/70 text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))
-          ) : (
-            <>
-              {/* Type Switcher: All, Projects, Properties */}
-              <div className="flex items-center p-0.5 bg-[var(--bg-muted)] rounded-xl border border-[var(--border)] shrink-0">
-                {[
-                  { key: 'ALL', label: `All (${allInventoryItems.length})` },
-                  { key: 'PROJECTS', label: `Projects (${projects.length})` },
-                  { key: 'PROPERTIES', label: `Properties (${allBuilderProperties.length})` },
-                ].map((t) => (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => setInventoryTypeFilter(t.key)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                      inventoryTypeFilter === t.key
-                        ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold'
-                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Filter by Specific Builder */}
-              <select
-                value={selectedBuilderFilter}
-                onChange={(e) => setSelectedBuilderFilter(e.target.value)}
-                className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--bg-muted)]/70 border border-[var(--border)] text-[var(--text-primary)] outline-none cursor-pointer max-w-[180px] shrink-0"
-              >
-                <option value="ALL">All Builders ({builders.length})</option>
-                {builders.map((b) => (
-                  <option key={b._id} value={b._id}>
-                    {b.companyName || b.name}
-                  </option>
-                ))}
-              </select>
-
-              {[
-                { key: 'ALL', label: 'All Categories' },
-                { key: 'RESIDENTIAL', label: 'Residential' },
-                { key: 'COMMERCIAL', label: 'Commercial' },
-                { key: 'UNDER_CONST', label: 'Under Construction' },
-                { key: 'READY', label: 'Ready to Move' },
-                { key: 'NEW_LAUNCH', label: 'New Launch' },
+        {/* Secondary Category Filters & Desktop View Switcher */}
+        <div className="flex items-center justify-between gap-2 overflow-x-auto scrollbar-none w-full md:w-auto -mx-1 px-1 md:mx-0 md:px-0">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {activeTab === 'builders' ? (
+              [
+                { key: 'ALL', label: 'All Builders' },
+                { key: 'RERA_DOC', label: 'With RERA Doc' },
+                { key: 'ISO', label: 'ISO Certified' },
+                { key: 'HIGH_TRUST', label: 'Top Trust (80%+)' },
               ].map((f) => (
                 <button
                   key={f.key}
@@ -1520,50 +1492,111 @@ export default function BuilderManagement() {
                 >
                   {f.label}
                 </button>
-              ))}
-            </>
-          )}
+              ))
+            ) : (
+              <>
+                {/* Type Switcher: All, Projects, Properties */}
+                <div className="flex items-center p-0.5 bg-[var(--bg-muted)] rounded-xl border border-[var(--border)] shrink-0">
+                  {[
+                    { key: 'ALL', label: `All (${allInventoryItems.length})` },
+                    { key: 'PROJECTS', label: `Projects (${projects.length})` },
+                    { key: 'PROPERTIES', label: `Properties (${allBuilderProperties.length})` },
+                  ].map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => setInventoryTypeFilter(t.key)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                        inventoryTypeFilter === t.key
+                          ? 'bg-[var(--bg-surface)] text-brand shadow-2xs font-bold'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
 
-          <div className="h-5 w-[1px] bg-[var(--border)] mx-1" />
+                {/* Filter by Specific Builder */}
+                <select
+                  value={selectedBuilderFilter}
+                  onChange={(e) => setSelectedBuilderFilter(e.target.value)}
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-[var(--bg-muted)]/70 border border-[var(--border)] text-[var(--text-primary)] outline-none cursor-pointer max-w-[180px] shrink-0"
+                >
+                  <option value="ALL">All Builders ({builders.length})</option>
+                  {builders.map((b) => (
+                    <option key={b._id} value={b._id}>
+                      {b.companyName || b.name}
+                    </option>
+                  ))}
+                </select>
 
-          {/* View Switcher: List vs Grid Sliding Switch */}
-          <div className="relative inline-flex items-center p-1 bg-[var(--bg-muted)]/80 rounded-full border border-[var(--border)] text-xs font-semibold select-none shadow-inner-xs">
-            <span
-              className="absolute top-1 bottom-1 rounded-full shadow-xs transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none bg-[#bae6fd] dark:bg-[#113c54]"
-              style={{
-                left: `${viewModeIndicatorStyle.left}px`,
-                width: `${viewModeIndicatorStyle.width}px`,
-                opacity: viewModeIndicatorStyle.opacity
-              }}
-            />
-            <button
-              ref={(el) => { viewModeRefs.current['table'] = el; }}
-              type="button"
-              onClick={() => handleSetViewMode('table')}
-              className={`relative z-10 px-3 py-1 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs ${
-                viewMode === 'table'
-                  ? 'text-[#075985] dark:text-[#7dd3fc] font-bold'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] font-medium'
-              }`}
-              title="Table view"
-            >
-              <List size={13} />
-              <span>List</span>
-            </button>
-            <button
-              ref={(el) => { viewModeRefs.current['grid'] = el; }}
-              type="button"
-              onClick={() => handleSetViewMode('grid')}
-              className={`relative z-10 px-3 py-1 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs ${
-                viewMode === 'grid'
-                  ? 'text-[#075985] dark:text-[#7dd3fc] font-bold'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] font-medium'
-              }`}
-              title="Grid view"
-            >
-              <LayoutGrid size={13} />
-              <span>Grid</span>
-            </button>
+                {[
+                  { key: 'ALL', label: 'All Categories' },
+                  { key: 'RESIDENTIAL', label: 'Residential' },
+                  { key: 'COMMERCIAL', label: 'Commercial' },
+                  { key: 'UNDER_CONST', label: 'Under Construction' },
+                  { key: 'READY', label: 'Ready to Move' },
+                  { key: 'NEW_LAUNCH', label: 'New Launch' },
+                ].map((f) => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    onClick={() => setSecondaryFilter(f.key)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                      secondaryFilter === f.key
+                        ? 'bg-[var(--text-primary)] text-[var(--bg-surface)] shadow-2xs'
+                        : 'bg-[var(--bg-muted)]/70 text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+
+          {/* Desktop View Switcher: List vs Grid Sliding Switch (hidden on mobile, shown on md+) */}
+          <div className="hidden md:flex items-center shrink-0">
+            <div className="h-5 w-[1px] bg-[var(--border)] mx-1" />
+            <div className="relative inline-flex items-center p-1 bg-[var(--bg-muted)]/80 rounded-full border border-[var(--border)] text-xs font-semibold select-none shadow-inner-xs">
+              <span
+                className="absolute top-1 bottom-1 rounded-full shadow-xs transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none bg-[#bae6fd] dark:bg-[#113c54]"
+                style={{
+                  left: `${viewModeIndicatorStyle.left}px`,
+                  width: `${viewModeIndicatorStyle.width}px`,
+                  opacity: viewModeIndicatorStyle.opacity
+                }}
+              />
+              <button
+                ref={(el) => { viewModeRefs.current['table'] = el; }}
+                type="button"
+                onClick={() => handleSetViewMode('table')}
+                className={`relative z-10 px-3 py-1 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs ${
+                  viewMode === 'table'
+                    ? 'text-[#075985] dark:text-[#7dd3fc] font-bold'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] font-medium'
+                }`}
+                title="Table view"
+              >
+                <List size={13} />
+                <span>List</span>
+              </button>
+              <button
+                ref={(el) => { viewModeRefs.current['grid'] = el; }}
+                type="button"
+                onClick={() => handleSetViewMode('grid')}
+                className={`relative z-10 px-3 py-1 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs ${
+                  viewMode === 'grid'
+                    ? 'text-[#075985] dark:text-[#7dd3fc] font-bold'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] font-medium'
+                }`}
+                title="Grid view"
+              >
+                <LayoutGrid size={13} />
+                <span>Grid</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1599,9 +1632,217 @@ export default function BuilderManagement() {
             )}
           </div>
         ) : viewMode === 'table' ? (
-          /* Table View: Responsive Scrollable Table */
+          /* Table View: Responsive Display (Mobile Cards on < md + Desktop Data Table on >= md) */
           <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-2xs">
-            <div className="w-full overflow-x-auto custom-scrollbar">
+            {/* ── MOBILE CARDS VIEW: (Visible on Mobile < md, Hidden on Desktop) ── */}
+            <div className="block md:hidden divide-y divide-[var(--border)]/70">
+              {filteredBuilders.map((b) => {
+                const bListings = getBuilderListings(b);
+                const totalCount = bListings.all.length;
+                const propCount = bListings.properties.length;
+                const projCount = bListings.projects.length;
+
+                return (
+                  <div
+                    key={b._id}
+                    onClick={() => { setSelectedBuilder(b); setBuilderDrawerTab('overview'); }}
+                    className="p-3.5 sm:p-4 hover:bg-[var(--bg-muted)]/35 transition-colors cursor-pointer space-y-3"
+                  >
+                    {/* Top Row: Logo, Name, ID, City & Status/Live Pill */}
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-[var(--bg-muted)] shrink-0 border border-[var(--border)] flex items-center justify-center">
+                          {b.builderDocs?.companyLogo ? (
+                            <SmoothImage src={b.builderDocs.companyLogo} alt={b.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-brand/15 text-brand font-black text-sm flex items-center justify-center">
+                              {b.name.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-sm text-[var(--text-primary)] hover:text-brand transition-colors truncate" title={b.name}>
+                            {b.name}
+                          </h3>
+                          <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] mt-0.5 truncate">
+                            <span className="font-mono font-semibold text-[10.5px] text-brand">{b.id}</span>
+                            <span>•</span>
+                            <span className="flex items-center gap-0.5 truncate">
+                              <MapPin size={10} className="text-brand shrink-0" />
+                              <span className="truncate">{b.cityOfOperation}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Status Badge & Screen Toggle */}
+                      <div className="shrink-0 flex flex-col items-end gap-1" onClick={(e) => e.stopPropagation()}>
+                        {getBuilderStatusBadge(b.status, 'xs')}
+                        {b.status === 'Approved' && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleDeveloperLive(b, e)}
+                            disabled={togglingLiveId === b._id}
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8.5px] font-bold tracking-tight transition-all cursor-pointer border shadow-2xs ${
+                              b.isLive
+                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500 hover:text-white'
+                                : 'bg-zinc-500/15 text-zinc-600 dark:text-zinc-400 border-zinc-500/30 hover:bg-brand hover:text-white hover:border-brand'
+                            }`}
+                            title={b.isLive ? 'Live on app screen. Click to turn OFF.' : 'Off-screen. Click to give screen permission.'}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${b.isLive ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-400'}`} />
+                            <span>{togglingLiveId === b._id ? '...' : b.isLive ? 'Screen: ON' : 'Screen: OFF'}</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Middle Info Badges Grid */}
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-0.5">
+                      {/* RERA License */}
+                      <div className="bg-[var(--bg-muted)]/40 border border-[var(--border)]/60 rounded-lg p-2 min-w-0">
+                        <span className="text-[9.5px] font-bold uppercase tracking-wider text-[var(--text-muted)] block">RERA License</span>
+                        <div className="flex items-center gap-1 mt-0.5 truncate">
+                          <span className="font-mono text-[11px] font-medium text-[var(--text-primary)] truncate">{b.rera}</span>
+                        </div>
+                        {b.builderDocs?.reraCertificate && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDocumentPreview(b.builderDocs.reraCertificate, `RERA - ${b.name}`);
+                            }}
+                            className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-brand hover:underline mt-1 cursor-pointer"
+                          >
+                            <FileText size={9} /> View Cert
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Portfolio & Listings */}
+                      <div className="bg-[var(--bg-muted)]/40 border border-[var(--border)]/60 rounded-lg p-2 min-w-0">
+                        <span className="text-[9.5px] font-bold uppercase tracking-wider text-[var(--text-muted)] block">Portfolio</span>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${
+                            totalCount > 0
+                              ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20'
+                              : 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20'
+                          }`}>
+                            <Building2 size={10} /> {totalCount} Listed
+                          </span>
+                          <span className="text-[10px] text-[var(--text-muted)] font-mono">
+                            {propCount} Props • {projCount} Projs
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Trust & Experience Strip */}
+                    <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-[var(--border)]/50 text-xs text-[var(--text-muted)]">
+                      <div className="flex items-center gap-2">
+                        {getTrustBadge(b.trust, 'xs')}
+                        <span className="text-[11px] font-medium">{b.yearsInBusinessText}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[10px]">
+                        {b.builderDocs?.panCard ? (
+                          <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20 font-medium">PAN Verified</span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded bg-zinc-500/10 text-zinc-500 border border-zinc-500/20 font-medium">PAN: None</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Priority Setting Strip */}
+                    <div className="flex items-center justify-between gap-2 py-1.5 px-2.5 rounded-lg bg-[var(--bg-muted)]/30 border border-[var(--border)]/60" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Priority Rank:</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="999"
+                          defaultValue={b.priority || 0}
+                          key={`mob-prio-${b._id}-${b.priority}`}
+                          onBlur={(e) => {
+                            const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                            if (val !== (b.priority || 0)) {
+                              handleSavePriority(b, val, e.target);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.target.blur();
+                          }}
+                          disabled={savingPriorityId === b._id}
+                          className="w-12 h-6 text-center font-bold text-xs rounded-md border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)] focus:border-brand focus:ring-1 focus:ring-brand shadow-2xs"
+                          title="Priority Rank on Mobile App Screen"
+                        />
+                        {b.priority > 0 && (
+                          <span className="text-[9.5px] font-black px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/25">
+                            #{b.priority}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-[var(--text-muted)] font-medium">
+                        {b.priority > 0 ? 'Active in App Top' : 'Default (0)'}
+                      </span>
+                    </div>
+
+                    {/* Action Buttons Grid (2-column touch-friendly layout, zero clipping) */}
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[var(--border)]/50" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedBuilder(b); setBuilderDrawerTab('overview'); }}
+                        className="h-8 px-2 rounded-lg text-xs font-semibold bg-[var(--bg-muted)] hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95"
+                        title="Review Details"
+                      >
+                        <Eye size={12} />
+                        <span>Review Details</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedBuilder(b); setBuilderDrawerTab('properties'); }}
+                        className="h-8 px-2 rounded-lg text-xs font-semibold bg-blue-500/10 hover:bg-blue-600 text-blue-700 dark:text-blue-400 hover:text-white border border-blue-500/20 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95"
+                        title="View Listings"
+                      >
+                        <Building2 size={12} />
+                        <span>Listings ({totalCount})</span>
+                      </button>
+
+                      {b.status !== 'Approved' && (
+                        <button
+                          type="button"
+                          onClick={() => updateBuilderStatus(b, 'Approved')}
+                          disabled={isSubmittingAction}
+                          className="h-8 px-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95 disabled:opacity-50"
+                          title="Approve Builder"
+                        >
+                          <Check size={12} strokeWidth={2.5} />
+                          <span>Approve</span>
+                        </button>
+                      )}
+
+                      {b.status !== 'Suspended' && b.status !== 'Rejected' && (
+                        <button
+                          type="button"
+                          onClick={() => setRejectPrompt({ item: b, type: 'builder' })}
+                          disabled={isSubmittingAction}
+                          className={`h-8 px-2 rounded-lg text-xs font-semibold bg-rose-500/10 hover:bg-rose-600 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/20 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95 disabled:opacity-50 ${
+                            b.status !== 'Approved' ? '' : 'col-span-2'
+                          }`}
+                          title="Suspend License"
+                        >
+                          <Ban size={12} strokeWidth={2.5} />
+                          <span>Suspend Developer</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ── DESKTOP DATA TABLE: (Hidden on Mobile < md, Visible on Desktop >= md) ── */}
+            <div className="hidden md:block w-full overflow-x-auto custom-scrollbar">
               <table className="w-full text-left border-collapse table-fixed min-w-[860px]">
                 <colgroup>
                   <col className="w-[20%]" />
@@ -2063,9 +2304,175 @@ export default function BuilderManagement() {
             )}
           </div>
         ) : viewMode === 'table' ? (
-          /* Projects Table View: Responsive Scrollable Table */
+          /* Projects Table View: Responsive Display (Mobile Cards on < md + Desktop Data Table on >= md) */
           <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-2xs">
-            <div className="w-full overflow-x-auto custom-scrollbar">
+            {/* ── MOBILE CARDS VIEW: (Visible on Mobile < md, Hidden on Desktop) ── */}
+            <div className="block md:hidden divide-y divide-[var(--border)]/70">
+              {filteredProjects.map((p) => {
+                const heroImage = p.photos?.[0] || p.gallery?.[0]?.url;
+
+                return (
+                  <div
+                    key={p._id}
+                    onClick={() => { setSelectedProject(p); setProjectDrawerTab('overview'); }}
+                    className="p-3.5 sm:p-4 hover:bg-[var(--bg-muted)]/35 transition-colors cursor-pointer space-y-3"
+                  >
+                    {/* Top Row: Thumbnail, Title, ID, Builder & Status */}
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-[var(--bg-muted)] shrink-0 border border-[var(--border)]">
+                          {heroImage ? (
+                            <SmoothImage src={heroImage} alt={p.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)]">
+                              <Building size={16} />
+                            </div>
+                          )}
+                          {p.videos?.length > 0 && (
+                            <span className="absolute top-0.5 left-0.5 bg-purple-600/90 text-white text-[7px] font-bold px-1 py-0.2 rounded-xs flex items-center gap-0.5 shadow-2xs leading-none">
+                              <Play size={5} className="fill-white" />
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-sm text-[var(--text-primary)] hover:text-brand transition-colors truncate" title={p.title}>
+                            {p.title}
+                          </h3>
+                          <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] mt-0.5 truncate">
+                            <span className="font-mono font-semibold text-[10.5px] text-brand">{p.id}</span>
+                            <span>•</span>
+                            <span className="truncate">{p.builder}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 flex flex-col items-end gap-1">
+                        {getProjectStatusBadge(p.status, 'xs')}
+                      </div>
+                    </div>
+
+                    {/* Middle Info Grid */}
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-0.5">
+                      {/* Location & RERA */}
+                      <div className="bg-[var(--bg-muted)]/40 border border-[var(--border)]/60 rounded-lg p-2 min-w-0">
+                        <span className="text-[9.5px] font-bold uppercase tracking-wider text-[var(--text-muted)] block">Location</span>
+                        <div className="flex items-center gap-1 mt-0.5 truncate">
+                          <MapPin size={10} className="text-brand shrink-0 opacity-80" />
+                          <span className="text-[11px] font-medium text-[var(--text-primary)] truncate">{p.location}</span>
+                        </div>
+                        <span className="text-[9.5px] text-[var(--text-muted)] block font-mono mt-0.5 truncate">
+                          RERA: {p.reraNumber || 'N/A'}
+                        </span>
+                      </div>
+
+                      {/* Units & Stage */}
+                      <div className="bg-[var(--bg-muted)]/40 border border-[var(--border)]/60 rounded-lg p-2 min-w-0">
+                        <span className="text-[9.5px] font-bold uppercase tracking-wider text-[var(--text-muted)] block">Inventory</span>
+                        <span className="font-semibold text-xs text-[var(--text-primary)] block mt-0.5 truncate">
+                          {p.units}
+                        </span>
+                        <span className="text-[9.5px] font-medium text-[var(--text-muted)] block mt-0.5 truncate">
+                          {p.stage}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Investment Score Strip */}
+                    <div className="flex items-center justify-between gap-2 py-1.5 px-2.5 rounded-lg bg-[var(--bg-muted)]/30 border border-[var(--border)]/60" onClick={(e) => e.stopPropagation()}>
+                      <div
+                        onClick={() => openScoreModal(p)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#52c99b]/20 text-[#064e3b] dark:bg-[#1a4a38] dark:text-[#6ee7b7] border border-[#52c99b]/30 hover:scale-105 transition-transform cursor-pointer"
+                        title="Click to adjust investment score metrics"
+                      >
+                        <Sparkles size={11} className="shrink-0" />
+                        <span>Score: {p.score || 0}/10</span>
+                        <span className="text-[9.5px] opacity-75 font-normal ml-0.5">({p.investmentScore?.grade || 'Good'})</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => openScoreModal(p)}
+                        className="text-xs text-brand font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Sparkles size={11} />
+                        <span>Edit Score</span>
+                      </button>
+                    </div>
+
+                    {/* Action Buttons Grid (2-column layout, zero overflow) */}
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[var(--border)]/50" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedProject(p); setProjectDrawerTab('overview'); }}
+                        className="h-8 px-2 rounded-lg text-xs font-semibold bg-[var(--bg-muted)] hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95"
+                        title="Inspect Project"
+                      >
+                        <Eye size={12} />
+                        <span>Inspect Details</span>
+                      </button>
+
+                      {/* Sold Out / Relist Actions */}
+                      {p.status === 'Published' && !p.isSold && (
+                        <button
+                          type="button"
+                          onClick={() => toggleProjectSoldStatus(p, true)}
+                          disabled={isSubmittingAction}
+                          className="h-8 px-2 rounded-lg text-xs font-semibold bg-amber-500/10 hover:bg-amber-600 text-amber-700 dark:text-amber-400 hover:text-white border border-amber-500/20 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95 disabled:opacity-50"
+                          title="Mark Sold Out"
+                        >
+                          <Tag size={12} strokeWidth={2.2} />
+                          <span>Mark Sold Out</span>
+                        </button>
+                      )}
+
+                      {(p.status === 'Sold' || p.isSold) && (
+                        <button
+                          type="button"
+                          onClick={() => toggleProjectSoldStatus(p, false)}
+                          disabled={isSubmittingAction}
+                          className="h-8 px-2 rounded-lg text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-600 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95 disabled:opacity-50"
+                          title="Relist Project"
+                        >
+                          <RotateCcw size={12} />
+                          <span>Relist Available</span>
+                        </button>
+                      )}
+
+                      {p.status !== 'Published' && p.status !== 'Sold' && (
+                        <button
+                          type="button"
+                          onClick={() => updateProjectStatus(p, 'Published')}
+                          disabled={isSubmittingAction}
+                          className="h-8 px-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95 disabled:opacity-50"
+                          title="Publish Live"
+                        >
+                          <Check size={12} strokeWidth={2.5} />
+                          <span>Publish Live</span>
+                        </button>
+                      )}
+
+                      {p.status !== 'Archived' && (
+                        <button
+                          type="button"
+                          onClick={() => setRejectPrompt({ item: p, type: 'project' })}
+                          disabled={isSubmittingAction}
+                          className={`h-8 px-2 rounded-lg text-xs font-semibold bg-rose-500/10 hover:bg-rose-600 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/20 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95 disabled:opacity-50 ${
+                            p.status === 'Published' && !p.isSold ? '' : 'col-span-2'
+                          }`}
+                          title="Archive Project"
+                        >
+                          <Ban size={12} strokeWidth={2.5} />
+                          <span>Archive Project</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ── DESKTOP DATA TABLE: (Hidden on Mobile < md, Visible on Desktop >= md) ── */}
+            <div className="hidden md:block w-full overflow-x-auto custom-scrollbar">
               <table className="w-full text-left border-collapse table-fixed min-w-[850px]">
                 <colgroup>
                   <col className="w-[28%]" />

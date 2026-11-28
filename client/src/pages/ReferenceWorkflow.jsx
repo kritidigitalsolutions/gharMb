@@ -465,7 +465,7 @@ const ReferenceWorkflow = () => {
       </div>
 
       {/* ─── 4 POLISHED KPI CARDS (STANDARDIZED TOP-ACCENT KPI STYLE) ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         {[
           {
             key: 'paid',
@@ -561,8 +561,8 @@ const ReferenceWorkflow = () => {
         {/* Clean Filter & Search Toolbar */}
         <div className="p-3 border-b border-[var(--border)] flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[var(--bg-surface)]">
 
-          {/* Status Filter Tabs */}
-          <div className="flex flex-wrap items-center gap-1.5">
+          {/* Status Filter Tabs (Scrollable on mobile without messy wrapping) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5 -mx-1 px-1">
             {[
               { id: 'All', label: 'All Referrals', count: references.length },
               { id: 'Eligible for Payout', label: 'Eligible', count: references.filter(r => r.payoutStatus === 'Eligible for Payout').length },
@@ -576,7 +576,7 @@ const ReferenceWorkflow = () => {
                   key={tab.id}
                   type="button"
                   onClick={() => setStatusFilter(tab.id)}
-                  className={`h-8 px-2.5 rounded-lg text-xs font-medium transition-all duration-150 flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                  className={`h-8 px-2.5 rounded-lg text-xs font-medium transition-all duration-150 flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0 whitespace-nowrap ${
                     active
                       ? 'bg-brand text-white font-semibold shadow-xs shadow-brand/25'
                       : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] border border-transparent'
@@ -594,7 +594,7 @@ const ReferenceWorkflow = () => {
           </div>
 
           {/* Search Input Bar with Clear Button */}
-          <div className="relative w-full md:w-72">
+          <div className="relative w-full md:w-72 shrink-0">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
             <input
               type="text"
@@ -616,8 +616,222 @@ const ReferenceWorkflow = () => {
 
         </div>
 
-        {/* ─── DATA TABLE: 100% REAL DATA WITH BALANCED PROPORTIONS ─── */}
-        <div className="w-full overflow-x-auto custom-scrollbar min-h-[220px]">
+        {/* ── MOBILE CARDS VIEW: (Visible on Mobile < md, Hidden on Desktop >= md) ── */}
+        <div className="block md:hidden divide-y divide-[var(--border)]/70">
+          {isLoading ? (
+            <div className="py-12 text-center">
+              <AdminLoader
+                text="Fetching real referral records..."
+                subtext="Loading ambassador rewards and linked transactions"
+                minHeight="min-h-[180px]"
+              />
+            </div>
+          ) : filteredRefs.length === 0 ? (
+            <div className="p-8 text-center text-[var(--text-muted)] space-y-2">
+              <div className="w-10 h-10 mx-auto rounded-full bg-[var(--bg-muted)] flex items-center justify-center text-[var(--text-muted)] border border-[var(--border)]">
+                <Gift size={18} />
+              </div>
+              <p className="font-semibold text-sm text-[var(--text-primary)]">
+                {references.length === 0 ? 'No Referral Deals Registered' : 'No matching referral records found'}
+              </p>
+              <p className="text-xs text-[var(--text-muted)] max-w-sm mx-auto">
+                {references.length === 0
+                  ? 'Referrals submitted by community ambassadors or channel partners will securely appear here in real time.'
+                  : 'Try changing your search query or switching the payout status filter.'}
+              </p>
+              {references.length === 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="mt-2 px-3.5 py-1.5 rounded-lg bg-brand text-white text-xs font-semibold inline-flex items-center gap-1.5 shadow-sm cursor-pointer hover:bg-brand-dark"
+                >
+                  <Plus size={13} />
+                  <span>Register First Referral Deal</span>
+                </button>
+              ) : (
+                (searchQuery || statusFilter !== 'All') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setStatusFilter('All');
+                    }}
+                    className="mt-1 text-xs font-semibold text-brand hover:underline cursor-pointer"
+                  >
+                    Clear all filters
+                  </button>
+                )
+              )}
+            </div>
+          ) : (
+            filteredRefs.map((r) => (
+              <div
+                key={r.id || r.mongoId}
+                onClick={() => setSelectedRef(r)}
+                className="p-3.5 sm:p-4 hover:bg-[var(--bg-muted)]/35 transition-colors cursor-pointer space-y-3"
+              >
+                {/* Top Row: Ref ID + Date & Payout Status Badge */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                    <span className="font-mono text-[11px] font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-md">
+                      {r.id}
+                    </span>
+                    <span className="text-[11px] text-[var(--text-muted)]">
+                      {r.createdDate}
+                    </span>
+                  </div>
+                  <div className="shrink-0">
+                    {renderStatusBadge(r.payoutStatus, 'xs')}
+                  </div>
+                </div>
+
+                {/* Referrer & Referee Grid */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {/* Referrer Box */}
+                  <div className="bg-[var(--bg-muted)]/40 border border-[var(--border)]/60 rounded-lg p-2.5 min-w-0">
+                    <span className="text-[9.5px] font-bold uppercase tracking-wider text-[var(--text-muted)] block">
+                      Referrer
+                    </span>
+                    <p className="font-bold text-xs text-[var(--text-primary)] truncate mt-0.5" title={r.referrerName}>
+                      {r.referrerName}
+                    </p>
+                    <span className="text-[10px] text-[var(--text-muted)] block truncate mt-0.5">
+                      {r.referrerRole || 'Advocate'}
+                    </span>
+                    {r.referralCode && (
+                      <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyCode(r.referralCode)}
+                          className="inline-flex items-center gap-1 font-mono text-[10px] font-bold bg-[var(--bg-surface)] hover:bg-brand/10 hover:border-brand/30 hover:text-brand px-1.5 py-0.5 rounded border border-[var(--border)] transition-all cursor-pointer shadow-2xs max-w-full truncate"
+                          title="Click to copy code"
+                        >
+                          {copiedCode === r.referralCode ? (
+                            <Check size={10} className="text-emerald-500 shrink-0" />
+                          ) : (
+                            <Copy size={10} className="text-slate-400 shrink-0" />
+                          )}
+                          <span className="truncate">{r.referralCode}</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Referee Box */}
+                  <div className="bg-[var(--bg-muted)]/40 border border-[var(--border)]/60 rounded-lg p-2.5 min-w-0">
+                    <span className="text-[9.5px] font-bold uppercase tracking-wider text-[var(--text-muted)] block">
+                      Referee (Client)
+                    </span>
+                    <p className="font-bold text-xs text-[var(--text-primary)] truncate mt-0.5" title={r.refereeName}>
+                      {r.refereeName}
+                    </p>
+                    <p className="text-[10.5px] text-[var(--text-muted)] font-mono mt-0.5 truncate">
+                      {r.refereePhone || 'No Phone'}
+                    </p>
+                    {r.refereePhone && (
+                      <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => setCallTarget(r)}
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                        >
+                          <Phone size={10} /> Call Referee
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Linked Deal & Commission Reward Strip */}
+                <div className="flex items-center justify-between gap-2.5 p-2.5 rounded-lg bg-[var(--bg-muted)]/30 border border-[var(--border)]/60 text-xs">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[9.5px] font-bold uppercase tracking-wider text-[var(--text-muted)] block">
+                      Linked Property Deal
+                    </span>
+                    <p className="font-semibold text-xs text-[var(--text-primary)] truncate mt-0.5" title={r.linkedProperty}>
+                      {r.linkedProperty || 'Direct Registration'}
+                    </p>
+                    <span className="text-[10.5px] font-bold text-emerald-600 block mt-0.5 truncate">
+                      {r.dealValue || 'Pending Value'}
+                    </span>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <span className="text-[9.5px] font-bold uppercase tracking-wider text-[var(--text-muted)] block">
+                      Reward Payout
+                    </span>
+                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 block mt-0.5">
+                      ₹{(r.rewardAmount || 0).toLocaleString()}
+                    </span>
+                    <span className="text-[9.5px] text-[var(--text-muted)] block">
+                      Commission
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action Buttons Grid (Full-width, zero cutoff) */}
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[var(--border)]/50" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRef(r)}
+                    className="h-8 px-2 rounded-lg text-xs font-semibold bg-[var(--bg-muted)] hover:bg-brand hover:text-white text-[var(--text-secondary)] border border-[var(--border)] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95"
+                    title="Inspect Referral Deal"
+                  >
+                    <Eye size={12} />
+                    <span>Inspect Deal</span>
+                  </button>
+
+                  {r.payoutStatus === 'Eligible for Payout' ? (
+                    <button
+                      type="button"
+                      onClick={() => setPayoutModal(r)}
+                      className="h-8 px-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95"
+                      title="Settle Reward Payout"
+                    >
+                      <Gift size={12} />
+                      <span>Settle Payout</span>
+                    </button>
+                  ) : r.refereePhone ? (
+                    <button
+                      type="button"
+                      onClick={() => setCallTarget(r)}
+                      className="h-8 px-2 rounded-lg text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-600 text-emerald-700 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95"
+                      title="Call Referee"
+                    >
+                      <Phone size={12} />
+                      <span>Call Client</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setDeleteModal(r)}
+                      className="h-8 px-2 rounded-lg text-xs font-semibold bg-rose-500/10 hover:bg-rose-600 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/20 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95"
+                      title="Delete Referral Record"
+                    >
+                      <Trash2 size={12} />
+                      <span>Delete</span>
+                    </button>
+                  )}
+
+                  {r.payoutStatus === 'Eligible for Payout' && (
+                    <button
+                      type="button"
+                      onClick={() => setDeleteModal(r)}
+                      className="col-span-2 h-7 px-2 rounded-lg text-xs font-semibold bg-rose-500/10 hover:bg-rose-600 text-rose-700 dark:text-rose-400 hover:text-white border border-rose-500/20 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95"
+                      title="Delete Referral Record"
+                    >
+                      <Trash2 size={11} />
+                      <span>Delete Record</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* ─── DATA TABLE: 100% REAL DATA (Desktop >= md Only) ─── */}
+        <div className="hidden md:block w-full overflow-x-auto custom-scrollbar min-h-[220px]">
           <table className="w-full text-left border-collapse table-fixed min-w-[700px]">
             <colgroup>
               <col className="w-[10%]" />
